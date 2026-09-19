@@ -539,7 +539,9 @@ function buildTab(meta) {
   tab.className = 'note-tab' + (isActive ? ' active' : '') + (isConflict ? ' is-conflict' : '');
   tab.draggable = true;
   tab.dataset.id = String(meta.id);
-  tab.title = meta.title || 'Sem título';
+  tab.title = meta.pasta
+    ? `${meta.title || 'Sem título'} (📁 ${meta.pasta})`
+    : (meta.title || 'Sem título');
 
   // Se a aba estiver ativa: se tiver cor definida, usa essa cor na borda; senão cai no cinza mais escuro do CSS
   if (isActive) {
@@ -566,16 +568,26 @@ function buildTab(meta) {
   if (indicator) tab.appendChild(indicator);
   tab.appendChild(title);
 
+  if (meta.pasta) {
+    const folderBadge = document.createElement('span');
+    folderBadge.className = 'note-tab-folder-badge';
+    folderBadge.textContent = meta.pasta;
+    folderBadge.title = `Pasta: ${meta.pasta}`;
+    tab.appendChild(folderBadge);
+  }
+
   // Um clique só troca de nota (nunca abre menu, pra não abrir sem querer).
-  // O clique duplo — em qualquer parte da aba: texto, ícone ou cor — abre o
-  // mesmo menu de sempre (Renomear / Ícone e cor / Copiar / Baixar / Excluir),
-  // sem precisar mais do botão "⋯" só pra isso, deixando a aba mais compacta.
+  // O clique duplo ou clique com botão direito abre o menu da nota (Mover para pasta, Renomear, etc.)
   tab.addEventListener('click', async () => {
     if (meta.id === activeId) return;
     await activateNote(meta.id);
     renderTabs();
   });
   tab.addEventListener('dblclick', e => {
+    e.preventDefault();
+    openTabMenu(meta, tab);
+  });
+  tab.addEventListener('contextmenu', e => {
     e.preventDefault();
     openTabMenu(meta, tab);
   });
@@ -1013,7 +1025,7 @@ function saveOpenFolders(set) {
   } catch {}
 }
 
-function buildFolderTree(pastas, notes) {
+export function buildFolderTree(pastas, notes) {
   const root = {
     caminho: '',
     nome: '',
@@ -1041,16 +1053,16 @@ function buildFolderTree(pastas, notes) {
     let cur = root;
     for (let i = 0; i < partes.length; i++) {
       const subCaminho = partes.slice(0, i + 1).join('/');
-      if (!cur.subpastas.has(parts[i])) {
-        cur.subpastas.set(parts[i], {
+      if (!cur.subpastas.has(partes[i])) {
+        cur.subpastas.set(partes[i], {
           caminho: subCaminho,
-          nome: parts[i],
+          nome: partes[i],
           nivel: i + 1,
           subpastas: new Map(),
           notas: [],
         });
       }
-      cur = cur.subpastas.get(parts[i]);
+      cur = cur.subpastas.get(partes[i]);
     }
     return cur;
   }
@@ -1321,7 +1333,7 @@ function promptExcluirPasta(caminho, totalNotas, onDone = null) {
 let moveMenuEl = null;
 function closeMoveMenu() { moveMenuEl?.remove(); moveMenuEl = null; }
 
-async function promptMoverNotaParaPasta(meta, anchorEl, onDone = null) {
+export async function promptMoverNotaParaPasta(meta, anchorEl, onDone = null) {
   closeMoveMenu();
   const pop = document.createElement('div');
   pop.className = 'copy-menu folder-picker-popover';
@@ -1347,6 +1359,7 @@ async function promptMoverNotaParaPasta(meta, anchorEl, onDone = null) {
     meta.pasta = '';
     notesMeta = await loadAllNotesMeta();
     renderTabs();
+    if (meta.id === activeId) updateNoteFolderBar(meta);
     if (onDone) await onDone();
   });
   pop.appendChild(optRaiz);
@@ -1366,6 +1379,7 @@ async function promptMoverNotaParaPasta(meta, anchorEl, onDone = null) {
       meta.pasta = cam;
       notesMeta = await loadAllNotesMeta();
       renderTabs();
+      if (meta.id === activeId) updateNoteFolderBar(meta);
       if (onDone) await onDone();
     });
     pop.appendChild(opt);
@@ -1741,8 +1755,43 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
 
     // 2. Se for a raiz, renderiza as notas da raiz
     if (node === tree) {
+      if (tree.subpastas.size > 0) {
+        const rootHeader = document.createElement('div');
+        rootHeader.className = 'folder-header root-folder-header';
+        rootHeader.style.paddingLeft = '8px';
+        rootHeader.innerHTML = `
+          <span class="folder-icon">${iconSvg('folder_open')}</span>
+          <span class="folder-name">Raiz (sem pasta)</span>
+          <span class="folder-count">${tree.notas.length}</span>
+        `;
+        rootHeader.addEventListener('dragover', e => {
+          if (noteDragSrcId == null) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          rootHeader.classList.add('drag-over');
+        });
+        rootHeader.addEventListener('dragleave', () => {
+          rootHeader.classList.remove('drag-over');
+        });
+        rootHeader.addEventListener('drop', async e => {
+          e.preventDefault();
+          e.stopPropagation();
+          rootHeader.classList.remove('drag-over');
+          if (noteDragSrcId == null) return;
+          const srcId = noteDragSrcId;
+          cleanupListDrag();
+          await moverNotaParaPasta(srcId, '');
+          notesMeta = await loadAllNotesMeta();
+          const activeMeta = notesMeta.find(n => n.id === activeId);
+          if (activeMeta) updateNoteFolderBar(activeMeta);
+          renderTabs();
+          await renderNotesListRows(container, filterQuery, countEl, clearBtn);
+        });
+        parentEl.appendChild(rootHeader);
+      }
+
       for (const meta of node.notas) {
-        parentEl.appendChild(renderNoteRow(meta, 8));
+        parentEl.appendChild(renderNoteRow(meta, tree.subpastas.size > 0 ? 20 : 8));
       }
     }
   };
@@ -2039,6 +2088,22 @@ importInput.addEventListener('change', async () => {
 });
 
 // ── Ciclo de vida ──────────────────────────────────────────────────────────────
+export function updateNoteFolderBar(meta) {
+  const btn = document.getElementById('btn-note-folder');
+  const nameEl = document.getElementById('note-folder-name');
+  if (!btn || !nameEl) return;
+  const pasta = meta?.pasta || '';
+  if (pasta) {
+    nameEl.textContent = pasta;
+    btn.classList.add('has-folder');
+    btn.title = `Pasta: ${pasta} (clique para mover ou alterar pasta)`;
+  } else {
+    nameEl.textContent = 'Sem pasta';
+    btn.classList.remove('has-folder');
+    btn.title = 'Mover esta nota para uma pasta';
+  }
+}
+
 async function activateNote(id) {
   activeId = id;
   const meta = notesMeta.find(n => n.id === id);
@@ -2046,6 +2111,7 @@ async function activateNote(id) {
   await switchToNote(id);
   await setDocumentsNote(id);
   await saveActiveNoteId(id);
+  updateNoteFolderBar(meta);
   switchView('editor');
 }
 
@@ -2097,6 +2163,17 @@ export async function initNotesTabs() {
     const id = await createNoteRecord(fields);
     notesMeta = [{ id, title: fields.title, color: fields.color, icon: fields.icon, updatedAt: Date.now() }];
   }
+
+  // Evento do botão de pasta no cabeçalho do editor
+  document.getElementById('btn-note-folder')?.addEventListener('click', e => {
+    e.stopPropagation();
+    const meta = notesMeta.find(n => n.id === activeId);
+    if (!meta) return;
+    promptMoverNotaParaPasta(meta, e.currentTarget, () => {
+      updateNoteFolderBar(meta);
+      renderTabs();
+    });
+  });
 
   const savedActiveId = await loadActiveNoteId();
   const initial = notesMeta.find(n => n.id === savedActiveId) ?? notesMeta[0];

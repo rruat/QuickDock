@@ -3000,12 +3000,33 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   // 19.3: Arraste e solte para mover notas para pastas
   ok('pastas ui · dragover highlight no cabeçalho da pasta', tabsSource.includes('drag-over') && tabsSource.includes('moverNotaParaPasta'));
 
-  // 19.4: Estilização no CSS
+  // 19.4: Estilização no CSS e Estrutura no HTML
+  const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   ok('pastas ui · style.css define barra de ações e botão de nova pasta', styleSource.includes('.notes-list-toolbar') && styleSource.includes('.notes-list-action-btn'));
   ok('pastas ui · style.css define cabeçalho e item de pasta', styleSource.includes('.folder-item') && styleSource.includes('.folder-header'));
   ok('pastas ui · style.css define badge de contagem e chevron', styleSource.includes('.folder-chevron') && styleSource.includes('.folder-count'));
   ok('pastas ui · style.css define indicador de drag-over na pasta', styleSource.includes('.folder-header.drag-over'));
   ok('pastas ui · style.css define diálogos e seletores de pasta', styleSource.includes('.folder-modal') && styleSource.includes('.folder-picker-popover'));
+  ok('pastas ui · style.css define barra de pasta no editor e badge de pasta nas abas', styleSource.includes('.note-folder-bar') && styleSource.includes('.note-folder-btn') && styleSource.includes('.note-tab-folder-badge'));
+  ok('pastas ui · index.html define barra de pasta no editor da nota', htmlSource.includes('id="note-folder-bar"') && htmlSource.includes('id="btn-note-folder"') && htmlSource.includes('id="note-folder-name"'));
+  ok('pastas ui · notes-tabs.js possui clique com botão direito (contextmenu) para abrir menu de opções', tabsSource.includes("contextmenu"));
+
+  // 19.5: Execução real de buildFolderTree com verificação estrutural (previne regressões de ReferenceError)
+  const fnMatch = tabsSource.match(/export function buildFolderTree[\s\S]+?return root;\s*\}/);
+  ok('pastas ui · buildFolderTree exportada e extraível', !!fnMatch);
+  const testBuildFolderTree = new Function('pastas', 'notes', fnMatch[0].replace('export function buildFolderTree', 'function buildFolderTree') + '; return buildFolderTree(pastas, notes);');
+  const treeAmostra = testBuildFolderTree(
+    [{ caminho: 'Projetos' }, { caminho: 'Projetos/Web' }, { caminho: 'Arquivo' }],
+    [
+      { id: 1, title: 'Nota Web', pasta: 'Projetos/Web' },
+      { id: 2, title: 'Nota Arquivo', pasta: 'Arquivo' },
+      { id: 3, title: 'Nota Raiz', pasta: '' }
+    ]
+  );
+  ok('pastas ui · buildFolderTree constrói raiz e subpastas sem lançar exceção', treeAmostra && treeAmostra.subpastas.has('Projetos'));
+  ok('pastas ui · buildFolderTree aninha subpasta Projetos/Web corretamente', treeAmostra.subpastas.get('Projetos').subpastas.has('Web'));
+  igual('pastas ui · nota em Projetos/Web alocada no nó folha correto', treeAmostra.subpastas.get('Projetos').subpastas.get('Web').notas.length, 1);
+  igual('pastas ui · nota na raiz alocada corretamente', treeAmostra.notas.length, 1);
 }
 
 // ── 20. Links entre Notas e Wikilinks (Fase 3) ────────────────────────────────

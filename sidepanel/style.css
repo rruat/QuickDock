@@ -167,8 +167,54 @@ body:not(.booting) .note-editor-blocks {
   position: relative;
   min-height: 0;
   display: flex;
+  flex-direction: column;
   border-top: 3px solid var(--note-accent, transparent);
   transition: border-color 0.15s;
+}
+
+/* Barra de pasta no topo do editor */
+.note-folder-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px 2px 34px;
+  flex-shrink: 0;
+}
+
+.note-folder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-family: inherit;
+}
+
+.note-folder-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.note-folder-btn.has-folder {
+  color: var(--accent);
+  background: var(--bg-hover);
+  border-color: var(--border);
+  font-weight: 500;
+}
+
+.note-folder-btn.has-folder:hover {
+  border-color: var(--accent);
+}
+
+.note-folder-btn .qd-icon {
+  font-size: 13px;
 }
 
 /* ===== EDITOR DE BLOCOS ===== */
@@ -5221,6 +5267,31 @@ html[data-platform="mobile"] #btn-nav-board {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* Badge de pasta na aba de notas */
+.note-tab-folder-badge {
+  font-size: 9.5px;
+  padding: 0 5px;
+  height: 16px;
+  line-height: 16px;
+  border-radius: 4px;
+  background: var(--bg-hover, var(--border));
+  color: var(--text-muted);
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Cabeçalho da pasta raiz na lista */
+.root-folder-header {
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
 }
 
 /* Diálogos modais de criação, renomeação e exclusão de pastas */

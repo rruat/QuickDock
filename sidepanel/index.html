@@ -71,6 +71,12 @@
         </svg>
       </div>
       <div class="note-editor">
+        <div id="note-folder-bar" class="note-folder-bar">
+          <button id="btn-note-folder" class="note-folder-btn" title="Pasta da nota (clique para mover)" aria-label="Pasta da nota">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">folder</span>
+            <span id="note-folder-name" class="note-folder-name">Sem pasta</span>
+          </button>
+        </div>
         <div id="note-editor-blocks" class="note-editor-blocks" contenteditable="true" spellcheck="false"></div>
         <div id="note-backlinks-section" class="note-backlinks-section" hidden>
           <button id="note-backlinks-toggle" class="note-backlinks-toggle" type="button" aria-expanded="false">
