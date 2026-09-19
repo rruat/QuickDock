@@ -17,6 +17,7 @@ export const DEFAULT_GRAPH_CONFIG = Object.freeze({
   showOrphans: true,
   alwaysShowLabels: false,
   selectedFolder: '',
+  nodeShape: 'star',
   repulsion: 150,
   linkDistance: 90,
   linkStrength: 0.35,
@@ -130,6 +131,9 @@ function carregarConfig() {
     if (raw) {
       const parsed = JSON.parse(raw);
       config = { ...DEFAULT_GRAPH_CONFIG, ...parsed };
+      if (config.nodeShape !== 'circle' && config.nodeShape !== 'star') {
+        config.nodeShape = 'star';
+      }
     } else {
       config = { ...DEFAULT_GRAPH_CONFIG };
     }
@@ -160,6 +164,7 @@ function fecharSettingsPanel() {
 function initSettingsUI() {
   const orphansInput = document.getElementById('graph-setting-orphans');
   const labelsInput = document.getElementById('graph-setting-labels');
+  const shapeSelect = document.getElementById('graph-setting-shape');
   const folderSelect = document.getElementById('graph-setting-folder');
   const repInput = document.getElementById('graph-setting-repulsion');
   const linkDistInput = document.getElementById('graph-setting-link-distance');
@@ -177,6 +182,12 @@ function initSettingsUI() {
 
   labelsInput?.addEventListener('change', e => {
     config.alwaysShowLabels = !!e.target.checked;
+    salvarConfig();
+    render();
+  });
+
+  shapeSelect?.addEventListener('change', e => {
+    config.nodeShape = e.target.value === 'circle' ? 'circle' : 'star';
     salvarConfig();
     render();
   });
@@ -242,6 +253,7 @@ function initSettingsUI() {
 function sincronizarValoresUI() {
   const orphansInput = document.getElementById('graph-setting-orphans');
   const labelsInput = document.getElementById('graph-setting-labels');
+  const shapeSelect = document.getElementById('graph-setting-shape');
   const repInput = document.getElementById('graph-setting-repulsion');
   const linkDistInput = document.getElementById('graph-setting-link-distance');
   const linkStrInput = document.getElementById('graph-setting-link-strength');
@@ -249,6 +261,7 @@ function sincronizarValoresUI() {
 
   if (orphansInput) orphansInput.checked = !!config.showOrphans;
   if (labelsInput) labelsInput.checked = !!config.alwaysShowLabels;
+  if (shapeSelect) shapeSelect.value = config.nodeShape || 'star';
 
   if (repInput) {
     repInput.value = String(config.repulsion);
@@ -634,6 +647,39 @@ function stepSimulation() {
   return totalEnergy / nCount;
 }
 
+// ── Formas dos Nós ─────────────────────────────────────────────────────────────
+/**
+ * Desenha uma estrela astroidal de 4 pontas idêntica ao logo do QuickDock.
+ * Utiliza curvas cúbicas de Bézier com fator de concavidade s = 0.18
+ * (proporção equivalente ao SVG d="M0 -58 C0 -10.4 10.4 0 58 0 ...").
+ */
+export function drawStar4(ctx, cx, cy, r) {
+  const s = 0.18;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.bezierCurveTo(cx, cy - r * s, cx + r * s, cy, cx + r, cy);
+  ctx.bezierCurveTo(cx + r * s, cy, cx, cy + r * s, cx, cy + r);
+  ctx.bezierCurveTo(cx, cy + r * s, cx - r * s, cy, cx - r, cy);
+  ctx.bezierCurveTo(cx - r * s, cy, cx, cy - r * s, cx, cy - r);
+  ctx.closePath();
+}
+
+/**
+ * Desenha a forma do nó no Canvas 2D conforme a configuração atual:
+ * 'star' (estrela de 4 pontas da marca) ou 'circle' (círculo clássico).
+ */
+export function drawNodeShape(ctx, cx, cy, r, shape = 'star') {
+  if (shape === 'star') {
+    // Multiplicador 1.35 compensa a concavidade da curva astroidal,
+    // garantindo peso visual e área de superfície equivalentes ao círculo.
+    drawStar4(ctx, cx, cy, r * 1.35);
+  } else {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.closePath();
+  }
+}
+
 // ── Renderização no Canvas ─────────────────────────────────────────────────────
 function render() {
   if (!ctx || !canvas) return;
@@ -684,6 +730,7 @@ function render() {
   }
 
   // 2. Desenha nós
+  const currentShape = config.nodeShape || 'star';
   for (const node of nodes) {
     const isHovered = hoveredNode === node;
     const isNeighbor = activeNeighborSet && activeNeighborSet.has(node.id);
@@ -697,14 +744,20 @@ function render() {
       ctx.globalAlpha = 0.25;
     }
 
-    // Círculo externo do nó
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
-
     let nodeColor = node.color || accentColor;
+
+    // Brilho / Halo neon em hover
+    if (isHovered) {
+      ctx.shadowColor = nodeColor;
+      ctx.shadowBlur = 14;
+    }
+
+    drawNodeShape(ctx, node.x, node.y, r, currentShape);
+
     ctx.fillStyle = nodeColor;
     ctx.fill();
 
+    ctx.shadowBlur = 0; // Desativa blur para manter a borda nítida
     ctx.strokeStyle = isHovered ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.2)');
     ctx.lineWidth = isHovered ? 2.5 : 1.2;
     ctx.stroke();
@@ -721,7 +774,8 @@ function render() {
       if (text.length > 22 && !isHovered && !config.alwaysShowLabels) {
         text = text.slice(0, 20) + '…';
       }
-      ctx.fillText(text, node.x, node.y + r + 4);
+      const visualRadius = currentShape === 'star' ? r * 1.35 : r;
+      ctx.fillText(text, node.x, node.y + visualRadius + 4);
     }
 
     ctx.restore();
@@ -740,10 +794,13 @@ function worldCoordinates(clientX, clientY) {
 }
 
 function findNodeAt(worldX, worldY) {
+  const isStar = (config.nodeShape || 'star') === 'star';
   for (let i = nodes.length - 1; i >= 0; i--) {
     const node = nodes[i];
+    const baseRadius = node.radius || 6;
+    const hitRadius = (isStar ? baseRadius * 1.35 : baseRadius) + 6;
     const dist = Math.hypot(worldX - node.x, worldY - node.y);
-    if (dist <= (node.radius || 6) + 6) {
+    if (dist <= hitRadius) {
       return node;
     }
   }

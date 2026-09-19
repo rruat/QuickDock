@@ -964,12 +964,15 @@ body:not(.booting) .note-editor-blocks {
 .note-tab.active { background: var(--bg-secondary); border-color: var(--border); }
 
 .note-tab-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  width: 9px;
+  height: 9px;
   flex-shrink: 0;
   cursor: pointer;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  clip-path: polygon(50% 0%, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0% 50%, 37% 37%);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.note-tab:hover .note-tab-dot {
+  transform: scale(1.22);
 }
 
 .note-tab-title {
@@ -3158,10 +3161,10 @@ html[data-platform="mobile"] .note-tab.active {
 
 html[data-platform="extension"] .note-tab-dot,
 html[data-platform="mobile"] .note-tab-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  width: 9px;
+  height: 9px;
   flex-shrink: 0;
+  clip-path: polygon(50% 0%, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0% 50%, 37% 37%);
 }
 
 html[data-platform="extension"] .note-tab-title,

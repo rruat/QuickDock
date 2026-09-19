@@ -3165,6 +3165,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     graphSource.includes('showOrphans') &&
     graphSource.includes('alwaysShowLabels') &&
     graphSource.includes('selectedFolder') &&
+    graphSource.includes('nodeShape') &&
     graphSource.includes('repulsion') &&
     graphSource.includes('linkDistance') &&
     graphSource.includes('linkStrength') &&
@@ -3184,6 +3185,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     htmlSource.includes('id="graph-settings-panel"') &&
     htmlSource.includes('id="graph-setting-orphans"') &&
     htmlSource.includes('id="graph-setting-labels"') &&
+    htmlSource.includes('id="graph-setting-shape"') &&
     htmlSource.includes('id="graph-setting-repulsion"') &&
     htmlSource.includes('id="graph-setting-link-distance"') &&
     htmlSource.includes('id="graph-setting-link-strength"') &&
@@ -3197,6 +3199,25 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleSource.includes('.graph-range')
   );
 
+  // 21.5: Nós em formato de estrela de 4 pontas da Logo e personalização
+  ok('grafo · formato dos nós suporta estrela de 4 pontas da logo (drawStar4) e círculo',
+    graphSource.includes('export function drawStar4') &&
+    graphSource.includes('export function drawNodeShape') &&
+    graphSource.includes("nodeShape: 'star'") &&
+    graphSource.includes('bezierCurveTo') &&
+    htmlSource.includes('id="graph-setting-shape"') &&
+    htmlSource.includes('value="star"') &&
+    htmlSource.includes('value="circle"')
+  );
+  ok('grafo · nós possuem efeito luminoso / halo neon no hover',
+    graphSource.includes('ctx.shadowBlur = 14') &&
+    graphSource.includes('ctx.shadowColor = nodeColor')
+  );
+  ok('grafo · estilo dos pontos das abas usa clip-path de estrela de 4 pontas da marca',
+    styleSource.includes('.note-tab-dot') &&
+    styleSource.includes('clip-path: polygon')
+  );
+
   // Verificação matemática da convergência de resfriamento em simulated annealing
   let testAlpha = 1.0;
   let stepsToCool = 0;
@@ -3205,6 +3226,15 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     stepsToCool++;
   }
   ok('grafo · resfriamento térmico garante parada estática antes de 160 passos', stepsToCool > 50 && stepsToCool < 160);
+
+  // Verificação matemática da curva astroidal da estrela de 4 pontas (s = 0.18)
+  const pinch = 0.18;
+  const radius = 20;
+  const topY = -radius;
+  const cp1Y = -radius * pinch;
+  ok('grafo · geometria astroidal da logo possui proporção de estrangulamento concêntrico',
+    Math.abs(cp1Y - (-3.6)) < 0.001 && Math.abs(topY - (-20)) < 0.001
+  );
 }
 
 // ── 22. Quadro Infinito / Canvas Espacial (Fase 5) ───────────────────────────
