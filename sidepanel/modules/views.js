@@ -26,6 +26,8 @@ export function switchView(viewName, params = {}) {
       document.dispatchEvent(new CustomEvent('quickdock:refresh-graph-view', { detail: params }));
     } else if (viewName === 'board') {
       document.dispatchEvent(new CustomEvent('quickdock:refresh-board-view', { detail: params }));
+    } else if (viewName === 'calendar') {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-calendar-view', { detail: params }));
     }
     return;
   }
@@ -37,9 +39,11 @@ export function switchView(viewName, params = {}) {
   const templatesView = document.getElementById('templates-gallery-view');
   const graphView = document.getElementById('graph-view');
   const boardView = document.getElementById('board-view');
+  const calendarView = document.getElementById('calendar-view');
   const btnNavTemplates = document.getElementById('btn-nav-templates');
   const btnNavGraph = document.getElementById('btn-nav-graph');
   const btnNavBoard = document.getElementById('btn-nav-board');
+  const btnNavCalendar = document.getElementById('btn-nav-calendar');
 
   // Oculta todas as visões secundárias
   if (templatesView) {
@@ -54,11 +58,16 @@ export function switchView(viewName, params = {}) {
     boardView.hidden = true;
     boardView.classList.remove('active');
   }
-  document.documentElement.classList.remove('view-templates', 'view-grafo', 'view-board');
-  document.body.classList.remove('view-templates', 'view-grafo', 'view-board');
+  if (calendarView) {
+    calendarView.hidden = true;
+    calendarView.classList.remove('active');
+  }
+  document.documentElement.classList.remove('view-templates', 'view-grafo', 'view-board', 'view-calendar');
+  document.body.classList.remove('view-templates', 'view-grafo', 'view-board', 'view-calendar');
   if (btnNavTemplates) btnNavTemplates.classList.remove('active');
   if (btnNavGraph) btnNavGraph.classList.remove('active');
   if (btnNavBoard) btnNavBoard.classList.remove('active');
+  if (btnNavCalendar) btnNavCalendar.classList.remove('active');
 
   if (viewName === 'templates') {
     if (noteSection) noteSection.hidden = true;
@@ -90,6 +99,16 @@ export function switchView(viewName, params = {}) {
     document.body.classList.add('view-board');
     if (btnNavBoard) btnNavBoard.classList.add('active');
     document.dispatchEvent(new CustomEvent('quickdock:refresh-board-view', { detail: params }));
+  } else if (viewName === 'calendar') {
+    if (noteSection) noteSection.hidden = true;
+    if (calendarView) {
+      calendarView.hidden = false;
+      calendarView.classList.add('active');
+    }
+    document.documentElement.classList.add('view-calendar');
+    document.body.classList.add('view-calendar');
+    if (btnNavCalendar) btnNavCalendar.classList.add('active');
+    document.dispatchEvent(new CustomEvent('quickdock:refresh-calendar-view', { detail: params }));
   } else {
     // Visão padrão: editor de notas
     if (noteSection) {
@@ -113,9 +132,11 @@ export function goBack() {
 }
 
 // Tecla Escape retorna ao editor caso não haja modal aberto
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && currentView !== 'editor') {
-    if (document.querySelector('.modal:not(.hidden), .copy-menu')) return;
-    goBack();
-  }
-});
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && currentView !== 'editor') {
+      if (typeof document.querySelector === 'function' && document.querySelector('.modal:not(.hidden), .copy-menu')) return;
+      goBack();
+    }
+  });
+}

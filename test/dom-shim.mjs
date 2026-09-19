@@ -107,5 +107,9 @@ export function installDomShim() {
   globalThis.document = {
     createElement: tag => new Element(tag),
     createTextNode: data => new TextNode(data),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    querySelector: () => null,
+    querySelectorAll: () => [],
   };
 }

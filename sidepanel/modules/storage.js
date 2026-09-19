@@ -246,8 +246,8 @@ export async function loadAllNotesMeta() {
   const notes = await (db.notes.schema.indexes.some(idx => idx.name === 'ordem')
     ? db.notes.orderBy('ordem')
     : db.notes.orderBy('order')).toArray();
-  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, pasta, ordem, order, updatedAt }) => ({
-    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, pasta: pasta ?? '', ordem: ordem ?? ordemDeIndice(order ?? 0), updatedAt,
+  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, pasta, properties, ordem, order, updatedAt }) => ({
+    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, pasta: pasta ?? '', properties: properties ?? {}, ordem: ordem ?? ordemDeIndice(order ?? 0), updatedAt,
   }));
 }
 
@@ -255,7 +255,7 @@ export async function getNoteById(id) {
   return db.notes.get(id);
 }
 
-export async function createNoteRecord({ title, content = '', blocks = [], color = null, icon = null, iconFilled = false, titleHidden = false, uid = null, pasta = '', ordem = null }) {
+export async function createNoteRecord({ title, content = '', blocks = [], color = null, icon = null, iconFilled = false, titleHidden = false, uid = null, pasta = '', properties = {}, ordem = null }) {
   const count = await db.notes.count();
   const pastaLimpa = normalizarCaminhoPasta(pasta);
   let novaOrdem = ordem;
@@ -287,6 +287,7 @@ export async function createNoteRecord({ title, content = '', blocks = [], color
     iconFilled,
     titleHidden,
     pasta: pastaLimpa,
+    properties: properties ?? {},
     ordem: novaOrdem,
     order: count,
     createdAt: now,

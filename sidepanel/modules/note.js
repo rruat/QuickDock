@@ -1,5 +1,5 @@
 import {
-  getNoteById, updateNoteBlocksById, saveFile, loadFileBlob, moveInlineFileToDocuments,
+  getNoteById, updateNoteBlocksById, updateNoteMetaById, saveFile, loadFileBlob, moveInlineFileToDocuments,
   loadAllNotesMeta, salvarLinksDaNota, obterTodosLinks,
 } from './storage.js';
 import {
@@ -1526,7 +1526,267 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
   const blocks = (note?.blocks?.length) ? note.blocks : parseMarkdownToBlocks(note?.content ?? '');
   renderBlocks(blocks);
   updateMobileToolbarState();
+  renderPropertiesBar(note);
   await refreshBacklinks(id);
+}
+
+// ── Barra de Propriedades da Nota (Notion / Obsidian style) ───────────────────
+const propertiesBarEl     = document.getElementById('note-properties-bar');
+const propertiesToggleBtn = document.getElementById('btn-properties-toggle');
+const propertiesCountEl   = document.getElementById('note-properties-count');
+const propertiesListEl    = document.getElementById('note-properties-list');
+const btnAddProperty      = document.getElementById('btn-add-property');
+
+let propertiesExpanded = typeof localStorage !== 'undefined'
+  ? localStorage.getItem('quickdock:properties:expanded') === 'true'
+  : false;
+
+let activePropertiesMenu = null;
+
+function closePropertiesMenu() {
+  if (activePropertiesMenu) {
+    activePropertiesMenu.remove();
+    activePropertiesMenu = null;
+  }
+}
+
+document.addEventListener('pointerdown', e => {
+  if (activePropertiesMenu && !activePropertiesMenu.contains(e.target) && !e.target.closest('#btn-add-property')) {
+    closePropertiesMenu();
+  }
+});
+
+if (propertiesToggleBtn && propertiesListEl) {
+  propertiesToggleBtn.addEventListener('click', () => {
+    propertiesExpanded = !propertiesExpanded;
+    try { localStorage.setItem('quickdock:properties:expanded', String(propertiesExpanded)); } catch {}
+    atualizarEstadoExpansaoPropriedades();
+  });
+}
+
+function atualizarEstadoExpansaoPropriedades() {
+  if (!propertiesToggleBtn || !propertiesListEl) return;
+  propertiesToggleBtn.setAttribute('aria-expanded', propertiesExpanded ? 'true' : 'false');
+  propertiesBarEl?.classList.toggle('is-expanded', propertiesExpanded);
+  propertiesListEl.hidden = !propertiesExpanded;
+  const chevron = propertiesToggleBtn.querySelector('.properties-chevron');
+  if (chevron) {
+    chevron.textContent = propertiesExpanded ? 'expand_more' : 'chevron_right';
+  }
+}
+
+export function renderPropertiesBar(note) {
+  if (!propertiesBarEl || !propertiesListEl || !note) {
+    if (propertiesBarEl) propertiesBarEl.hidden = true;
+    return;
+  }
+  propertiesBarEl.hidden = false;
+
+  const props = { ...(note.properties || {}) };
+  const chaves = Object.keys(props);
+  const total = chaves.length;
+
+  if (propertiesCountEl) {
+    propertiesCountEl.textContent = String(total);
+    propertiesCountEl.hidden = total === 0;
+  }
+
+  atualizarEstadoExpansaoPropriedades();
+
+  propertiesListEl.innerHTML = '';
+  if (total === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'note-properties-empty';
+    empty.textContent = 'Sem propriedades. Clique em "+ Propriedade" para adicionar data, categoria ou status.';
+    propertiesListEl.appendChild(empty);
+    return;
+  }
+
+  for (const chave of chaves) {
+    const valor = props[chave] ?? '';
+    const row = document.createElement('div');
+    row.className = 'note-property-row';
+    row.dataset.propKey = chave;
+
+    // Ícone e Rótulo
+    const labelWrap = document.createElement('div');
+    labelWrap.className = 'note-property-label-wrap';
+
+    let iconName = 'push_pin';
+    let labelText = chave;
+    const chaveLower = chave.toLowerCase();
+
+    if (chaveLower === 'data' || chaveLower === 'date' || chaveLower === 'duedate') {
+      iconName = 'calendar_month';
+      labelText = 'Data';
+    } else if (chaveLower === 'categoria' || chaveLower === 'category' || chaveLower === 'tag') {
+      iconName = 'label';
+      labelText = 'Categoria';
+    } else if (chaveLower === 'status') {
+      iconName = 'progress_activity';
+      labelText = 'Status';
+    }
+
+    labelWrap.innerHTML = `
+      <span class="qd-icon material-symbols-rounded property-icon" aria-hidden="true">${iconName}</span>
+      <span class="property-name">${escHtml(labelText)}</span>
+    `;
+
+    // Campo de Valor
+    const valueWrap = document.createElement('div');
+    valueWrap.className = 'note-property-value-wrap';
+
+    if (chaveLower === 'data' || chaveLower === 'date' || chaveLower === 'duedate') {
+      const input = document.createElement('input');
+      input.type = 'date';
+      input.className = 'property-input property-input-date';
+      input.value = typeof valor === 'string' ? valor.slice(0, 10) : '';
+      input.addEventListener('change', async e => {
+        props[chave] = e.target.value;
+        note.properties = { ...props };
+        await updateNoteMetaById(note.id, { properties: note.properties });
+        document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+          detail: { noteId: note.id, properties: note.properties }
+        }));
+      });
+      valueWrap.appendChild(input);
+    } else if (chaveLower === 'status') {
+      const select = document.createElement('select');
+      select.className = 'property-select';
+      const statusOptions = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
+      let matched = false;
+      for (const opt of statusOptions) {
+        const optionEl = document.createElement('option');
+        optionEl.value = opt;
+        optionEl.textContent = opt;
+        if (opt.toLowerCase() === String(valor).toLowerCase()) {
+          optionEl.selected = true;
+          matched = true;
+        }
+        select.appendChild(optionEl);
+      }
+      if (!matched && valor) {
+        const customOpt = document.createElement('option');
+        customOpt.value = String(valor);
+        customOpt.textContent = String(valor);
+        customOpt.selected = true;
+        select.appendChild(customOpt);
+      }
+      select.addEventListener('change', async e => {
+        props[chave] = e.target.value;
+        note.properties = { ...props };
+        await updateNoteMetaById(note.id, { properties: note.properties });
+        document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+          detail: { noteId: note.id, properties: note.properties }
+        }));
+      });
+      valueWrap.appendChild(select);
+    } else {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'property-input property-input-text';
+      input.value = String(valor);
+      input.placeholder = 'Valor...';
+      input.addEventListener('change', async e => {
+        props[chave] = e.target.value.trim();
+        note.properties = { ...props };
+        await updateNoteMetaById(note.id, { properties: note.properties });
+        document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+          detail: { noteId: note.id, properties: note.properties }
+        }));
+      });
+      valueWrap.appendChild(input);
+    }
+
+    // Botão de excluir propriedade
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'property-delete-btn';
+    deleteBtn.title = `Remover propriedade ${chave}`;
+    deleteBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>';
+    deleteBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      delete props[chave];
+      note.properties = { ...props };
+      await updateNoteMetaById(note.id, { properties: note.properties });
+      document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+        detail: { noteId: note.id, properties: note.properties }
+      }));
+      renderPropertiesBar(note);
+    });
+
+    row.appendChild(labelWrap);
+    row.appendChild(valueWrap);
+    row.appendChild(deleteBtn);
+    propertiesListEl.appendChild(row);
+  }
+}
+
+// Botão "+ Propriedade"
+if (btnAddProperty) {
+  btnAddProperty.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (!currentNoteId) return;
+    const note = await getNoteById(currentNoteId);
+    if (!note) return;
+
+    closePropertiesMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'note-properties-popup-menu popover-menu';
+
+    const opcoes = [
+      { id: 'data', icon: 'calendar_month', label: 'Data', defaultVal: new Date().toISOString().slice(0, 10) },
+      { id: 'categoria', icon: 'label', label: 'Categoria', defaultVal: 'Geral' },
+      { id: 'status', icon: 'progress_activity', label: 'Status', defaultVal: 'A Fazer' },
+      { id: 'custom', icon: 'add_circle', label: 'Personalizado...', defaultVal: '' },
+    ];
+
+    for (const opt of opcoes) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'popover-item';
+      btn.innerHTML = `
+        <span class="qd-icon material-symbols-rounded" aria-hidden="true">${opt.icon}</span>
+        <span>${opt.label}</span>
+      `;
+      btn.addEventListener('click', async () => {
+        closePropertiesMenu();
+        const currentProps = { ...(note.properties || {}) };
+
+        if (opt.id === 'custom') {
+          const nomeChave = window.prompt('Nome da nova propriedade:');
+          if (!nomeChave || !nomeChave.trim()) return;
+          const k = nomeChave.trim();
+          if (!(k in currentProps)) {
+            currentProps[k] = '';
+          }
+        } else {
+          if (!(opt.id in currentProps)) {
+            currentProps[opt.id] = opt.defaultVal;
+          }
+        }
+
+        note.properties = currentProps;
+        propertiesExpanded = true;
+        try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
+        await updateNoteMetaById(note.id, { properties: note.properties });
+        document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+          detail: { noteId: note.id, properties: note.properties }
+        }));
+        renderPropertiesBar(note);
+      });
+      menu.appendChild(btn);
+    }
+
+    document.body.appendChild(menu);
+    activePropertiesMenu = menu;
+    const rect = btnAddProperty.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = `${rect.bottom + 4}px`;
+    menu.style.left = `${Math.max(8, rect.left)}px`;
+    menu.style.zIndex = '99999';
+  });
 }
 
 // ── Backlinks ─────────────────────────────────────────────────────────────────

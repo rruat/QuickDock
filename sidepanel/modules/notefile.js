@@ -106,11 +106,19 @@ export function buildNoteFile({ meta = {}, md = '' }) {
     'quickdock', 'id', 'uid', 'titulo', 'title', 'cor', 'color',
     'icone', 'icon', 'iconePreenchido', 'iconFilled', 'tituloOculto',
     'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
-    'atualizadoEm', 'updatedAt', 'content', 'blocks',
+    'atualizadoEm', 'updatedAt', 'content', 'blocks', 'properties',
   ]);
 
+  if (meta.properties && typeof meta.properties === 'object') {
+    for (const [k, v] of Object.entries(meta.properties)) {
+      if (!tratadas.has(k) && v !== undefined && v !== null && v !== '') {
+        f[k] = v;
+      }
+    }
+  }
+
   for (const [k, v] of Object.entries(meta)) {
-    if (!tratadas.has(k) && v !== undefined) {
+    if (!tratadas.has(k) && v !== undefined && !(k in f)) {
       f[k] = v;
     }
   }

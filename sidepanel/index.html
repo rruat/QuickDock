@@ -77,6 +77,23 @@
             <span id="note-folder-name" class="note-folder-name">Sem pasta</span>
           </button>
         </div>
+        <div id="note-properties-bar" class="note-properties-bar">
+          <div class="note-properties-header">
+            <button id="btn-properties-toggle" class="note-properties-toggle-btn" type="button" aria-expanded="false" title="Alternar propriedades da nota">
+              <span class="qd-icon material-symbols-rounded properties-chevron" aria-hidden="true">chevron_right</span>
+              <span class="qd-icon material-symbols-rounded properties-icon" aria-hidden="true">tune</span>
+              <span class="properties-title">Propriedades</span>
+              <span id="note-properties-count" class="properties-count-badge" hidden>0</span>
+            </button>
+            <div class="note-properties-header-actions">
+              <button id="btn-add-property" class="note-properties-add-btn" type="button" title="Adicionar propriedade">
+                <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+                <span>Propriedade</span>
+              </button>
+            </div>
+          </div>
+          <div id="note-properties-list" class="note-properties-list" hidden></div>
+        </div>
         <div id="note-editor-blocks" class="note-editor-blocks" contenteditable="true" spellcheck="false"></div>
         <div id="note-backlinks-section" class="note-backlinks-section" hidden>
           <button id="note-backlinks-toggle" class="note-backlinks-toggle" type="button" aria-expanded="false">
@@ -358,6 +375,59 @@
       </main>
     </section>
 
+    <!-- Visão do Calendário de Notas -->
+    <section class="calendar-view" id="calendar-view" hidden>
+      <header class="calendar-header">
+        <div class="calendar-header-left">
+          <button id="btn-calendar-back" class="icon-btn calendar-back-btn" title="Voltar para as notas" aria-label="Voltar para as notas">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="calendar-title-group">
+            <h1 id="calendar-month-year" class="calendar-month-title">Setembro de 2026</h1>
+            <span id="calendar-note-count" class="calendar-count-badge">0 notas</span>
+          </div>
+        </div>
+
+        <div class="calendar-header-center">
+          <div class="calendar-nav-group">
+            <button id="btn-calendar-prev" class="icon-btn calendar-nav-btn" title="Mês anterior" aria-label="Mês anterior">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">chevron_left</span>
+            </button>
+            <button id="btn-calendar-today" class="calendar-today-btn" title="Ir para o mês atual">Hoje</button>
+            <button id="btn-calendar-next" class="icon-btn calendar-nav-btn" title="Próximo mês" aria-label="Próximo mês">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="calendar-header-right">
+          <div class="calendar-filter-group">
+            <span class="qd-icon material-symbols-rounded filter-icon" aria-hidden="true">filter_alt</span>
+            <select id="calendar-filter-category" class="calendar-select" title="Filtrar por categoria">
+              <option value="">Todas as categorias</option>
+            </select>
+          </div>
+          <button id="btn-calendar-new-note" class="calendar-action-btn primary" title="Criar nova nota para o dia de hoje">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+            <span class="cal-btn-label">Nova nota</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="calendar-body">
+        <div class="calendar-weekdays">
+          <span>Dom</span>
+          <span>Seg</span>
+          <span>Ter</span>
+          <span>Qua</span>
+          <span>Qui</span>
+          <span>Sex</span>
+          <span>Sáb</span>
+        </div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+      </main>
+    </section>
+
     <div id="resize-handle" class="resize-handle" title="Arraste para redimensionar"></div>
 
     <aside class="app-aside" id="app-aside">
@@ -388,6 +458,10 @@
         <button id="btn-nav-board" class="icon-btn aside-nav-btn" title="Quadro Infinito (Aba dedicada)" aria-label="Quadro Infinito">
           <span class="qd-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span>
           <span class="aside-nav-label">Quadro</span>
+        </button>
+        <button id="btn-nav-calendar" class="icon-btn aside-nav-btn" title="Calendário de Notas" aria-label="Calendário">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">calendar_month</span>
+          <span class="aside-nav-label">Calendário</span>
         </button>
         <div id="notes-tabs" class="notes-tabs"></div>
         <input type="file" id="note-import-input" accept=".md,.txt,text/markdown,text/plain" hidden />

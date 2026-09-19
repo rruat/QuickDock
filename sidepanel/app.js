@@ -12,6 +12,7 @@ import { switchView } from './modules/views.js';
 import { initTemplatesGallery } from './modules/templates-gallery.js';
 import { initGraphView } from './modules/graph-view.js';
 import { initBoardView, abrirQuadroInfinitoEmAba } from './modules/board-view.js';
+import { initCalendarView } from './modules/calendar-view.js';
 
 // Aplica a identificação de plataforma (extension, mobile, desktop) imediatamente
 applyPlatform();
@@ -112,6 +113,7 @@ function openAppMenu() {
   addOpt('auto_stories', 'Galeria de modelos', () => switchView('templates'));
   addOpt('hub', 'Grafo de conexões', () => switchView('grafo'));
   addOpt('space_dashboard', 'Quadro Infinito', () => switchView('board'));
+  addOpt('calendar_month', 'Calendário', () => switchView('calendar'));
   addOpt('menu_book', 'Ver tutorial', createTutorialNote);
   addOpt(dark ? 'light_mode' : 'dark_mode', dark ? 'Tema claro' : 'Tema escuro', toggleTheme);
   addOpt('sync', 'Sincronização…', () => syncController?.abrirPopover(btnAppMenu));
@@ -164,6 +166,7 @@ async function init() {
     initTemplatesGallery();
     initGraphView();
     await initBoardView();
+    initCalendarView();
 
     const btnNavTemplates = document.getElementById('btn-nav-templates');
     if (btnNavTemplates) {
@@ -173,6 +176,11 @@ async function init() {
     const btnNavBoard = document.getElementById('btn-nav-board');
     if (btnNavBoard) {
       btnNavBoard.addEventListener('click', () => switchView('board'));
+    }
+
+    const btnNavCalendar = document.getElementById('btn-nav-calendar');
+    if (btnNavCalendar) {
+      btnNavCalendar.addEventListener('click', () => switchView('calendar'));
     }
 
     syncController = new SyncController({

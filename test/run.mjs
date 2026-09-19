@@ -3282,6 +3282,104 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('design · botões de navegação lateral ocultos na extensão e mobile para evitar aperto', sidepanelStyleSource.includes('html[data-platform="extension"] #btn-nav-board') && sidepanelStyleSource.includes('html[data-platform="mobile"] #btn-nav-graph'));
 }
 
+// ── 23. Propriedades Estruturadas de Notas e Modo Calendário ─────────────────
+{
+  const { readFile } = await import('node:fs/promises');
+  const storageSource = await readFile(new URL('../sidepanel/modules/storage.js', import.meta.url), 'utf8');
+  const notefileSource = await readFile(new URL('../sidepanel/modules/notefile.js', import.meta.url), 'utf8');
+  const syncEngineSource = await readFile(new URL('../sidepanel/modules/sync-engine.js', import.meta.url), 'utf8');
+  const noteSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const calendarSource = await readFile(new URL('../sidepanel/modules/calendar-view.js', import.meta.url), 'utf8');
+  const viewsSource = await readFile(new URL('../sidepanel/modules/views.js', import.meta.url), 'utf8');
+  const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  const sidepanelStyleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
+
+  // 23.1: Bloco de Propriedades da Nota
+  ok('propriedades · storage.js carrega properties em loadAllNotesMeta e createNoteRecord',
+    storageSource.includes('properties: properties ?? {}') &&
+    storageSource.includes('properties = {}')
+  );
+  ok('propriedades · notefile.js suporta meta.properties em buildNoteFile',
+    notefileSource.includes('meta.properties') &&
+    notefileSource.includes('for (const [k, v] of Object.entries(meta.properties))')
+  );
+  ok('propriedades · sync-engine.js serializa e extrai propriedades de notas',
+    syncEngineSource.includes('properties: nota.properties || {}') &&
+    syncEngineSource.includes('_extrairPropriedadesDeMeta')
+  );
+  ok('propriedades · note.js possui renderPropertiesBar e integração com switchToNote',
+    noteSource.includes('renderPropertiesBar(note)') &&
+    noteSource.includes('export function renderPropertiesBar') &&
+    noteSource.includes('quickdock:note-properties-updated')
+  );
+  ok('propriedades · index.html define estrutura do bloco de propriedades',
+    sidepanelHtmlSource.includes('id="note-properties-bar"') &&
+    sidepanelHtmlSource.includes('id="btn-properties-toggle"') &&
+    sidepanelHtmlSource.includes('id="note-properties-count"') &&
+    sidepanelHtmlSource.includes('id="btn-add-property"') &&
+    sidepanelHtmlSource.includes('id="note-properties-list"')
+  );
+  ok('propriedades · style.css estiliza bloco de propriedades no estilo Notion/Obsidian',
+    sidepanelStyleSource.includes('.note-properties-bar') &&
+    sidepanelStyleSource.includes('.note-property-row') &&
+    sidepanelStyleSource.includes('.property-input-date') &&
+    sidepanelStyleSource.includes('.property-select')
+  );
+
+  // 23.2: Modo de Calendário
+  ok('calendário · index.html define seção calendar-view e botão de navegação',
+    sidepanelHtmlSource.includes('id="calendar-view"') &&
+    sidepanelHtmlSource.includes('id="calendar-grid"') &&
+    sidepanelHtmlSource.includes('id="calendar-month-year"') &&
+    sidepanelHtmlSource.includes('id="calendar-filter-category"') &&
+    sidepanelHtmlSource.includes('id="btn-nav-calendar"')
+  );
+  ok('calendário · views.js gerencia view calendar com isolamento de telas',
+    viewsSource.includes("viewName === 'calendar'") &&
+    viewsSource.includes('quickdock:refresh-calendar-view') &&
+    sidepanelStyleSource.includes('html.view-calendar .note-section')
+  );
+  ok('calendário · app.js inicializa initCalendarView e menu de opções',
+    appSource.includes('initCalendarView()') &&
+    appSource.includes("switchView('calendar')") &&
+    appSource.includes('Calendário')
+  );
+
+  // 23.3: Verificações Matemáticas e Puras de Datas do Calendário
+  const {
+    normalizarDataString,
+    extrairDataDaNota,
+    extrairCategoriaDaNota,
+    formatarMesAno,
+    gerarMatrizCalendario
+  } = await import('../sidepanel/modules/calendar-view.js');
+
+  igual('calendário · normalizarDataString aceita YYYY-MM-DD', normalizarDataString('2026-09-20'), '2026-09-20');
+  igual('calendário · normalizarDataString devolve null para entrada inválida', normalizarDataString(''), null);
+  igual('calendário · extrairDataDaNota recupera data das propriedades',
+    extrairDataDaNota({ properties: { data: '2026-10-15' } }), '2026-10-15');
+  igual('calendário · extrairCategoriaDaNota recupera categoria',
+    extrairCategoriaDaNota({ properties: { categoria: 'Projetos' } }), 'Projetos');
+  igual('calendário · formatarMesAno em português', formatarMesAno(2026, 8), 'Setembro de 2026');
+
+  // Matriz de Setembro de 2026 (Começa em Terça-feira dia 1, tem 30 dias)
+  const matrizSet2026 = gerarMatrizCalendario(2026, 8);
+  ok('calendário · matriz é múltiplo exato de 7 (semanas completas)', matrizSet2026.length % 7 === 0);
+  ok('calendário · matriz tem pelo menos 35 células', matrizSet2026.length >= 35);
+  igual('calendário · primeira semana de Set/2026 inclui 2 dias de Agosto (Dom 30 e Seg 31)',
+    matrizSet2026.filter(c => c.outroMes && c.mes === 7).length, 2);
+
+  // Fevereiro bissexto vs não bissexto
+  const matrizFevBissexto = gerarMatrizCalendario(2024, 1);
+  const diasFevBissexto = matrizFevBissexto.filter(c => !c.outroMes);
+  igual('calendário · fevereiro de ano bissexto (2024) tem 29 dias', diasFevBissexto.length, 29);
+
+  const matrizFevNormal = gerarMatrizCalendario(2025, 1);
+  const diasFevNormal = matrizFevNormal.filter(c => !c.outroMes);
+  igual('calendário · fevereiro de ano comum (2025) tem 28 dias', diasFevNormal.length, 28);
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

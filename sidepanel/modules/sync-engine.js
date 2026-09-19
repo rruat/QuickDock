@@ -219,6 +219,7 @@ export class SyncEngine {
       pasta: nota.pasta || undefined,
       criadoEm: nota.createdAt ? (typeof nota.createdAt === 'number' ? new Date(nota.createdAt).toISOString() : nota.createdAt) : undefined,
       atualizadoEm: nota.updatedAt ? (typeof nota.updatedAt === 'number' ? new Date(nota.updatedAt).toISOString() : nota.updatedAt) : undefined,
+      properties: nota.properties || {},
     };
     return buildNoteFile({ meta, md });
   }
@@ -237,6 +238,22 @@ export class SyncEngine {
       atualizadoEm: modelo.updatedAt ? (typeof modelo.updatedAt === 'number' ? new Date(modelo.updatedAt).toISOString() : modelo.updatedAt) : undefined,
     };
     return buildNoteFile({ meta, md: modelo.content || '' });
+  }
+
+  _extrairPropriedadesDeMeta(meta) {
+    const tratadas = new Set([
+      'quickdock', 'id', 'uid', 'titulo', 'title', 'cor', 'color',
+      'icone', 'icon', 'iconePreenchido', 'iconFilled', 'tituloOculto',
+      'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
+      'atualizadoEm', 'updatedAt', 'content', 'blocks', 'properties',
+    ]);
+    const props = { ...(meta?.properties || {}) };
+    for (const [k, v] of Object.entries(meta || {})) {
+      if (!tratadas.has(k) && v !== undefined && v !== null && !(k in props)) {
+        props[k] = v;
+      }
+    }
+    return props;
   }
 
   /**
@@ -527,6 +544,7 @@ export class SyncEngine {
           iconFilled: !!parsed.meta.iconePreenchido,
           titleHidden: !!parsed.meta.tituloOculto,
           ordem: parsed.meta.ordem ?? 'a0',
+          properties: this._extrairPropriedadesDeMeta(parsed.meta),
           // Sem inventar: se o arquivo não traz criadoEm, a nota fica sem ele, e a
           // reserialização volta a omitir o campo. Carimbar Date.now() aqui fazia o
           // arquivo nunca convergir — quem baixava regravava com um campo que quem
@@ -584,6 +602,7 @@ export class SyncEngine {
             iconFilled: parsed.meta.iconePreenchido !== undefined ? parsed.meta.iconePreenchido : notaLocal.iconFilled,
             titleHidden: parsed.meta.tituloOculto !== undefined ? parsed.meta.tituloOculto : notaLocal.titleHidden,
             ordem: parsed.meta.ordem || notaLocal.ordem,
+            properties: this._extrairPropriedadesDeMeta(parsed.meta),
             updatedAt: parsed.meta.atualizadoEm ? new Date(parsed.meta.atualizadoEm).getTime() : undefined,
           });
           await this.store.salvarEstadoSync({
