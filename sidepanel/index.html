@@ -23,6 +23,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" />
   <link rel="stylesheet" href="style.css" />
+  <!-- Motor do Quadro Infinito: mesma folha de estilo da aba cheia dedicada
+       (../board/style.css) — tudo dela vive dentro de `.board-theme-scope`
+       (aplicada só em #board-view logo abaixo), então nada daqui vaza pro
+       resto do painel. -->
+  <link rel="stylesheet" href="../board/style.css" />
 </head>
 <body class="booting">
   <!-- Véu de carregamento: cobre o painel inteiro e dissolve quando o app fica
@@ -75,6 +80,15 @@
           <button id="btn-note-folder" class="note-folder-btn" title="Pasta da nota (clique para mover)" aria-label="Pasta da nota">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">folder</span>
             <span id="note-folder-name" class="note-folder-name">Sem pasta</span>
+          </button>
+        </div>
+        <div id="note-header-bar" class="note-header-bar">
+          <button id="btn-note-header-icon" class="note-header-icon-btn" type="button" title="Ícone e cor da nota" aria-label="Ícone e cor da nota">
+            <span id="note-header-icon" class="qd-icon material-symbols-rounded" aria-hidden="true"></span>
+          </button>
+          <div id="note-header-title" class="note-header-title" contenteditable="true" role="heading" aria-level="1" spellcheck="false" data-placeholder="Sem título"></div>
+          <button id="btn-note-header-color" class="note-header-color-btn" type="button" title="Cor da nota" aria-label="Cor da nota">
+            <span id="note-header-color-dot" class="note-header-color-dot"></span>
           </button>
         </div>
         <div id="note-properties-bar" class="note-properties-bar">
@@ -302,7 +316,7 @@
     </section>
  
     <!-- Visão do Quadro Infinito (Canvas Espacial) -->
-    <section class="board-view" id="board-view" hidden>
+    <section class="board-view board-theme-scope" id="board-view" hidden>
       <header class="board-header">
         <div class="board-header-left">
           <button id="btn-board-back" class="icon-btn board-back-btn" title="Voltar para as notas" aria-label="Voltar para as notas">
@@ -329,23 +343,40 @@
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">trending_flat</span>
               <span class="tool-btn-label">Seta</span>
             </button>
+            <button id="tool-image" class="board-tool-btn" title="Adicionar imagem" aria-label="Adicionar imagem">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">image</span>
+              <span class="tool-btn-label">Imagem</span>
+            </button>
+            <button id="tool-group" class="board-tool-btn" title="Adicionar grupo (G)" aria-label="Adicionar grupo">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">crop_square</span>
+              <span class="tool-btn-label">Grupo</span>
+            </button>
+            <button id="tool-note-link" class="board-tool-btn" title="Vincular nota existente" aria-label="Vincular nota existente">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">link</span>
+              <span class="tool-btn-label">Vincular nota</span>
+            </button>
+            <button id="tool-note-create" class="board-tool-btn" title="Criar nota e adicionar ao quadro" aria-label="Criar nota e adicionar ao quadro">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">note_add</span>
+              <span class="tool-btn-label">Nova nota</span>
+            </button>
+            <input type="file" id="board-image-upload-input" accept="image/*" style="display:none;" />
           </div>
         </div>
 
         <div class="board-header-right">
           <div class="board-zoom-group">
-            <button id="btn-board-zoom-out" class="icon-btn board-btn" title="Diminuir zoom (-)" aria-label="Diminuir zoom">
+            <button id="btn-zoom-out" class="icon-btn board-btn" title="Diminuir zoom (-)" aria-label="Diminuir zoom">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">remove</span>
             </button>
             <span id="zoom-level-text" class="zoom-level-text">100%</span>
-            <button id="btn-board-zoom-in" class="icon-btn board-btn" title="Aumentar zoom (+)" aria-label="Aumentar zoom">
+            <button id="btn-zoom-in" class="icon-btn board-btn" title="Aumentar zoom (+)" aria-label="Aumentar zoom">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
             </button>
-            <button id="btn-board-zoom-reset" class="icon-btn board-btn" title="Centralizar conteúdo (0)" aria-label="Centralizar conteúdo">
+            <button id="btn-zoom-reset" class="icon-btn board-btn" title="Centralizar conteúdo (0)" aria-label="Centralizar conteúdo">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">filter_center_focus</span>
             </button>
           </div>
-          <button id="btn-board-export" class="icon-btn board-btn" title="Exportar quadro (.json)" aria-label="Exportar quadro">
+          <button id="btn-export-json" class="icon-btn board-btn" title="Exportar quadro (.json)" aria-label="Exportar quadro">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">download</span>
           </button>
           <button id="btn-board-open-tab" class="icon-btn board-btn board-open-tab-btn" title="Abrir em aba inteira" aria-label="Abrir em aba inteira">
@@ -356,22 +387,27 @@
       </header>
 
       <main id="board-container" class="board-container">
-        <svg id="board-svg" class="board-svg" width="100%" height="100%">
-          <defs>
-            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" />
-            </marker>
-            <marker id="arrowhead-selected" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="var(--accent, #3b82f6)" />
-            </marker>
-          </defs>
-          <g id="board-svg-arrows"></g>
-          <line id="board-draft-arrow" class="draft-arrow" x1="0" y1="0" x2="0" y2="0" hidden />
-        </svg>
-
         <div id="board-world" class="board-world">
+          <svg id="board-svg" class="board-svg">
+            <defs>
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M 0 0 L 8 3 L 0 6 z" fill="currentColor" />
+              </marker>
+              <marker id="arrowhead-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M 8 0 L 0 3 L 8 6 z" fill="currentColor" />
+              </marker>
+              <marker id="arrowhead-selected" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M 0 0 L 8 3 L 0 6 z" fill="var(--accent, #3b82f6)" />
+              </marker>
+            </defs>
+            <g id="board-svg-guides"></g>
+            <g id="board-svg-arrows"></g>
+            <path id="board-draft-arrow" class="draft-arrow" d="" marker-end="url(#arrowhead)" hidden />
+          </svg>
           <div id="board-cards-layer" class="board-cards-layer"></div>
+          <div id="board-selection-box" class="board-selection-box" hidden></div>
         </div>
+        <div id="board-selection-toolbar" class="board-selection-toolbar" hidden></div>
       </main>
     </section>
 
@@ -458,10 +494,6 @@
         <button id="btn-nav-board" class="icon-btn aside-nav-btn" title="Quadro Infinito (Aba dedicada)" aria-label="Quadro Infinito">
           <span class="qd-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span>
           <span class="aside-nav-label">Quadro</span>
-        </button>
-        <button id="btn-nav-calendar" class="icon-btn aside-nav-btn" title="Calendário de Notas" aria-label="Calendário">
-          <span class="qd-icon material-symbols-rounded" aria-hidden="true">calendar_month</span>
-          <span class="aside-nav-label">Calendário</span>
         </button>
         <div id="notes-tabs" class="notes-tabs"></div>
         <input type="file" id="note-import-input" accept=".md,.txt,text/markdown,text/plain" hidden />

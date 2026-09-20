@@ -246,8 +246,8 @@ export async function loadAllNotesMeta() {
   const notes = await (db.notes.schema.indexes.some(idx => idx.name === 'ordem')
     ? db.notes.orderBy('ordem')
     : db.notes.orderBy('order')).toArray();
-  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, pasta, properties, ordem, order, updatedAt }) => ({
-    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, pasta: pasta ?? '', properties: properties ?? {}, ordem: ordem ?? ordemDeIndice(order ?? 0), updatedAt,
+  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, pasta, properties, propertyTypes, propertySelectOptions, ordem, order, updatedAt }) => ({
+    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, pasta: pasta ?? '', properties: properties ?? {}, propertyTypes: propertyTypes ?? {}, propertySelectOptions: propertySelectOptions ?? {}, ordem: ordem ?? ordemDeIndice(order ?? 0), updatedAt,
   }));
 }
 
@@ -255,7 +255,7 @@ export async function getNoteById(id) {
   return db.notes.get(id);
 }
 
-export async function createNoteRecord({ title, content = '', blocks = [], color = null, icon = null, iconFilled = false, titleHidden = false, uid = null, pasta = '', properties = {}, ordem = null }) {
+export async function createNoteRecord({ title, content = '', blocks = [], color = null, icon = null, iconFilled = false, titleHidden = false, uid = null, pasta = '', properties = {}, propertyTypes = {}, propertySelectOptions = {}, ordem = null }) {
   const count = await db.notes.count();
   const pastaLimpa = normalizarCaminhoPasta(pasta);
   let novaOrdem = ordem;
@@ -288,6 +288,8 @@ export async function createNoteRecord({ title, content = '', blocks = [], color
     titleHidden,
     pasta: pastaLimpa,
     properties: properties ?? {},
+    propertyTypes: propertyTypes ?? {},
+    propertySelectOptions: propertySelectOptions ?? {},
     ordem: novaOrdem,
     order: count,
     createdAt: now,
@@ -402,6 +404,10 @@ export async function saveBoardRecord(board) {
     await db.boards.put(dados);
     return board.id;
   } else {
+    // `id: null` chega aqui pelo espalhamento de `board` acima — precisa
+    // sumir antes do `add()`, senão o IndexedDB recusa a chave (a tabela é
+    // de auto-incremento e só aceita ausente, nunca `null`).
+    delete dados.id;
     dados.createdAt = now;
     return db.boards.add(dados);
   }

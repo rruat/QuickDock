@@ -3242,7 +3242,8 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const { readFile } = await import('node:fs/promises');
   const storageSource = await readFile(new URL('../sidepanel/modules/storage.js', import.meta.url), 'utf8');
   const boardHtmlSource = await readFile(new URL('../board/index.html', import.meta.url), 'utf8');
-  const boardJsSource = await readFile(new URL('../board/board.js', import.meta.url), 'utf8');
+  const boardBootSource = await readFile(new URL('../board/board.js', import.meta.url), 'utf8');
+  const boardJsSource = await readFile(new URL('../sidepanel/modules/board-engine.js', import.meta.url), 'utf8');
   const boardStyleSource = await readFile(new URL('../board/style.css', import.meta.url), 'utf8');
   const appSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
@@ -3265,7 +3266,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   // 22.3: Arquivos Dedicados da Aba Cheia
   ok('quadro · board/index.html define contêiner, svg e camada de cartões', boardHtmlSource.includes('id="board-container"') && boardHtmlSource.includes('id="board-svg"') && boardHtmlSource.includes('id="board-cards-layer"'));
   ok('quadro · board/index.html define marcador de ponta de seta SVG', boardHtmlSource.includes('id="arrowhead"') && boardHtmlSource.includes('<marker'));
-  ok('quadro · board/board.js suporta pan, zoom focal e conexões', boardJsSource.includes('zoomBy') && boardJsSource.includes('addCard') && boardJsSource.includes('addArrow'));
+  ok('quadro · motor (board-engine.js) suporta pan, zoom focal e conexões', boardJsSource.includes('zoomBy') && boardJsSource.includes('addCard') && boardJsSource.includes('addArrow'));
   ok('quadro · board/style.css estiliza cartões flutuantes e fundo pontilhado', boardStyleSource.includes('.board-card') && boardStyleSource.includes('background-image: radial-gradient') && boardStyleSource.includes('.board-arrow-path'));
 
   // 22.4: Integração com o Painel Principal
@@ -3280,6 +3281,38 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('quadro · sidepanel/index.html possui seção board-view interna', sidepanelHtmlSource.includes('id="board-view"') && sidepanelHtmlSource.includes('id="btn-board-open-tab"'));
   ok('design · style.css isola visões para evitar sobreposição de telas', sidepanelStyleSource.includes('.board-view[hidden]') && sidepanelStyleSource.includes('html.view-board .note-section'));
   ok('design · botões de navegação lateral ocultos na extensão e mobile para evitar aperto', sidepanelStyleSource.includes('html[data-platform="extension"] #btn-nav-board') && sidepanelStyleSource.includes('html[data-platform="mobile"] #btn-nav-graph'));
+
+  // 22.6: Motor Único (antes existiam DUAS cópias divergentes do quadro — uma
+  // recebia correção, a outra não. Agora `board.js` e `board-view.js` são só
+  // bootstraps finos do mesmo `board-engine.js`.)
+  const boardViewSource = await readFile(new URL('../sidepanel/modules/board-view.js', import.meta.url), 'utf8');
+  ok('quadro · board/board.js é um bootstrap fino do motor único (aba cheia)',
+    boardBootSource.includes("import { initBoardEngine } from '../sidepanel/modules/board-engine.js'") &&
+    boardBootSource.includes('initBoardEngine(document, { standalone: true })') &&
+    !boardBootSource.includes('function renderArrows'));
+  ok('quadro · board-view.js é um bootstrap fino do motor único (embutido no painel)',
+    boardViewSource.includes("import { initBoardEngine") &&
+    boardViewSource.includes('standalone: false') &&
+    !boardViewSource.includes('function renderArrows'));
+  ok('quadro · board-view.js continua exportando a API que app.js usa',
+    boardViewSource.includes('export async function initBoardView') &&
+    boardViewSource.includes('export { abrirQuadroInfinitoEmAba }'));
+  ok('quadro · visão embutida sabe abrir a nota de verdade direto (mesma página do editor, sem ponte entre telas)',
+    boardViewSource.includes('onAbrirNota:') && boardViewSource.includes('switchToNote(alvo.id)') && boardViewSource.includes('goBack()'));
+  ok('quadro · sw.js pré-cacheia o motor compartilhado',
+    (await readFile(new URL('../sw.js', import.meta.url), 'utf8')).includes("'sidepanel/modules/board-engine.js'"));
+  ok('quadro · style.css do motor fica isolado em .board-theme-scope (não vaza pro resto do painel)',
+    boardStyleSource.includes('.board-theme-scope {') &&
+    boardStyleSource.includes('[data-theme="dark"] .board-theme-scope {') &&
+    sidepanelHtmlSource.includes('class="board-view board-theme-scope"') &&
+    sidepanelHtmlSource.includes('href="../board/style.css"'));
+
+  const boardEngineModule = await import('../sidepanel/modules/board-engine.js');
+  ok('quadro · board-engine.js compila sem erro de sintaxe e exporta APIs principais',
+    typeof boardEngineModule.initBoardEngine === 'function' &&
+    typeof boardEngineModule.addCard === 'function' &&
+    typeof boardEngineModule.addGroupCard === 'function' &&
+    typeof boardEngineModule.abrirQuadroInfinitoEmAba === 'function');
 }
 
 // ── 23. Propriedades Estruturadas de Notas e Modo Calendário ─────────────────
@@ -3328,12 +3361,16 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   );
 
   // 23.2: Modo de Calendário
-  ok('calendário · index.html define seção calendar-view e botão de navegação',
+  // Sem botão próprio no cabeçalho da barra lateral de propósito — o acesso
+  // é só pelo menu "⋯" (ver 23.3): um quinto botão ali não cabia sem
+  // quebrar o layout, e "Calendário" já está no mesmo lugar que "Grafo" e
+  // "Quadro" estavam antes de ganharem atalho dedicado.
+  ok('calendário · index.html define seção calendar-view',
     sidepanelHtmlSource.includes('id="calendar-view"') &&
     sidepanelHtmlSource.includes('id="calendar-grid"') &&
     sidepanelHtmlSource.includes('id="calendar-month-year"') &&
     sidepanelHtmlSource.includes('id="calendar-filter-category"') &&
-    sidepanelHtmlSource.includes('id="btn-nav-calendar"')
+    !sidepanelHtmlSource.includes('id="btn-nav-calendar"')
   );
   ok('calendário · views.js gerencia view calendar com isolamento de telas',
     viewsSource.includes("viewName === 'calendar'") &&
@@ -3378,6 +3415,404 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const matrizFevNormal = gerarMatrizCalendario(2025, 1);
   const diasFevNormal = matrizFevNormal.filter(c => !c.outroMes);
   igual('calendário · fevereiro de ano comum (2025) tem 28 dias', diasFevNormal.length, 28);
+}
+
+// ── 24. Propriedades Tipadas e Cabeçalho da Nota (ícone/título/cor) ──────────
+{
+  const { readFile } = await import('node:fs/promises');
+  const { buildNoteFile, parseNoteFile } = await import('../sidepanel/modules/notefile.js');
+  const {
+    PROPERTY_TYPES,
+    inferirTipoPropriedade,
+    migrarPropriedadeParaTipo,
+  } = await import('../sidepanel/modules/property-types.js');
+
+  // 24.1: inferirTipoPropriedade
+  igual('property-types · tipo explícito prevalece sobre inferência por nome',
+    inferirTipoPropriedade('status', { status: 'text' }), 'text');
+  igual('property-types · sem tipo explícito, "data" infere date', inferirTipoPropriedade('data', {}), 'date');
+  igual('property-types · sem tipo explícito, "categoria" infere list', inferirTipoPropriedade('categoria', {}), 'list');
+  igual('property-types · sem tipo explícito, "status" infere select', inferirTipoPropriedade('status', {}), 'select');
+  igual('property-types · chave desconhecida infere text', inferirTipoPropriedade('qualquercoisa', {}), 'text');
+  ok('property-types · PROPERTY_TYPES cobre os 6 tipos',
+    ['text', 'list', 'number', 'checkbox', 'date', 'select'].every(t => t in PROPERTY_TYPES));
+
+  // 24.2: migrarPropriedadeParaTipo
+  igual('property-types · migra texto "42" para number', migrarPropriedadeParaTipo('x', '42', 'number'), 42);
+  igual('property-types · migra texto não-numérico para number vira 0', migrarPropriedadeParaTipo('x', 'abc', 'number'), 0);
+  igual('property-types · migra number para text', migrarPropriedadeParaTipo('x', 42, 'text'), '42');
+  igual('property-types · migra texto para list vira array de 1 item', migrarPropriedadeParaTipo('x', 'a', 'list'), ['a']);
+  igual('property-types · migra array para list mantém array', migrarPropriedadeParaTipo('x', ['a', 'b'], 'list'), ['a', 'b']);
+  igual('property-types · migra array para text junta com vírgula', migrarPropriedadeParaTipo('x', ['a', 'b'], 'text'), 'a, b');
+  igual('property-types · migra "true"/valor truthy para checkbox', migrarPropriedadeParaTipo('x', 'sim', 'checkbox'), true);
+  igual('property-types · migra vazio para checkbox vira false', migrarPropriedadeParaTipo('x', '', 'checkbox'), false);
+
+  // 24.3: Frontmatter em bloco (lista) ida e volta — notefile.js
+  const arquivoComLista = buildNoteFile({
+    meta: { id: 'n1', titulo: 'Nota com categorias', properties: { categoria: ['Trabalho', 'Pessoal', 'Estudo'] } },
+    md: 'Conteúdo qualquer',
+  });
+  ok('notefile · frontmatter grava lista em formato de bloco YAML',
+    arquivoComLista.includes('categoria:\n') && arquivoComLista.includes('  - Trabalho'));
+  const relidoComLista = parseNoteFile(arquivoComLista);
+  igual('notefile · lista de categorias volta idêntica após parse', relidoComLista.meta.categoria, ['Trabalho', 'Pessoal', 'Estudo']);
+
+  const arquivoListaVazia = buildNoteFile({
+    meta: { id: 'n2', titulo: 'Nota sem categorias', properties: { categoria: [] } },
+    md: 'x',
+  });
+  ok('notefile · lista vazia grava como "[]"', arquivoListaVazia.includes('categoria: []'));
+  const relidoListaVazia = parseNoteFile(arquivoListaVazia);
+  igual('notefile · lista vazia volta como array vazio', relidoListaVazia.meta.categoria, []);
+
+  // 24.4: note.js — cabeçalho tipado (ícone/título/cor) e propriedades tipadas
+  const noteSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  ok('cabeçalho · note.js define renderNoteHeader e integra em switchToNote',
+    noteSource.includes('export function renderNoteHeader') &&
+    noteSource.includes('renderNoteHeader(note)'));
+  ok('cabeçalho · note.js persiste título com debounce e evento de preview na aba',
+    noteSource.includes('commitHeaderTitle') &&
+    noteSource.includes('quickdock:note-title-preview'));
+  ok('cabeçalho · note.js abre popover de aparência (ícone/cor) reaproveitado das abas',
+    noteSource.includes('openAppearancePopover') &&
+    noteSource.includes('quickdock:note-appearance-updated'));
+  ok('propriedades · note.js usa inferirTipoPropriedade/migrarPropriedadeParaTipo em renderPropertiesBar',
+    noteSource.includes('inferirTipoPropriedade') &&
+    noteSource.includes('migrarPropriedadeParaTipo') &&
+    noteSource.includes('abrirMenuDeTipo'));
+  ok('propriedades · note.js sabe renderizar checkbox, lista (chips) e select tipados',
+    noteSource.includes('renderPropertyList') &&
+    noteSource.includes('renderPropertySelect') &&
+    noteSource.includes('property-checkbox-wrap'));
+
+  // 24.5: index.html — estrutura do cabeçalho da nota
+  const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  ok('cabeçalho · index.html define note-header-bar com ícone, título editável e cor',
+    sidepanelHtmlSource.includes('id="note-header-bar"') &&
+    sidepanelHtmlSource.includes('id="btn-note-header-icon"') &&
+    sidepanelHtmlSource.includes('id="note-header-title"') &&
+    sidepanelHtmlSource.includes('contenteditable="true"') &&
+    sidepanelHtmlSource.includes('id="btn-note-header-color"'));
+
+  // 24.6: style.css — estiliza cabeçalho e os novos tipos de campo
+  const sidepanelStyleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  ok('cabeçalho · style.css estiliza note-header-bar/título/ícone/cor',
+    sidepanelStyleSource.includes('.note-header-bar') &&
+    sidepanelStyleSource.includes('.note-header-title') &&
+    sidepanelStyleSource.includes(':empty::before') &&
+    sidepanelStyleSource.includes('.note-header-color-dot'));
+  ok('propriedades · style.css estiliza botão de tipo e chips de lista',
+    sidepanelStyleSource.includes('.property-type-btn') &&
+    sidepanelStyleSource.includes('.property-chip-list') &&
+    sidepanelStyleSource.includes('.property-chip-remove'));
+
+  // 24.7: sw.js — property-types.js está no pré-cache do PWA
+  const swSource = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  ok('pwa · sw.js pré-cacheia property-types.js', swSource.includes("'sidepanel/modules/property-types.js'"));
+}
+
+// ── 25. Quadro: Colar Imagem e Cartão de Nota (HANDOFF-8, itens 5 e 6) ───────
+{
+  const { readFile } = await import('node:fs/promises');
+  const boardHtmlSource = await readFile(new URL('../board/index.html', import.meta.url), 'utf8');
+  const boardJsSource = await readFile(new URL('../sidepanel/modules/board-engine.js', import.meta.url), 'utf8');
+  const boardStyleSource = await readFile(new URL('../board/style.css', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
+
+  // 25.1: Colar imagem no quadro (item 5)
+  ok('quadro · board.js importa saveFile/loadFileBlob/deleteFile do storage.js',
+    boardJsSource.includes('saveFile,') && boardJsSource.includes('loadFileBlob,') && boardJsSource.includes('deleteFile,'));
+  ok('quadro · board.js ouve paste de imagem e cria cartão de imagem',
+    boardJsSource.includes("addEventListener('paste'") &&
+    boardJsSource.includes("it.type.startsWith('image/')") &&
+    boardJsSource.includes('addImageCard'));
+  ok('quadro · board.js guarda a imagem colada como Blob (files do Dexie), inline e sem noteId',
+    boardJsSource.includes('saveFile(file, null, { inline: true })'));
+  ok('quadro · board.js carrega o Blob da imagem do cartão via loadFileBlob',
+    boardJsSource.includes('loadFileBlob(card.fileId)') && boardJsSource.includes('URL.createObjectURL(blob)'));
+  ok('quadro · excluir cartão de imagem também exclui o arquivo (sem órfão no banco)',
+    boardJsSource.includes("card?.type === 'image' && card.fileId != null") && boardJsSource.includes('deleteFile(card.fileId)'));
+  ok('quadro · style.css estiliza o corpo do cartão de imagem',
+    boardStyleSource.includes('.board-card-image-body') && boardStyleSource.includes('.board-card-image-el'));
+
+  // 25.2: Cartão de nota vinculada e criação de nota a partir do quadro (item 6)
+  ok('quadro · board.js importa loadAllNotesMeta/createNoteRecord do storage.js',
+    boardJsSource.includes('loadAllNotesMeta,') && boardJsSource.includes('createNoteRecord,'));
+  ok('quadro · board.js define addNoteCard e cartão de nota guarda só o uid (não cópia do conteúdo)',
+    boardJsSource.includes('function addNoteCard(') && boardJsSource.includes("type: 'note', noteUid"));
+  ok('quadro · cartão de nota mostra ícone e título de verdade, e cor herdada da nota',
+    boardJsSource.includes('function noteCardBodyHtml(') &&
+    boardJsSource.includes('nota.icon') && boardJsSource.includes('nota.title') &&
+    boardJsSource.includes("tipo === 'note' ? (nota?.color || null)"));
+  ok('quadro · cartão de nota trata nota removida sem quebrar (estado "não encontrada")',
+    boardJsSource.includes('is-missing') && boardJsSource.includes('Nota não encontrada'));
+  ok('quadro · duplo clique no cartão de nota abre a nota de verdade',
+    boardJsSource.includes("addEventListener('dblclick'") && boardJsSource.includes('abrirNotaDoQuadro(nota.uid)'));
+  ok('quadro · botão "Vincular nota" busca por título e cria o cartão no local escolhido',
+    boardJsSource.includes('function toggleNoteSearchPopover(') && boardJsSource.includes('addNoteCard('));
+  ok('quadro · botão "Nova nota" cria a nota (createNoteRecord) e já solta o cartão vinculado',
+    boardJsSource.includes('async function criarNotaEAdicionar()') &&
+    boardJsSource.includes('await createNoteRecord({ title:'));
+  ok('quadro · index.html tem os botões de vincular/criar nota na barra de ferramentas',
+    boardHtmlSource.includes('id="tool-note-link"') && boardHtmlSource.includes('id="tool-note-create"'));
+  ok('quadro · style.css estiliza cartão de nota e popover de busca',
+    boardStyleSource.includes('.board-card-note-body') && boardStyleSource.includes('.board-note-search-popover'));
+
+  // 25.3: Ponte para abrir a nota fora do quadro sem corromper o rastreamento
+  // do painel lateral (Ctrl+Q) — ver background.js, porta 'sidepanel'.
+  ok('quadro · abrirNotaDoQuadro evita abrir index.html como aba comum na extensão (corromperia o toggle Ctrl+Q)',
+    boardJsSource.includes('chrome.sidePanel.open') && boardJsSource.includes("quickdockAbrirNotaUid"));
+  ok('quadro · abrirNotaDoQuadro cai para window.open no contexto PWA/navegador comum',
+    boardJsSource.includes("window.open(`../index.html?abrirNota="));
+  ok('app.js · escuta mensagem ao vivo quickdock:abrir-nota (painel já aberto)',
+    appSource.includes("chrome.runtime.onMessage.addListener") && appSource.includes("'quickdock:abrir-nota'"));
+  ok('app.js · lê storage.local/URL no boot (painel fechado ou PWA) e limpa a pista depois',
+    appSource.includes('quickdockAbrirNotaUid') &&
+    appSource.includes("chrome.storage.local.remove('quickdockAbrirNotaUid')") &&
+    appSource.includes("params.get('abrirNota')") &&
+    appSource.includes("url.searchParams.delete('abrirNota')"));
+}
+
+// ── 26. Quadro: Âncoras Explícitas de Seta, Rastro Sem Vazamento e Popover de
+//        Cor por Cartão (bugs reportados com print real, 2026-09-20) ─────────
+{
+  const { readFile } = await import('node:fs/promises');
+  const boardJsSource = await readFile(new URL('../sidepanel/modules/board-engine.js', import.meta.url), 'utf8');
+  const boardHtmlSource = await readFile(new URL('../board/index.html', import.meta.url), 'utf8');
+  const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  const boardStyleSource = await readFile(new URL('../board/style.css', import.meta.url), 'utf8');
+
+  // 26.1: `toSide` explícito (mesmo modelo do JSON Canvas do Obsidian: as
+  // duas pontas de uma aresta são gravadas no momento em que são desenhadas,
+  // nunca recalculadas depois a partir de onde os cartões estão agora).
+  ok('setas · addArrow aceita e grava toSide explícito',
+    boardJsSource.includes('function addArrow(fromId, toId, style = \'solid\', fromSide = null, toSide = null)') &&
+    boardJsSource.includes('toSide: toSide || null'));
+  ok('setas · soltar a conexão calcula o lado de chegada pelo ponto real onde soltou, não pelo centro do cartão',
+    boardJsSource.includes('sideTowards(targetCardEl.getBoundingClientRect()') &&
+    boardJsSource.includes('addArrow(origem.id, targetId, \'solid\', origemLado, toSide)'));
+  ok('setas · renderArrows prefere o toSide gravado, só cai pro cálculo por direção em setas antigas',
+    boardJsSource.includes('const fromSide = arrow.fromSide || sideTowards(r1, s2)') &&
+    boardJsSource.includes('const toSide = arrow.toSide || sideTowards(r2, s1)'));
+  ok('setas · a heurística antiga (nearestSide encadeado com clipLineToRect) foi removida, não só contornada',
+    !boardJsSource.includes('function nearestSide(') &&
+    !boardJsSource.includes('function clipLineToRect('));
+  ok('setas · sideTowards normaliza pela metade da largura/altura do retângulo (não deixa o lado mais comprido sempre vencer)',
+    boardJsSource.includes('function sideTowards(rect, point)') &&
+    boardJsSource.includes('const nx = (point.x - cx) / halfW') &&
+    boardJsSource.includes('const ny = (point.y - cy) / halfH'));
+
+  // 26.2: Rastro tracejado da conexão não pode sobreviver ao fim do arrasto —
+  // um só ponto de saída, chamado de todo caminho de limpeza, mais uma
+  // auto-cura em renderArrows (que roda a toda hora) como último recurso.
+  ok('setas · existe um único ponto de saída do modo "conectando" (evita esquecer de zerar um campo em algum caminho)',
+    boardJsSource.includes('function ocultarRastroDeConexao()') &&
+    boardJsSource.includes('connectingFrom = null;\n  connectingFromSide = null;\n  connectingHandlePos = null;\n  draftArrow.hidden = true;'));
+  ok('setas · pointerup/pointercancel da janela inteira e o pointerup do handle usam o mesmo ponto de saída',
+    (boardJsSource.match(/ocultarRastroDeConexao\(\)/g) || []).length >= 4);
+  ok('setas · renderArrows se auto-cura se o rastro ficou visível sem conexão em andamento',
+    boardJsSource.includes('if (!connectingFrom && !draftArrow.hidden) draftArrow.hidden = true;'));
+  ok('setas · rede de segurança extra: qualquer gesto novo fora de um handle limpa um estado "conectando" preso',
+    boardJsSource.includes("!e.target.closest('.board-card-connect-handle')") &&
+    boardJsSource.includes('ocultarRastroDeConexao();\n    }\n  }, true);'));
+
+  // 26.3: Popover de cor tinha que fechar e reabrir pro cartão certo com um
+  // clique só — clicar no botão de OUTRO cartão enquanto um já está aberto
+  // não pode só fechar o errado e exigir um segundo clique.
+  ok('cor · toggleColorPopover rastreia de qual cartão é o popover aberto',
+    boardJsSource.includes('pop.dataset.anchorCardId = card.id') &&
+    boardJsSource.includes('openColorPopover?.dataset.anchorCardId === card.id'));
+  ok('cor · clicar no botão de outro cartão troca de popover num clique só (fecha o antigo e já abre o novo)',
+    boardJsSource.includes('const mesmoCartao = openColorPopover?.dataset.anchorCardId === card.id;') &&
+    boardJsSource.includes('closeColorPopover();\n  if (mesmoCartao) return;'));
+
+  // 26.4: Paridade com Obsidian Canvas (Zero Jitter, Grupos, Imagens e Fluxogramas)
+  ok('canvas obsidian · SVG posicionado dentro de board-world para zero jitter',
+    boardHtmlSource.includes('<div id="board-world" class="board-world">\n      <!-- Camada SVG') &&
+    sidepanelHtmlSource.includes('<div id="board-world" class="board-world">\n          <svg id="board-svg"'));
+  ok('canvas obsidian · suporte a cartões de grupo (Obsidian Canvas Group)',
+    boardJsSource.includes('export function addGroupCard') &&
+    boardJsSource.includes("type: 'group'") &&
+    boardStyleSource.includes('.board-card[data-card-type="group"]'));
+  ok('canvas obsidian · ferramentas de Imagem e Grupo presentes no HTML e motor',
+    boardHtmlSource.includes('id="tool-image"') &&
+    boardHtmlSource.includes('id="tool-group"') &&
+    boardHtmlSource.includes('id="board-image-upload-input"') &&
+    boardJsSource.includes("getEl('tool-image')") &&
+    boardJsSource.includes("getEl('tool-group')"));
+  ok('canvas obsidian · suporte a drag and drop de arquivos de imagem no canvas',
+    boardJsSource.includes("container.addEventListener('dragover'") &&
+    boardJsSource.includes("container.addEventListener('drop'"));
+  ok('canvas obsidian · marcadores de seta start e end para conexões direcionais e bidirecionais',
+    boardHtmlSource.includes('id="arrowhead"') &&
+    boardHtmlSource.includes('id="arrowhead-start"'));
+}
+
+// ── 27. Quadro: Paridade Completa com Obsidian Canvas (Setas Retas/Curvas,
+//        Hit Area 16px, Marquee Selection, Auto-Alinhamento, Arco-Íris e Zero Dialogs) ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const boardJsSource = await readFile(new URL('../sidepanel/modules/board-engine.js', import.meta.url), 'utf8');
+  const boardHtmlSource = await readFile(new URL('../board/index.html', import.meta.url), 'utf8');
+  const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  const boardStyleSource = await readFile(new URL('../board/style.css', import.meta.url), 'utf8');
+
+  // 27.1: Setas Retas vs Curvas Bézier
+  ok('canvas obsidian 2.0 · renderArrows suporta linhas retas (straight) e curvas (curved)',
+    boardJsSource.includes("const isStraight = arrow.lineStyle === 'straight';") &&
+    boardJsSource.includes("M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}") &&
+    boardJsSource.includes("M ${p1.x} ${p1.y} C ${cx1} ${cy1}"));
+
+  // 27.2: Hit area de 16px transparente para clique e toque facilitados
+  ok('canvas obsidian 2.0 · hit area transparente de 16px com hover sincronizado',
+    boardJsSource.includes("hitArea.setAttribute('class', 'board-arrow-hit-area')") &&
+    boardStyleSource.includes('.board-arrow-hit-area') &&
+    boardStyleSource.includes('stroke-width: 16px;') &&
+    boardStyleSource.includes('.board-arrow-hit-area:hover + .board-arrow-path'));
+
+  // 27.3: Rótulo e menu contextual sem alerts, prompts ou dialogs nativos
+  ok('canvas obsidian 2.0 · popover contextual inline para conexões substitui prompt/confirm',
+    boardJsSource.includes('function showArrowPopover(e, arrow)') &&
+    boardJsSource.includes('pop.className = \'board-arrow-popover\'') &&
+    boardJsSource.includes("pop.querySelector('.pop-arrow-label')") &&
+    boardJsSource.includes("pop.querySelector('.pop-delete-arrow')") &&
+    !boardJsSource.includes('window.prompt(') &&
+    !boardJsSource.includes('confirm('));
+
+  // 27.4: Direcionalidade de conexões (unidirecional, bidirecional, sem ponta)
+  ok('canvas obsidian 2.0 · suporte a direcionalidade (forward, bidirectional, none)',
+    boardJsSource.includes("data-dir=\"forward\"") &&
+    boardJsSource.includes("data-dir=\"bidirectional\"") &&
+    boardJsSource.includes("data-dir=\"none\"") &&
+    boardJsSource.includes("marker-start") &&
+    boardJsSource.includes("marker-end"));
+
+  // 27.5: Live draft arrow enquanto arrasta conexão
+  ok('canvas obsidian 2.0 · draft arrow visível com ponta de seta durante arrasto',
+    boardHtmlSource.includes('id="board-draft-arrow"') &&
+    boardHtmlSource.includes('marker-end="url(#arrowhead)"') &&
+    sidepanelHtmlSource.includes('id="board-draft-arrow"') &&
+    sidepanelHtmlSource.includes('marker-end="url(#arrowhead)"') &&
+    boardJsSource.includes("draftArrow.removeAttribute('hidden')") &&
+    boardJsSource.includes("draftArrow.setAttribute('marker-end', 'url(#arrowhead)')"));
+
+  // 27.6: Seleção por retângulo (Marquee Selection) — Desktop Ctrl+Drag e Mobile Touch
+  ok('canvas obsidian 2.0 · seleção por retângulo (Ctrl+Drag e touch long-press)',
+    boardHtmlSource.includes('id="board-selection-box"') &&
+    sidepanelHtmlSource.includes('id="board-selection-box"') &&
+    boardJsSource.includes('e.ctrlKey || e.metaKey || isMobileSelectionMode') &&
+    boardJsSource.includes('isBoxSelecting = true') &&
+    boardJsSource.includes('longPressTimer = setTimeout(') &&
+    boardStyleSource.includes('.board-selection-box'));
+
+  // 27.7: Barra flutuante de seleção múltipla (Alinhar, Agrupar, Cor, Excluir)
+  ok('canvas obsidian 2.0 · barra de ferramentas para seleção múltipla',
+    boardHtmlSource.includes('id="board-selection-toolbar"') &&
+    sidepanelHtmlSource.includes('id="board-selection-toolbar"') &&
+    boardJsSource.includes('function updateSelectionToolbar()') &&
+    boardJsSource.includes('function alignSelectedCards(') &&
+    boardJsSource.includes('function groupSelectedCards()') &&
+    boardJsSource.includes('function deleteSelectedCards()') &&
+    boardStyleSource.includes('.board-selection-toolbar'));
+
+  // 27.8: Paleta de Cores: 7 cores do arco-íris + personalizada com z-index 10000
+  ok('canvas obsidian 2.0 · paleta com 7 cores do arco-íris e seletor customizado',
+    boardJsSource.includes("name: 'Vermelho'") &&
+    boardJsSource.includes("name: 'Laranja'") &&
+    boardJsSource.includes("name: 'Amarelo'") &&
+    boardJsSource.includes("name: 'Verde'") &&
+    boardJsSource.includes("name: 'Azul'") &&
+    boardJsSource.includes("name: 'Índigo'") &&
+    boardJsSource.includes("name: 'Violeta'") &&
+    boardJsSource.includes("'board-color-swatch is-custom'") &&
+    boardStyleSource.includes('z-index: 10000;'));
+
+  // 27.9: Auto-Alinhamento Inteligente (Smart Snapping)
+  ok('canvas obsidian 2.0 · auto-alinhamento magnético inteligente com guias visuais',
+    boardHtmlSource.includes('id="board-svg-guides"') &&
+    sidepanelHtmlSource.includes('id="board-svg-guides"') &&
+    boardJsSource.includes('function computeSnapping(') &&
+    boardJsSource.includes('function renderGuideLines(') &&
+    boardStyleSource.includes('.board-guide-line'));
+
+  // 27.10: Roteamento Ortogonal Inteligente em Conexões Retas (não corta cards na mesma reta)
+  ok('canvas obsidian 2.0 · roteamento ortogonal inteligente com cantos arredondados para cartões alinhados',
+    boardJsSource.includes('function getOrthogonalWaypoints(') &&
+    boardJsSource.includes("fromSide === 'right' && toSide === 'right'") &&
+    boardJsSource.includes('function waypointsToSvgPath(') &&
+    boardJsSource.includes('function waypointPathMidpoint('));
+
+  // 27.11: Agrupar Cartões não some com elementos (segurança contra escHtml(undefined))
+  ok('canvas obsidian 2.0 · agrupar cartões preserva todos os nós no DOM',
+    boardJsSource.includes("tipo === 'group'") &&
+    boardJsSource.includes("board-card-group-body") &&
+    boardJsSource.includes("label: 'Novo Grupo'"));
+
+  // 27.12: Zero Delay na atualização de setas (atualização in-place no SVG e cache de rect)
+  ok('canvas obsidian 2.0 · atualização em tempo real sem lag via arrowDomMap e cachedContainerRect',
+    boardJsSource.includes('const arrowDomMap = new Map();') &&
+    boardJsSource.includes('cachedContainerRect') &&
+    boardJsSource.includes('dom.hitArea.setAttribute(\'d\', pathD);'));
+
+  // 28: Obsidian Live Preview & Source-on-Cursor Parity
+  const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+
+  // 28.1: Divisor '---' editável e navegável via cursor/backspace
+  ok('live-preview · divisor possui estrutura de texto editável e hr visual',
+    noteJsSource.includes("content.className = 'block-content divider-content';") &&
+    noteJsSource.includes("content.textContent = (innerHTML && /^(-{3,}|\\*{3,}|_{3,})$/.test(innerHTML.trim())) ? innerHTML.trim() : '---';") &&
+    noteJsSource.includes("el.addEventListener('focusin', () => el.classList.add('is-active'));") &&
+    noteJsSource.includes("convertBlockType(el, 'paragraph');"));
+
+  ok('live-preview · CSS do divisor alterna entre hr limpo e texto puro no foco',
+    styleCssSource.includes('.block-divider.is-active .divider-content') &&
+    styleCssSource.includes('.block-divider.is-active hr') &&
+    styleCssSource.includes('display: none;') &&
+    styleCssSource.includes('.block-divider .divider-content'));
+
+  ok('live-preview · Backspace na linha abaixo do divisor navega para o final do divisor em vez de deletar no escuro',
+    noteJsSource.includes("if (prev.dataset.type === 'divider') {") &&
+    noteJsSource.includes("const prevContent = getContentEl(prev);") &&
+    noteJsSource.includes("prevContent.focus();") &&
+    noteJsSource.includes("setCaretOffset(prevContent, prevContent.textContent.length);"));
+
+  // 28.2: Cabeçalhos com redução de nível e prefixo editável
+  ok('live-preview · Backspace reduz nível do cabeçalho (h3 -> h2 -> h1 -> parágrafo)',
+    noteJsSource.includes("const level = Number(type.replace('heading', ''));") &&
+    noteJsSource.includes("convertBlockType(block, `heading${level - 1}`);") &&
+    noteJsSource.includes("convertBlockType(block, 'paragraph');"));
+
+  ok('live-preview · Motor de Live Preview revela prefixos de cabeçalho e citação reais no foco',
+    noteJsSource.includes('function revealBlockSyntax(') &&
+    noteJsSource.includes('function collapseBlockSyntax(') &&
+    noteJsSource.includes("prefixSpan.className = 'md-syntax-prefix';") &&
+    noteJsSource.includes("prefixSpan.contentEditable = 'true';"));
+
+  ok('live-preview · CSS estiliza prefixos de cabeçalho e citação',
+    styleCssSource.includes('.md-syntax-prefix') &&
+    styleCssSource.includes('font-family: var(--font-mono, monospace);') &&
+    styleCssSource.includes('color: var(--text-muted);'));
+
+  // 28.3: Formatação inline com delimitadores reais no cursor e unwrap
+  ok('live-preview · Motor de Live Preview revela delimitadores inline reais',
+    noteJsSource.includes('function revealInlineSyntax(') &&
+    noteJsSource.includes('function collapseInlineSyntax(') &&
+    noteJsSource.includes("openSpan.className = 'md-syntax md-syntax-open';") &&
+    noteJsSource.includes("openSpan.contentEditable = 'true';"));
+
+  ok('live-preview · CSS estiliza delimitadores inline reais no cursor',
+    styleCssSource.includes('.md-syntax') &&
+    styleCssSource.includes('font-family: var(--font-mono, monospace);') &&
+    styleCssSource.includes('text-decoration: none !important;'));
+
+  ok('live-preview · updateLivePreviewState chamado no selectionchange e blur no root',
+    noteJsSource.includes('updateLivePreviewState();') &&
+    noteJsSource.includes('collapseBlockSyntax(livePreviewActiveBlock)') &&
+    noteJsSource.includes('collapseInlineSyntax(livePreviewActiveInline)'));
+
+  ok('live-preview · sanitização segura remove elementos temporários de sintaxe',
+    noteJsSource.includes("div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());"));
 }
 
 if (falhas.length) {

@@ -487,7 +487,7 @@ async function reorderNotes(srcId, targetId, before) {
 // Sem cor definida: remove a variável (não seta "transparent") pra que os
 // elementos temáticos (citação, marcadores, checkbox) caiam de volta no
 // var(--accent) padrão em vez de ficarem invisíveis.
-function setAccent(color) {
+export function setAccent(color) {
   if (color) {
     noteEditorEl?.style.setProperty('--note-accent', color);
     document.documentElement.style.setProperty('--note-accent', color);
@@ -622,10 +622,12 @@ function buildTab(meta) {
   return tab;
 }
 
-// ── Conteúdo de ícone + cor (embutido dentro do menu "⋯", ver openTabMenu) ───
-// Escolher um ícone ou uma cor não fecha o menu, só re-renderiza este bloco
-// no lugar, pra dar pra ajustar os dois sem reabrir nada.
-function renderAppearanceContent(pop, meta) {
+// ── Conteúdo de ícone + cor (embutido no menu "⋯" e no popover do cabeçalho
+// da nota, ver openTabMenu e openAppearancePopover) ─────────────────────────
+// Escolher um ícone ou uma cor não fecha quem estiver mostrando isto, só
+// re-renderiza este bloco no lugar, pra dar pra ajustar os dois sem reabrir
+// nada — os dois pontos de entrada chamam a mesma função, o mesmo estado.
+export function renderAppearanceContent(pop, meta) {
   pop.innerHTML = '';
 
   const iconHeader = document.createElement('div');
@@ -641,6 +643,7 @@ function renderAppearanceContent(pop, meta) {
     meta.icon = name;
     renderTabs();
     renderAppearanceContent(pop, meta);
+    document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
   };
 
   const noneIconBtn = document.createElement('button');
@@ -678,6 +681,7 @@ function renderAppearanceContent(pop, meta) {
     meta.iconFilled = e.target.checked;
     renderTabs();
     renderAppearanceContent(pop, meta);
+    document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
   });
   const fillLabel = document.createElement('span');
   fillLabel.textContent = 'Ícone preenchido';
@@ -754,6 +758,7 @@ function renderAppearanceContent(pop, meta) {
     if (meta.id === activeId) setAccent(hex);
     renderTabs();
     renderAppearanceContent(pop, meta);
+    document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
   };
 
   const noneColorBtn = document.createElement('button');
@@ -1004,8 +1009,51 @@ function openTabMenu(meta, anchorEl) {
   renameInput?.select();
 }
 
+// ── Popover de ícone + cor sozinho (cabeçalho da nota) ───────────────────────
+// Mesmo conteúdo do "Ícone e cor" do menu "⋯", só que como popover próprio —
+// pro clique no ícone/bolinha de cor do cabeçalho não precisar abrir o menu
+// inteiro da aba pra chegar lá.
+let appearancePopoverEl = null;
+function closeAppearancePopover() {
+  appearancePopoverEl?.remove();
+  appearancePopoverEl = null;
+}
+
+export function openAppearancePopover(anchorEl, meta) {
+  // Segundo clique no mesmo botão fecha em vez de reabrir — sem isso o
+  // mousedown de fechar (fora do popover) e o click de abrir, nesta ordem,
+  // fariam o popover nunca fechar clicando de novo no ícone.
+  const jaAbertoNesteAncora = appearancePopoverEl?.dataset.anchor === anchorEl.id;
+  closeAppearancePopover();
+  if (jaAbertoNesteAncora) return;
+
+  const pop = document.createElement('div');
+  pop.dataset.anchor = anchorEl.id;
+  pop.className = 'copy-menu tab-menu-appearance appearance-popover';
+  renderAppearanceContent(pop, meta);
+  document.body.appendChild(pop);
+  positionPopover(pop, anchorEl);
+  appearancePopoverEl = pop;
+}
+
 document.addEventListener('mousedown', e => {
   if (tabMenuEl && !tabMenuEl.contains(e.target)) closeTabMenu();
+  if (appearancePopoverEl && !appearancePopoverEl.contains(e.target)
+    && e.target.id !== 'btn-note-header-icon' && e.target.id !== 'btn-note-header-color'
+    && !e.target.closest('#btn-note-header-icon') && !e.target.closest('#btn-note-header-color')) {
+    closeAppearancePopover();
+  }
+});
+
+// Título editado direto no cabeçalho da nota (note.js) atualiza a aba na
+// hora, a cada tecla — só o texto visível, sem gravar nada: gravar de
+// verdade (e reescrever links de quem aponta pra esta nota) espera o
+// debounce lá do cabeçalho, essa atualização aqui é só cosmética.
+document.addEventListener('quickdock:note-title-preview', e => {
+  const { noteId, title } = e.detail || {};
+  if (noteId == null) return;
+  const tabTitleEl = tabsEl.querySelector(`.note-tab[data-id="${noteId}"] .note-tab-title`);
+  if (tabTitleEl) tabTitleEl.textContent = title || 'Sem título';
 });
 
 // ── Gestão e Árvore de Pastas (Fase 2) ─────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { initNotesTabs, createTutorialNote, downloadAllNotes, refreshNotesList, getActiveNoteUid } from './modules/notes-tabs.js';
 import { positionPopover } from './modules/popover.js';
 import { initDocuments, toggleDocsCollapsed } from './modules/documents.js';
-import { loadTheme, saveTheme } from './modules/storage.js';
+import { loadTheme, saveTheme, loadAllNotesMeta } from './modules/storage.js';
 import { initResizer, toggleDocsExtension } from './modules/resizer.js';
 import { SyncController, SYNC_STATE } from './modules/sync-controller.js';
 import { canSafelyReloadCurrentNote, switchToNote, flushSave, isEditingTemplate, setImageResolver } from './modules/note.js';
@@ -66,6 +66,46 @@ async function toggleTheme() {
 export function abrirQuadroInfinito(boardId = null) {
   // Abre o quadro dedicado em aba cheia: board/index.html
   abrirQuadroInfinitoEmAba(boardId);
+}
+
+async function abrirNotaPorUid(uid) {
+  if (!uid) return;
+  const notas = await loadAllNotesMeta();
+  const alvo = notas.find(n => n.uid === uid);
+  if (alvo) await switchToNote(alvo.id);
+}
+
+// Um cartão de nota no quadro infinito (aba/painel separado) pede pra abrir a
+// nota de verdade aqui. Duas pontes coexistem porque o painel lateral, ao
+// contrário de uma aba comum, pode já estar rodando quando o pedido chega:
+//   - Painel já aberto: mensagem via chrome.runtime, entregue na hora.
+//   - Painel fechado ou PWA: uma pista deixada antes de abrir (storage.local
+//     na extensão, ?abrirNota= na URL no navegador comum), lida uma vez no boot.
+if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener(msg => {
+    if (msg?.type === 'quickdock:abrir-nota' && msg.uid) abrirNotaPorUid(msg.uid);
+  });
+}
+
+async function abrirNotaDaUrlOuStorageSeHouver() {
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    try {
+      const { quickdockAbrirNotaUid } = await chrome.storage.local.get('quickdockAbrirNotaUid');
+      if (quickdockAbrirNotaUid) {
+        await chrome.storage.local.remove('quickdockAbrirNotaUid');
+        await abrirNotaPorUid(quickdockAbrirNotaUid);
+      }
+    } catch {}
+  }
+
+  const params = new URLSearchParams(location.search);
+  const uidDaUrl = params.get('abrirNota');
+  if (uidDaUrl) {
+    const url = new URL(location.href);
+    url.searchParams.delete('abrirNota');
+    history.replaceState(null, '', url);
+    await abrirNotaPorUid(uidDaUrl);
+  }
 }
 
 // ── Menu "⋯" ──────────────────────────────────────────────────────────────────
@@ -161,6 +201,7 @@ async function init() {
   try {
     await initTheme();
     await initNotesTabs();
+    await abrirNotaDaUrlOuStorageSeHouver();
     await initDocuments();
     await initResizer();
     initTemplatesGallery();
@@ -176,11 +217,6 @@ async function init() {
     const btnNavBoard = document.getElementById('btn-nav-board');
     if (btnNavBoard) {
       btnNavBoard.addEventListener('click', () => switchView('board'));
-    }
-
-    const btnNavCalendar = document.getElementById('btn-nav-calendar');
-    if (btnNavCalendar) {
-      btnNavCalendar.addEventListener('click', () => switchView('calendar'));
     }
 
     syncController = new SyncController({

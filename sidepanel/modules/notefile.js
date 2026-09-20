@@ -39,6 +39,20 @@ function formatValue(v) {
   return s;
 }
 
+// Uma propriedade do tipo "list" (ver property-types.js) grava um array.
+// Sem biblioteca de YAML, o formato manual escolhido é o bloco padrão —
+// `chave:` sozinha na linha, seguida de um "- item" indentado por linha —
+// que é o mesmo que o Obsidian e qualquer editor markdown geram/entendem.
+function formatFrontmatterLine(chave, valor) {
+  if (Array.isArray(valor)) {
+    if (valor.length === 0) return `${chave}: []`;
+    const linhas = [`${chave}:`];
+    for (const item of valor) linhas.push(`  - ${formatValue(item)}`);
+    return linhas.join('\n');
+  }
+  return `${chave}: ${formatValue(valor)}`;
+}
+
 function parseValue(raw) {
   const v = (raw ?? '').trim();
   if (v === '' || v === 'null') return null;
@@ -107,6 +121,7 @@ export function buildNoteFile({ meta = {}, md = '' }) {
     'icone', 'icon', 'iconePreenchido', 'iconFilled', 'tituloOculto',
     'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
     'atualizadoEm', 'updatedAt', 'content', 'blocks', 'properties',
+    'propertyTypes', 'propertySelectOptions',
   ]);
 
   if (meta.properties && typeof meta.properties === 'object') {
@@ -125,7 +140,7 @@ export function buildNoteFile({ meta = {}, md = '' }) {
 
   const linhasFm = ['---'];
   for (const [k, v] of Object.entries(f)) {
-    linhasFm.push(`${k}: ${formatValue(v)}`);
+    linhasFm.push(formatFrontmatterLine(k, v));
   }
   linhasFm.push('---');
 
@@ -165,7 +180,8 @@ export function extrairMetadadosBrutos(texto) {
   const meta = {};
   const linhas = rawFm.replace(/\r\n?/g, '\n').split('\n');
 
-  for (const linha of linhas) {
+  for (let i = 0; i < linhas.length; i++) {
+    const linha = linhas[i];
     const limpa = linha.trim();
     if (!limpa || limpa.startsWith('#')) continue;
     const idx = linha.indexOf(':');
@@ -174,7 +190,25 @@ export function extrairMetadadosBrutos(texto) {
     const chave = linha.slice(0, idx).trim();
     const rawVal = linha.slice(idx + 1).trim();
     if (!chave) continue;
-    meta[chave] = parseValue(rawVal);
+
+    // "chave:" sem valor na mesma linha pode ser o início de uma lista em
+    // bloco — junta as linhas seguintes que começam com "- " indentado.
+    // Sem nenhuma abaixo, cai no comportamento de sempre (valor nulo).
+    if (rawVal === '') {
+      const itens = [];
+      let j = i + 1;
+      while (j < linhas.length && /^\s+-\s?/.test(linhas[j])) {
+        itens.push(parseValue(linhas[j].replace(/^\s+-\s?/, '').trim()));
+        j++;
+      }
+      if (itens.length > 0) {
+        meta[chave] = itens;
+        i = j - 1;
+        continue;
+      }
+    }
+
+    meta[chave] = rawVal === '[]' ? [] : parseValue(rawVal);
   }
 
   // Se não foi encontrada nenhuma chave no frontmatter, o bloco estava vazio/inválido

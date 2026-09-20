@@ -196,6 +196,87 @@ body:not(.booting) .note-editor-blocks {
   font-family: inherit;
 }
 
+/* Cabeçalho da nota: ícone + título editável + cor (estilo Obsidian) */
+.note-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 2px 30px;
+  flex-shrink: 0;
+}
+
+.note-header-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--note-accent, var(--text-muted));
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.note-header-icon-btn:hover {
+  background: var(--bg-hover);
+}
+
+.note-header-icon-btn .qd-icon {
+  font-size: 22px;
+}
+
+.note-header-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  outline: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.note-header-title:focus {
+  background: var(--bg-hover);
+}
+
+.note-header-title:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.note-header-color-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.note-header-color-btn:hover {
+  background: var(--bg-hover);
+}
+
+.note-header-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--note-accent, transparent);
+}
+
 .note-folder-btn:hover {
   background: var(--bg-hover);
   color: var(--text);
@@ -710,12 +791,57 @@ body:not(.booting) .note-editor-blocks {
 }
 
 .block-divider {
-  padding: 8px 0;
+  position: relative;
+  min-height: 24px;
+  cursor: text;
+  padding: 4px 0;
+}
+.block-divider .divider-content {
+  display: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  padding: 2px 0;
+  outline: none;
 }
 .block-divider hr {
   border: none;
   border-top: 1px solid var(--border);
-  margin: 0;
+  margin: 11px 0;
+}
+.block-divider.is-active .divider-content,
+.block-divider.is-focused .divider-content,
+.block-divider:focus-within .divider-content {
+  display: block;
+}
+.block-divider.is-active hr,
+.block-divider.is-focused hr,
+.block-divider:focus-within hr {
+  display: none;
+}
+
+/* Obsidian Live Preview: Prefixos de cabeçalho e citação reais no foco */
+.md-syntax-prefix {
+  font-family: var(--font-mono, monospace);
+  font-weight: normal;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  opacity: 0.65;
+  user-select: text;
+  display: inline;
+}
+
+/* Obsidian Live Preview: Delimitadores de formatação inline reais no cursor */
+.md-syntax {
+  font-family: var(--font-mono, monospace);
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none !important;
+  color: var(--text-muted);
+  opacity: 0.65;
+  user-select: text;
+  display: inline;
 }
 
 /* Marcações inline reais (aplicadas ao digitar **, *, ~~, ` ou pela barra) */
@@ -5983,14 +6109,18 @@ html[data-platform="mobile"] #btn-nav-board {
   color: var(--text);
 }
 
-/* ===== VISÃO DO QUADRO INFINITO (CANVAS ESPACIAL) ===== */
+/* ===== VISÃO DO QUADRO INFINITO (CANVAS ESPACIAL) =====
+   O motor e todo o estilo dos componentes (cabeçalho, cartões, setas) vêm de
+   ../board/style.css (compartilhado com a aba cheia dedicada, ver
+   board-engine.js) — aqui fica só a integração desta seção com o sistema de
+   troca de telas do painel: preencher o espaço reservado e sumir por
+   completo (não só opacidade) quando outra visão está ativa. */
 .board-view {
   flex: 1;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background: var(--bg);
   overflow: hidden;
   position: relative;
   z-index: 5;
@@ -6000,378 +6130,10 @@ html[data-platform="mobile"] #btn-nav-board {
   display: none !important;
 }
 
-.board-header {
-  position: relative;
-  height: 52px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  z-index: 50;
-  gap: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  flex-shrink: 0;
+html.view-board .note-section,
+body.view-board .note-section {
+  display: none !important;
 }
-
-.board-header-left,
-.board-header-center,
-.board-header-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.board-back-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
-  color: var(--text);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.board-back-btn:hover {
-  background: var(--border);
-  transform: translateX(-1px);
-}
-
-.board-title-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.board-title-input {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 4px 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  outline: none;
-  width: 120px;
-  max-width: 160px;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.board-title-input:hover,
-.board-title-input:focus {
-  background: var(--bg-hover);
-  border-color: var(--border);
-}
-
-.board-save-status {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  color: var(--text-muted);
-  opacity: 0.8;
-  white-space: nowrap;
-}
-
-.board-save-status .status-icon {
-  font-size: 12px;
-  color: #16a34a;
-}
-
-.board-tools-group {
-  display: flex;
-  align-items: center;
-  background: var(--bg-subtle, var(--bg-surface-hover));
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.board-tool-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.board-tool-btn:hover {
-  color: var(--text);
-  background: var(--bg-hover);
-}
-
-.board-tool-btn.active {
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.board-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg-card, var(--bg));
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.board-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
-}
-
-.board-btn.icon-btn {
-  padding: 4px;
-  width: 28px;
-  height: 28px;
-  justify-content: center;
-}
-
-.board-zoom-group {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: var(--bg-subtle, var(--bg-surface-hover));
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 2px;
-}
-
-.board-zoom-group .zoom-level-text {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-muted);
-  min-width: 34px;
-  text-align: center;
-}
-
-.board-open-tab-btn {
-  color: var(--accent) !important;
-  font-weight: 600;
-}
-
-.open-tab-btn-label {
-  display: none;
-}
-
-@media (min-width: 768px) {
-  .open-tab-btn-label {
-    display: inline;
-  }
-}
-
-.board-container {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background-color: var(--bg);
-  background-image: radial-gradient(var(--border) 1px, transparent 1px);
-  background-size: 24px 24px;
-  cursor: default;
-  touch-action: none;
-  width: 100%;
-  height: calc(100% - 52px);
-}
-
-.board-container.is-panning {
-  cursor: grabbing;
-}
-
-.board-svg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 10;
-  overflow: visible;
-}
-
-.board-arrow-path {
-  fill: none;
-  stroke: var(--text-muted);
-  stroke-width: 2px;
-  stroke-linecap: round;
-  pointer-events: stroke;
-  cursor: pointer;
-  transition: stroke 0.15s ease, stroke-width 0.15s ease;
-}
-
-.board-arrow-path:hover,
-.board-arrow-path.selected {
-  stroke: var(--accent);
-  stroke-width: 3px;
-}
-
-.draft-arrow {
-  stroke: var(--accent);
-  stroke-width: 2px;
-  stroke-dasharray: 4 4;
-}
-
-.board-world {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-origin: 0 0;
-  z-index: 20;
-  pointer-events: none;
-}
-
-.board-cards-layer {
-  position: relative;
-}
-
-.board-card {
-  position: absolute;
-  top: 0;
-  left: 0;
-  background: var(--bg-card, var(--bg));
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-  pointer-events: auto;
-  user-select: none;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.board-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  border-color: var(--accent);
-}
-
-.board-card[data-color="yellow"] { background: #fef9c3; border-color: #fde047; color: #713f12; }
-.board-card[data-color="green"]  { background: #dcfce7; border-color: #86efac; color: #14532d; }
-.board-card[data-color="blue"]   { background: #e0f2fe; border-color: #7dd3fc; color: #0c4a6e; }
-.board-card[data-color="pink"]   { background: #fce7f3; border-color: #f472b6; color: #831843; }
-
-[data-theme="dark"] .board-card[data-color="yellow"] { background: #422006; border-color: #854d0e; color: #fef08a; }
-[data-theme="dark"] .board-card[data-color="green"]  { background: #052e16; border-color: #166534; color: #bbf7d0; }
-[data-theme="dark"] .board-card[data-color="blue"]   { background: #082f49; border-color: #075985; color: #bae6fd; }
-[data-theme="dark"] .board-card[data-color="pink"]   { background: #500724; border-color: #9d174d; color: #fbcfe8; }
-
-.board-card-header {
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  cursor: grab;
-  flex-shrink: 0;
-}
-
-.board-card-header:active {
-  cursor: grabbing;
-}
-
-.board-card-handle {
-  font-size: 11px;
-  font-weight: 600;
-  opacity: 0.6;
-}
-
-.board-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.card-action-btn {
-  background: transparent;
-  border: none;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
-  opacity: 0.6;
-}
-
-.card-action-btn:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.board-card-body {
-  flex: 1;
-  padding: 8px 10px;
-  font-size: 12px;
-  line-height: 1.4;
-  outline: none;
-  cursor: text;
-  overflow-y: auto;
-  user-select: text;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.board-card-resizer {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  cursor: se-resize;
-}
-
-.board-card-resizer::after {
-  content: '';
-  position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 5px;
-  height: 5px;
-  border-right: 2px solid var(--border);
-  border-bottom: 2px solid var(--border);
-}
-
-.board-card-connect-handle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid #ffffff;
-  cursor: crosshair;
-  opacity: 0;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  z-index: 30;
-}
-
-.board-card:hover .board-card-connect-handle {
-  opacity: 1;
-}
-
-.board-card-connect-handle:hover {
-  transform: scale(1.3);
-}
-
-.board-card-connect-handle.top    { top: -6px; left: 50%; margin-left: -6px; }
-.board-card-connect-handle.right  { right: -6px; top: 50%; margin-top: -6px; }
-.board-card-connect-handle.bottom { bottom: -6px; left: 50%; margin-left: -6px; }
-.board-card-connect-handle.left   { left: -6px; top: 50%; margin-top: -6px; }
 
 /* ==========================================================================
    BARRA DE PROPRIEDADES DA NOTA (NOTION / OBSIDIAN PROPERTIES STYLE)
@@ -6510,6 +6272,35 @@ html[data-platform="mobile"] #btn-nav-board {
   color: var(--text-muted);
 }
 
+.property-type-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+}
+
+.property-type-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.property-type-btn .qd-icon {
+  font-size: 14px;
+}
+
+.note-property-label-wrap .property-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .note-property-value-wrap {
   flex: 1;
   min-width: 0;
@@ -6540,6 +6331,77 @@ html[data-platform="mobile"] #btn-nav-board {
 
 .property-input-date {
   color-scheme: light dark;
+}
+
+.property-input-number {
+  max-width: 120px;
+}
+
+.property-checkbox-wrap {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.property-checkbox-wrap input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.property-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.property-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 2px 4px 2px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.property-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 50%;
+}
+
+.property-chip-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.property-chip-remove .qd-icon {
+  font-size: 12px;
+}
+
+.property-chip-input {
+  flex: 1;
+  min-width: 60px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--text);
+  padding: 2px 4px;
 }
 
 .property-delete-btn {
@@ -6600,6 +6462,12 @@ html[data-platform="mobile"] #btn-nav-board {
 .note-properties-popup-menu .popover-item:hover {
   background: var(--bg-hover);
   color: var(--accent);
+}
+
+.note-properties-popup-menu .popover-item.active {
+  background: var(--bg-hover);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .note-properties-popup-menu .popover-item .qd-icon {

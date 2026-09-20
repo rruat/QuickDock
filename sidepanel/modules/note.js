@@ -18,6 +18,8 @@ import {
 import { blockTemplates, openSaveBlockTemplate } from './templates.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from './snapshot.js';
 import { iconSvg, createIcon } from './icons.js';
+import { PROPERTY_TYPES, inferirTipoPropriedade, migrarPropriedadeParaTipo } from './property-types.js';
+import { openAppearancePopover } from './notes-tabs.js';
 
 const noteSection  = document.querySelector('.note-section');
 const noteEditorEl = document.querySelector('.note-editor');
@@ -582,8 +584,33 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
   } else if (type === 'divider') {
     el = document.createElement('div');
     el.className = 'block block-divider';
-    el.contentEditable = 'false';
-    el.appendChild(document.createElement('hr'));
+    el.contentEditable = 'true';
+    const content = document.createElement('span');
+    content.className = 'block-content divider-content';
+    content.contentEditable = 'true';
+    content.textContent = (innerHTML && /^(-{3,}|\*{3,}|_{3,})$/.test(innerHTML.trim())) ? innerHTML.trim() : '---';
+    const hr = document.createElement('hr');
+    hr.contentEditable = 'false';
+    el.append(content, hr);
+
+    el.addEventListener('mousedown', e => {
+      if (document.activeElement !== content) {
+        e.preventDefault();
+        el.classList.add('is-active');
+        content.focus();
+        setCaretOffset(content, content.textContent.length);
+      }
+    });
+
+    el.addEventListener('focusin', () => el.classList.add('is-active'));
+    el.addEventListener('focusout', () => {
+      el.classList.remove('is-active');
+      const text = content.textContent.trim();
+      if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) {
+        const para = convertBlockType(el, 'paragraph');
+        getContentEl(para).textContent = text;
+      }
+    });
 
   } else {
     el = document.createElement('p');
@@ -927,11 +954,11 @@ function focusBlockEnd(block) {
     focusCell(block.querySelector('.table-cell'));
     return;
   }
-  // Divisor e imagem não recebem cursor: o destino é a linha seguinte, e se
+  // Imagem não recebe cursor de texto: o destino é a linha seguinte, e se
   // não houver uma, cria.
-  if (block.dataset.type === 'divider' || block.dataset.type === 'image') {
+  if (block.dataset.type === 'image') {
     let next = block.nextElementSibling;
-    if (!next || next.dataset.type === 'divider' || next.dataset.type === 'image') {
+    if (!next || next.dataset.type === 'image') {
       next = createBlockEl('paragraph');
       block.after(next);
     }
@@ -1318,7 +1345,11 @@ function flushRescan() {
   if (hadFocus && caretOffset !== null) setCaretOffset(content, caretOffset);
 }
 
-root.addEventListener('blur', flushRescan, true);
+root.addEventListener('blur', () => {
+  flushRescan();
+  if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
+  if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
+}, true);
 
 // ── Salvamento ────────────────────────────────────────────────────────────────
 // `keepBreaks` mantém <br> real (bloco de código, onde é quebra de linha de
@@ -1328,6 +1359,10 @@ function sanitizeForSave(html, keepBreaks = false) {
   const div = document.createElement('div');
   div.innerHTML = html;
   div.querySelectorAll('mark').forEach(m => m.replaceWith(...m.childNodes));
+  div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());
+  div.querySelectorAll('.md-token-open, .is-active, .md-inline-active').forEach(el => {
+    el.classList.remove('md-token-open', 'is-active', 'md-inline-active');
+  });
   // Link é o único elemento que carrega dado do usuário num atributo. Aqui é o
   // funil por onde passa tudo que é persistido — inclusive HTML colado de fora
   // —, então é onde href hostil e atributos de evento morrem.
@@ -1520,15 +1555,101 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
   } else {
     await flushSave();
   }
+  // Título do cabeçalho pendente de gravar (debounce ainda não estourou):
+  // grava agora, na nota que estava aberta — sem isso, trocar de nota rápido
+  // depois de digitar um título novo perderia a edição em silêncio.
+  if (headerTitleDebounce) commitHeaderTitle();
   editingTemplate = null;            // trocar de nota abandona o modo modelo
   currentNoteId = id;
   const note = await getNoteById(id);
   const blocks = (note?.blocks?.length) ? note.blocks : parseMarkdownToBlocks(note?.content ?? '');
   renderBlocks(blocks);
   updateMobileToolbarState();
+  renderNoteHeader(note);
   renderPropertiesBar(note);
   await refreshBacklinks(id);
 }
+
+// ── Cabeçalho da Nota (ícone, título editável, cor) ───────────────────────────
+const headerIconBtn  = document.getElementById('btn-note-header-icon');
+const headerIconEl   = document.getElementById('note-header-icon');
+const headerTitleEl  = document.getElementById('note-header-title');
+const headerColorBtn = document.getElementById('btn-note-header-color');
+const headerColorDot = document.getElementById('note-header-color-dot');
+
+let headerTitleDebounce = null;
+// A nota mostrada agora no cabeçalho — guardada à parte pra comparar o valor
+// no momento de gravar, mesmo se a pessoa já tiver trocado de nota antes do
+// debounce dos 500ms terminar (o timer é sempre cancelado ao trocar, ver
+// switchToNote, mas fica como segunda trava).
+let headerNoteRef = null;
+
+export function renderNoteHeader(note) {
+  headerNoteRef = note;
+  if (!headerIconEl || !headerTitleEl || !headerColorDot) return;
+  if (!note) return;
+
+  headerIconEl.textContent = note.icon || 'description';
+  headerIconEl.classList.toggle('icon-filled', !!note.iconFilled);
+  headerIconEl.style.color = note.color || '';
+
+  // Não sobrescreve o texto se a pessoa estiver com o cursor ali agora —
+  // re-renderizar por baixo da digitação faria o cursor pular de lugar.
+  if (document.activeElement !== headerTitleEl) {
+    headerTitleEl.textContent = note.title || '';
+  }
+
+  headerColorDot.style.background = note.color || 'var(--text-muted)';
+}
+
+function commitHeaderTitle() {
+  clearTimeout(headerTitleDebounce);
+  headerTitleDebounce = null;
+  if (!headerNoteRef) return;
+  const val = (headerTitleEl.textContent || '').trim() || 'Sem título';
+  if (val === headerNoteRef.title) return;
+  updateNoteMetaById(headerNoteRef.id, { title: val });
+  headerNoteRef.title = val;
+}
+
+if (headerTitleEl) {
+  headerTitleEl.addEventListener('input', () => {
+    if (!headerNoteRef) return;
+    const val = headerTitleEl.textContent || '';
+    // Atualiza a aba na hora, só visualmente — gravar de verdade espera a
+    // pausa de digitação (mesma lógica de debounce da sincronização, só que
+    // bem mais curta: aqui o custo de gravar cedo demais é só desperdiçar
+    // escrita no banco, não travar o editor).
+    document.dispatchEvent(new CustomEvent('quickdock:note-title-preview', {
+      detail: { noteId: headerNoteRef.id, title: val.trim() || 'Sem título' }
+    }));
+    clearTimeout(headerTitleDebounce);
+    headerTitleDebounce = setTimeout(commitHeaderTitle, 500);
+  });
+  headerTitleEl.addEventListener('blur', commitHeaderTitle);
+  headerTitleEl.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); headerTitleEl.blur(); }
+  });
+}
+
+// Ícone e cor do cabeçalho abrem o mesmo popover que o menu "⋯" da aba já
+// usa — mesmo conteúdo, mesmo estado, só um segundo ponto de entrada.
+headerIconBtn?.addEventListener('click', e => {
+  e.stopPropagation();
+  if (headerNoteRef) openAppearancePopover(headerIconBtn, headerNoteRef);
+});
+headerColorBtn?.addEventListener('click', e => {
+  e.stopPropagation();
+  if (headerNoteRef) openAppearancePopover(headerColorBtn, headerNoteRef);
+});
+
+// A aba pode mudar ícone/cor desta mesma nota (pelo menu "⋯"); o cabeçalho
+// precisa refletir isso mesmo quando não foi ele quem disparou a troca.
+document.addEventListener('quickdock:note-appearance-updated', e => {
+  if (!headerNoteRef || e.detail?.noteId !== headerNoteRef.id) return;
+  renderNoteHeader(headerNoteRef);
+});
 
 // ── Barra de Propriedades da Nota (Notion / Obsidian style) ───────────────────
 const propertiesBarEl     = document.getElementById('note-properties-bar');
@@ -1551,7 +1672,8 @@ function closePropertiesMenu() {
 }
 
 document.addEventListener('pointerdown', e => {
-  if (activePropertiesMenu && !activePropertiesMenu.contains(e.target) && !e.target.closest('#btn-add-property')) {
+  if (activePropertiesMenu && !activePropertiesMenu.contains(e.target)
+    && !e.target.closest('#btn-add-property') && !e.target.closest('.property-type-btn')) {
     closePropertiesMenu();
   }
 });
@@ -1575,6 +1697,167 @@ function atualizarEstadoExpansaoPropriedades() {
   }
 }
 
+// Constrói o campo de valor apropriado ao tipo (text/number/checkbox/date/list/select).
+// `salvar(chave, novoValor, extra)` é o único ponto de gravação — cada campo só
+// decide QUAL valor virou, quem persiste/notifica/re-renderiza é sempre o mesmo.
+function renderPropertyValue(tipo, chave, valor, opcoes, salvar) {
+  switch (tipo) {
+    case 'date': {
+      const input = document.createElement('input');
+      input.type = 'date';
+      input.className = 'property-input property-input-date';
+      input.value = typeof valor === 'string' ? valor.slice(0, 10) : '';
+      input.addEventListener('change', e => salvar(chave, e.target.value));
+      return input;
+    }
+    case 'number': {
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.className = 'property-input property-input-number';
+      input.value = typeof valor === 'number' && Number.isFinite(valor) ? valor : '';
+      input.addEventListener('change', e => salvar(chave, e.target.value === '' ? 0 : parseFloat(e.target.value)));
+      return input;
+    }
+    case 'checkbox': {
+      const label = document.createElement('label');
+      label.className = 'property-checkbox-wrap';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = !!valor;
+      input.addEventListener('change', e => salvar(chave, e.target.checked));
+      label.appendChild(input);
+      return label;
+    }
+    case 'list':
+      return renderPropertyList(chave, Array.isArray(valor) ? valor : [], salvar);
+    case 'select':
+      return renderPropertySelect(chave, valor, Array.isArray(opcoes) && opcoes.length ? opcoes : ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'], salvar);
+    default: {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'property-input property-input-text';
+      input.value = valor == null ? '' : String(valor);
+      input.placeholder = 'Valor...';
+      input.addEventListener('change', e => salvar(chave, e.target.value.trim()));
+      return input;
+    }
+  }
+}
+
+// Lista de "chips" (tags) com input para adicionar via Enter/vírgula e Backspace
+// no input vazio para remover o último — mesmo padrão de qualquer editor de tags.
+function renderPropertyList(chave, itens, salvar) {
+  const wrap = document.createElement('div');
+  wrap.className = 'property-chip-list';
+  const commit = novosItens => salvar(chave, novosItens);
+
+  itens.forEach((item, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'property-chip';
+    const texto = document.createElement('span');
+    texto.textContent = item;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'property-chip-remove';
+    del.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>';
+    del.addEventListener('click', e => {
+      e.stopPropagation();
+      commit(itens.filter((_, idx) => idx !== i));
+    });
+    chip.append(texto, del);
+    wrap.appendChild(chip);
+  });
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'property-chip-input';
+  input.placeholder = itens.length ? '' : 'Adicionar...';
+  input.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = input.value.trim();
+      if (val && !itens.includes(val)) commit([...itens, val]);
+      input.value = '';
+    } else if (e.key === 'Backspace' && !input.value && itens.length) {
+      commit(itens.slice(0, -1));
+    }
+  });
+  wrap.appendChild(input);
+  return wrap;
+}
+
+// Select com opção "+ Nova opção..." que pede o nome e grava tanto o valor
+// quanto a lista de opções atualizada (note.propertySelectOptions[chave]).
+function renderPropertySelect(chave, valor, opcoes, salvar) {
+  const select = document.createElement('select');
+  select.className = 'property-select';
+  for (const opt of opcoes) {
+    const optionEl = document.createElement('option');
+    optionEl.value = opt;
+    optionEl.textContent = opt;
+    if (opt === valor) optionEl.selected = true;
+    select.appendChild(optionEl);
+  }
+  if (valor && !opcoes.includes(valor)) {
+    const customOpt = document.createElement('option');
+    customOpt.value = valor;
+    customOpt.textContent = valor;
+    customOpt.selected = true;
+    select.appendChild(customOpt);
+  }
+  const addOpt = document.createElement('option');
+  addOpt.value = '__nova__';
+  addOpt.textContent = '+ Nova opção...';
+  select.appendChild(addOpt);
+
+  select.addEventListener('change', e => {
+    if (e.target.value === '__nova__') {
+      const nome = window.prompt('Nome da nova opção:');
+      select.value = valor || '';
+      if (!nome || !nome.trim()) return;
+      const novoNome = nome.trim();
+      const novasOpcoes = opcoes.includes(novoNome) ? opcoes : [...opcoes, novoNome];
+      salvar(chave, novoNome, { opcoes: novasOpcoes });
+      return;
+    }
+    salvar(chave, e.target.value);
+  });
+  return select;
+}
+
+// Popover de troca de tipo, aberto pelo ícone à esquerda de cada propriedade.
+// Ao trocar, migra o valor existente para o novo tipo (ex.: texto "3" → número 3).
+function abrirMenuDeTipo(anchorEl, chave, tipoAtual, valorAtual, salvar) {
+  closePropertiesMenu();
+  const menu = document.createElement('div');
+  menu.className = 'note-properties-popup-menu popover-menu';
+
+  for (const [tipoId, def] of Object.entries(PROPERTY_TYPES)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'popover-item' + (tipoId === tipoAtual ? ' active' : '');
+    btn.innerHTML = `
+      <span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>
+      <span>${def.label}</span>
+    `;
+    btn.addEventListener('click', () => {
+      closePropertiesMenu();
+      if (tipoId === tipoAtual) return;
+      salvar(chave, migrarPropriedadeParaTipo(chave, valorAtual, tipoId), { tipo: tipoId });
+    });
+    menu.appendChild(btn);
+  }
+
+  document.body.appendChild(menu);
+  activePropertiesMenu = menu;
+  const rect = anchorEl.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${Math.max(8, rect.left)}px`;
+  menu.style.zIndex = '99999';
+}
+
 export function renderPropertiesBar(note) {
   if (!propertiesBarEl || !propertiesListEl || !note) {
     if (propertiesBarEl) propertiesBarEl.hidden = true;
@@ -1583,6 +1866,8 @@ export function renderPropertiesBar(note) {
   propertiesBarEl.hidden = false;
 
   const props = { ...(note.properties || {}) };
+  const tipos = { ...(note.propertyTypes || {}) };
+  const opcoesSelect = { ...(note.propertySelectOptions || {}) };
   const chaves = Object.keys(props);
   const total = chaves.length;
 
@@ -1602,103 +1887,56 @@ export function renderPropertiesBar(note) {
     return;
   }
 
+  const salvar = async (chave, novoValor, extra = {}) => {
+    props[chave] = novoValor;
+    note.properties = { ...props };
+    const patch = { properties: note.properties };
+    if (extra.tipo) {
+      tipos[chave] = extra.tipo;
+      note.propertyTypes = { ...tipos };
+      patch.propertyTypes = note.propertyTypes;
+    }
+    if (extra.opcoes) {
+      opcoesSelect[chave] = extra.opcoes;
+      note.propertySelectOptions = { ...opcoesSelect };
+      patch.propertySelectOptions = note.propertySelectOptions;
+    }
+    await updateNoteMetaById(note.id, patch);
+    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+      detail: { noteId: note.id, properties: note.properties }
+    }));
+    renderPropertiesBar(note);
+  };
+
   for (const chave of chaves) {
-    const valor = props[chave] ?? '';
+    const valor = props[chave];
+    const tipo = inferirTipoPropriedade(chave, tipos);
+    const def = PROPERTY_TYPES[tipo] || PROPERTY_TYPES.text;
     const row = document.createElement('div');
     row.className = 'note-property-row';
     row.dataset.propKey = chave;
 
-    // Ícone e Rótulo
+    const typeBtn = document.createElement('button');
+    typeBtn.type = 'button';
+    typeBtn.className = 'property-type-btn';
+    typeBtn.title = `Tipo: ${def.label}`;
+    typeBtn.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>`;
+    typeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      abrirMenuDeTipo(typeBtn, chave, tipo, valor, salvar);
+    });
+
     const labelWrap = document.createElement('div');
     labelWrap.className = 'note-property-label-wrap';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'property-name';
+    nameEl.textContent = chave;
+    labelWrap.append(typeBtn, nameEl);
 
-    let iconName = 'push_pin';
-    let labelText = chave;
-    const chaveLower = chave.toLowerCase();
-
-    if (chaveLower === 'data' || chaveLower === 'date' || chaveLower === 'duedate') {
-      iconName = 'calendar_month';
-      labelText = 'Data';
-    } else if (chaveLower === 'categoria' || chaveLower === 'category' || chaveLower === 'tag') {
-      iconName = 'label';
-      labelText = 'Categoria';
-    } else if (chaveLower === 'status') {
-      iconName = 'progress_activity';
-      labelText = 'Status';
-    }
-
-    labelWrap.innerHTML = `
-      <span class="qd-icon material-symbols-rounded property-icon" aria-hidden="true">${iconName}</span>
-      <span class="property-name">${escHtml(labelText)}</span>
-    `;
-
-    // Campo de Valor
     const valueWrap = document.createElement('div');
     valueWrap.className = 'note-property-value-wrap';
+    valueWrap.appendChild(renderPropertyValue(tipo, chave, valor, opcoesSelect[chave], salvar));
 
-    if (chaveLower === 'data' || chaveLower === 'date' || chaveLower === 'duedate') {
-      const input = document.createElement('input');
-      input.type = 'date';
-      input.className = 'property-input property-input-date';
-      input.value = typeof valor === 'string' ? valor.slice(0, 10) : '';
-      input.addEventListener('change', async e => {
-        props[chave] = e.target.value;
-        note.properties = { ...props };
-        await updateNoteMetaById(note.id, { properties: note.properties });
-        document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-          detail: { noteId: note.id, properties: note.properties }
-        }));
-      });
-      valueWrap.appendChild(input);
-    } else if (chaveLower === 'status') {
-      const select = document.createElement('select');
-      select.className = 'property-select';
-      const statusOptions = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
-      let matched = false;
-      for (const opt of statusOptions) {
-        const optionEl = document.createElement('option');
-        optionEl.value = opt;
-        optionEl.textContent = opt;
-        if (opt.toLowerCase() === String(valor).toLowerCase()) {
-          optionEl.selected = true;
-          matched = true;
-        }
-        select.appendChild(optionEl);
-      }
-      if (!matched && valor) {
-        const customOpt = document.createElement('option');
-        customOpt.value = String(valor);
-        customOpt.textContent = String(valor);
-        customOpt.selected = true;
-        select.appendChild(customOpt);
-      }
-      select.addEventListener('change', async e => {
-        props[chave] = e.target.value;
-        note.properties = { ...props };
-        await updateNoteMetaById(note.id, { properties: note.properties });
-        document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-          detail: { noteId: note.id, properties: note.properties }
-        }));
-      });
-      valueWrap.appendChild(select);
-    } else {
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'property-input property-input-text';
-      input.value = String(valor);
-      input.placeholder = 'Valor...';
-      input.addEventListener('change', async e => {
-        props[chave] = e.target.value.trim();
-        note.properties = { ...props };
-        await updateNoteMetaById(note.id, { properties: note.properties });
-        document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-          detail: { noteId: note.id, properties: note.properties }
-        }));
-      });
-      valueWrap.appendChild(input);
-    }
-
-    // Botão de excluir propriedade
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'property-delete-btn';
@@ -1707,8 +1945,16 @@ export function renderPropertiesBar(note) {
     deleteBtn.addEventListener('click', async e => {
       e.stopPropagation();
       delete props[chave];
+      delete tipos[chave];
+      delete opcoesSelect[chave];
       note.properties = { ...props };
-      await updateNoteMetaById(note.id, { properties: note.properties });
+      note.propertyTypes = { ...tipos };
+      note.propertySelectOptions = { ...opcoesSelect };
+      await updateNoteMetaById(note.id, {
+        properties: note.properties,
+        propertyTypes: note.propertyTypes,
+        propertySelectOptions: note.propertySelectOptions,
+      });
       document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
         detail: { noteId: note.id, properties: note.properties }
       }));
@@ -1736,10 +1982,10 @@ if (btnAddProperty) {
     menu.className = 'note-properties-popup-menu popover-menu';
 
     const opcoes = [
-      { id: 'data', icon: 'calendar_month', label: 'Data', defaultVal: new Date().toISOString().slice(0, 10) },
-      { id: 'categoria', icon: 'label', label: 'Categoria', defaultVal: 'Geral' },
-      { id: 'status', icon: 'progress_activity', label: 'Status', defaultVal: 'A Fazer' },
-      { id: 'custom', icon: 'add_circle', label: 'Personalizado...', defaultVal: '' },
+      { id: 'data', icon: 'calendar_month', label: 'Data', defaultVal: new Date().toISOString().slice(0, 10), tipo: 'date' },
+      { id: 'categoria', icon: 'label', label: 'Categoria', defaultVal: [], tipo: 'list' },
+      { id: 'status', icon: 'progress_activity', label: 'Status', defaultVal: 'A Fazer', tipo: 'select' },
+      { id: 'custom', icon: 'add_circle', label: 'Personalizado...', defaultVal: '', tipo: 'text' },
     ];
 
     for (const opt of opcoes) {
@@ -1753,24 +1999,35 @@ if (btnAddProperty) {
       btn.addEventListener('click', async () => {
         closePropertiesMenu();
         const currentProps = { ...(note.properties || {}) };
+        const currentTypes = { ...(note.propertyTypes || {}) };
+        const currentOpcoes = { ...(note.propertySelectOptions || {}) };
 
         if (opt.id === 'custom') {
           const nomeChave = window.prompt('Nome da nova propriedade:');
           if (!nomeChave || !nomeChave.trim()) return;
           const k = nomeChave.trim();
           if (!(k in currentProps)) {
-            currentProps[k] = '';
+            currentProps[k] = opt.defaultVal;
+            currentTypes[k] = opt.tipo;
           }
-        } else {
-          if (!(opt.id in currentProps)) {
-            currentProps[opt.id] = opt.defaultVal;
+        } else if (!(opt.id in currentProps)) {
+          currentProps[opt.id] = opt.defaultVal;
+          currentTypes[opt.id] = opt.tipo;
+          if (opt.tipo === 'select') {
+            currentOpcoes[opt.id] = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
           }
         }
 
         note.properties = currentProps;
+        note.propertyTypes = currentTypes;
+        note.propertySelectOptions = currentOpcoes;
         propertiesExpanded = true;
         try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
-        await updateNoteMetaById(note.id, { properties: note.properties });
+        await updateNoteMetaById(note.id, {
+          properties: note.properties,
+          propertyTypes: note.propertyTypes,
+          propertySelectOptions: note.propertySelectOptions,
+        });
         document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
           detail: { noteId: note.id, properties: note.properties }
         }));
@@ -2976,6 +3233,119 @@ async function confirmLinkAutocompleteSelection() {
   scheduleSave();
 }
 
+// ── Obsidian Live Preview Engine ─────────────────────────────────────────────
+let livePreviewActiveBlock = null;
+let livePreviewActiveInline = null;
+
+export function revealBlockSyntax(block) {
+  if (!block) return;
+  const type = block.dataset.type;
+  const isHeading = HEADING_TAGS[type];
+  const isQuoted = isBlockQuoted(block);
+
+  if (!isHeading && !isQuoted) return;
+
+  const contentEl = getContentEl(block);
+  if (!contentEl) return;
+  if (contentEl.querySelector(':scope > .md-syntax-prefix')) return;
+
+  const prefixSpan = document.createElement('span');
+  prefixSpan.className = 'md-syntax-prefix';
+  prefixSpan.contentEditable = 'true';
+
+  if (isHeading) {
+    const level = Number(type.replace('heading', ''));
+    prefixSpan.textContent = '#'.repeat(level) + ' ';
+    prefixSpan.dataset.syntaxType = 'heading';
+  } else if (isQuoted) {
+    prefixSpan.textContent = '> ';
+    prefixSpan.dataset.syntaxType = 'quote';
+  }
+
+  contentEl.prepend(prefixSpan);
+}
+
+export function collapseBlockSyntax(block) {
+  if (!block) return;
+  const contentEl = getContentEl(block);
+  if (!contentEl) return;
+  contentEl.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
+}
+
+const INLINE_SYNTAX_MAP = {
+  STRONG: '**',
+  B: '**',
+  EM: '*',
+  I: '*',
+  S: '~~',
+  STRIKE: '~~',
+  DEL: '~~',
+  CODE: '`',
+};
+
+export function revealInlineSyntax(inlineEl) {
+  if (!inlineEl) return;
+  if (inlineEl.querySelector(':scope > .md-syntax-open')) return;
+
+  const isWiki = inlineEl.classList?.contains('note-internal-link');
+  const openSyntax = isWiki ? '[[' : INLINE_SYNTAX_MAP[inlineEl.tagName];
+  const closeSyntax = isWiki ? ']]' : openSyntax;
+
+  if (!openSyntax) return;
+
+  const openSpan = document.createElement('span');
+  openSpan.className = 'md-syntax md-syntax-open';
+  openSpan.contentEditable = 'true';
+  openSpan.textContent = openSyntax;
+
+  const closeSpan = document.createElement('span');
+  closeSpan.className = 'md-syntax md-syntax-close';
+  closeSpan.contentEditable = 'true';
+  closeSpan.textContent = closeSyntax;
+
+  inlineEl.prepend(openSpan);
+  inlineEl.append(closeSpan);
+  inlineEl.classList.add('md-token-open');
+}
+
+export function collapseInlineSyntax(inlineEl) {
+  if (!inlineEl) return;
+  inlineEl.querySelectorAll(':scope > .md-syntax').forEach(s => s.remove());
+  inlineEl.classList.remove('md-token-open');
+}
+
+export function updateLivePreviewState() {
+  const sel = document.getSelection();
+  if (!sel || sel.rangeCount === 0) {
+    if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
+    if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
+    return;
+  }
+
+  const anchor = sel.anchorNode;
+  if (!anchor || !root.contains(anchor)) {
+    if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
+    if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
+    return;
+  }
+
+  const block = getBlockFromNode(anchor);
+  if (block !== livePreviewActiveBlock) {
+    if (livePreviewActiveBlock) collapseBlockSyntax(livePreviewActiveBlock);
+    livePreviewActiveBlock = block;
+    if (block) revealBlockSyntax(block);
+  }
+
+  const el = anchor.nodeType === Node.ELEMENT_NODE ? anchor : anchor.parentElement;
+  const inline = el?.closest?.('.note-editor-blocks strong, .note-editor-blocks b, .note-editor-blocks em, .note-editor-blocks i, .note-editor-blocks s, .note-editor-blocks strike, .note-editor-blocks del, .note-editor-blocks code, .note-editor-blocks a.note-internal-link');
+
+  if (inline !== livePreviewActiveInline) {
+    if (livePreviewActiveInline) collapseInlineSyntax(livePreviewActiveInline);
+    livePreviewActiveInline = inline;
+    if (inline) revealInlineSyntax(inline);
+  }
+}
+
 // ── Atalhos de Markdown → tipo de bloco ───────────────────────────────────────
 const BLOCK_SHORTCUTS = [
   { re: /^(#{1,6}) $/, type: m => `heading${m[1].length}` },
@@ -2993,13 +3363,16 @@ const BLOCK_SHORTCUTS = [
 
 function checkDividerShortcut(block) {
   const content = getContentEl(block);
-  if (!/^(-{3,}|\*{3,}|_{3,})$/.test(content.textContent)) return false;
+  const text = content.textContent.trim();
+  if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) return false;
 
   const divider = createBlockEl('divider');
   block.replaceWith(divider);
-  const para = createBlockEl('paragraph');
-  divider.after(para);
-  focusBlockStart(para);
+  divider.classList.add('is-active');
+  const dividerContent = getContentEl(divider);
+  dividerContent.textContent = text;
+  dividerContent.focus();
+  setCaretOffset(dividerContent, text.length);
   renumberLists();
   return true;
 }
@@ -3013,7 +3386,8 @@ function checkBlockShortcut(block) {
     const checked = s.checked ? s.checked(m) : false;
     const newBlock = convertBlockType(block, type, checked);
     clearContent(getContentEl(newBlock));
-    focusBlockStart(newBlock);
+    revealBlockSyntax(newBlock);
+    focusBlockEnd(newBlock);
     renumberLists();
     closeSlashMenu();
     return true;
@@ -3223,6 +3597,37 @@ function handleBackspaceAtStart(block) {
     return;
   }
 
+  // Divisor: apagar no início remove o divisor
+  if (type === 'divider') {
+    const next = block.nextElementSibling;
+    if (next) {
+      block.remove();
+      focusBlockStart(next);
+    } else {
+      const para = convertBlockType(block, 'paragraph');
+      clearContent(getContentEl(para));
+      focusBlockStart(para);
+    }
+    renumberLists();
+    return;
+  }
+
+  // Cabeçalhos: Backspace no início reduz o nível (h3 -> h2 -> h1 -> parágrafo),
+  // permitindo desformatar ou alterar o nível sem precisar da toolbar.
+  if (HEADING_TAGS[type] && !isEmpty) {
+    const level = Number(type.replace('heading', ''));
+    if (level > 1) {
+      const novo = convertBlockType(block, `heading${level - 1}`);
+      focusBlockStart(novo);
+      renumberLists();
+      return;
+    }
+    const para = convertBlockType(block, 'paragraph');
+    focusBlockStart(para);
+    renumberLists();
+    return;
+  }
+
   // Bloco especial COM texto: primeiro Backspace só tira a formatação
   // (volta a parágrafo), preserva o conteúdo — evita apagar sem querer.
   // Já vazio (ex.: checklist sem texto), pula direto pra mesclar/remover —
@@ -3245,7 +3650,10 @@ function handleBackspaceAtStart(block) {
   }
 
   if (prev.dataset.type === 'divider') {
-    prev.remove();
+    const prevContent = getContentEl(prev);
+    if (isEmpty) block.remove();
+    prevContent.focus();
+    setCaretOffset(prevContent, prevContent.textContent.length);
     renumberLists();
     return;
   }
@@ -3295,6 +3703,59 @@ root.addEventListener('input', () => {
   // Célula de tabela só salva: atalho de bloco e menu "/" não fazem sentido
   // dentro dela, e a detecção varreria o bloco inteiro em vez da célula.
   if (block.dataset.type === 'table') { scheduleSave(); return; }
+
+  // Divisor: se o texto foi modificado e não é mais divisor, converte para parágrafo
+  if (block.dataset.type === 'divider') {
+    const text = getContentEl(block).textContent.trim();
+    if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) {
+      const para = convertBlockType(block, 'paragraph');
+      getContentEl(para).textContent = text;
+      focusBlockEnd(para);
+    }
+    scheduleSave();
+    return;
+  }
+
+  // Live Preview: monitorar edição do prefixo de bloco (# ou >)
+  const prefixSpan = getContentEl(block)?.querySelector?.(':scope > .md-syntax-prefix');
+  if (prefixSpan) {
+    const raw = prefixSpan.textContent;
+    if (prefixSpan.dataset.syntaxType === 'heading') {
+      const m = /^(#{1,6}) ?$/.exec(raw);
+      if (m) {
+        const newLevel = m[1].length;
+        if (block.dataset.type !== `heading${newLevel}`) {
+          convertBlockType(block, `heading${newLevel}`);
+        }
+      } else if (!raw.includes('#')) {
+        prefixSpan.remove();
+        convertBlockType(block, 'paragraph');
+      }
+    } else if (prefixSpan.dataset.syntaxType === 'quote') {
+      if (!raw.includes('>')) {
+        prefixSpan.remove();
+        setBlockQuoted(block, false);
+      }
+    }
+  }
+
+  // Live Preview: monitorar edição de delimitadores inline (** ou ` etc.)
+  if (livePreviewActiveInline) {
+    const openSpan = livePreviewActiveInline.querySelector(':scope > .md-syntax-open');
+    const closeSpan = livePreviewActiveInline.querySelector(':scope > .md-syntax-close');
+    if (openSpan && closeSpan) {
+      const isWiki = livePreviewActiveInline.classList?.contains('note-internal-link');
+      const expectedOpen = isWiki ? '[[' : INLINE_SYNTAX_MAP[livePreviewActiveInline.tagName];
+      const expectedClose = isWiki ? ']]' : expectedOpen;
+      if (openSpan.textContent !== expectedOpen || closeSpan.textContent !== expectedClose) {
+        const inline = livePreviewActiveInline;
+        livePreviewActiveInline = null;
+        openSpan.remove();
+        closeSpan.remove();
+        inline.replaceWith(...inline.childNodes);
+      }
+    }
+  }
 
   if (block.dataset.type === 'paragraph') {
     if (checkDividerShortcut(block)) { scheduleSave(); return; }
@@ -3356,6 +3817,44 @@ root.addEventListener('keydown', e => {
     e.preventDefault();
     clearBlockSelection();
     return;
+  }
+
+  // Obsidian Live Preview: Backspace ou Delete na borda de um elemento com formatação
+  // ativa desfaz a formatação (unwrap) permitindo apagar o delimitador sem toolbar.
+  if ((e.key === 'Backspace' || e.key === 'Delete') && currentActiveInlineEl) {
+    const sel = document.getSelection();
+    if (sel && sel.isCollapsed && sel.rangeCount > 0) {
+      const inline = currentActiveInlineEl;
+      const r = sel.getRangeAt(0);
+      const isAtStart = (r.startContainer === inline && r.startOffset === 0) ||
+                        (r.startContainer === inline.firstChild && r.startOffset === 0);
+      const isAtEnd = (r.startContainer === inline && r.startOffset === inline.childNodes.length) ||
+                      (r.startContainer === inline.lastChild && r.startOffset === (inline.lastChild.textContent || '').length);
+
+      if ((e.key === 'Backspace' && isAtStart) || (e.key === 'Delete' && isAtEnd)) {
+        e.preventDefault();
+        const block = currentBlock();
+        const content = block ? getContentEl(block) : inline.parentElement;
+        inline.classList.remove('md-inline-active');
+        currentActiveInlineEl = null;
+
+        const fragment = document.createDocumentFragment();
+        while (inline.firstChild) fragment.appendChild(inline.firstChild);
+        const firstNode = fragment.firstChild;
+        inline.replaceWith(fragment);
+        if (content) content.normalize();
+
+        if (firstNode && sel) {
+          const newRange = document.createRange();
+          newRange.setStart(firstNode, 0);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        }
+        scheduleSave();
+        return;
+      }
+    }
   }
 
   if (linkAutocompleteEl) {
@@ -5840,24 +6339,12 @@ document.addEventListener('mousedown', e => {
   if (blockMenuEl && !blockMenuEl.contains(e.target) && e.target !== blockHandleBtn) closeBlockMenu();
 });
 
-// ── Selecionar um grupo de blocos sem tecla nenhuma ───────────────────────────
-// Arrastar o texto por cima de mais de um bloco já quer dizer "é este grupo".
-// Aqui essa seleção de texto passa a valer também como seleção de blocos — e é
-// ela que a alça de arrastar consulta pra mover o grupo inteiro. Então mover
-// vários blocos vira: selecionar por cima e arrastar pela alça de qualquer um
-// deles, sem Ctrl, Shift nem Alt.
-//
-// Mover o grupo já funcionava; o que faltava era poder formar o grupo sem
-// tecla. O Ctrl+arrastar continua existindo — ele é o único jeito de agarrar
-// um bloco que não tem texto pra arrastar por cima, como uma imagem sozinha.
-//
-// A seleção de texto não é desfeita de propósito: é dela que a barra de
-// formatação e o "Transformar em" tiram o alcance da ação.
 document.addEventListener('selectionchange', () => {
+  updateLivePreviewState();
+
   // Gesto de arrastar em andamento tem dono — não mexe na seleção no meio dele.
   if (pointerDown || ctrlPointerDown || reorderState) return;
 
-  const sel = document.getSelection();
   if (!sel || sel.rangeCount === 0) return;
   if (!root.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
 
