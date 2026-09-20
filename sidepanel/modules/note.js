@@ -598,27 +598,19 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
     hr.contentEditable = 'false';
     el.append(content, hr);
 
+    // Entrar e sair do modo "texto cru" (--- em vez da linha) é decidido por
+    // onde o cursor está a cada mudança de seleção (ver syncDividerActiveState,
+    // chamada de dentro de updateLivePreviewState) — igual ao resto do editor
+    // faz para cabeçalho/citação/destaque. focusin/focusout não servem aqui:
+    // todo bloco é um contenteditable aninhado dentro do mesmo host editável
+    // do documento inteiro, então mover o cursor com clique ou seta nunca
+    // dispara blur de verdade num bloco só, e o divisor ficava preso mostrando
+    // "---" pra sempre depois do primeiro clique.
     el.addEventListener('mousedown', e => {
+      if (el.classList.contains('is-active')) return;   // já ativo: deixa o clique posicionar o cursor
       e.preventDefault();
-      el.classList.add('is-active');
       content.focus();
       setCaretOffset(content, content.textContent.length);
-    });
-
-    el.addEventListener('focusin', () => el.classList.add('is-active'));
-    el.addEventListener('focusout', () => {
-      el.classList.remove('is-active');
-      const text = content.textContent.trim();
-      if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) {
-        if (text === '') {
-          const prev = el.previousElementSibling ?? el.nextElementSibling;
-          el.remove();
-          if (prev) focusBlockEnd(prev);
-        } else {
-          const para = convertBlockType(el, 'paragraph');
-          getContentEl(para).textContent = text;
-        }
-      }
     });
 
   } else {
@@ -1359,6 +1351,7 @@ root.addEventListener('blur', () => {
   flushRescan();
   if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
   if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
+  if (activeDividerBlock) { commitDivider(activeDividerBlock); activeDividerBlock = null; }
 }, true);
 
 // ── Salvamento ────────────────────────────────────────────────────────────────
@@ -3264,6 +3257,36 @@ async function confirmLinkAutocompleteSelection() {
 // ── Obsidian Live Preview Engine ─────────────────────────────────────────────
 let livePreviewActiveBlock = null;
 let livePreviewActiveInline = null;
+let activeDividerBlock = null;
+
+// Sai do modo "texto cru" de um divisor: se o texto ainda for --- / *** / ___
+// continua divisor (só esconde a edição); senão vira parágrafo com o que foi
+// digitado, ou some se ficou vazio.
+function commitDivider(block) {
+  block.classList.remove('is-active');
+  if (!document.body.contains(block)) return;
+  const content = getContentEl(block);
+  const text = content.textContent.trim();
+  if (/^(-{3,}|\*{3,}|_{3,})$/.test(text)) return;
+  if (text === '') {
+    const prev = block.previousElementSibling ?? block.nextElementSibling;
+    block.remove();
+    if (prev) focusBlockEnd(prev);
+  } else {
+    const para = convertBlockType(block, 'paragraph');
+    getContentEl(para).textContent = text;
+  }
+}
+
+// Mantém no máximo um divisor "aberto" por vez, decidido por onde o cursor
+// está agora — chamada a cada seleção nova (ver updateLivePreviewState).
+function syncDividerActiveState(block) {
+  if (block === activeDividerBlock) return;
+  const prev = activeDividerBlock;
+  activeDividerBlock = (block?.dataset.type === 'divider') ? block : null;
+  if (prev) commitDivider(prev);
+  if (activeDividerBlock) activeDividerBlock.classList.add('is-active');
+}
 
 export function revealBlockSyntax(block) {
   if (!block) return;
@@ -3379,6 +3402,7 @@ export function updateLivePreviewState() {
   if (!sel || sel.rangeCount === 0) {
     if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
     if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
+    syncDividerActiveState(null);
     return;
   }
 
@@ -3386,10 +3410,12 @@ export function updateLivePreviewState() {
   if (!anchor || !root.contains(anchor)) {
     if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
     if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
+    syncDividerActiveState(null);
     return;
   }
 
   const block = getBlockFromNode(anchor);
+  syncDividerActiveState(block);
   if (block !== livePreviewActiveBlock) {
     if (livePreviewActiveBlock) collapseBlockSyntax(livePreviewActiveBlock);
     livePreviewActiveBlock = block;
@@ -3445,6 +3471,12 @@ function checkDividerShortcut(block) {
 function checkBlockShortcut(block) {
   const content = getContentEl(block);
   if (!content) return false;
+  // Citação e destaque são decoração sobre "paragraph" (convertBlockType nem
+  // troca block.dataset.type pra elas) — sem esta saída, a cada tecla digitada
+  // DEPOIS de virar citação o texto ainda começa com "> " e a mesma regex
+  // casa de novo, apagando o "> " de dentro do <span> do prefixo (que essa
+  // segunda passada nem recria) e deixando o resto do texto preso lá dentro.
+  if (isBlockQuoted(block) || block.dataset.callout) return false;
   const text = content.textContent;
   for (const s of BLOCK_SHORTCUTS) {
     const m = s.re.exec(text);
@@ -3462,7 +3494,31 @@ function checkBlockShortcut(block) {
     const newContent = getContentEl(newBlock);
     const prefixEl = newContent.querySelector(':scope > .md-syntax-prefix');
     if (prefixEl) {
-      setCaretOffset(newContent, prefixEl.textContent.length);
+      // O cursor tem que cair DEPOIS do span do prefixo, nunca dentro dele —
+      // mas simplesmente pôr a seleção "logo depois do span, sem nada
+      // adiante" não basta: é a mesma fronteira descrita no comentário da
+      // âncora invisível (replaceRangeWithTag) — o Chrome estende o elemento
+      // anterior ao digitar em vez de criar texto novo do lado de fora. O
+      // título inteiro que a pessoa digita a seguir entrava dentro do span,
+      // com o estilo pequeno/apagado do prefixo em vez do título de verdade
+      // (o texto "sumia" visualmente). Uma âncora de verdade do lado de fora
+      // resolve — limparAncoras tira ela assim que a primeira letra entra.
+      // O Chrome também costuma deixar um <br> solto depois do prefixo
+      // quando o resto do bloco fica vazio — lixo desta conversão, não o
+      // placeholder de bloco vazio de verdade (que é só quando o <br> é o
+      // único filho).
+      if (newContent.lastChild?.nodeName === 'BR' && newContent.lastChild !== prefixEl) {
+        newContent.lastChild.remove();
+      }
+      newContent.focus();
+      const ancora = document.createTextNode(ANCORA);
+      prefixEl.after(ancora);
+      const afterPrefix = document.createRange();
+      afterPrefix.setStart(ancora, 1);
+      afterPrefix.collapse(true);
+      const sel = document.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(afterPrefix);
     } else {
       focusBlockStart(newBlock);
     }
@@ -3937,6 +3993,17 @@ root.addEventListener('input', () => {
   }
 
   if (block.dataset.type === 'paragraph') {
+    // Uma marca de detecção (#tag, data, CPF...) pode ter pego o começo da
+    // linha antes do atalho de bloco rodar — ex.: digitar "#" e fazer uma
+    // pausa deixa o rescan (500ms) marcar "#outra" como tag; ao completar
+    // "# outra" pra virar título, o <mark> sobrevivia dentro do cabeçalho
+    // recém-criado. Desembrulhar aqui garante que o atalho sempre opera em
+    // texto puro.
+    const contentEl = getContentEl(block);
+    const firstNode = contentEl?.firstChild;
+    if (firstNode?.nodeType === Node.ELEMENT_NODE && firstNode.tagName === 'MARK') {
+      unwrapMarks(contentEl);
+    }
     if (checkDividerShortcut(block)) { scheduleSave(); return; }
     if (checkBlockShortcut(block))   { scheduleSave(); return; }
     checkSlashMenu(block);
@@ -4467,10 +4534,28 @@ function insertTableBlock(rows) {
   scheduleSave();
 }
 
+// O <br> de um bloco vazio (ver clearContent) não está dentro da seleção
+// quando ela só marca "o fim do bloco" — sobra como uma quebra de linha solta
+// antes do que acabou de ser colado. Tira ele do caminho e devolve uma range
+// limpa no mesmo lugar.
+function dropPlaceholderBr(range) {
+  const el = range.commonAncestorContainer;
+  const contentEl = el.nodeType === Node.TEXT_NODE ? el.parentElement : el;
+  if (contentEl?.childNodes.length === 1 && contentEl.firstChild.nodeName === 'BR') {
+    contentEl.removeChild(contentEl.firstChild);
+    const fresh = document.createRange();
+    fresh.selectNodeContents(contentEl);
+    fresh.collapse(false);
+    return fresh;
+  }
+  return range;
+}
+
 function pasteLink(label, href) {
   const sel = document.getSelection();
-  const range = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0) : null;
+  let range = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0) : null;
   if (!range || !root.contains(range.commonAncestorContainer)) { pasteInlineText(label); return; }
+  range = dropPlaceholderBr(range);
 
   captureUndoPoint();
 
@@ -4508,6 +4593,7 @@ function pasteInlineText(text) {
     range.selectNodeContents(c);
     range.collapse(false);
   }
+  range = dropPlaceholderBr(range);
 
   const block = getBlockFromNode(range.commonAncestorContainer);
   captureUndoPoint();
@@ -4521,6 +4607,19 @@ function pasteInlineText(text) {
   after.collapse(true);
   sel.removeAllRanges();
   sel.addRange(after);
+
+  // Colar "# título" ou "[[nota]]" numa linha só caia direto como texto puro
+  // sem isso — só a colagem multilinha (pasteMultilineText) passava pelo
+  // parser de markdown. Um atalho só dispara se o "#"/"[[" ficou mesmo no
+  // início do bloco (as regex são ancoradas em ^), então colar no meio de uma
+  // frase existente não vira título por engano.
+  if (block?.dataset.type === 'paragraph') {
+    if (checkDividerShortcut(block)) { scheduleSave(); return; }
+    if (checkBlockShortcut(block))   { scheduleSave(); return; }
+  }
+  if (block && block.dataset.type !== 'code') {
+    tryAutoFormatInline(getContentEl(block));
+  }
 
   if (block) scheduleRescan(block);
   scheduleSave();

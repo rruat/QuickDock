@@ -3761,11 +3761,19 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
 
   // 28.1: Divisor '---' editável e navegável via cursor/backspace
+  // A ativação/desativação do modo "texto cru" é decidida por onde o cursor
+  // está a cada seleção nova (syncDividerActiveState, chamada de dentro de
+  // updateLivePreviewState) — não por focusin/focusout. Todo bloco é um
+  // contenteditable aninhado dentro do mesmo host editável do documento
+  // inteiro, então mover o cursor com clique ou seta nunca dispara blur de
+  // verdade num bloco só: o focusin/focusout antigo deixava o divisor preso
+  // mostrando "---" pra sempre depois do primeiro clique.
   ok('live-preview · divisor possui estrutura de texto editável e hr visual',
     noteJsSource.includes("content.className = 'block-content divider-content';") &&
     noteJsSource.includes("content.textContent = (innerHTML && /^(-{3,}|\\*{3,}|_{3,})$/.test(innerHTML.trim())) ? innerHTML.trim() : '---';") &&
-    noteJsSource.includes("el.addEventListener('focusin', () => el.classList.add('is-active'));") &&
-    noteJsSource.includes("convertBlockType(el, 'paragraph');"));
+    noteJsSource.includes('function syncDividerActiveState(block)') &&
+    noteJsSource.includes('function commitDivider(block)') &&
+    noteJsSource.includes("convertBlockType(block, 'paragraph');"));
 
   ok('live-preview · CSS do divisor alterna entre hr limpo e texto puro no foco',
     styleCssSource.includes('.block-divider.is-active .divider-content') &&

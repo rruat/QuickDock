@@ -802,7 +802,12 @@ body:not(.booting) .note-editor-blocks {
   align-items: center;
 }
 .block-divider .divider-content {
-  display: none;
+  /* display:none (ou tirar do fluxo com position:absolute) impediria a seta
+     do teclado de levar o cursor até aqui — um elemento fora do fluxo normal
+     não é "a próxima linha" pra navegação vertical por teclado, só clique via
+     JS (mousedown força o foco) alcança ele. Fica sempre no fluxo normal,
+     ocupando o mesmo espaço do <hr> (por isso é ele, e não o texto, que sai
+     do fluxo pra ficar por cima) — só a opacidade muda.  */
   width: 100%;
   font-family: var(--font-mono, monospace);
   font-size: 13px;
@@ -811,17 +816,21 @@ body:not(.booting) .note-editor-blocks {
   line-height: 1.5;
   min-height: 1.2em;
   color: var(--text-muted);
+  opacity: 0;
 }
 .block-divider hr {
+  position: absolute;
+  inset: 0;
+  margin: auto 0;
   width: 100%;
-  margin: 0;
+  height: 0;
   border: none;
   border-top: 1px solid var(--border);
   pointer-events: none;
 }
 .block-divider:focus-within .divider-content,
 .block-divider.is-active .divider-content {
-  display: block;
+  opacity: 1;
 }
 .block-divider:focus-within hr,
 .block-divider.is-active hr {
