@@ -116,6 +116,17 @@ export function switchView(viewName, params = {}) {
     targetSplit = false;
   }
 
+  // Sem nota aberta não existe editor pra dividir a tela com — o CSS só sabe
+  // mostrar Quadro/Grafo/Calendário nesse estado em tela cheia (ver a regra
+  // "body.no-note-open .board-view" em style.css), então dividir aqui deixaria
+  // a visão escolhida invisível mesmo com hidden=false, parecendo que o botão
+  // não fez nada. O drawer permanente do desktop sempre pede split:true sem
+  // saber se há nota aberta — é exatamente esse o caso que isto cobre.
+  if (document.documentElement.classList.contains('no-note-open')
+    && (viewName === 'grafo' || viewName === 'board' || viewName === 'calendar')) {
+    targetSplit = false;
+  }
+
   const modeChanged = (targetSplit !== isSplitMode);
 
   if (viewName === currentView && !modeChanged) {

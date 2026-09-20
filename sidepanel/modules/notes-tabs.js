@@ -779,6 +779,15 @@ function renderTabs() {
   } else {
     hideEmptyDashboard();
   }
+
+  if (notesAsideDrawer) {
+    notesAsideDrawer.querySelectorAll('.notes-list-item').forEach(el => {
+      const isCur = Number(el.dataset.id) === activeId;
+      el.classList.toggle('current', isCur);
+    });
+    const badge = notesAsideDrawer.querySelector('.notes-aside-badge');
+    if (badge) badge.textContent = String(notesMeta.length);
+  }
 }
 
 // A tira de abas rola só na horizontal — trocar de nota por um caminho que
@@ -1832,7 +1841,15 @@ let notesAsideDrawer = null;
 let notesAsideBackdrop = null;
 let notesListPopover = null; // Mantido para compatibilidade reversa
 
+function isDesktopMode() {
+  return document.documentElement.dataset.platform === 'desktop'
+      || document.documentElement.classList.contains('platform-desktop');
+}
+
 export function closeNotesAsideDrawer() {
+  // No desktop o drawer é permanente — nunca fechar nem remover.
+  if (isDesktopMode()) return;
+
   if (notesAsideDrawer) {
     notesAsideDrawer.classList.remove('open');
     notesAsideDrawer.classList.add('closing');
@@ -1861,6 +1878,13 @@ export function closeNotesListPopover() {
 }
 
 function openTabMenuForNote(meta) {
+  if (isDesktopMode()) {
+    // No desktop, o menu abre ancorado no próprio item da lista no drawer
+    const listItem = notesAsideDrawer?.querySelector(`.notes-list-item[data-id="${meta.id}"]`);
+    const anchor = listItem?.querySelector('.notes-list-edit-btn') || listItem;
+    if (anchor) openTabMenu(meta, anchor);
+    return;
+  }
   closeNotesAsideDrawer();
   const tabEl = tabsEl.querySelector(`.note-tab[data-id="${meta.id}"]`);
   if (!tabEl) return;
@@ -2383,6 +2407,9 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
 }
 
 export function openNotesAsideDrawer() {
+  // No desktop o drawer já está permanentemente montado em #app
+  if (isDesktopMode()) return;
+
   closeNotesAsideDrawer();
 
   const backdrop = document.createElement('div');
@@ -2638,6 +2665,251 @@ export function openNotesAsideDrawer() {
 
 export function openNotesListPopover() {
   openNotesAsideDrawer();
+}
+
+// ── Drawer permanente para Desktop ──────────────────────────────────────────
+// No modo desktop o drawer fica fixo como Coluna 1 (NAV) dentro de #app,
+// sem backdrop nem botão de fechar. Usa a mesma estrutura DOM do drawer
+// overlay mas montado estaticamente.
+function initDesktopNotesAsideDrawer() {
+  if (notesAsideDrawer) return; // Já montado
+
+  const drawer = document.createElement('aside');
+  drawer.className = 'notes-aside-drawer notes-list-popover open';
+
+  // Cabeçalho do Drawer Aside
+  const asideHeader = document.createElement('div');
+  asideHeader.className = 'notes-aside-header';
+
+  const titleGroup = document.createElement('div');
+  titleGroup.className = 'notes-aside-title-group';
+
+  const titleIcon = document.createElement('span');
+  titleIcon.className = 'notes-aside-title-icon';
+  titleIcon.innerHTML = iconSvg('folder_open');
+
+  const titleText = document.createElement('span');
+  titleText.className = 'notes-aside-title-text';
+  titleText.textContent = 'Todas as notas';
+
+  const titleBadge = document.createElement('span');
+  titleBadge.className = 'notes-aside-badge';
+  titleBadge.textContent = String(notesMeta.length);
+
+  titleGroup.append(titleIcon, titleText, titleBadge);
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'notes-aside-header-actions';
+
+  const btnAddFolder = document.createElement('button');
+  btnAddFolder.className = 'icon-btn notes-aside-action-btn';
+  btnAddFolder.innerHTML = iconSvg('create_new_folder');
+  btnAddFolder.title = 'Nova pasta';
+  btnAddFolder.setAttribute('aria-label', 'Nova pasta');
+  btnAddFolder.addEventListener('click', async e => {
+    e.stopPropagation();
+    await startCreateFolderInline('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
+  });
+
+  const btnAddNote = document.createElement('button');
+  btnAddNote.className = 'icon-btn notes-aside-action-btn';
+  btnAddNote.innerHTML = iconSvg('add');
+  btnAddNote.title = 'Nova nota';
+  btnAddNote.setAttribute('aria-label', 'Nova nota');
+  btnAddNote.addEventListener('click', async e => {
+    e.stopPropagation();
+    await createBlankNote();
+    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
+    titleBadge.textContent = String(notesMeta.length);
+  });
+
+  // Sem botão de fechar no desktop
+  headerActions.append(btnAddFolder, btnAddNote);
+  asideHeader.append(titleGroup, headerActions);
+  drawer.appendChild(asideHeader);
+
+  // Barra de busca
+  const searchBar = document.createElement('div');
+  searchBar.className = 'notes-search-bar';
+
+  const searchIconEl = document.createElement('span');
+  searchIconEl.className = 'search-icon';
+  searchIconEl.innerHTML = iconSvg('search');
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'notes-search-input';
+  input.placeholder = 'Buscar por título ou conteúdo...';
+  input.setAttribute('aria-label', 'Buscar por título ou conteúdo');
+
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'notes-search-clear icon-btn';
+  clearBtn.innerHTML = iconSvg('close');
+  clearBtn.title = 'Limpar busca';
+  clearBtn.setAttribute('aria-label', 'Limpar busca');
+  clearBtn.hidden = true;
+
+  searchBar.append(searchIconEl, input, clearBtn);
+  drawer.appendChild(searchBar);
+
+  // Barra de ferramentas
+  const toolbar = document.createElement('div');
+  toolbar.className = 'notes-list-toolbar';
+
+  const btnNewFolder = document.createElement('button');
+  btnNewFolder.className = 'notes-list-action-btn';
+  btnNewFolder.innerHTML = `${iconSvg('create_new_folder')}<span>Nova pasta</span>`;
+  btnNewFolder.title = 'Criar nova pasta';
+  btnNewFolder.addEventListener('click', async e => {
+    e.stopPropagation();
+    await startCreateFolderInline('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
+  });
+  toolbar.appendChild(btnNewFolder);
+
+  const btnNewBase = document.createElement('button');
+  btnNewBase.className = 'notes-list-action-btn';
+  btnNewBase.innerHTML = `<span class="qd-icon material-symbols-rounded" style="font-size:14px;">view_kanban</span><span>Nova Base</span>`;
+  btnNewBase.title = 'Criar nova Base de dados';
+  btnNewBase.addEventListener('click', async e => {
+    e.stopPropagation();
+    await createNewBaseNote();
+    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
+    titleBadge.textContent = String(notesMeta.length);
+  });
+  toolbar.appendChild(btnNewBase);
+
+  const btnToggleAll = document.createElement('button');
+  btnToggleAll.className = 'notes-list-action-btn';
+  btnToggleAll.title = 'Expandir ou recolher todas as pastas';
+  const openSet = getOpenFolders();
+  const hasClosed = !openSet || openSet.size === 0;
+  btnToggleAll.innerHTML = `${iconSvg(hasClosed ? 'expand_more' : 'unfold_less')}<span>${hasClosed ? 'Expandir' : 'Recolher'}</span>`;
+  btnToggleAll.addEventListener('click', async e => {
+    e.stopPropagation();
+    const pastas = await listarPastas();
+    const curOpen = getOpenFolders() || new Set();
+    if (curOpen.size > 0) {
+      saveOpenFolders(new Set());
+    } else {
+      const allPaths = new Set();
+      for (const p of pastas) if (p.caminho) allPaths.add(p.caminho);
+      for (const n of notesMeta) if (n.pasta) allPaths.add(n.pasta);
+      saveOpenFolders(allPaths);
+    }
+    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
+    const newOpen = getOpenFolders() || new Set();
+    btnToggleAll.innerHTML = `${iconSvg(newOpen.size === 0 ? 'expand_more' : 'unfold_less')}<span>${newOpen.size === 0 ? 'Expandir' : 'Recolher'}</span>`;
+  });
+  toolbar.appendChild(btnToggleAll);
+
+  drawer.appendChild(toolbar);
+
+  const countEl = document.createElement('div');
+  countEl.className = 'notes-search-count';
+  countEl.hidden = true;
+  drawer.appendChild(countEl);
+
+  const scrollArea = document.createElement('div');
+  scrollArea.className = 'notes-list-scroll';
+  drawer.appendChild(scrollArea);
+
+  // Rodapé do Drawer Aside com Visões e Ações
+  const footer = document.createElement('div');
+  footer.className = 'notes-aside-footer';
+
+  // 1. Visões
+  const secViews = document.createElement('div');
+  secViews.className = 'aside-footer-section';
+
+  const titleViews = document.createElement('div');
+  titleViews.className = 'aside-footer-title';
+  titleViews.textContent = 'Visões';
+  secViews.appendChild(titleViews);
+
+  const gridViews = document.createElement('div');
+  gridViews.className = 'aside-footer-grid';
+
+  const createFooterBtn = (iconNameF, label, onClick) => {
+    const b = document.createElement('button');
+    b.className = 'aside-footer-btn';
+    b.innerHTML = `${iconSvg(iconNameF)}<span>${label}</span>`;
+    b.addEventListener('click', async e => {
+      e.stopPropagation();
+      await onClick();
+    });
+    return b;
+  };
+
+  gridViews.appendChild(createFooterBtn('description', 'Documentos', () => {
+    document.dispatchEvent(new CustomEvent('quickdock:toggle-docs'));
+  }));
+  gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => switchView('board', { split: true })));
+  gridViews.appendChild(createFooterBtn('hub', 'Grafo', () => switchView('grafo', { split: true })));
+  gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => switchView('calendar', { split: true })));
+  gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
+
+  secViews.appendChild(gridViews);
+  footer.appendChild(secViews);
+
+  // 2. Ações & Ajustes
+  const secActions = document.createElement('div');
+  secActions.className = 'aside-footer-section';
+
+  const titleActions = document.createElement('div');
+  titleActions.className = 'aside-footer-title';
+  titleActions.textContent = 'Ações';
+  secActions.appendChild(titleActions);
+
+  const gridActions = document.createElement('div');
+  gridActions.className = 'aside-footer-grid';
+
+  gridActions.appendChild(createFooterBtn('sync', 'Sincronização', () => {
+    document.dispatchEvent(new CustomEvent('quickdock:open-sync'));
+  }));
+  gridActions.appendChild(createFooterBtn('light_mode', 'Alternar Tema', () => {
+    document.dispatchEvent(new CustomEvent('quickdock:toggle-theme'));
+  }));
+  gridActions.appendChild(createFooterBtn('download', 'Exportar Notas', () => downloadAllNotes()));
+  gridActions.appendChild(createFooterBtn('menu_book', 'Tutorial', () => createTutorialNote()));
+
+  secActions.appendChild(gridActions);
+  footer.appendChild(secActions);
+
+  drawer.appendChild(footer);
+
+  const doUpdate = () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
+
+  input.addEventListener('input', doUpdate);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (input.value) {
+        e.stopPropagation();
+        input.value = '';
+        doUpdate();
+      }
+      // No desktop, Escape não fecha o drawer
+    }
+  });
+
+  clearBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    input.value = '';
+    doUpdate();
+    input.focus();
+  });
+
+  renderNotesListRows(scrollArea, '', countEl, clearBtn);
+
+  // Monta no #app como primeiro filho (order: 1 via CSS)
+  const appEl = document.getElementById('app');
+  if (appEl) {
+    appEl.prepend(drawer);
+  } else {
+    document.body.prepend(drawer);
+  }
+
+  notesAsideDrawer = drawer;
+  notesListPopover = drawer;
 }
 
 btnNotesList.addEventListener('click', e => {
@@ -3032,6 +3304,11 @@ export async function initNotesTabs() {
       renderTabs();
     });
   });
+
+  // No desktop, monta o drawer permanente como NAV (Coluna 1) em #app
+  if (isDesktopMode()) {
+    initDesktopNotesAsideDrawer();
+  }
 
   const savedActiveId = await loadActiveNoteId();
   if (openTabIds.length > 0) {

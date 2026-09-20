@@ -5174,22 +5174,44 @@ html[data-platform="mobile"] #btn-nav-board {
     display: none !important;
   }
 
-  /* 1. Aside reposicionada à ESQUERDA */
+  /* 1. Aside antiga (.app-aside) ocultada no desktop em favor do drawer estático permanente */
   html[data-platform="desktop"] .app-aside {
+    display: none !important;
     order: 1 !important;
-    display: flex;
-    flex-direction: column;
-    width: 290px;
-    min-width: 260px;
-    max-width: 340px;
-    height: 100vh;
-    background: var(--bg-secondary);
     border-right: 1px solid var(--border);
+  }
+
+  /* Drawer unificado permanente à ESQUERDA como Navegação no Desktop */
+  html[data-platform="desktop"] .notes-aside-drawer {
+    order: 1 !important;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: 290px !important;
+    min-width: 260px !important;
+    max-width: 340px !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid var(--border) !important;
     border-left: none !important;
-    flex-shrink: 0;
-    overflow: hidden;
+    box-shadow: none !important;
+    transform: none !important;
+    transition: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-shrink: 0 !important;
+    z-index: 10 !important;
     user-select: none;
-    z-index: 10;
+  }
+
+  html[data-platform="desktop"] .notes-drawer-backdrop {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] .notes-aside-close-btn {
+    display: none !important;
   }
 
   /* 2. Palco central (Editor e Telas completas: Galeria, Grafo e Quadro) à DIREITA */
