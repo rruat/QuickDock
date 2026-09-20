@@ -57,7 +57,7 @@ async function initTheme() {
   applyTheme(theme);
 }
 
-async function toggleTheme() {
+export async function toggleTheme() {
   const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   await saveTheme(next);
   applyTheme(next);
@@ -166,10 +166,25 @@ function openAppMenu() {
 
   document.body.appendChild(menu);
   appMenuEl = menu;
-  positionPopover(menu, btnAppMenu);
+  if (btnAppMenu) positionPopover(menu, btnAppMenu);
 }
 
-btnAppMenu.addEventListener('click', e => {
+
+document.addEventListener('quickdock:toggle-theme', () => toggleTheme());
+document.addEventListener('quickdock:open-sync', (e) => {
+  const anchor = e.detail?.anchor || btnSync || document.body;
+  syncController?.abrirPopover(anchor);
+});
+document.addEventListener('quickdock:toggle-docs', async () => {
+  const isMobile = html.getAttribute('data-platform') === 'mobile' || html.dataset.platform === 'mobile';
+  if (isMobile) {
+    await toggleDocsCollapsed();
+  } else {
+    toggleDocsExtension();
+  }
+});
+
+btnAppMenu?.addEventListener('click', e => {
   e.stopPropagation();
   if (appMenuEl) closeAppMenu();
   else openAppMenu();
@@ -179,7 +194,7 @@ btnAppMenu.addEventListener('click', e => {
 // aqui faria o clique seguinte reabrir o menu que se acabou de fechar.
 document.addEventListener('mousedown', e => {
   if (!appMenuEl) return;
-  if (appMenuEl.contains(e.target) || btnAppMenu.contains(e.target)) return;
+  if (appMenuEl.contains(e.target) || (btnAppMenu && btnAppMenu.contains(e.target))) return;
   closeAppMenu();
 });
 

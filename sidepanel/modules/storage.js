@@ -560,11 +560,32 @@ export async function excluirPasta(caminho, { manterNotas = true } = {}) {
 
 export async function moverNotaParaPasta(notaId, novaPasta) {
   if (!db || !db.notes) return false;
+  const idNum = Number(notaId);
+  const id = !isNaN(idNum) ? idNum : notaId;
   const pasta = normalizarCaminhoPasta(novaPasta);
   if (pasta) {
     await criarPasta(pasta);
   }
-  await db.notes.update(notaId, { pasta, updatedAt: Date.now() });
+  const note = await db.notes.get(id);
+  if (!note) return false;
+
+  const updates = { pasta, updatedAt: Date.now() };
+  if (note.properties && typeof note.properties === 'object') {
+    if (pasta) note.properties.folder = pasta;
+    else delete note.properties.folder;
+    updates.properties = { ...note.properties };
+  }
+
+  await db.notes.update(id, updates);
+
+  if (typeof document !== 'undefined') {
+    document.dispatchEvent(new CustomEvent('quickdock:note-updated', {
+      detail: { id, note: { ...note, ...updates } }
+    }));
+    document.dispatchEvent(new CustomEvent('quickdock:note-folder-changed', {
+      detail: { id, pasta }
+    }));
+  }
   return true;
 }
 

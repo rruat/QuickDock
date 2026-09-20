@@ -20,6 +20,7 @@ import { copyBlocksAsImage, downloadBlocksAsImage } from './snapshot.js';
 import { iconSvg, createIcon } from './icons.js';
 import { PROPERTY_TYPES, inferirTipoPropriedade, migrarPropriedadeParaTipo } from './property-types.js';
 import { openAppearancePopover } from './notes-tabs.js';
+import { buildEmbeddedBaseBlock } from './bases/bases-embedded.js';
 
 const noteSection  = document.querySelector('.note-section');
 const noteEditorEl = document.querySelector('.note-editor');
@@ -478,6 +479,22 @@ function setCaretOffset(contentEl, offset) {
   sel.addRange(range);
 }
 
+// Posição do cursor na tela. Um Range colapsado bem na borda de uma linha às
+// vezes devolve um retângulo de tamanho zero — cai pro retângulo do elemento
+// em volta, que ao menos existe de verdade.
+function caretViewportRect(sel) {
+  if (!sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  let rect = range.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) {
+    const el = range.startContainer.nodeType === Node.ELEMENT_NODE
+      ? range.startContainer
+      : range.startContainer.parentElement;
+    if (el) rect = el.getBoundingClientRect();
+  }
+  return rect;
+}
+
 // ── Modelo de blocos ───────────────────────────────────────────────────────────
 const HEADING_TAGS = { heading1: 'h1', heading2: 'h2', heading3: 'h3', heading4: 'h4', heading5: 'h5', heading6: 'h6' };
 
@@ -485,18 +502,18 @@ const HEADING_TAGS = { heading1: 'h1', heading2: 'h2', heading3: 'h3', heading4:
 // divisor não tem texto e a tabela não tem um conteúdo único — são N células.
 // Numa folha de cálculo a linha inteira já é conta: a detecção de conta solta
 // no meio do texto não tem o que fazer ali dentro.
-const NO_DETECTION = new Set(['code', 'divider', 'table', 'image', 'calc']);
+const NO_DETECTION = new Set(['code', 'divider', 'table', 'image', 'calc', 'base']);
 
 // Blocos sem um conteúdo de texto único: getContentEl devolve o próprio bloco
 // neles, então perguntar pelo texto não faz sentido.
-const NO_TEXT_TYPES = new Set(['divider', 'table', 'image']);
+const NO_TEXT_TYPES = new Set(['divider', 'table', 'image', 'audio', 'video', 'base']);
 
 // Âncora invisível do cursor. Fica aqui em cima porque sanitizeForSave a usa
 // muito antes do ponto onde ela é criada — ver replaceRangeWithTag, que é onde
 // está explicado por que ela existe.
 const ANCORA = '​';
 
-function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
+function createBlockEl(type, innerHTML = '', checked = false, rows = null, config = '') {
   let el;
 
   // "quote" deixou de ser um tipo e virou decoração. Um registro antigo que
@@ -514,10 +531,39 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
     // Não editável, como a tabela e o divisor: o que se edita aqui é o texto
     // alternativo, por botão, não o conteúdo do bloco.
     el.contentEditable = 'false';
+    // Moldura própria pra alça de redimensionar ficar grudada no canto da
+    // imagem de verdade, e não no bloco inteiro (que também tem a barra de
+    // ferramentas embaixo, de altura variável).
+    const frame = document.createElement('div');
+    frame.className = 'image-frame';
     const img = document.createElement('img');
     img.draggable = false;
     img.alt = '';
-    el.append(img, buildImageTools());
+    frame.append(img, buildImageResizeHandle(el));
+    el.append(frame, buildImageTools());
+    el.dataset.type = type;
+    el.dataset.id = uid();
+    return el;
+  }
+
+  if (type === 'audio' || type === 'video') {
+    el = document.createElement('div');
+    el.className = `block block-${type}`;
+    // Mesma ideia da imagem: não editável, sem cursor de texto dentro.
+    el.contentEditable = 'false';
+    const media = document.createElement(type);
+    media.controls = true;
+    media.preload = 'metadata';
+    if (type === 'video') {
+      // Vídeo ganha a mesma moldura+alça de redimensionar da imagem — largura
+      // de player faz sentido ajustar; áudio (só a barra de controles) não.
+      const frame = document.createElement('div');
+      frame.className = 'image-frame';
+      frame.append(media, buildImageResizeHandle(el));
+      el.append(frame, buildMediaTools());
+    } else {
+      el.append(media, buildMediaTools());
+    }
     el.dataset.type = type;
     el.dataset.id = uid();
     return el;
@@ -533,6 +579,10 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
     el.dataset.type = type;
     el.dataset.id = uid();
     return el;
+  }
+
+  if (type === 'base') {
+    return buildEmbeddedBaseBlock(config || innerHTML, () => scheduleSave());
   }
 
   if (HEADING_TAGS[type]) {
@@ -627,7 +677,7 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
   // clicável/digitável de forma confiável em alguns navegadores — sobretudo
   // o <span> de conteúdo de listas/checklist/código, que colapsa a altura
   // zero quando vazio. Um <br> "segura" o espaço pro cursor.
-  if (type !== 'divider') {
+  if (type !== 'divider' && type !== 'base') {
     const contentEl = getContentEl(el);
     if (!contentEl.hasChildNodes()) contentEl.appendChild(document.createElement('br'));
   }
@@ -641,13 +691,14 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
 // no modelo entra aqui e todas as chamadas passam a respeitá-lo de uma vez.
 function createBlockElFrom(bruto) {
   const b  = normalizeBlock(bruto);
-  const el = createBlockEl(b.type, b.html ?? '', b.checked ?? false, b.rows ?? null);
+  const el = createBlockEl(b.type, b.html ?? '', b.checked ?? false, b.rows ?? null, b.config ?? '');
   if (b.id) el.dataset.id = b.id;
   setBlockDepth(el, b.depth ?? 0);
   setBlockQuoted(el, !!b.quoted);
   setBlockCallout(el, b.callout);
   setBlockUnderlined(el, !!b.underlined);
   if (b.type === 'image') setImageData(el, b);
+  if (b.type === 'audio' || b.type === 'video') setMediaData(el, b.type, b);
   return el;
 }
 
@@ -799,21 +850,23 @@ function revokeImageURLs() {
   imageURLs.clear();
 }
 
-function loadInlineImage(imgEl, fileId) {
+// Serve qualquer elemento com `.src` (img, audio, video) — o Blob mora no
+// mesmo lugar não importa o tipo de arquivo.
+function loadInlineMedia(mediaEl, fileId) {
   const cached = imageURLs.get(fileId);
-  if (cached) { imgEl.src = cached; return; }
+  if (cached) { mediaEl.src = cached; return; }
 
   loadFileBlob(fileId).then(blob => {
     if (!blob) {
-      imgEl.closest('.block-image')?.classList.add('block-image-missing');
+      mediaEl.closest('.block')?.classList.add('block-image-missing');
       return;
     }
     const url = URL.createObjectURL(blob);
     // A nota pode ter mudado enquanto o banco respondia. Sem esta checagem, a
     // URL nova ficaria presa num elemento que já saiu da tela.
-    if (!root.contains(imgEl)) { URL.revokeObjectURL(url); return; }
+    if (!root.contains(mediaEl)) { URL.revokeObjectURL(url); return; }
     imageURLs.set(fileId, url);
-    imgEl.src = url;
+    mediaEl.src = url;
   });
 }
 
@@ -822,16 +875,17 @@ export function setImageResolver(fn) {
   imageResolver = fn;
 }
 
-function setImageData(el, { fileId, alt, dataUrl, imagePath, src }) {
+function setImageData(el, { fileId, alt, dataUrl, imagePath, src, width, height }) {
   const img = el.querySelector('img');
   if (alt) el.dataset.alt = alt;
   else delete el.dataset.alt;
   if (img) img.alt = alt ?? '';
+  aplicarTamanhoImagem(el, width, height);
   if (fileId != null && Number.isFinite(Number(fileId))) {
     el.dataset.fileId = String(fileId);
     delete el.dataset.imagePath;
     el.classList.remove('block-image-missing');
-    if (img) loadInlineImage(img, Number(fileId));
+    if (img) loadInlineMedia(img, Number(fileId));
   } else if (dataUrl) {
     delete el.dataset.fileId;
     delete el.dataset.imagePath;
@@ -849,7 +903,12 @@ function setImageData(el, { fileId, alt, dataUrl, imagePath, src }) {
         imageResolver(caminho, currentNoteId).then(res => {
           if (!root.contains(el)) return;
           if (res && res.fileId != null) {
-            setImageData(el, { fileId: res.fileId, alt });
+            // Passa o tamanho já gravado adiante: esta chamada só troca o
+            // fileId (placeholder → arquivo de verdade), não pode apagar um
+            // redimensionamento que a pessoa já tinha feito.
+            const w = el.dataset.width ? Number(el.dataset.width) : undefined;
+            const h = el.dataset.height ? Number(el.dataset.height) : undefined;
+            setImageData(el, { fileId: res.fileId, alt, width: w, height: h });
           }
         }).catch(() => {});
       }
@@ -857,6 +916,53 @@ function setImageData(el, { fileId, alt, dataUrl, imagePath, src }) {
       delete el.dataset.imagePath;
       el.classList.add('block-image-missing');
     }
+  }
+}
+
+// Versão mais simples pra áudio/vídeo: só fileId ou dataUrl, sem o caminho de
+// sincronização preguiçosa da imagem (imagePath/imageResolver) — "local" é
+// exatamente isso, o arquivo mora no Dexie desta máquina.
+function setMediaData(el, type, { fileId, alt, dataUrl, width, height }) {
+  const media = el.querySelector(type);
+  if (alt) el.dataset.alt = alt;
+  else delete el.dataset.alt;
+  if (type === 'video') aplicarTamanhoImagem(el, width, height);
+  if (fileId != null && Number.isFinite(Number(fileId))) {
+    el.dataset.fileId = String(fileId);
+    el.classList.remove('block-image-missing');
+    if (media) loadInlineMedia(media, Number(fileId));
+  } else if (dataUrl) {
+    delete el.dataset.fileId;
+    el.classList.remove('block-image-missing');
+    if (media) media.src = dataUrl;
+  } else {
+    delete el.dataset.fileId;
+    el.classList.add('block-image-missing');
+  }
+}
+
+// Largura (e opcionalmente altura) explícitas, escritas pela alça de
+// redimensionar ou lidas de "|320" / "|320x240" no markdown (ver blocks.js).
+// Sem altura, só a largura é fixada — a altura segue sozinha (proporção
+// preservada), e por isso o teto de 320px (CSS) precisa sair do caminho.
+function aplicarTamanhoImagem(el, width, height) {
+  const img = el.querySelector('img, video');
+  if (width) {
+    el.dataset.width = String(width);
+    if (img) {
+      img.style.width = `${width}px`;
+      img.style.maxHeight = 'none';
+    }
+  } else {
+    delete el.dataset.width;
+    if (img) { img.style.width = ''; img.style.maxHeight = ''; }
+  }
+  if (height) {
+    el.dataset.height = String(height);
+    if (img) img.style.height = `${height}px`;
+  } else {
+    delete el.dataset.height;
+    if (img) img.style.height = '';
   }
 }
 
@@ -879,6 +985,65 @@ function buildImageTools() {
     bar.appendChild(btn);
   }
   return bar;
+}
+
+// Barra de ferramentas de áudio/vídeo — só "Remover" por enquanto (sem
+// "Trocar": o seletor de arquivo embutido é hoje só de imagem). O
+// data-act="remove-media" tem um ouvinte de clique próprio, separado do da
+// imagem, pra não arriscar mexer no que já funciona lá.
+function buildMediaTools() {
+  const bar = document.createElement('div');
+  bar.className = 'image-tools';
+  bar.contentEditable = 'false';
+  const btn = document.createElement('button');
+  btn.className   = 'image-btn';
+  btn.dataset.act = 'remove-media';
+  btn.textContent = 'Remover';
+  btn.title       = 'Remover da nota';
+  bar.appendChild(btn);
+  return bar;
+}
+
+// Alça no canto inferior direito — arrastar muda a largura (a altura segue
+// sozinha, proporção preservada), igual ao redimensionamento de imagem do
+// Obsidian. Só a largura é gravada (ver aplicarTamanhoImagem/serializeBlockEl);
+// sem altura fixada, o navegador mesmo mantém a proporção original.
+function buildImageResizeHandle(el) {
+  const handle = document.createElement('div');
+  handle.className = 'image-resize-handle';
+  handle.contentEditable = 'false';
+  handle.title = 'Arrastar para redimensionar';
+
+  handle.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const img = el.querySelector('img, video');
+    if (!img) return;
+
+    const startX = e.clientX;
+    const startWidth = img.getBoundingClientRect().width;
+    const larguraMaxima = Math.max(60, root.clientWidth - 8);
+    captureUndoPoint();
+    el.classList.add('is-resizing');
+
+    const mover = ev => {
+      const bruta = startWidth + (ev.clientX - startX);
+      const tetoNatural = (img.tagName === 'VIDEO' ? img.videoWidth : img.naturalWidth) || Infinity;
+      const largura = Math.round(Math.min(Math.max(60, bruta), larguraMaxima, tetoNatural));
+      aplicarTamanhoImagem(el, largura, null);
+    };
+    const soltar = () => {
+      document.removeEventListener('mousemove', mover);
+      document.removeEventListener('mouseup', soltar);
+      el.classList.remove('is-resizing');
+      scheduleSave();
+    };
+    document.addEventListener('mousemove', mover);
+    document.addEventListener('mouseup', soltar);
+  });
+
+  return handle;
 }
 
 // Base64 → arquivo. Chega assim de um .md importado, de uma colagem de texto
@@ -925,12 +1090,19 @@ export async function absorbDataUrls(blocks, noteId = undefined) {
 
 // Um arquivo de imagem (colado, arrastado ou escolhido) vira bloco na nota.
 async function insertImageFile(file, atBlock) {
+  return insertMediaFile(file, atBlock, 'image');
+}
+
+// Mesma ideia da imagem: guarda o Blob (saveFile já é genérico, não sabe nem
+// precisa saber o tipo), cria o bloco e deixa uma linha embaixo pra continuar
+// escrevendo.
+async function insertMediaFile(file, atBlock, type) {
   const fileId = await saveFile(file, currentNoteId, { inline: true });
   const bloco  = atBlock ?? currentBlock() ?? root.lastElementChild;
   if (!bloco) return null;
 
   captureUndoPoint();
-  const el = createBlockElFrom({ type: 'image', fileId, alt: '', depth: blockDepth(bloco) });
+  const el = createBlockElFrom({ type, fileId, alt: '', depth: blockDepth(bloco) });
 
   const vazio = !NO_TEXT_TYPES.has(bloco.dataset.type)
     && !getContentEl(bloco).textContent.trim();
@@ -938,7 +1110,7 @@ async function insertImageFile(file, atBlock) {
   else bloco.after(el);
 
   // Sempre deixa uma linha logo abaixo: senão não há onde continuar a escrever
-  // quando a imagem é o último bloco da nota.
+  // quando o bloco é o último da nota.
   if (!el.nextElementSibling) el.after(createBlockEl('paragraph'));
   focusBlockEnd(el.nextElementSibling);
   renumberLists();
@@ -955,11 +1127,11 @@ function focusBlockEnd(block) {
     focusCell(block.querySelector('.table-cell'));
     return;
   }
-  // Imagem não recebe cursor de texto: o destino é a linha seguinte, e se
-  // não houver uma, cria.
-  if (block.dataset.type === 'image') {
+  // Imagem, áudio e vídeo não recebem cursor de texto: o destino é a linha
+  // seguinte, e se não houver uma (ou for outro bloco do mesmo tipo), cria.
+  if (block.dataset.type === 'image' || block.dataset.type === 'audio' || block.dataset.type === 'video') {
     let next = block.nextElementSibling;
-    if (!next || next.dataset.type === 'image') {
+    if (!next || next.dataset.type === block.dataset.type) {
       next = createBlockEl('paragraph');
       block.after(next);
     }
@@ -1398,11 +1570,25 @@ function serializeBlockEl(block) {
     if (Number.isFinite(fileId)) b.fileId = fileId;
     if (block.dataset.imagePath) b.imagePath = block.dataset.imagePath;
     if (block.dataset.alt) b.alt = block.dataset.alt;
+    if (block.dataset.width) b.width = Number(block.dataset.width);
+    if (block.dataset.height) b.height = Number(block.dataset.height);
+    return b;
+  }
+  if (type === 'audio' || type === 'video') {
+    const fileId = Number(block.dataset.fileId);
+    if (Number.isFinite(fileId)) b.fileId = fileId;
+    if (block.dataset.alt) b.alt = block.dataset.alt;
+    if (type === 'video' && block.dataset.width) b.width = Number(block.dataset.width);
+    if (type === 'video' && block.dataset.height) b.height = Number(block.dataset.height);
     return b;
   }
   if (type === 'table') {
     b.rows = [...block.querySelectorAll('tr')].map(tr =>
       [...tr.children].map(cell => sanitizeForSave(cell.innerHTML)));
+    return b;
+  }
+  if (type === 'base') {
+    b.config = block.dataset.config ?? '';
     return b;
   }
   b.html = sanitizeForSave(getContentEl(block).innerHTML, type === 'code');
@@ -1564,12 +1750,21 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
   if (headerTitleDebounce) commitHeaderTitle();
   editingTemplate = null;            // trocar de nota abandona o modo modelo
   currentNoteId = id;
+  if (id == null) {
+    revokeImageURLs();
+    root.innerHTML = '';
+    headerNoteRef = null;
+    if (headerTitleEl) headerTitleEl.textContent = '';
+    if (headerIconEl) headerIconEl.textContent = '';
+    return;
+  }
   const note = await getNoteById(id);
   const blocks = (note?.blocks?.length) ? note.blocks : parseMarkdownToBlocks(note?.content ?? '');
   renderBlocks(blocks);
   updateMobileToolbarState();
   renderNoteHeader(note);
   renderPropertiesBar(note);
+  atualizarLinksInternos();
   await refreshBacklinks(id);
 }
 
@@ -1664,6 +1859,11 @@ const btnAddProperty      = document.getElementById('btn-add-property');
 let propertiesExpanded = typeof localStorage !== 'undefined'
   ? localStorage.getItem('quickdock:properties:expanded') === 'true'
   : false;
+
+// Enquanto não tem nome confirmado (Enter), a propriedade nova é só esse
+// estado — não existe em note.properties. É o que faz a linha de "nome +
+// tipo" aparecer no fim da lista antes de virar propriedade de verdade.
+let pendingNewProperty = null;
 
 let activePropertiesMenu = null;
 
@@ -1829,12 +2029,18 @@ function renderPropertySelect(chave, valor, opcoes, salvar) {
   return select;
 }
 
-// Popover de troca de tipo, aberto pelo ícone à esquerda de cada propriedade.
-// Ao trocar, migra o valor existente para o novo tipo (ex.: texto "3" → número 3).
-function abrirMenuDeTipo(anchorEl, chave, tipoAtual, valorAtual, salvar) {
+// Popover de escolha de tipo — aberto pelo ícone à esquerda de cada
+// propriedade (troca o tipo de uma que já existe) e também ao criar uma nova
+// (escolhe o tipo antes de dar nome). `onEscolher(tipoId)` decide o que fazer
+// com a escolha em cada caso.
+function abrirMenuDeTipo(anchorEl, tipoAtual, onEscolher) {
   closePropertiesMenu();
   const menu = document.createElement('div');
   menu.className = 'note-properties-popup-menu popover-menu';
+  // Sem isto, o mousedown num item tira o foco de onde estava antes (ex.: o
+  // input de nome da propriedade nova) e o blur cancela aquele fluxo antes
+  // do click do item chegar a rodar.
+  menu.addEventListener('mousedown', e => e.preventDefault());
 
   for (const [tipoId, def] of Object.entries(PROPERTY_TYPES)) {
     const btn = document.createElement('button');
@@ -1846,8 +2052,7 @@ function abrirMenuDeTipo(anchorEl, chave, tipoAtual, valorAtual, salvar) {
     `;
     btn.addEventListener('click', () => {
       closePropertiesMenu();
-      if (tipoId === tipoAtual) return;
-      salvar(chave, migrarPropriedadeParaTipo(chave, valorAtual, tipoId), { tipo: tipoId });
+      if (tipoId !== tipoAtual) onEscolher(tipoId);
     });
     menu.appendChild(btn);
   }
@@ -1874,6 +2079,13 @@ export function renderPropertiesBar(note) {
   const chaves = Object.keys(props);
   const total = chaves.length;
 
+  // Nota sem nenhuma propriedade não carrega a caixa inteira por padrão — só
+  // um link discreto pra criar a primeira. É o mesmo tanto faz de uma nota
+  // nova no Obsidian, que não vem com a seção de Properties até alguém pedir
+  // uma (digitando "---" no início da nota ou clicando aqui).
+  const vazia = total === 0 && !pendingNewProperty;
+  propertiesBarEl.classList.toggle('is-empty-ghost', vazia);
+
   if (propertiesCountEl) {
     propertiesCountEl.textContent = String(total);
     propertiesCountEl.hidden = total === 0;
@@ -1882,11 +2094,15 @@ export function renderPropertiesBar(note) {
   atualizarEstadoExpansaoPropriedades();
 
   propertiesListEl.innerHTML = '';
-  if (total === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'note-properties-empty';
-    empty.textContent = 'Sem propriedades. Clique em "+ Propriedade" para adicionar data, categoria ou status.';
-    propertiesListEl.appendChild(empty);
+
+  if (vazia) {
+    const ghost = document.createElement('button');
+    ghost.type = 'button';
+    ghost.className = 'note-properties-ghost-add';
+    ghost.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span><span>Adicionar propriedade</span>';
+    ghost.addEventListener('click', () => iniciarNovaPropriedade(note));
+    propertiesListEl.hidden = false;
+    propertiesListEl.appendChild(ghost);
     return;
   }
 
@@ -1911,6 +2127,51 @@ export function renderPropertiesBar(note) {
     renderPropertiesBar(note);
   };
 
+  // Renomear preserva a posição: reconstrói o objeto na mesma ordem, só
+  // trocando a chave, em vez de apagar e recriar no fim.
+  const renomear = async (chaveAntiga, chaveNova) => {
+    if (!chaveNova || chaveNova === chaveAntiga || chaveNova in props) { renderPropertiesBar(note); return; }
+    const novasProps = {}, novosTipos = {}, novasOpcoes = {};
+    for (const k of chaves) {
+      const kk = k === chaveAntiga ? chaveNova : k;
+      novasProps[kk] = props[k];
+      if (k in tipos) novosTipos[kk] = tipos[k];
+      if (k in opcoesSelect) novasOpcoes[kk] = opcoesSelect[k];
+    }
+    note.properties = novasProps;
+    note.propertyTypes = novosTipos;
+    note.propertySelectOptions = novasOpcoes;
+    await updateNoteMetaById(note.id, {
+      properties: note.properties,
+      propertyTypes: note.propertyTypes,
+      propertySelectOptions: note.propertySelectOptions,
+    });
+    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+      detail: { noteId: note.id, properties: note.properties }
+    }));
+    renderPropertiesBar(note);
+  };
+
+  // Arrastar reordena: tira a chave de origem do lugar antigo e a reinsere
+  // antes/depois da chave alvo, preservando a ordem de todo o resto.
+  const reordenar = async (chaveOrigem, chaveAlvo, antes) => {
+    if (chaveOrigem === chaveAlvo) return;
+    const resto = chaves.filter(k => k !== chaveOrigem);
+    const idxAlvo = resto.indexOf(chaveAlvo);
+    if (idxAlvo === -1) return;
+    resto.splice(antes ? idxAlvo : idxAlvo + 1, 0, chaveOrigem);
+    const novasProps = {};
+    for (const k of resto) novasProps[k] = props[k];
+    note.properties = novasProps;
+    await updateNoteMetaById(note.id, { properties: note.properties });
+    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+      detail: { noteId: note.id, properties: note.properties }
+    }));
+    renderPropertiesBar(note);
+  };
+  let propDragOrigemChave = null;
+  let propDropIndicator = null;
+
   for (const chave of chaves) {
     const valor = props[chave];
     const tipo = inferirTipoPropriedade(chave, tipos);
@@ -1918,6 +2179,44 @@ export function renderPropertiesBar(note) {
     const row = document.createElement('div');
     row.className = 'note-property-row';
     row.dataset.propKey = chave;
+    row.draggable = true;
+
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'property-drag-handle qd-icon material-symbols-rounded';
+    dragHandle.textContent = 'drag_indicator';
+    dragHandle.setAttribute('aria-hidden', 'true');
+
+    row.addEventListener('dragstart', e => {
+      propDragOrigemChave = chave;
+      e.dataTransfer.effectAllowed = 'move';
+      row.classList.add('is-dragging');
+      propDropIndicator = document.createElement('div');
+      propDropIndicator.className = 'note-property-drop-indicator';
+    });
+    row.addEventListener('dragover', e => {
+      if (propDragOrigemChave == null || propDragOrigemChave === chave || !propDropIndicator) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const rect = row.getBoundingClientRect();
+      const antes = e.clientY < rect.top + rect.height / 2;
+      row[antes ? 'before' : 'after'](propDropIndicator);
+    });
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      if (propDragOrigemChave == null) return;
+      const rect = row.getBoundingClientRect();
+      const antes = e.clientY < rect.top + rect.height / 2;
+      const origem = propDragOrigemChave;
+      propDropIndicator?.remove();
+      propDropIndicator = null;
+      reordenar(origem, chave, antes);
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('is-dragging');
+      propDropIndicator?.remove();
+      propDropIndicator = null;
+      propDragOrigemChave = null;
+    });
 
     const typeBtn = document.createElement('button');
     typeBtn.type = 'button';
@@ -1926,7 +2225,9 @@ export function renderPropertiesBar(note) {
     typeBtn.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>`;
     typeBtn.addEventListener('click', e => {
       e.stopPropagation();
-      abrirMenuDeTipo(typeBtn, chave, tipo, valor, salvar);
+      abrirMenuDeTipo(typeBtn, tipo, tipoId => {
+        salvar(chave, migrarPropriedadeParaTipo(chave, valor, tipoId), { tipo: tipoId });
+      });
     });
 
     const labelWrap = document.createElement('div');
@@ -1934,6 +2235,28 @@ export function renderPropertiesBar(note) {
     const nameEl = document.createElement('span');
     nameEl.className = 'property-name';
     nameEl.textContent = chave;
+    nameEl.title = 'Clique para renomear';
+    nameEl.addEventListener('click', e => {
+      e.stopPropagation();
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'property-name-input';
+      input.value = chave;
+      let resolvido = false;
+      input.addEventListener('keydown', ev => {
+        ev.stopPropagation();
+        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); resolvido = true; renderPropertiesBar(note); }
+      });
+      input.addEventListener('blur', () => {
+        if (resolvido) return;
+        resolvido = true;
+        renomear(chave, input.value.trim());
+      });
+      nameEl.replaceWith(input);
+      input.focus();
+      input.select();
+    });
     labelWrap.append(typeBtn, nameEl);
 
     const valueWrap = document.createElement('div');
@@ -1964,11 +2287,131 @@ export function renderPropertiesBar(note) {
       renderPropertiesBar(note);
     });
 
+    row.appendChild(dragHandle);
     row.appendChild(labelWrap);
     row.appendChild(valueWrap);
     row.appendChild(deleteBtn);
     propertiesListEl.appendChild(row);
   }
+
+  if (pendingNewProperty) {
+    propertiesListEl.appendChild(criarLinhaNovaPropriedade(note, props));
+  }
+}
+
+const SELECT_OPCOES_PADRAO = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
+const VALOR_PADRAO_POR_TIPO = { text: '', list: [], number: '', checkbox: false, date: '', select: '' };
+
+// Abre a linha de "nome + tipo" no fim da lista — mesmo ponto de entrada
+// usado pelo botão "+ Propriedade" e pelo atalho de "---" no início da nota.
+function iniciarNovaPropriedade(note) {
+  pendingNewProperty = { tipo: 'text' };
+  propertiesExpanded = true;
+  try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
+  renderPropertiesBar(note);
+}
+
+// Linha transitória: só vira propriedade de verdade ao confirmar (Enter com
+// nome preenchido e ainda não usado). Cancela sozinha ao clicar fora vazia
+// ou com Esc — do jeito que o Obsidian também desiste se você não nomear.
+//
+// Fechar é decidido por CLIQUE FORA (pointerdown em algo que não é a linha
+// nem o popover de tipo aberto), não por blur do input: blur dispara mesmo
+// quando o clique é no próprio seletor de tipo (que fica fora da linha, solto
+// em document.body), e nem sempre dá tempo do preventDefault no mousedown
+// segurar o foco antes do blur dessa troca correr — cancelava a linha antes
+// do popover de tipo terminar de abrir. Mesmo padrão de "clique fora" que
+// closePropertiesMenu já usa pro popover em si.
+function criarLinhaNovaPropriedade(note, props) {
+  const row = document.createElement('div');
+  row.className = 'note-property-row note-property-row-new';
+
+  const def = PROPERTY_TYPES[pendingNewProperty.tipo] || PROPERTY_TYPES.text;
+  const typeBtn = document.createElement('button');
+  typeBtn.type = 'button';
+  typeBtn.className = 'property-type-btn';
+  typeBtn.title = `Tipo: ${def.label}`;
+  typeBtn.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>`;
+  typeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    abrirMenuDeTipo(typeBtn, pendingNewProperty.tipo, tipoId => {
+      pendingNewProperty.tipo = tipoId;
+      renderPropertiesBar(note);
+    });
+  });
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'property-input property-name-input-new';
+  input.placeholder = 'Nome da propriedade';
+  // Escolher o tipo reconstrói a linha (renderPropertiesBar de novo) — sem
+  // guardar o que já foi digitado em pendingNewProperty, o nome sumia junto.
+  input.value = pendingNewProperty.nome || '';
+  input.addEventListener('input', () => { pendingNewProperty.nome = input.value; });
+
+  let resolvido = false;
+  const desanexar = () => document.removeEventListener('pointerdown', aoClicarFora);
+
+  const confirmar = async () => {
+    if (resolvido) return;
+    resolvido = true;
+    desanexar();
+    const nome = input.value.trim();
+    if (!nome || nome in props) {
+      pendingNewProperty = null;
+      renderPropertiesBar(note);
+      return;
+    }
+    const tipo = pendingNewProperty.tipo;
+    note.properties = { ...props, [nome]: VALOR_PADRAO_POR_TIPO[tipo] ?? '' };
+    note.propertyTypes = { ...(note.propertyTypes || {}), [nome]: tipo };
+    if (tipo === 'select') {
+      note.propertySelectOptions = { ...(note.propertySelectOptions || {}), [nome]: SELECT_OPCOES_PADRAO };
+    }
+    pendingNewProperty = null;
+    await updateNoteMetaById(note.id, {
+      properties: note.properties,
+      propertyTypes: note.propertyTypes,
+      ...(note.propertySelectOptions ? { propertySelectOptions: note.propertySelectOptions } : {}),
+    });
+    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+      detail: { noteId: note.id, properties: note.properties }
+    }));
+    renderPropertiesBar(note);
+  };
+
+  const cancelar = () => {
+    if (resolvido) return;
+    resolvido = true;
+    desanexar();
+    pendingNewProperty = null;
+    renderPropertiesBar(note);
+  };
+
+  const aoClicarFora = e => {
+    // A linha pode ter sumido por outro caminho — outra composição começou
+    // (clicar em "+ Propriedade" de novo antes de resolver esta) ou a nota
+    // trocou — sem isto o listener sobrevive à linha e o próximo clique fora
+    // chama confirmar() com pendingNewProperty já nulo (de quem resolveu a
+    // composição nova), estourando "Cannot read properties of null".
+    if (!document.body.contains(row)) { document.removeEventListener('pointerdown', aoClicarFora); return; }
+    if (row.contains(e.target) || activePropertiesMenu?.contains(e.target)) return;
+    confirmar();
+  };
+  document.addEventListener('pointerdown', aoClicarFora);
+
+  input.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); confirmar(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancelar(); }
+  });
+
+  row.append(typeBtn, input);
+  queueMicrotask(() => {
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+  return row;
 }
 
 // Botão "+ Propriedade"
@@ -1978,74 +2421,8 @@ if (btnAddProperty) {
     if (!currentNoteId) return;
     const note = await getNoteById(currentNoteId);
     if (!note) return;
-
     closePropertiesMenu();
-
-    const menu = document.createElement('div');
-    menu.className = 'note-properties-popup-menu popover-menu';
-
-    const opcoes = [
-      { id: 'data', icon: 'calendar_month', label: 'Data', defaultVal: new Date().toISOString().slice(0, 10), tipo: 'date' },
-      { id: 'categoria', icon: 'label', label: 'Categoria', defaultVal: [], tipo: 'list' },
-      { id: 'status', icon: 'progress_activity', label: 'Status', defaultVal: 'A Fazer', tipo: 'select' },
-      { id: 'custom', icon: 'add_circle', label: 'Personalizado...', defaultVal: '', tipo: 'text' },
-    ];
-
-    for (const opt of opcoes) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'popover-item';
-      btn.innerHTML = `
-        <span class="qd-icon material-symbols-rounded" aria-hidden="true">${opt.icon}</span>
-        <span>${opt.label}</span>
-      `;
-      btn.addEventListener('click', async () => {
-        closePropertiesMenu();
-        const currentProps = { ...(note.properties || {}) };
-        const currentTypes = { ...(note.propertyTypes || {}) };
-        const currentOpcoes = { ...(note.propertySelectOptions || {}) };
-
-        if (opt.id === 'custom') {
-          const nomeChave = window.prompt('Nome da nova propriedade:');
-          if (!nomeChave || !nomeChave.trim()) return;
-          const k = nomeChave.trim();
-          if (!(k in currentProps)) {
-            currentProps[k] = opt.defaultVal;
-            currentTypes[k] = opt.tipo;
-          }
-        } else if (!(opt.id in currentProps)) {
-          currentProps[opt.id] = opt.defaultVal;
-          currentTypes[opt.id] = opt.tipo;
-          if (opt.tipo === 'select') {
-            currentOpcoes[opt.id] = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
-          }
-        }
-
-        note.properties = currentProps;
-        note.propertyTypes = currentTypes;
-        note.propertySelectOptions = currentOpcoes;
-        propertiesExpanded = true;
-        try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
-        await updateNoteMetaById(note.id, {
-          properties: note.properties,
-          propertyTypes: note.propertyTypes,
-          propertySelectOptions: note.propertySelectOptions,
-        });
-        document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-          detail: { noteId: note.id, properties: note.properties }
-        }));
-        renderPropertiesBar(note);
-      });
-      menu.appendChild(btn);
-    }
-
-    document.body.appendChild(menu);
-    activePropertiesMenu = menu;
-    const rect = btnAddProperty.getBoundingClientRect();
-    menu.style.position = 'fixed';
-    menu.style.top = `${rect.bottom + 4}px`;
-    menu.style.left = `${Math.max(8, rect.left)}px`;
-    menu.style.zIndex = '99999';
+    iniciarNovaPropriedade(note);
   });
 }
 
@@ -2065,6 +2442,25 @@ if (backlinksToggle && backlinksSection) {
     try { localStorage.setItem('quickdock:backlinks:open', String(backlinksOpen)); } catch {}
     backlinksSection.classList.toggle('is-collapsed', !backlinksOpen);
     backlinksToggle.setAttribute('aria-expanded', backlinksOpen ? 'true' : 'false');
+  });
+}
+
+// Marca link interno cujo título não bate com nenhuma nota existente —
+// mesma distinção do Obsidian entre link resolvido e "unresolved" (é só uma
+// menção, a nota referenciada ainda não existe).
+export async function atualizarLinksInternos() {
+  const links = root.querySelectorAll('a.note-internal-link');
+  if (!links.length) return;
+  let todasNotas;
+  try {
+    todasNotas = await loadAllNotesMeta();
+  } catch {
+    return;
+  }
+  const titulos = new Set(todasNotas.map(n => (n.title || '').trim().toLowerCase()));
+  links.forEach(a => {
+    const titulo = (a.dataset.noteTitle || a.textContent || '').trim().toLowerCase();
+    a.classList.toggle('is-unresolved', !titulos.has(titulo));
   });
 }
 
@@ -2422,10 +2818,15 @@ imagePicker.type   = 'file';
 imagePicker.accept = 'image/*';
 imagePicker.hidden = true;
 document.body.appendChild(imagePicker);
-let imagePickerIntent = null;   // { trocar: bloco } ou { inserirEm: bloco }
+let imagePickerIntent = null;   // { trocar: bloco } ou { inserirEm: bloco, tipo? }
 
-function pedirImagem(intent) {
-  imagePickerIntent = intent;
+const MEDIA_ACCEPT = { image: 'image/*', audio: 'audio/*', video: 'video/*' };
+
+// `tipo` só importa pra "inserir nova" (áudio/vídeo do menu "/") — "trocar"
+// continua exclusivo de imagem, é o único caso que usa esse botão hoje.
+function pedirImagem(intent, tipo = 'image') {
+  imagePickerIntent = { ...intent, tipo };
+  imagePicker.accept = MEDIA_ACCEPT[tipo] ?? 'image/*';
   imagePicker.value = '';
   imagePicker.click();
 }
@@ -2435,9 +2836,11 @@ imagePicker.addEventListener('change', async () => {
   imagePicker.value = '';
   const intent = imagePickerIntent;
   imagePickerIntent = null;
-  if (!file || !file.type.startsWith('image/') || !intent) return;
+  const tipo = intent?.tipo ?? 'image';
+  if (!file || !file.type.startsWith(`${tipo}/`) || !intent) return;
 
   if (intent.inserirEm) {
+    if (tipo !== 'image') { await insertMediaFile(file, intent.inserirEm, tipo); return; }
     await insertImageFile(file, intent.inserirEm);
     return;
   }
@@ -2503,6 +2906,24 @@ root.addEventListener('click', e => {
     .filter(g => Number.isFinite(g.id));
 
   openModal(fileId, bloco.dataset.alt || 'Imagem', 'image/*', galeria);
+});
+
+// Botão "Remover" de áudio/vídeo — ouvinte à parte do da imagem (mesmo
+// data-act de "remover" faz o mesmo em espírito, mas aqui não existe
+// "trocar"/"texto alternativo" nem visualizador em modal pra reaproveitar).
+root.addEventListener('click', e => {
+  const btn = e.target.closest('[data-act="remove-media"]');
+  if (!btn) return;
+  const bloco = btn.closest('.block-audio, .block-video');
+  if (!bloco) return;
+  e.stopPropagation();
+  captureUndoPoint();
+  const seguinte = bloco.nextElementSibling ?? bloco.previousElementSibling;
+  bloco.remove();
+  if (root.children.length === 0) root.appendChild(createBlockEl('paragraph'));
+  focusBlockEnd(seguinte ?? root.lastElementChild);
+  renumberLists();
+  scheduleSave();
 });
 
 async function moverImagemParaDocumentos(bloco) {
@@ -2595,13 +3016,15 @@ root.addEventListener('dragleave', e => {
 
 root.addEventListener('drop', async e => {
   root.classList.remove('editor-drop');
-  const imagens = [...(e.dataTransfer?.files ?? [])].filter(f => f.type.startsWith('image/'));
-  if (imagens.length === 0) return;   // outro tipo de arquivo é assunto dos Documentos
+  const arquivos = [...(e.dataTransfer?.files ?? [])]
+    .map(f => ({ file: f, tipo: f.type.startsWith('image/') ? 'image' : f.type.startsWith('audio/') ? 'audio' : f.type.startsWith('video/') ? 'video' : null }))
+    .filter(x => x.tipo);
+  if (arquivos.length === 0) return;   // outro tipo de arquivo é assunto dos Documentos
 
   e.preventDefault();
   e.stopPropagation();
   let alvo = blockNearestToY(e.clientY) ?? root.lastElementChild;
-  for (const file of imagens) alvo = (await insertImageFile(file, alvo)) ?? alvo;
+  for (const { file, tipo } of arquivos) alvo = (await insertMediaFile(file, alvo, tipo)) ?? alvo;
 });
 
 // ── Checklist aninhada ────────────────────────────────────────────────────────
@@ -2792,6 +3215,9 @@ const SLASH_ITEMS = [
   { key: 'calculo',   label: 'Cálculo',              short: 'Cálculo',  hint: '= ao vivo', icon: 'calculate',             grupo: 'Blocos',    type: 'calc'      },
   { key: 'tabela',    label: 'Tabela',               short: 'Tabela',   hint: '| |',       icon: 'table',                 grupo: 'Blocos',    type: 'table'     },
   { key: 'imagem',    label: 'Imagem',               short: 'Imagem',   hint: 'arquivo',   icon: 'image',                 grupo: 'Blocos',    type: 'image'     },
+  { key: 'audio',     label: 'Áudio',                short: 'Áudio',    hint: 'arquivo',   icon: 'audio_file',            grupo: 'Blocos',    type: 'audio'     },
+  { key: 'video',     label: 'Vídeo',                short: 'Vídeo',    hint: 'arquivo',   icon: 'videocam',              grupo: 'Blocos',    type: 'video'     },
+  { key: 'base',      label: 'Base de dados',        short: 'Base',     hint: '```base',   icon: 'view_kanban',           grupo: 'Blocos',    type: 'base'      },
   { key: 'divisor',   label: 'Divisor',              short: 'Divisor',  hint: '---',       icon: 'horizontal_rule',       grupo: 'Blocos',    type: 'divider'   },
 ];
 
@@ -2835,7 +3261,7 @@ function buildTypeGrid(itens, aoEscolher) {
 
 // Tipos que não são conversão de um parágrafo, e sim inserção de uma estrutura
 // própria: substituem o bloco e abrem um parágrafo livre logo abaixo.
-const INSERTED_TYPES = new Set(['divider', 'table', 'image']);
+const INSERTED_TYPES = new Set(['divider', 'table', 'image', 'base']);
 
 // ── Modelos de bloco ──────────────────────────────────────────────────────────
 // O markdown do modelo passa pelo mesmo parser da importação, então checklist,
@@ -3014,11 +3440,12 @@ function confirmSlashSelection() {
     return;
   }
 
-  // Imagem não insere bloco vazio: o bloco nasce junto com o arquivo, quando
-  // ele for escolhido. Aqui só se limpa o "/imagem" que ficou digitado.
-  if (item.type === 'image') {
+  // Imagem/áudio/vídeo não inserem bloco vazio: o bloco nasce junto com o
+  // arquivo, quando ele for escolhido. Aqui só se limpa o "/imagem" (ou
+  // "/áudio", "/vídeo") que ficou digitado.
+  if (item.type === 'image' || item.type === 'audio' || item.type === 'video') {
     clearContent(getContentEl(block));
-    pedirImagem({ inserirEm: block });
+    pedirImagem({ inserirEm: block }, item.type);
     return;
   }
 
@@ -3452,6 +3879,19 @@ function checkDividerShortcut(block) {
   const text = content.textContent.trim();
   if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) return false;
 
+  // "---" (só esse — o mesmo delimitador do frontmatter YAML, não "***"/"___")
+  // como o primeiro conteúdo da nota abre as propriedades em vez de virar um
+  // divisor comum, igual ao Obsidian. Só dispara com a nota ainda sem
+  // nenhuma propriedade: se já tem alguma, a pessoa já sabe onde elas estão
+  // e "---" ali continua sendo divisor mesmo.
+  if (text === '---' && block === root.firstElementChild
+    && headerNoteRef && !Object.keys(headerNoteRef.properties || {}).length) {
+    clearContent(content);
+    iniciarNovaPropriedade(headerNoteRef);
+    closeSlashMenu();
+    return true;
+  }
+
   const divider = createBlockEl('divider');
   const dividerContent = getContentEl(divider);
   dividerContent.textContent = text;
@@ -3582,6 +4022,7 @@ function replaceRangeWithTag(contentEl, start, end, tag, innerText, attrs = {}) 
   el.textContent = innerText;
   for (const [nome, valor] of Object.entries(attrs)) el.setAttribute(nome, valor);
   range.insertNode(el);
+  if (attrs.class === 'note-internal-link') atualizarLinksInternos();
 
   const ancora = document.createTextNode(ANCORA);
   el.after(ancora);
@@ -4047,6 +4488,29 @@ root.addEventListener('keydown', e => {
     return;
   }
 
+  // Um bloco sem texto (imagem, tabela, futuro áudio/vídeo/pdf) já está
+  // selecionado (ver mais abaixo, onde a seleção nasce) — a seta continua
+  // andando bloco a bloco a partir dele, e não a partir de onde o cursor de
+  // texto de verdade ficou esquecido.
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
+    && selectedBlockIds.size === 1) {
+    const atual = findBlockById([...selectedBlockIds][0]);
+    if (atual) {
+      e.preventDefault();
+      const direcao = e.key === 'ArrowDown' ? 1 : -1;
+      const vizinho = direcao === 1 ? atual.nextElementSibling : atual.previousElementSibling;
+      if (vizinho) {
+        if (vizinho.contentEditable === 'false') {
+          setBlockSelection([vizinho.dataset.id]);
+        } else {
+          clearBlockSelection();
+          (direcao === 1 ? focusBlockStart : focusBlockEnd)(vizinho);
+        }
+      }
+      return;
+    }
+  }
+
   if (!e.ctrlKey && !e.metaKey && !e.altKey) {
     const sel = document.getSelection();
     if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
@@ -4122,6 +4586,7 @@ root.addEventListener('keydown', e => {
                 revealInlineSyntax(a);
                 livePreviewActiveInline = a;
                 nodeToSelect = a;
+                atualizarLinksInternos();
               } else if (/^\[\[([^\]]+)\]\]$/.test(coreText)) {
                 // Já é [[texto]]: desfaz para texto puro
                 const inner = coreText.slice(2, -2);
@@ -4395,6 +4860,36 @@ root.addEventListener('keydown', e => {
     handleEnter(block);
     scheduleSave();
     return;
+  }
+
+  // Seta saindo de texto de verdade rumo a um bloco sem onde pôr o cursor
+  // (imagem, tabela...): o navegador não sabe pousar ali, então ele PULA o
+  // bloco inteiro em vez de parar nele — dava pra sentir que "o cursor não
+  // alcança a imagem". Deixa a seta seguir seu curso normal e, só depois
+  // (setTimeout 0: espera o navegador decidir onde o cursor foi parar),
+  // confere se ele saiu do bloco atual sem pousar no vizinho — se sim, é
+  // porque pulou ele, e a gente troca o cursor perdido por uma seleção de
+  // bloco de verdade (mesma que clique/arrasto usam, que Delete/Esc já tratam).
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const sel = document.getSelection();
+    if (sel && sel.isCollapsed && !focusedCell()) {
+      const atual = currentBlock();
+      if (atual && atual.contentEditable !== 'false') {
+        const direcao = e.key === 'ArrowDown' ? 1 : -1;
+        const vizinho = direcao === 1 ? atual.nextElementSibling : atual.previousElementSibling;
+        if (vizinho && vizinho.contentEditable === 'false') {
+          const rectAntes = caretViewportRect(sel);
+          setTimeout(() => {
+            const rectDepois = caretViewportRect(document.getSelection());
+            const moveuNaTela = rectAntes && rectDepois && Math.abs(rectDepois.top - rectAntes.top) > 1;
+            const depois = currentBlock();
+            if (!moveuNaTela || (depois !== atual && depois !== vizinho)) {
+              setBlockSelection([vizinho.dataset.id]);
+            }
+          }, 0);
+        }
+      }
+    }
   }
 
   if (e.key === 'Backspace') {
@@ -4856,14 +5351,16 @@ function applyLink() {
     canRemove: !!existing,
     onApply: (url, novoTexto) => {
       captureUndoPoint();
+      let a;
       if (existing) {
         existing.setAttribute('href', url);
         // Só reescreve o texto se ele mudou de verdade: um link com negrito
         // dentro perderia a formatação à toa se fosse refeito a cada ajuste
         // de endereço.
         if (novoTexto !== existing.textContent) existing.textContent = novoTexto;
+        a = existing;
       } else {
-        const a = document.createElement('a');
+        a = document.createElement('a');
         a.setAttribute('href', url);
         if (hasText && novoTexto === range.toString()) {
           // Texto inalterado: move o conteúdo original pra dentro do link e
@@ -4874,6 +5371,24 @@ function applyLink() {
           a.textContent = novoTexto;
         }
         range.insertNode(a);
+      }
+      // Endereço "nota:..." digitado (ou colado) direto neste menu genérico,
+      // sem passar pelo atalho de "[[Título]]", saía sem a marca de link
+      // interno — o resultado ficava um link comum, cinza, sem o comportamento
+      // de Ctrl+clique, e ao editar de novo revelava a sintaxe crua
+      // "[Título](nota:T%C3%ADtulo%20...)" em vez de "[[Título]]".
+      const ehNota = /^nota:/i.test(url);
+      a.classList.toggle('note-internal-link', ehNota);
+      if (ehNota) {
+        let titulo;
+        try { titulo = decodeURIComponent(url.replace(/^nota:/i, '')); }
+        catch { titulo = url.replace(/^nota:/i, ''); }
+        a.dataset.noteTitle = titulo;
+        a.title = `Ctrl+clique para abrir nota: ${titulo}`;
+        atualizarLinksInternos();
+      } else {
+        delete a.dataset.noteTitle;
+        a.removeAttribute('title');
       }
       done();
     },
@@ -5948,6 +6463,18 @@ document.addEventListener('pointerdown', e => {
 function updateMobileToolbarState() {
   if (typeof document === 'undefined') return;
 
+  if (!currentNoteId) {
+    if (mobileNotionToolbar) {
+      mobileNotionToolbar.hidden = true;
+      mobileNotionToolbar.style.display = 'none';
+    }
+    return;
+  }
+  if (mobileNotionToolbar) {
+    mobileNotionToolbar.hidden = false;
+    mobileNotionToolbar.style.display = '';
+  }
+
   if (selectedBlockIds.size > 0 || isBlockSelectActive) {
     mobileBlockBar.hidden = true;
     mobileBlockBar.style.display = 'none';
@@ -6914,16 +7441,7 @@ root.addEventListener('touchstart', e => {
 
 // ── Teclado virtual: rolar para manter o cursor visível ao digitar ───────────
 function scrollCursorIntoView() {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-  const range = sel.getRangeAt(0);
-  let rect = range.getBoundingClientRect();
-  if (rect.width === 0 && rect.height === 0) {
-    const el = range.startContainer.nodeType === Node.ELEMENT_NODE
-      ? range.startContainer
-      : range.startContainer.parentElement;
-    if (el) rect = el.getBoundingClientRect();
-  }
+  const rect = caretViewportRect(window.getSelection());
   if (!rect || (rect.top === 0 && rect.bottom === 0)) return;
 
   const vpBottom = window.visualViewport
@@ -6933,7 +7451,7 @@ function scrollCursorIntoView() {
   const margin = 50;
   if (rect.bottom > vpBottom - margin) {
     const diff = rect.bottom - (vpBottom - margin);
-    root.scrollTop += diff;
+    noteEditorEl.scrollTop += diff;
   }
 }
 

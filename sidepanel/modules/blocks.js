@@ -199,6 +199,12 @@ function makeDepthTracker() {
 // aparelhos na sincronização: o arquivo 12 em outra máquina é outra imagem qualquer.
 // Para sincronizar, grava-se o marcador neutro `quickdock:nao-sincronizado`.
 const FILE_REF_RE = /^quickdock:file\/(\d+)$/;
+// Áudio/vídeo local usam o mesmo "![]()" da imagem — só o esquema do endereço
+// muda, pra o parser saber que tipo de bloco reconstruir (ver parseEmbedLine).
+// Sem download preguiçoso nem pasta de sincronização própria: "local" aqui é
+// só o Blob desta máquina, mesma simplicidade do dataUrl de imagem.
+const AUDIO_REF_RE = /^quickdock:audio\/(\d+)$/;
+const VIDEO_REF_RE = /^quickdock:video\/(\d+)$/;
 const UNSYNCED_IMAGE_RE = /^quickdock:(?:nao-sincronizado|unsynced|imagem-local)$/;
 export const SYNC_IMAGE_RE = /^(?:\.\.\/)*imagens\/([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9]+)?)$/;
 const IMAGE_MD_RE = /^!\[([^\]]*)\]\(([^)\s]+)\)$/;
@@ -234,12 +240,31 @@ export function imageSrcOf(b, opts = {}) {
 // quem quiser a imagem decide baixá-la.
 // Imagens não-sincronizadas preservam o texto alternativo mas nunca recebem fileId.
 // Imagens com caminho relativo na pasta imagens/ guardam o imagePath para download preguiçoso.
-function parseImageLine(alt, src) {
+// Tamanho ao lado do texto alternativo, "|320" (só largura) ou "|320x240"
+// (largura x altura) — mesma convenção do Obsidian pra redimensionar imagem
+// em markdown puro, sem precisar de nenhuma extensão de sintaxe nova.
+const IMAGE_SIZE_SUFFIX_RE = /\|(\d+)(?:x(\d+))?$/;
+
+function parseEmbedLine(altBruto, src) {
+  let alt = altBruto;
+  const tamanho = IMAGE_SIZE_SUFFIX_RE.exec(altBruto);
+  const extra = {};
+  if (tamanho) {
+    alt = altBruto.slice(0, tamanho.index);
+    extra.width = Number(tamanho[1]);
+    if (tamanho[2]) extra.height = Number(tamanho[2]);
+  }
+  // Áudio e vídeo local: só fileId, sem sincronização/download preguiçoso.
+  const audioRef = AUDIO_REF_RE.exec(src);
+  if (audioRef) return { type: 'audio', fileId: Number(audioRef[1]), alt };
+  const videoRef = VIDEO_REF_RE.exec(src);
+  if (videoRef) return { type: 'video', fileId: Number(videoRef[1]), alt, ...extra };
+
   const ref = FILE_REF_RE.exec(src);
-  if (ref) return { type: 'image', fileId: Number(ref[1]), alt };
-  if (/^data:image\//i.test(src)) return { type: 'image', dataUrl: src, alt };
-  if (UNSYNCED_IMAGE_RE.test(src)) return { type: 'image', alt, unsynced: true };
-  if (SYNC_IMAGE_RE.test(src)) return { type: 'image', alt, imagePath: src };
+  if (ref) return { type: 'image', fileId: Number(ref[1]), alt, ...extra };
+  if (/^data:image\//i.test(src)) return { type: 'image', dataUrl: src, alt, ...extra };
+  if (UNSYNCED_IMAGE_RE.test(src)) return { type: 'image', alt, unsynced: true, ...extra };
+  if (SYNC_IMAGE_RE.test(src)) return { type: 'image', alt, imagePath: src, ...extra };
   return null;
 }
 
@@ -397,6 +422,8 @@ export function parseMarkdownToBlocks(markdown) {
         for (const linha of corpo) {
           add({ type: 'calc', html: parseInlineMarkdown(linha.replace(/\s{2,}\/\/.*$/, '').trimEnd()) });
         }
+      } else if (marca === 'base' || marca === 'database') {
+        add({ type: 'base', config: corpo.join('\n') });
       } else {
         add({ type: 'code', html: corpo.map(escHtml).join('<br>') });
       }
@@ -424,11 +451,12 @@ export function parseMarkdownToBlocks(markdown) {
       }
     }
 
-    // Imagem sozinha na linha vira bloco de imagem. Se o endereço for remoto,
-    // parseImageLine devolve null e a linha segue o caminho normal — acaba
-    // virando um link, que é a decisão de privacidade explicada lá em cima.
+    // Imagem/áudio/vídeo sozinho na linha vira o bloco correspondente. Se o
+    // endereço for remoto, parseEmbedLine devolve null e a linha segue o
+    // caminho normal — acaba virando um link, que é a decisão de privacidade
+    // explicada lá em cima.
     if ((m = IMAGE_MD_RE.exec(rest))) {
-      const img = parseImageLine(m[1], m[2]);
+      const img = parseEmbedLine(m[1], m[2]);
       if (img) { add(img); continue; }
       // Endereço remoto: vira link, e sem o "!" sobrando na frente — se
       // caísse no parser de linha normal, o "!" viraria texto solto.
@@ -599,12 +627,30 @@ export function blocksToMarkdown(blocks, opts = {}) {
         // markdown e não tem essa ambiguidade — só é usado quando ela existe.
         const acima = lista[i - 1];
         const ambiguo = !!acima
-          && !['divider', 'table', 'image', 'code', 'calc'].includes(acima.type)
+          && !['divider', 'table', 'image', 'audio', 'video', 'code', 'calc', 'base'].includes(acima.type)
           && htmlToPlainText(acima.html ?? '').trim() !== '';
         return `${pad}${q}${ambiguo ? '***' : '---'}`;
       }
+      if (b.type === 'base') {
+        const corpo = (b.config ?? '').trim();
+        return [
+          `${pad}${q}\`\`\`base`,
+          ...(corpo ? corpo.split('\n').map(l => `${pad}${q}${l}`) : []),
+          `${pad}${q}\`\`\``,
+        ].join('\n');
+      }
       if (b.type === 'table')   return tableToMarkdown(b.rows, `${pad}${q}`);
-      if (b.type === 'image')   return `${pad}${q}![${(b.alt ?? '').replace(/[\[\]]/g, '')}](${imageSrcOf(b, opts)})`;
+      if (b.type === 'image') {
+        const tamanho = b.width ? `|${b.width}${b.height ? `x${b.height}` : ''}` : '';
+        return `${pad}${q}![${(b.alt ?? '').replace(/[\[\]]/g, '')}${tamanho}](${imageSrcOf(b, opts)})`;
+      }
+      if (b.type === 'audio' || b.type === 'video') {
+        // Local só: sem mapa de sincronização nem marcador de "não
+        // sincronizado" — ver o comentário de AUDIO_REF_RE/VIDEO_REF_RE.
+        const src = b.fileId != null ? `quickdock:${b.type}/${b.fileId}` : '';
+        const tamanho = b.type === 'video' && b.width ? `|${b.width}${b.height ? `x${b.height}` : ''}` : '';
+        return `${pad}${q}![${(b.alt ?? '').replace(/[\[\]]/g, '')}${tamanho}](${src})`;
+      }
       const text = htmlToMarkdownInline(b.html);
       switch (b.type) {
         // Sublinhado sai como setext — a forma do markdown que desenha o
@@ -704,6 +750,9 @@ export function blocksToPlainText(blocks) {
         return `${pad}${q}${res ? `${texto}  = ${res}` : texto}`;
       }
       if (b.type === 'image')   return `${pad}${q}[imagem${b.alt ? `: ${b.alt}` : ''}]`;
+      if (b.type === 'audio')   return `${pad}${q}[áudio${b.alt ? `: ${b.alt}` : ''}]`;
+      if (b.type === 'video')   return `${pad}${q}[vídeo${b.alt ? `: ${b.alt}` : ''}]`;
+      if (b.type === 'base')    return `${pad}${q}[base de dados]`;
       if (b.type === 'divider') return `${pad}${q}──────────`;
       if (b.type === 'table') {
         return (b.rows ?? []).map(row => `${pad}${q}${row.map(htmlToPlainText).join('\t')}`).join('\n');

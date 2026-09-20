@@ -19,7 +19,8 @@ import {
 import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks } from './blocks.js';
 import { buildBackup, parseBackup } from './backup.js';
 import { iconSvg, createIcon } from './icons.js';
-import { switchView } from './views.js';
+import { switchView, getCurrentView } from './views.js';
+import { MATERIAL_ICONS } from './material-icons-list.js';
 
 const tabsEl        = document.getElementById('notes-tabs');
 const btnNew        = document.getElementById('btn-new-note');
@@ -497,9 +498,287 @@ export function setAccent(color) {
   }
 }
 
+// ── Gestão de Abas Abertas (Prevenção de Abas Infinitas) ──────────────────────
+const OPEN_TABS_KEY = 'quickdock:open_tabs';
+
+function getOpenTabIds() {
+  try {
+    const raw = localStorage.getItem(OPEN_TABS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length > 0) return arr.map(Number);
+    }
+  } catch {}
+  return null;
+}
+
+function saveOpenTabIds(ids) {
+  try {
+    localStorage.setItem(OPEN_TABS_KEY, JSON.stringify(ids));
+  } catch {}
+}
+
+let openTabIds = getOpenTabIds() || [];
+
+let emptyDashboardEl = null;
+
+function formatRelativeTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const horas = String(d.getHours()).padStart(2, '0');
+  const minutos = String(d.getMinutes()).padStart(2, '0');
+  if (isToday) return `Hoje às ${horas}:${minutos}`;
+  const ontem = new Date(now);
+  ontem.setDate(now.getDate() - 1);
+  if (d.toDateString() === ontem.toDateString()) return `Ontem às ${horas}:${minutos}`;
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dia}/${mes} às ${horas}:${minutos}`;
+}
+
+export function hideEmptyDashboard() {
+  document.body.classList.remove('no-note-open');
+  document.documentElement.classList.remove('no-note-open');
+  if (noteEditorEl) {
+    noteEditorEl.hidden = false;
+    noteEditorEl.style.display = '';
+  }
+  if (emptyDashboardEl) {
+    emptyDashboardEl.hidden = true;
+    emptyDashboardEl.style.display = 'none';
+  }
+}
+
+export function showEmptyDashboard() {
+  document.body.classList.add('no-note-open');
+  document.documentElement.classList.add('no-note-open');
+  if (noteEditorEl) {
+    noteEditorEl.hidden = true;
+    noteEditorEl.style.display = 'none';
+  }
+  if (!emptyDashboardEl) {
+    emptyDashboardEl = document.createElement('div');
+    emptyDashboardEl.id = 'notes-empty-dashboard';
+    emptyDashboardEl.className = 'notes-empty-dashboard';
+    noteSection.appendChild(emptyDashboardEl);
+  }
+  emptyDashboardEl.hidden = false;
+  emptyDashboardEl.style.display = 'flex';
+  renderEmptyDashboardContent(emptyDashboardEl);
+}
+
+export function renderEmptyDashboardContent(container) {
+  container.innerHTML = '';
+
+  const inner = document.createElement('div');
+  inner.className = 'empty-dashboard-inner';
+
+  // 1. Hero
+  const hero = document.createElement('div');
+  hero.className = 'empty-dashboard-hero';
+
+  const iconWrap = document.createElement('div');
+  iconWrap.className = 'empty-dashboard-icon-wrap';
+  iconWrap.innerHTML = iconSvg('sticky_note_2');
+
+  const title = document.createElement('h2');
+  title.className = 'empty-dashboard-title';
+  title.textContent = 'Nenhuma nota aberta';
+
+  const subtitle = document.createElement('p');
+  subtitle.className = 'empty-dashboard-subtitle';
+  subtitle.textContent = 'Escolha uma nota recente para continuar ou use as ações rápidas abaixo.';
+
+  hero.append(iconWrap, title, subtitle);
+  inner.appendChild(hero);
+
+  // 2. Ações Rápidas
+  const actionsSection = document.createElement('div');
+  actionsSection.className = 'empty-dashboard-section';
+
+  const actionsTitle = document.createElement('div');
+  actionsTitle.className = 'empty-dashboard-section-title';
+  actionsTitle.innerHTML = `${iconSvg('bolt')}<span>Ações Rápidas</span>`;
+  actionsSection.appendChild(actionsTitle);
+
+  const actionsGrid = document.createElement('div');
+  actionsGrid.className = 'empty-dashboard-actions-grid';
+
+  const createActionCard = (icon, color, bg, titleText, descText, onClick) => {
+    const card = document.createElement('button');
+    card.className = 'empty-dashboard-action-card';
+    card.innerHTML = `
+      <div class="dash-action-icon" style="background: ${bg}; color: ${color};">
+        ${iconSvg(icon)}
+      </div>
+      <div class="dash-action-info">
+        <span class="dash-action-title">${titleText}</span>
+        <span class="dash-action-desc">${descText}</span>
+      </div>
+    `;
+    card.addEventListener('click', async e => {
+      e.stopPropagation();
+      await onClick();
+    });
+    return card;
+  };
+
+  actionsGrid.appendChild(createActionCard('edit_note', 'var(--accent)', 'rgba(37, 99, 235, 0.1)', 'Nova nota', 'Começar nota em branco', () => createBlankNote()));
+  actionsGrid.appendChild(createActionCard('view_kanban', '#a855f7', 'rgba(168, 85, 247, 0.1)', 'Nova Base', 'Tabelas e quadros dinâmicos', () => createNewBaseNote()));
+  actionsGrid.appendChild(createActionCard('folder_open', '#22c55e', 'rgba(34, 197, 94, 0.1)', 'Todas as notas', 'Navegar em pastas e arquivos', () => openNotesAsideDrawer()));
+  actionsGrid.appendChild(createActionCard('auto_stories', '#eab308', 'rgba(234, 179, 8, 0.1)', 'Modelos', 'Explorar modelos prontos', () => switchView('templates')));
+
+  actionsSection.appendChild(actionsGrid);
+  inner.appendChild(actionsSection);
+
+  // 3. Notas Recentes
+  if (notesMeta && notesMeta.length > 0) {
+    const recentsSection = document.createElement('div');
+    recentsSection.className = 'empty-dashboard-section';
+
+    const recentsTitle = document.createElement('div');
+    recentsTitle.className = 'empty-dashboard-section-title';
+    recentsTitle.innerHTML = `${iconSvg('history')}<span>Notas Recentes</span>`;
+    recentsSection.appendChild(recentsTitle);
+
+    const recentsList = document.createElement('div');
+    recentsList.className = 'empty-dashboard-recents-list';
+
+    const sorted = notesMeta.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 6);
+
+    for (const meta of sorted) {
+      const item = document.createElement('button');
+      item.className = 'empty-dashboard-recent-item';
+
+      const indicator = buildTabIndicator(meta) || createIcon('description', 'note-tab-icon');
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'recent-item-title';
+      titleSpan.textContent = meta.title || 'Sem título';
+
+      item.append(indicator, titleSpan);
+
+      if (meta.pasta) {
+        const folderBadge = document.createElement('span');
+        folderBadge.className = 'recent-item-folder';
+        folderBadge.textContent = meta.pasta;
+        item.appendChild(folderBadge);
+      }
+
+      if (meta.updatedAt) {
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'recent-item-time';
+        timeSpan.textContent = formatRelativeTime(meta.updatedAt);
+        item.appendChild(timeSpan);
+      }
+
+      item.addEventListener('click', async e => {
+        e.stopPropagation();
+        await activateNote(meta.id);
+        renderTabs();
+        scrollTabIntoView(meta.id);
+      });
+
+      recentsList.appendChild(item);
+    }
+
+    recentsSection.appendChild(recentsList);
+    inner.appendChild(recentsSection);
+  }
+
+  // 4. Recursos & Dicas Úteis
+  const tipsSection = document.createElement('div');
+  tipsSection.className = 'empty-dashboard-section';
+
+  const tipsTitle = document.createElement('div');
+  tipsTitle.className = 'empty-dashboard-section-title';
+  tipsTitle.innerHTML = `${iconSvg('tips_and_updates')}<span>Recursos e Atalhos Úteis</span>`;
+  tipsSection.appendChild(tipsTitle);
+
+  const tipsGrid = document.createElement('div');
+  tipsGrid.className = 'empty-dashboard-tips-grid';
+
+  const tips = [
+    { badge: '[[', title: 'Links Internos', desc: 'Digite [[ para conectar notas e criar wikilinks.' },
+    { badge: '/', title: 'Menu de Blocos', desc: 'Digite / para inserir tabelas, destaques, cálculos e listas.' },
+    { badge: '#', title: 'Tags e Títulos', desc: 'Use #tags para marcar tópicos ou # para criar títulos.' },
+    { badge: '📘', title: 'Ver Tutorial', desc: 'Clique para abrir o guia interativo do QuickDock.', onClick: () => createTutorialNote() },
+  ];
+
+  for (const t of tips) {
+    const card = document.createElement(t.onClick ? 'button' : 'div');
+    card.className = 'empty-dashboard-tip-card' + (t.onClick ? ' is-clickable' : '');
+    card.innerHTML = `
+      <span class="tip-badge">${t.badge}</span>
+      <div class="tip-content">
+        <strong>${t.title}</strong>
+        <span>${t.desc}</span>
+      </div>
+    `;
+    if (t.onClick) {
+      card.addEventListener('click', async e => {
+        e.stopPropagation();
+        await t.onClick();
+      });
+    }
+    tipsGrid.appendChild(card);
+  }
+
+  tipsSection.appendChild(tipsGrid);
+  inner.appendChild(tipsSection);
+
+  container.appendChild(inner);
+}
+
+export async function deactivateActiveNote() {
+  activeId = null;
+  await saveActiveNoteId(null);
+  await switchToNote(null);
+  await setDocumentsNote(null);
+  setAccent(null);
+  updateNoteFolderBar(null);
+  showEmptyDashboard();
+}
+
+export async function closeTab(noteId) {
+  const idNum = Number(noteId);
+  const idx = openTabIds.indexOf(idNum);
+  if (idx === -1) return;
+
+  openTabIds.splice(idx, 1);
+  saveOpenTabIds(openTabIds);
+
+  if (idNum === activeId) {
+    if (openTabIds.length > 0) {
+      const nextIdx = Math.min(idx, openTabIds.length - 1);
+      await activateNote(openTabIds[nextIdx]);
+    } else {
+      await deactivateActiveNote();
+    }
+  }
+
+  renderTabs();
+  if (activeId) scrollTabIntoView(activeId);
+}
+
 function renderTabs() {
   tabsEl.innerHTML = '';
-  for (const meta of notesMeta) tabsEl.appendChild(buildTab(meta));
+  let validOpenIds = (openTabIds || []).filter(id => notesMeta.some(n => n.id === id));
+  openTabIds = validOpenIds;
+  saveOpenTabIds(openTabIds);
+
+  for (const id of openTabIds) {
+    const meta = notesMeta.find(n => n.id === id);
+    if (meta) tabsEl.appendChild(buildTab(meta));
+  }
+
+  if (openTabIds.length === 0) {
+    showEmptyDashboard();
+  } else {
+    hideEmptyDashboard();
+  }
 }
 
 // A tira de abas rola só na horizontal — trocar de nota por um caminho que
@@ -560,21 +839,49 @@ function buildTab(meta) {
   // três (ícone, cor e nome) somem ao mesmo tempo.
   const titleHidden = !!meta.titleHidden && !!(meta.icon || meta.color);
 
+  const titleGroup = document.createElement('div');
+  titleGroup.className = 'note-tab-title-group';
+  if (titleHidden) titleGroup.hidden = true;
+
   const title = document.createElement('span');
   title.className   = 'note-tab-title';
   title.textContent = meta.title || 'Sem título';
-  title.hidden       = titleHidden;
-
-  if (indicator) tab.appendChild(indicator);
-  tab.appendChild(title);
+  titleGroup.appendChild(title);
 
   if (meta.pasta) {
-    const folderBadge = document.createElement('span');
-    folderBadge.className = 'note-tab-folder-badge';
-    folderBadge.textContent = meta.pasta;
-    folderBadge.title = `Pasta: ${meta.pasta}`;
-    tab.appendChild(folderBadge);
+    const folderEl = document.createElement('span');
+    folderEl.className = 'note-tab-folder note-tab-folder-badge';
+    folderEl.textContent = meta.pasta;
+    folderEl.title = `Pasta: ${meta.pasta}`;
+    titleGroup.appendChild(folderEl);
+    tab.classList.add('has-folder');
   }
+
+  if (indicator) tab.appendChild(indicator);
+  tab.appendChild(titleGroup);
+
+  // Botão de fechar aba
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'note-tab-close icon-btn';
+  closeBtn.title = 'Fechar aba';
+  closeBtn.setAttribute('aria-label', 'Fechar aba');
+  closeBtn.innerHTML = iconSvg('close');
+  closeBtn.addEventListener('mousedown', e => e.stopPropagation());
+  closeBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    e.preventDefault();
+    await closeTab(meta.id);
+  });
+  tab.appendChild(closeBtn);
+
+  // Clique com botão do meio fecha a aba
+  tab.addEventListener('auxclick', async e => {
+    if (e.button === 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      await closeTab(meta.id);
+    }
+  });
 
   // Um clique só troca de nota (nunca abre menu, pra não abrir sem querer).
   // O clique duplo ou clique com botão direito abre o menu da nota (Mover para pasta, Renomear, etc.)
@@ -614,6 +921,14 @@ function buildTab(meta) {
     const before = isVertical ? (e.clientY < rect.top + rect.height / 2) : (e.clientX < rect.left + rect.width / 2);
     const srcId = noteDragSrcId;
     cleanupTabDrag();
+    const srcIdx = openTabIds.indexOf(srcId);
+    const targetIdx = openTabIds.indexOf(meta.id);
+    if (srcIdx !== -1 && targetIdx !== -1) {
+      openTabIds.splice(srcIdx, 1);
+      const insertIdx = openTabIds.indexOf(meta.id) + (before ? 0 : 1);
+      openTabIds.splice(insertIdx, 0, srcId);
+      saveOpenTabIds(openTabIds);
+    }
     const moved = await reorderNotes(srcId, meta.id, before);
     if (moved) { renderTabs(); scrollTabIntoView(srcId); }
   });
@@ -632,11 +947,40 @@ export function renderAppearanceContent(pop, meta) {
 
   const iconHeader = document.createElement('div');
   iconHeader.className = 'copy-menu-header';
-  iconHeader.textContent = 'Ícone';
+  iconHeader.innerHTML = `<span>Ícone</span><span class="icon-catalog-header-count">${(MATERIAL_ICONS?.length || 4284).toLocaleString('pt-BR')} disponíveis</span>`;
   pop.appendChild(iconHeader);
 
+  // Barra de busca de ícones
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'icon-search-wrap';
+
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.className = 'icon-search-input';
+  searchInput.placeholder = 'Buscar entre 4.000+ ícones...';
+  searchInput.setAttribute('aria-label', 'Buscar ícones');
+  searchInput.addEventListener('mousedown', e => e.stopPropagation());
+
+  const searchClear = document.createElement('button');
+  searchClear.className = 'icon-search-clear icon-btn';
+  searchClear.innerHTML = iconSvg('close');
+  searchClear.title = 'Limpar busca';
+  searchClear.hidden = true;
+
+  searchWrap.append(searchInput, searchClear);
+  pop.appendChild(searchWrap);
+
+  const countEl = document.createElement('div');
+  countEl.className = 'icon-catalog-count';
+  pop.appendChild(countEl);
+
+  const iconScrollContainer = document.createElement('div');
+  iconScrollContainer.className = 'icon-catalog-scroll';
+
   const iconGrid = document.createElement('div');
-  iconGrid.className = 'icon-grid';
+  iconGrid.className = 'icon-grid icon-catalog-grid';
+  iconScrollContainer.appendChild(iconGrid);
+  pop.appendChild(iconScrollContainer);
 
   const pickIcon = async (name) => {
     await updateNoteMetaById(meta.id, { icon: name });
@@ -646,16 +990,17 @@ export function renderAppearanceContent(pop, meta) {
     document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
   };
 
+  const filledClass = meta.iconFilled ? ' icon-filled' : '';
+
   const noneIconBtn = document.createElement('button');
   noneIconBtn.className = 'icon-swatch icon-swatch-none' + (!meta.icon ? ' active' : '');
   noneIconBtn.textContent = '—';
   noneIconBtn.title = 'Nenhum ícone';
+  noneIconBtn.setAttribute('aria-label', 'Nenhum ícone');
   noneIconBtn.addEventListener('mousedown', e => e.stopPropagation());
   noneIconBtn.addEventListener('click', e => { e.stopPropagation(); pickIcon(null); });
-  iconGrid.appendChild(noneIconBtn);
 
-  const filledClass = meta.iconFilled ? ' icon-filled' : '';
-  for (const name of COMMON_ICONS) {
+  const createSwatch = (name) => {
     const btn = document.createElement('button');
     btn.className = 'icon-swatch' + filledClass + (meta.icon === name ? ' active' : '');
     btn.innerHTML = iconSvg(name);
@@ -663,9 +1008,76 @@ export function renderAppearanceContent(pop, meta) {
     btn.setAttribute('aria-label', name);
     btn.addEventListener('mousedown', e => e.stopPropagation());
     btn.addEventListener('click', e => { e.stopPropagation(); pickIcon(name); });
-    iconGrid.appendChild(btn);
-  }
-  pop.appendChild(iconGrid);
+    return btn;
+  };
+
+  let renderLimit = 72;
+  let currentFilteredList = [];
+
+  const renderBatch = () => {
+    const q = searchInput.value.trim().toLowerCase();
+    const isSearching = !!q;
+
+    if (!isSearching) {
+      countEl.textContent = 'Populares e catálogo completo:';
+      iconGrid.appendChild(noneIconBtn);
+      for (const name of COMMON_ICONS) {
+        iconGrid.appendChild(createSwatch(name));
+      }
+      if (meta.icon && !COMMON_ICONS.includes(meta.icon)) {
+        iconGrid.appendChild(createSwatch(meta.icon));
+      }
+      currentFilteredList = (MATERIAL_ICONS || []).filter(name => !COMMON_ICONS.includes(name));
+    } else {
+      currentFilteredList = (MATERIAL_ICONS || []).filter(name => name.toLowerCase().includes(q));
+      countEl.textContent = `${currentFilteredList.length} ícone(s) encontrado(s):`;
+      if (currentFilteredList.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'icon-catalog-empty';
+        empty.textContent = 'Nenhum ícone encontrado para esta busca.';
+        iconGrid.appendChild(empty);
+        return;
+      }
+    }
+
+    const slice = currentFilteredList.slice(0, renderLimit);
+    for (const name of slice) {
+      iconGrid.appendChild(createSwatch(name));
+    }
+  };
+
+  const updateGrid = () => {
+    iconGrid.innerHTML = '';
+    renderLimit = 72;
+    renderBatch();
+  };
+
+  searchInput.addEventListener('input', () => {
+    searchClear.hidden = !searchInput.value;
+    updateGrid();
+  });
+
+  searchClear.addEventListener('click', e => {
+    e.stopPropagation();
+    searchInput.value = '';
+    searchClear.hidden = true;
+    updateGrid();
+    searchInput.focus();
+  });
+
+  iconScrollContainer.addEventListener('scroll', () => {
+    if (iconScrollContainer.scrollTop + iconScrollContainer.clientHeight >= iconScrollContainer.scrollHeight - 40) {
+      if (renderLimit < currentFilteredList.length) {
+        renderLimit += 60;
+        const nextBatch = currentFilteredList.slice(renderLimit - 60, renderLimit);
+        for (const name of nextBatch) {
+          iconGrid.appendChild(createSwatch(name));
+        }
+      }
+    }
+  });
+
+  updateGrid();
 
   // Alterna entre o estilo "contorno" (padrão) e "preenchido" do ícone —
   // usa o eixo FILL da própria fonte variável, não precisa carregar outra.
@@ -687,61 +1099,6 @@ export function renderAppearanceContent(pop, meta) {
   fillLabel.textContent = 'Ícone preenchido';
   fillRow.append(fillCheckbox, fillLabel);
   pop.appendChild(fillRow);
-
-  const iconCustomRow = document.createElement('div');
-  iconCustomRow.className = 'icon-custom-row';
-  const iconInput = document.createElement('input');
-  iconInput.type = 'text';
-  iconInput.className = 'icon-custom-input';
-  iconInput.placeholder = 'nome_do_ícone';
-  const initialCustomName = (meta.icon && !COMMON_ICONS.includes(meta.icon)) ? meta.icon : '';
-  iconInput.value = initialCustomName;
-
-  // O preview é o próprio botão de aplicar: antes era um <span> e não dava pra
-  // confirmar o ícone personalizado a não ser apertando Enter.
-  const iconApply = document.createElement('button');
-  iconApply.className = 'icon-custom-apply' + filledClass;
-  iconApply.title = 'Usar este ícone';
-  iconApply.setAttribute('aria-label', 'Usar este ícone');
-
-  const syncApply = () => {
-    const name = iconInput.value.trim();
-    iconApply.innerHTML = '';
-    iconApply.appendChild(createIcon(name || 'add'));
-    iconApply.disabled = !name || name === meta.icon;
-    iconApply.classList.toggle('is-empty', !name);
-  };
-  syncApply();
-
-  const applyCustomIcon = () => {
-    const name = iconInput.value.trim();
-    if (name) pickIcon(name);
-  };
-
-  iconInput.addEventListener('mousedown', e => e.stopPropagation());
-  iconInput.addEventListener('input', syncApply);
-  iconInput.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    applyCustomIcon();
-  });
-
-  iconApply.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
-  iconApply.addEventListener('click', e => { e.stopPropagation(); applyCustomIcon(); });
-
-  iconCustomRow.append(iconInput, iconApply);
-  pop.appendChild(iconCustomRow);
-
-  const hint = document.createElement('a');
-  hint.className = 'icon-hint-link';
-  hint.href = 'https://fonts.google.com/icons';
-  hint.target = '_blank';
-  hint.rel = 'noopener noreferrer';
-  hint.textContent = 'Ver todos os ícones →';
-  hint.addEventListener('mousedown', e => e.stopPropagation());
-  pop.appendChild(hint);
-
   pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
   const colorHeader = document.createElement('div');
@@ -974,6 +1331,21 @@ function renderTabMenu(meta, anchorEl) {
 
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
+  addOpt('Fechar aba', async () => {
+    await closeTab(meta.id);
+  });
+
+  if (openTabIds.length > 1) {
+    addOpt('Fechar outras abas', async () => {
+      openTabIds = [meta.id];
+      saveOpenTabIds(openTabIds);
+      if (activeId !== meta.id) await activateNote(meta.id);
+      renderTabs();
+    });
+  }
+
+  menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+
   addOpt('Limpar conteúdo', async () => {
     if (!confirm(`Limpar o conteúdo de "${meta.title}"?\n\nO nome, a cor e os documentos da nota não mudam.`)) return;
     if (meta.id === activeId) await clearCurrentNote();
@@ -989,7 +1361,12 @@ function renderTabMenu(meta, anchorEl) {
     // Imagem inline só existe dentro daquela nota: sem a nota, é lixo.
     await gcInlineFiles();
     notesMeta = notesMeta.filter(n => n.id !== meta.id);
-    if (activeId === meta.id) await activateNote(notesMeta[0].id);
+    openTabIds = openTabIds.filter(id => id !== meta.id);
+    saveOpenTabIds(openTabIds);
+    if (activeId === meta.id) {
+      const nextId = openTabIds[0] ?? notesMeta[0]?.id;
+      if (nextId) await activateNote(nextId);
+    }
     await refreshDocuments();
     renderTabs();
   });
@@ -1136,166 +1513,75 @@ function contarNotasTotal(node) {
 let folderModalEl = null;
 function closeFolderModal() { folderModalEl?.remove(); folderModalEl = null; }
 
-function promptNovaPasta(parentPath = '', onDone = null) {
+export let renamingFolderPath = null;
+
+export async function startCreateFolderInline(parentPath = '', onDone = null) {
   closeFolderModal();
-  const pop = document.createElement('div');
-  pop.className = 'copy-menu folder-modal';
+  closeFolderMenu();
+  const pastas = await listarPastas();
+  const existentes = new Set(pastas.map(p => p.caminho));
+  for (const n of notesMeta) if (n.pasta) existentes.add(n.pasta);
 
-  const head = document.createElement('div');
-  head.className = 'copy-menu-header';
-  head.textContent = parentPath ? `Nova subpasta em "${parentPath}"` : 'Nova pasta';
+  const baseName = parentPath ? 'Nova subpasta' : 'Nova pasta';
+  let candidate = parentPath ? `${parentPath}/${baseName}` : baseName;
+  let counter = 2;
+  while (existentes.has(candidate)) {
+    candidate = parentPath ? `${parentPath}/${baseName} ${counter}` : `${baseName} ${counter}`;
+    counter++;
+  }
 
-  const input = document.createElement('input');
-  input.className = 'link-input folder-modal-input';
-  input.type = 'text';
-  input.placeholder = 'Nome da pasta';
+  try {
+    normalizarCaminhoPasta(candidate);
+  } catch (err) {
+    alert(err.message || 'Caminho excede 3 níveis de profundidade.');
+    return;
+  }
 
-  const errorMsg = document.createElement('div');
-  errorMsg.className = 'folder-modal-error';
-  errorMsg.style.display = 'none';
-
-  const btnRow = document.createElement('div');
-  btnRow.className = 'folder-modal-actions';
-
-  const btnCancel = document.createElement('button');
-  btnCancel.className = 'copy-opt folder-modal-btn';
-  btnCancel.innerHTML = '<span class="copy-opt-value">Cancelar</span>';
-  btnCancel.addEventListener('click', e => { e.stopPropagation(); closeFolderModal(); });
-
-  const btnConfirm = document.createElement('button');
-  btnConfirm.className = 'copy-opt folder-modal-btn folder-confirm-btn';
-  btnConfirm.innerHTML = '<span class="copy-opt-value">Criar</span>';
-
-  const doSave = async () => {
-    const nome = input.value.trim().replace(/[\\/:*?"<>|]/g, '');
-    if (!nome) {
-      errorMsg.textContent = 'Informe um nome para a pasta.';
-      errorMsg.style.display = 'block';
-      return;
+  await criarPasta(candidate);
+  const openSet = getOpenFolders() || new Set();
+  openSet.add(candidate);
+  if (parentPath) {
+    const partes = parentPath.split('/');
+    for (let i = 1; i <= partes.length; i++) {
+      openSet.add(partes.slice(0, i).join('/'));
     }
-    const fullPath = parentPath ? `${parentPath}/${nome}` : nome;
-    try {
-      normalizarCaminhoPasta(fullPath);
-    } catch (err) {
-      errorMsg.textContent = err.message || 'Caminho excede 3 níveis de profundidade.';
-      errorMsg.style.display = 'block';
-      return;
-    }
-    closeFolderModal();
-    await criarPasta(fullPath);
-    const openSet = getOpenFolders() || new Set();
-    openSet.add(fullPath);
-    if (parentPath) openSet.add(parentPath);
-    saveOpenFolders(openSet);
-    if (onDone) await onDone();
-  };
+  }
+  saveOpenFolders(openSet);
 
-  btnConfirm.addEventListener('click', async e => { e.stopPropagation(); await doSave(); });
-  input.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); doSave(); }
-    if (e.key === 'Escape') { e.preventDefault(); closeFolderModal(); }
-  });
+  renamingFolderPath = candidate;
 
-  btnRow.append(btnCancel, btnConfirm);
-  pop.append(head, input, errorMsg, btnRow);
-  pop.addEventListener('mousedown', e => e.stopPropagation());
-  document.body.appendChild(pop);
-  folderModalEl = pop;
-
-  pop.style.position = 'fixed';
-  pop.style.top = '50%';
-  pop.style.left = '50%';
-  pop.style.transform = 'translate(-50%, -50%)';
-  pop.style.zIndex = '1000';
-  input.focus();
+  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
+    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
+    const input = notesAsideDrawer.querySelector('.notes-search-input');
+    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
+    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
+    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
+  } else {
+    openNotesAsideDrawer();
+  }
+  if (onDone) await onDone();
 }
 
-function promptRenomearPasta(caminhoAntigo, onDone = null) {
+export async function startRenameFolderInline(caminho, onDone = null) {
   closeFolderModal();
-  const pop = document.createElement('div');
-  pop.className = 'copy-menu folder-modal';
+  closeFolderMenu();
+  renamingFolderPath = caminho;
+  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
+    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
+    const input = notesAsideDrawer.querySelector('.notes-search-input');
+    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
+    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
+    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
+  }
+  if (onDone) await onDone();
+}
 
-  const head = document.createElement('div');
-  head.className = 'copy-menu-header';
-  head.textContent = 'Renomear pasta';
+export function promptNovaPasta(parentPath = '', onDone = null) {
+  startCreateFolderInline(parentPath, onDone);
+}
 
-  const input = document.createElement('input');
-  input.className = 'link-input folder-modal-input';
-  input.type = 'text';
-  const partes = caminhoAntigo.split('/');
-  input.value = partes[partes.length - 1];
-
-  const errorMsg = document.createElement('div');
-  errorMsg.className = 'folder-modal-error';
-  errorMsg.style.display = 'none';
-
-  const btnRow = document.createElement('div');
-  btnRow.className = 'folder-modal-actions';
-
-  const btnCancel = document.createElement('button');
-  btnCancel.className = 'copy-opt folder-modal-btn';
-  btnCancel.innerHTML = '<span class="copy-opt-value">Cancelar</span>';
-  btnCancel.addEventListener('click', e => { e.stopPropagation(); closeFolderModal(); });
-
-  const btnConfirm = document.createElement('button');
-  btnConfirm.className = 'copy-opt folder-modal-btn folder-confirm-btn';
-  btnConfirm.innerHTML = '<span class="copy-opt-value">Renomear</span>';
-
-  const doRename = async () => {
-    const novoNome = input.value.trim().replace(/[\\/:*?"<>|]/g, '');
-    if (!novoNome) {
-      errorMsg.textContent = 'Informe o novo nome.';
-      errorMsg.style.display = 'block';
-      return;
-    }
-    const novoCaminho = partes.length > 1
-      ? `${partes.slice(0, -1).join('/')}/${novoNome}`
-      : novoNome;
-    if (novoCaminho === caminhoAntigo) {
-      closeFolderModal();
-      return;
-    }
-    try {
-      normalizarCaminhoPasta(novoCaminho);
-    } catch (err) {
-      errorMsg.textContent = err.message || 'Caminho inválido.';
-      errorMsg.style.display = 'block';
-      return;
-    }
-    closeFolderModal();
-    await renomearPasta(caminhoAntigo, novoCaminho);
-    notesMeta = await loadAllNotesMeta();
-    const openSet = getOpenFolders();
-    if (openSet && openSet.has(caminhoAntigo)) {
-      openSet.delete(caminhoAntigo);
-      openSet.add(novoCaminho);
-      saveOpenFolders(openSet);
-    }
-    renderTabs();
-    if (onDone) await onDone();
-  };
-
-  btnConfirm.addEventListener('click', async e => { e.stopPropagation(); await doRename(); });
-  input.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); doRename(); }
-    if (e.key === 'Escape') { e.preventDefault(); closeFolderModal(); }
-  });
-
-  btnRow.append(btnCancel, btnConfirm);
-  pop.append(head, input, errorMsg, btnRow);
-  pop.addEventListener('mousedown', e => e.stopPropagation());
-  document.body.appendChild(pop);
-  folderModalEl = pop;
-
-  pop.style.position = 'fixed';
-  pop.style.top = '50%';
-  pop.style.left = '50%';
-  pop.style.transform = 'translate(-50%, -50%)';
-  pop.style.zIndex = '1000';
-  input.focus();
-  input.select();
+export function promptRenomearPasta(caminhoAntigo, onDone = null) {
+  startRenameFolderInline(caminhoAntigo, onDone);
 }
 
 function promptExcluirPasta(caminho, totalNotas, onDone = null) {
@@ -1325,6 +1611,8 @@ function promptExcluirPasta(caminho, totalNotas, onDone = null) {
       closeFolderModal();
       await excluirPasta(caminho, { manterNotas: true });
       notesMeta = await loadAllNotesMeta();
+      openTabIds = openTabIds.filter(id => notesMeta.some(n => n.id === id));
+      saveOpenTabIds(openTabIds);
       renderTabs();
       if (onDone) await onDone();
     });
@@ -1338,8 +1626,10 @@ function promptExcluirPasta(caminho, totalNotas, onDone = null) {
       closeFolderModal();
       await excluirPasta(caminho, { manterNotas: false });
       notesMeta = await loadAllNotesMeta();
+      openTabIds = openTabIds.filter(id => notesMeta.some(n => n.id === id));
+      saveOpenTabIds(openTabIds);
       if (!notesMeta.some(n => n.id === activeId) && notesMeta.length > 0) {
-        await activateNote(notesMeta[0].id);
+        await activateNote(openTabIds[0] ?? notesMeta[0].id);
       }
       renderTabs();
       if (onDone) await onDone();
@@ -1375,7 +1665,7 @@ function promptExcluirPasta(caminho, totalNotas, onDone = null) {
   pop.style.top = '50%';
   pop.style.left = '50%';
   pop.style.transform = 'translate(-50%, -50%)';
-  pop.style.zIndex = '1000';
+  pop.style.zIndex = '2500';
 }
 
 let moveMenuEl = null;
@@ -1458,7 +1748,7 @@ export async function promptMoverNotaParaPasta(meta, anchorEl, onDone = null) {
     pop.style.top = '50%';
     pop.style.left = '50%';
     pop.style.transform = 'translate(-50%, -50%)';
-    pop.style.zIndex = '1000';
+    pop.style.zIndex = '2500';
   }
 }
 
@@ -1475,14 +1765,38 @@ function openFolderMenu(caminho, nivel, totalNotas, anchorEl, onRefresh) {
   head.textContent = caminho;
   menu.appendChild(head);
 
+  const btnNota = document.createElement('button');
+  btnNota.className = 'copy-opt';
+  btnNota.innerHTML = '<span class="copy-opt-value">＋ Nova nota nesta pasta</span>';
+  btnNota.addEventListener('click', async e => {
+    e.stopPropagation();
+    closeFolderMenu();
+    await createNoteInFolder(caminho, false);
+    if (onRefresh) await onRefresh();
+  });
+  menu.appendChild(btnNota);
+
+  const btnBase = document.createElement('button');
+  btnBase.className = 'copy-opt';
+  btnBase.innerHTML = '<span class="copy-opt-value">🗃️ Nova Base nesta pasta</span>';
+  btnBase.addEventListener('click', async e => {
+    e.stopPropagation();
+    closeFolderMenu();
+    await createNoteInFolder(caminho, true);
+    if (onRefresh) await onRefresh();
+  });
+  menu.appendChild(btnBase);
+
+  menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+
   if (nivel < 3) {
     const btnSub = document.createElement('button');
     btnSub.className = 'copy-opt';
     btnSub.innerHTML = '<span class="copy-opt-value">＋ Nova subpasta</span>';
-    btnSub.addEventListener('click', e => {
+    btnSub.addEventListener('click', async e => {
       e.stopPropagation();
       closeFolderMenu();
-      promptNovaPasta(caminho, onRefresh);
+      await startCreateFolderInline(caminho, onRefresh);
     });
     menu.appendChild(btnSub);
   }
@@ -1490,10 +1804,10 @@ function openFolderMenu(caminho, nivel, totalNotas, anchorEl, onRefresh) {
   const btnRenomear = document.createElement('button');
   btnRenomear.className = 'copy-opt';
   btnRenomear.innerHTML = '<span class="copy-opt-value">✎ Renomear pasta</span>';
-  btnRenomear.addEventListener('click', e => {
+  btnRenomear.addEventListener('click', async e => {
     e.stopPropagation();
     closeFolderMenu();
-    promptRenomearPasta(caminho, onRefresh);
+    await startRenameFolderInline(caminho, onRefresh);
   });
   menu.appendChild(btnRenomear);
 
@@ -1513,18 +1827,41 @@ function openFolderMenu(caminho, nivel, totalNotas, anchorEl, onRefresh) {
   positionPopover(menu, anchorEl);
 }
 
-// ── Lista de notas ("☰") ──────────────────────────────────────────────────────
-let notesListPopover = null;
-function closeNotesListPopover() {
-  notesListPopover?.remove();
-  notesListPopover = null;
+// ── Lista de notas / Painel Lateral Aside ("☰") ──────────────────────────────
+let notesAsideDrawer = null;
+let notesAsideBackdrop = null;
+let notesListPopover = null; // Mantido para compatibilidade reversa
+
+export function closeNotesAsideDrawer() {
+  if (notesAsideDrawer) {
+    notesAsideDrawer.classList.remove('open');
+    notesAsideDrawer.classList.add('closing');
+    const drawerEl = notesAsideDrawer;
+    setTimeout(() => {
+      drawerEl?.remove();
+    }, 240);
+    notesAsideDrawer = null;
+    notesListPopover = null;
+  }
+  if (notesAsideBackdrop) {
+    notesAsideBackdrop.classList.remove('open');
+    const backdropEl = notesAsideBackdrop;
+    setTimeout(() => {
+      backdropEl?.remove();
+    }, 240);
+    notesAsideBackdrop = null;
+  }
   closeFolderModal();
   closeMoveMenu();
   closeFolderMenu();
 }
 
+export function closeNotesListPopover() {
+  closeNotesAsideDrawer();
+}
+
 function openTabMenuForNote(meta) {
-  closeNotesListPopover();
+  closeNotesAsideDrawer();
   const tabEl = tabsEl.querySelector(`.note-tab[data-id="${meta.id}"]`);
   if (!tabEl) return;
   tabEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -1537,11 +1874,11 @@ function cleanupListDrag() {
   listDropIndicatorEl?.remove();
   listDropIndicatorEl = null;
   noteDragSrcId = null;
-  document.querySelectorAll('.folder-header.drag-over').forEach(el => el.classList.remove('drag-over'));
+  document.querySelectorAll('.folder-header.drag-over, .folder-children.drag-over').forEach(el => el.classList.remove('drag-over'));
 }
 
 async function renderNotesListRows(container, filterQuery = '', countEl = null, clearBtn = null) {
-  container.querySelectorAll('.notes-list-item, .folder-item, .notes-list-empty').forEach(el => el.remove());
+  container.querySelectorAll('.notes-list-item, .folder-item, .notes-list-empty, .root-folder-header').forEach(el => el.remove());
 
   const q = filterQuery.trim().toLowerCase();
   const isSearching = !!q;
@@ -1616,7 +1953,7 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
 
       row.addEventListener('mousedown', e => e.stopPropagation());
       row.addEventListener('click', async () => {
-        closeNotesListPopover();
+        closeNotesAsideDrawer();
         if (meta.id !== activeId) { await activateNote(meta.id); renderTabs(); }
         scrollTabIntoView(meta.id);
       });
@@ -1657,7 +1994,7 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
 
     row.addEventListener('mousedown', e => e.stopPropagation());
     row.addEventListener('click', async () => {
-      closeNotesListPopover();
+      closeNotesAsideDrawer();
       if (meta.id !== activeId) { await activateNote(meta.id); renderTabs(); }
       scrollTabIntoView(meta.id);
     });
@@ -1686,11 +2023,18 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
       const before = e.clientY < rect.top + rect.height / 2;
       const srcId = noteDragSrcId;
       cleanupListDrag();
-      const moved = await reorderNotes(srcId, meta.id, before);
-      if (moved) {
-        renderTabs();
-        await renderNotesListRows(container, filterQuery, countEl, clearBtn);
+
+      // Se a nota veio de outra pasta, move para a pasta da nota de destino
+      const srcMeta = notesMeta.find(n => n.id === srcId);
+      if (srcMeta && (srcMeta.pasta || '') !== (meta.pasta || '')) {
+        await moverNotaParaPasta(srcId, meta.pasta || '');
       }
+      const moved = await reorderNotes(srcId, meta.id, before);
+      notesMeta = await loadAllNotesMeta();
+      const activeMeta = notesMeta.find(n => n.id === activeId);
+      if (activeMeta) updateNoteFolderBar(activeMeta);
+      renderTabs();
+      await renderNotesListRows(container, filterQuery, countEl, clearBtn);
     });
 
     row.addEventListener('dragend', e => { e.stopPropagation(); cleanupListDrag(); });
@@ -1728,27 +2072,130 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
       folderIcon.className = 'folder-icon';
       folderIcon.innerHTML = iconSvg(isOpen ? 'folder_open' : 'folder');
 
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'folder-name';
-      nameSpan.textContent = sub.nome;
-      nameSpan.title = sub.caminho;
+      const isRenaming = renamingFolderPath === sub.caminho;
+      let nameEl;
+
+      if (isRenaming) {
+        const inputRename = document.createElement('input');
+        inputRename.type = 'text';
+        inputRename.className = 'folder-inline-rename-input';
+        inputRename.value = sub.nome;
+        inputRename.addEventListener('click', e => e.stopPropagation());
+        inputRename.addEventListener('mousedown', e => e.stopPropagation());
+
+        let finished = false;
+        const applyRename = async () => {
+          if (finished) return;
+          finished = true;
+          const novoNome = inputRename.value.trim().replace(/[\\/:*?"<>|]/g, '');
+          renamingFolderPath = null;
+          if (!novoNome || novoNome === sub.nome) {
+            await renderNotesListRows(container, filterQuery, countEl, clearBtn);
+            return;
+          }
+          const partes = sub.caminho.split('/');
+          const novoCaminho = partes.length > 1
+            ? `${partes.slice(0, -1).join('/')}/${novoNome}`
+            : novoNome;
+          try {
+            normalizarCaminhoPasta(novoCaminho);
+            await renomearPasta(sub.caminho, novoCaminho);
+            notesMeta = await loadAllNotesMeta();
+            const openSet = getOpenFolders() || new Set();
+            if (openSet.has(sub.caminho)) {
+              openSet.delete(sub.caminho);
+              openSet.add(novoCaminho);
+              saveOpenFolders(openSet);
+            }
+            renderTabs();
+          } catch (err) {
+            console.error(err);
+          }
+          await renderNotesListRows(container, filterQuery, countEl, clearBtn);
+        };
+
+        inputRename.addEventListener('keydown', async e => {
+          e.stopPropagation();
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            await applyRename();
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            finished = true;
+            renamingFolderPath = null;
+            await renderNotesListRows(container, filterQuery, countEl, clearBtn);
+          }
+        });
+        inputRename.addEventListener('blur', async () => {
+          await applyRename();
+        });
+
+        setTimeout(() => {
+          inputRename.focus();
+          inputRename.select();
+        }, 60);
+
+        nameEl = inputRename;
+      } else {
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'folder-name';
+        nameSpan.textContent = sub.nome;
+        nameSpan.title = sub.caminho;
+        nameSpan.addEventListener('dblclick', e => {
+          e.stopPropagation();
+          startRenameFolderInline(sub.caminho);
+        });
+        nameEl = nameSpan;
+      }
 
       const countBadge = document.createElement('span');
       countBadge.className = 'folder-count';
       countBadge.textContent = String(totalNotas);
 
+      const actionsWrap = document.createElement('div');
+      actionsWrap.className = 'folder-actions-wrap';
+
+      const addNoteBtn = document.createElement('button');
+      addNoteBtn.className = 'folder-add-note-btn icon-btn';
+      addNoteBtn.innerHTML = iconSvg('add');
+      addNoteBtn.title = 'Nova nota nesta pasta';
+      addNoteBtn.setAttribute('aria-label', 'Nova nota nesta pasta');
+      addNoteBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        await createNoteInFolder(sub.caminho, false);
+      });
+      actionsWrap.appendChild(addNoteBtn);
+
+      if (sub.nivel < 3) {
+        const addSubBtn = document.createElement('button');
+        addSubBtn.className = 'folder-add-subfolder-btn icon-btn';
+        addSubBtn.innerHTML = iconSvg('create_new_folder');
+        addSubBtn.title = 'Nova subpasta';
+        addSubBtn.setAttribute('aria-label', 'Nova subpasta');
+        addSubBtn.addEventListener('click', async e => {
+          e.stopPropagation();
+          await startCreateFolderInline(sub.caminho, () => {
+            renderNotesListRows(container, filterQuery, countEl, clearBtn);
+          });
+        });
+        actionsWrap.appendChild(addSubBtn);
+      }
+
       const moreBtn = document.createElement('button');
       moreBtn.className = 'folder-more-btn icon-btn';
       moreBtn.innerHTML = iconSvg('more_horiz');
       moreBtn.title = 'Ações da pasta';
+      moreBtn.setAttribute('aria-label', 'Ações da pasta');
       moreBtn.addEventListener('click', e => {
         e.stopPropagation();
         openFolderMenu(sub.caminho, sub.nivel, totalNotas, moreBtn, () => {
           renderNotesListRows(container, filterQuery, countEl, clearBtn);
         });
       });
+      actionsWrap.appendChild(moreBtn);
 
-      header.append(chevronBtn, folderIcon, nameSpan, countBadge, moreBtn);
+      header.append(chevronBtn, folderIcon, nameEl, countBadge, actionsWrap);
 
       header.addEventListener('click', e => {
         e.stopPropagation();
@@ -1757,6 +2204,14 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
         else set.add(sub.caminho);
         saveOpenFolders(set);
         renderNotesListRows(container, filterQuery, countEl, clearBtn);
+      });
+
+      header.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        openFolderMenu(sub.caminho, sub.nivel, totalNotas, header, () => {
+          renderNotesListRows(container, filterQuery, countEl, clearBtn);
+        });
       });
 
       // Drop target para mover notas arrastando para a pasta
@@ -1780,6 +2235,8 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
         cleanupListDrag();
         await moverNotaParaPasta(srcId, sub.caminho);
         notesMeta = await loadAllNotesMeta();
+        const activeMeta = notesMeta.find(n => n.id === activeId);
+        if (activeMeta) updateNoteFolderBar(activeMeta);
         renderTabs();
         await renderNotesListRows(container, filterQuery, countEl, clearBtn);
       });
@@ -1789,11 +2246,52 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
       if (isOpen) {
         const childrenContainer = document.createElement('div');
         childrenContainer.className = 'folder-children';
+        const guideLeft = (sub.nivel - 1) * 14 + 17;
+        childrenContainer.style.setProperty('--guide-left', `${guideLeft}px`);
+
+        childrenContainer.addEventListener('dragover', e => {
+          if (noteDragSrcId == null) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          childrenContainer.classList.add('drag-over');
+          header.classList.add('drag-over');
+        });
+
+        childrenContainer.addEventListener('dragleave', e => {
+          if (!childrenContainer.contains(e.relatedTarget)) {
+            childrenContainer.classList.remove('drag-over');
+            header.classList.remove('drag-over');
+          }
+        });
+
+        childrenContainer.addEventListener('drop', async e => {
+          e.preventDefault();
+          e.stopPropagation();
+          childrenContainer.classList.remove('drag-over');
+          header.classList.remove('drag-over');
+          if (noteDragSrcId == null) return;
+          const srcId = noteDragSrcId;
+          cleanupListDrag();
+          await moverNotaParaPasta(srcId, sub.caminho);
+          notesMeta = await loadAllNotesMeta();
+          const activeMeta = notesMeta.find(n => n.id === activeId);
+          if (activeMeta) updateNoteFolderBar(activeMeta);
+          renderTabs();
+          await renderNotesListRows(container, filterQuery, countEl, clearBtn);
+        });
+
         // Renderiza subpastas aninhadas
         renderNode(sub, childrenContainer);
         // Renderiza notas diretas desta pasta
         for (const meta of sub.notas) {
           childrenContainer.appendChild(renderNoteRow(meta, sub.nivel * 14 + 18));
+        }
+        if (sub.subpastas.size === 0 && sub.notas.length === 0) {
+          const emptyRow = document.createElement('div');
+          emptyRow.className = 'folder-empty-hint';
+          emptyRow.style.paddingLeft = `${sub.nivel * 14 + 18}px`;
+          emptyRow.textContent = 'Pasta vazia';
+          childrenContainer.appendChild(emptyRow);
         }
         folderItem.appendChild(childrenContainer);
       }
@@ -1807,11 +2305,48 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
         const rootHeader = document.createElement('div');
         rootHeader.className = 'folder-header root-folder-header';
         rootHeader.style.paddingLeft = '8px';
-        rootHeader.innerHTML = `
-          <span class="folder-icon">${iconSvg('folder_open')}</span>
-          <span class="folder-name">Raiz (sem pasta)</span>
-          <span class="folder-count">${tree.notas.length}</span>
-        `;
+
+        const rootIcon = document.createElement('span');
+        rootIcon.className = 'folder-icon';
+        rootIcon.innerHTML = iconSvg('folder_open');
+
+        const rootName = document.createElement('span');
+        rootName.className = 'folder-name';
+        rootName.textContent = 'Raiz (sem pasta)';
+
+        const rootCount = document.createElement('span');
+        rootCount.className = 'folder-count';
+        rootCount.textContent = String(tree.notas.length);
+
+        const rootActions = document.createElement('div');
+        rootActions.className = 'folder-actions-wrap';
+
+        const addRootBtn = document.createElement('button');
+        addRootBtn.className = 'folder-add-note-btn icon-btn';
+        addRootBtn.innerHTML = iconSvg('add');
+        addRootBtn.title = 'Nova nota na raiz';
+        addRootBtn.setAttribute('aria-label', 'Nova nota na raiz');
+        addRootBtn.addEventListener('click', async e => {
+          e.stopPropagation();
+          await createNoteInFolder('', false);
+        });
+        rootActions.appendChild(addRootBtn);
+
+        const addRootFolderBtn = document.createElement('button');
+        addRootFolderBtn.className = 'folder-add-subfolder-btn icon-btn';
+        addRootFolderBtn.innerHTML = iconSvg('create_new_folder');
+        addRootFolderBtn.title = 'Nova pasta na raiz';
+        addRootFolderBtn.setAttribute('aria-label', 'Nova pasta na raiz');
+        addRootFolderBtn.addEventListener('click', async e => {
+          e.stopPropagation();
+          await startCreateFolderInline('', () => {
+            renderNotesListRows(container, filterQuery, countEl, clearBtn);
+          });
+        });
+        rootActions.appendChild(addRootFolderBtn);
+
+        rootHeader.append(rootIcon, rootName, rootCount, rootActions);
+
         rootHeader.addEventListener('dragover', e => {
           if (noteDragSrcId == null) return;
           e.preventDefault();
@@ -1847,11 +2382,80 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
   renderNode(tree, container);
 }
 
-function openNotesListPopover() {
-  closeNotesListPopover();
-  const pop = document.createElement('div');
-  pop.className = 'copy-menu notes-list-popover';
+export function openNotesAsideDrawer() {
+  closeNotesAsideDrawer();
 
+  const backdrop = document.createElement('div');
+  backdrop.className = 'notes-drawer-backdrop';
+  document.body.appendChild(backdrop);
+  notesAsideBackdrop = backdrop;
+  requestAnimationFrame(() => backdrop.classList.add('open'));
+  backdrop.addEventListener('click', () => closeNotesAsideDrawer());
+
+  const drawer = document.createElement('aside');
+  drawer.className = 'notes-aside-drawer notes-list-popover';
+
+  // Cabeçalho do Drawer Aside
+  const asideHeader = document.createElement('div');
+  asideHeader.className = 'notes-aside-header';
+
+  const titleGroup = document.createElement('div');
+  titleGroup.className = 'notes-aside-title-group';
+
+  const titleIcon = document.createElement('span');
+  titleIcon.className = 'notes-aside-title-icon';
+  titleIcon.innerHTML = iconSvg('folder_open');
+
+  const titleText = document.createElement('span');
+  titleText.className = 'notes-aside-title-text';
+  titleText.textContent = 'Todas as notas';
+
+  const titleBadge = document.createElement('span');
+  titleBadge.className = 'notes-aside-badge';
+  titleBadge.textContent = String(notesMeta.length);
+
+  titleGroup.append(titleIcon, titleText, titleBadge);
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'notes-aside-header-actions';
+
+  const btnAddFolder = document.createElement('button');
+  btnAddFolder.className = 'icon-btn notes-aside-action-btn';
+  btnAddFolder.innerHTML = iconSvg('create_new_folder');
+  btnAddFolder.title = 'Nova pasta';
+  btnAddFolder.setAttribute('aria-label', 'Nova pasta');
+  btnAddFolder.addEventListener('click', async e => {
+    e.stopPropagation();
+    await startCreateFolderInline('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
+  });
+
+  const btnAddNote = document.createElement('button');
+  btnAddNote.className = 'icon-btn notes-aside-action-btn';
+  btnAddNote.innerHTML = iconSvg('add');
+  btnAddNote.title = 'Nova nota';
+  btnAddNote.setAttribute('aria-label', 'Nova nota');
+  btnAddNote.addEventListener('click', async e => {
+    e.stopPropagation();
+    await createBlankNote();
+    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
+    titleBadge.textContent = String(notesMeta.length);
+  });
+
+  const btnClose = document.createElement('button');
+  btnClose.className = 'icon-btn notes-aside-close-btn';
+  btnClose.innerHTML = iconSvg('close');
+  btnClose.title = 'Fechar painel';
+  btnClose.setAttribute('aria-label', 'Fechar painel');
+  btnClose.addEventListener('click', e => {
+    e.stopPropagation();
+    closeNotesAsideDrawer();
+  });
+
+  headerActions.append(btnAddFolder, btnAddNote, btnClose);
+  asideHeader.append(titleGroup, headerActions);
+  drawer.appendChild(asideHeader);
+
+  // Barra de busca
   const searchBar = document.createElement('div');
   searchBar.className = 'notes-search-bar';
 
@@ -1873,8 +2477,9 @@ function openNotesListPopover() {
   clearBtn.hidden = true;
 
   searchBar.append(searchIcon, input, clearBtn);
-  pop.appendChild(searchBar);
+  drawer.appendChild(searchBar);
 
+  // Barra de ferramentas
   const toolbar = document.createElement('div');
   toolbar.className = 'notes-list-toolbar';
 
@@ -1882,21 +2487,123 @@ function openNotesListPopover() {
   btnNewFolder.className = 'notes-list-action-btn';
   btnNewFolder.innerHTML = `${iconSvg('create_new_folder')}<span>Nova pasta</span>`;
   btnNewFolder.title = 'Criar nova pasta';
-  btnNewFolder.addEventListener('click', e => {
+  btnNewFolder.addEventListener('click', async e => {
     e.stopPropagation();
-    promptNovaPasta('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
+    await startCreateFolderInline('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
   });
   toolbar.appendChild(btnNewFolder);
-  pop.appendChild(toolbar);
+
+  const btnNewBase = document.createElement('button');
+  btnNewBase.className = 'notes-list-action-btn';
+  btnNewBase.innerHTML = `<span class="qd-icon material-symbols-rounded" style="font-size:14px;">view_kanban</span><span>Nova Base</span>`;
+  btnNewBase.title = 'Criar nova Base de dados';
+  btnNewBase.addEventListener('click', async e => {
+    e.stopPropagation();
+    await createNewBaseNote();
+    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
+    titleBadge.textContent = String(notesMeta.length);
+  });
+  toolbar.appendChild(btnNewBase);
+
+  const btnToggleAll = document.createElement('button');
+  btnToggleAll.className = 'notes-list-action-btn';
+  btnToggleAll.title = 'Expandir ou recolher todas as pastas';
+  const openSet = getOpenFolders();
+  const hasClosed = !openSet || openSet.size === 0;
+  btnToggleAll.innerHTML = `${iconSvg(hasClosed ? 'expand_more' : 'unfold_less')}<span>${hasClosed ? 'Expandir' : 'Recolher'}</span>`;
+  btnToggleAll.addEventListener('click', async e => {
+    e.stopPropagation();
+    const pastas = await listarPastas();
+    const curOpen = getOpenFolders() || new Set();
+    if (curOpen.size > 0) {
+      saveOpenFolders(new Set());
+    } else {
+      const allPaths = new Set();
+      for (const p of pastas) if (p.caminho) allPaths.add(p.caminho);
+      for (const n of notesMeta) if (n.pasta) allPaths.add(n.pasta);
+      saveOpenFolders(allPaths);
+    }
+    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
+    const newOpen = getOpenFolders() || new Set();
+    btnToggleAll.innerHTML = `${iconSvg(newOpen.size === 0 ? 'expand_more' : 'unfold_less')}<span>${newOpen.size === 0 ? 'Expandir' : 'Recolher'}</span>`;
+  });
+  toolbar.appendChild(btnToggleAll);
+
+  drawer.appendChild(toolbar);
 
   const countEl = document.createElement('div');
   countEl.className = 'notes-search-count';
   countEl.hidden = true;
-  pop.appendChild(countEl);
+  drawer.appendChild(countEl);
 
   const scrollArea = document.createElement('div');
   scrollArea.className = 'notes-list-scroll';
-  pop.appendChild(scrollArea);
+  drawer.appendChild(scrollArea);
+
+  // Rodapé do Drawer Aside com Visões e Ações
+  const footer = document.createElement('div');
+  footer.className = 'notes-aside-footer';
+
+  // 1. Visões
+  const secViews = document.createElement('div');
+  secViews.className = 'aside-footer-section';
+
+  const titleViews = document.createElement('div');
+  titleViews.className = 'aside-footer-title';
+  titleViews.textContent = 'Visões';
+  secViews.appendChild(titleViews);
+
+  const gridViews = document.createElement('div');
+  gridViews.className = 'aside-footer-grid';
+
+  const createFooterBtn = (iconName, label, onClick) => {
+    const b = document.createElement('button');
+    b.className = 'aside-footer-btn';
+    b.innerHTML = `${iconSvg(iconName)}<span>${label}</span>`;
+    b.addEventListener('click', async e => {
+      e.stopPropagation();
+      closeNotesAsideDrawer();
+      await onClick();
+    });
+    return b;
+  };
+
+  gridViews.appendChild(createFooterBtn('description', 'Documentos', () => {
+    document.dispatchEvent(new CustomEvent('quickdock:toggle-docs'));
+  }));
+  gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => switchView('board', { fullscreen: true })));
+  gridViews.appendChild(createFooterBtn('hub', 'Grafo', () => switchView('grafo', { fullscreen: true })));
+  gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => switchView('calendar', { fullscreen: true })));
+  gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
+
+  secViews.appendChild(gridViews);
+  footer.appendChild(secViews);
+
+  // 2. Ações & Ajustes
+  const secActions = document.createElement('div');
+  secActions.className = 'aside-footer-section';
+
+  const titleActions = document.createElement('div');
+  titleActions.className = 'aside-footer-title';
+  titleActions.textContent = 'Ações';
+  secActions.appendChild(titleActions);
+
+  const gridActions = document.createElement('div');
+  gridActions.className = 'aside-footer-grid';
+
+  gridActions.appendChild(createFooterBtn('sync', 'Sincronização', () => {
+    document.dispatchEvent(new CustomEvent('quickdock:open-sync'));
+  }));
+  gridActions.appendChild(createFooterBtn('light_mode', 'Alternar Tema', () => {
+    document.dispatchEvent(new CustomEvent('quickdock:toggle-theme'));
+  }));
+  gridActions.appendChild(createFooterBtn('download', 'Exportar Notas', () => downloadAllNotes()));
+  gridActions.appendChild(createFooterBtn('menu_book', 'Tutorial', () => createTutorialNote()));
+
+  secActions.appendChild(gridActions);
+  footer.appendChild(secActions);
+
+  drawer.appendChild(footer);
 
   const doUpdate = () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
 
@@ -1908,7 +2615,7 @@ function openNotesListPopover() {
         input.value = '';
         doUpdate();
       } else {
-        closeNotesListPopover();
+        closeNotesAsideDrawer();
       }
     }
   });
@@ -1921,25 +2628,39 @@ function openNotesListPopover() {
   });
 
   renderNotesListRows(scrollArea, '', countEl, clearBtn);
-  document.body.appendChild(pop);
-  notesListPopover = pop;
-  positionPopover(pop, btnNotesList);
-  setTimeout(() => input.focus(), 50);
+  document.body.appendChild(drawer);
+  notesAsideDrawer = drawer;
+  notesListPopover = drawer;
+
+  requestAnimationFrame(() => drawer.classList.add('open'));
+  setTimeout(() => input.focus(), 80);
 }
 
-btnNotesList.addEventListener('click', e => { e.stopPropagation(); openNotesListPopover(); });
+export function openNotesListPopover() {
+  openNotesAsideDrawer();
+}
+
+btnNotesList.addEventListener('click', e => {
+  e.stopPropagation();
+  if (notesAsideDrawer) {
+    closeNotesAsideDrawer();
+  } else {
+    openNotesAsideDrawer();
+  }
+});
+
 document.addEventListener('mousedown', e => {
-  if (notesListPopover && !notesListPopover.contains(e.target)) closeNotesListPopover();
   if (folderModalEl && !folderModalEl.contains(e.target)) closeFolderModal();
   if (moveMenuEl && !moveMenuEl.contains(e.target)) closeMoveMenu();
   if (folderMenuEl && !folderMenuEl.contains(e.target)) closeFolderMenu();
 });
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (folderModalEl) { closeFolderModal(); return; }
     if (moveMenuEl) { closeMoveMenu(); return; }
     if (folderMenuEl) { closeFolderMenu(); return; }
-    if (notesListPopover) closeNotesListPopover();
+    if (notesAsideDrawer) closeNotesAsideDrawer();
   }
 });
 
@@ -1947,13 +2668,91 @@ document.addEventListener('keydown', e => {
 let newMenuPopover = null;
 function closeNewMenu() { newMenuPopover?.remove(); newMenuPopover = null; }
 
-async function createBlankNote() {
+export async function createNoteInFolder(pasta = '', isBase = false) {
   await flushSave();
-  const title = `Nota ${notesMeta.length + 1}`;
-  const id = await createNoteRecord({ title, content: '' });
-  notesMeta.push({ id, title, color: null, icon: null, updatedAt: Date.now() });
+  const pastaLimpa = normalizarCaminhoPasta(pasta || '');
+  const title = isBase ? `Base ${notesMeta.length + 1}` : `Nota ${notesMeta.length + 1}`;
+  let id;
+  if (isBase) {
+    const baseContent = `\`\`\`base
+name: Nova Base
+source:
+  folder: ${pastaLimpa || '/'}
+views:
+  - type: table
+    name: Tabela Geral
+    columns: [title, folder, tags, updatedAt]
+  - type: board
+    name: Quadro
+    groupBy: status
+\`\`\``;
+    const blocks = parseMarkdownToBlocks(baseContent);
+    id = await createNoteRecord({
+      title,
+      pasta: pastaLimpa,
+      content: baseContent,
+      blocks,
+      icon: 'view_kanban',
+      properties: { folder: pastaLimpa },
+    });
+    notesMeta.push({
+      id,
+      title,
+      pasta: pastaLimpa,
+      color: null,
+      icon: 'view_kanban',
+      properties: { folder: pastaLimpa },
+      updatedAt: Date.now()
+    });
+  } else {
+    id = await createNoteRecord({
+      title,
+      pasta: pastaLimpa,
+      content: '',
+      properties: { folder: pastaLimpa },
+    });
+    notesMeta.push({
+      id,
+      title,
+      pasta: pastaLimpa,
+      color: null,
+      icon: null,
+      properties: { folder: pastaLimpa },
+      updatedAt: Date.now()
+    });
+  }
+
+  if (pastaLimpa) {
+    const openSet = getOpenFolders() || new Set();
+    const partes = pastaLimpa.split('/');
+    for (let i = 1; i <= partes.length; i++) {
+      openSet.add(partes.slice(0, i).join('/'));
+    }
+    saveOpenFolders(openSet);
+  }
+
   await activateNote(id);
   renderTabs();
+  scrollTabIntoView(id);
+
+  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
+    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
+    const input = notesAsideDrawer.querySelector('.notes-search-input');
+    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
+    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
+    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
+    const badge = notesAsideDrawer.querySelector('.notes-aside-badge');
+    if (badge) badge.textContent = String(notesMeta.length);
+  }
+  return id;
+}
+
+async function createBlankNote() {
+  return createNoteInFolder('', false);
+}
+
+async function createNewBaseNote() {
+  return createNoteInFolder('', true);
 }
 
 // Cria uma nova nota com o mesmo conteúdo do tutorial — usado pelo botão 📘
@@ -2078,6 +2877,7 @@ async function openNewMenu() {
   pop.className = 'copy-menu new-menu';
 
   newMenuOpt(pop, 'Nota em branco', createBlankNote);
+  newMenuOpt(pop, 'Nova Base de dados', createNewBaseNote);
   newMenuOpt(pop, 'Importar (.md/.txt)', () => importInput.click());
 
   await getTemplates();               // atualiza o cache antes de listar
@@ -2153,14 +2953,24 @@ export function updateNoteFolderBar(meta) {
 }
 
 async function activateNote(id) {
+  hideEmptyDashboard();
   activeId = id;
+  const numId = Number(id);
+  if (!openTabIds.includes(numId)) {
+    openTabIds.push(numId);
+    saveOpenTabIds(openTabIds);
+  }
   const meta = notesMeta.find(n => n.id === id);
   setAccent(meta?.color);
   await switchToNote(id);
   await setDocumentsNote(id);
   await saveActiveNoteId(id);
   updateNoteFolderBar(meta);
-  switchView('editor');
+  renderTabs();
+  if (getCurrentView() === 'templates') {
+    switchView('editor');
+  }
+  document.dispatchEvent(new CustomEvent('quickdock:active-note-changed', { detail: { id } }));
 }
 
 document.addEventListener('quickdock:use-template-note', async e => {
@@ -2224,11 +3034,38 @@ export async function initNotesTabs() {
   });
 
   const savedActiveId = await loadActiveNoteId();
-  const initial = notesMeta.find(n => n.id === savedActiveId) ?? notesMeta[0];
-  await activateNote(initial.id);
-  renderTabs();
-  scrollTabIntoView(initial.id);
+  if (openTabIds.length > 0) {
+    const initial = notesMeta.find(n => n.id === savedActiveId && openTabIds.includes(n.id))
+      ?? notesMeta.find(n => n.id === openTabIds[0])
+      ?? notesMeta[0];
+    await activateNote(initial.id);
+    renderTabs();
+    scrollTabIntoView(initial.id);
+  } else {
+    await deactivateActiveNote();
+    renderTabs();
+  }
 }
+
+document.addEventListener('quickdock:note-folder-changed', async e => {
+  const { notaId, pasta } = e.detail || {};
+  const meta = notesMeta.find(n => n.id === Number(notaId));
+  if (meta) {
+    meta.pasta = pasta || '';
+    if (meta.properties) meta.properties.folder = pasta || '';
+  }
+  if (Number(notaId) === activeId && meta) {
+    updateNoteFolderBar(meta);
+  }
+  renderTabs();
+  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
+    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
+    const input = notesAsideDrawer.querySelector('.notes-search-input');
+    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
+    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
+    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
+  }
+});
 
 export async function refreshNotesList() {
   notesMeta = await loadAllNotesMeta();
@@ -2238,6 +3075,15 @@ export async function refreshNotesList() {
     await activateNote(notesMeta[0].id);
     renderTabs();
     scrollTabIntoView(notesMeta[0].id);
+  }
+  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
+    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
+    const input = notesAsideDrawer.querySelector('.notes-search-input');
+    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
+    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
+    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
+    const badge = notesAsideDrawer.querySelector('.notes-aside-badge');
+    if (badge) badge.textContent = String(notesMeta.length);
   }
 }
 

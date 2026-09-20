@@ -1,8 +1,8 @@
 import { loadSplitRatio, saveSplitRatio } from './storage.js';
 
-const app         = typeof document !== 'undefined' ? document.getElementById('app') : null;
-const noteSection = typeof document !== 'undefined' ? document.querySelector('.note-section') : null;
-const handle      = typeof document !== 'undefined' ? document.getElementById('resize-handle') : null;
+const app         = (typeof document !== 'undefined' && typeof document.getElementById === 'function') ? document.getElementById('app') : null;
+const noteSection = (typeof document !== 'undefined' && typeof document.querySelector === 'function') ? document.querySelector('.note-section') : null;
+const handle      = (typeof document !== 'undefined' && typeof document.getElementById === 'function') ? document.getElementById('resize-handle') : null;
 
 let dragging = false;
 
@@ -129,7 +129,7 @@ if (handle) {
   });
 }
 
-if (typeof document !== 'undefined') {
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
   document.addEventListener('mousemove', e => {
     if (!dragging || !app || !noteSection) return;
     const dims = getDimensions();

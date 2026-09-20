@@ -161,13 +161,16 @@ body:not(.booting) .note-editor-blocks {
   body.booting .note-editor-blocks { transform: none; }
 }
 
-/* Container do editor */
+/* Container do editor. Quem rola é ele — pasta, título e propriedades sobem
+   junto com o conteúdo, como no Obsidian, em vez de ficarem presos acima de
+   um .note-editor-blocks com rolagem própria. */
 .note-editor {
   flex: 1;
   position: relative;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   border-top: 3px solid var(--note-accent, transparent);
   transition: border-color 0.15s;
 }
@@ -301,7 +304,9 @@ body:not(.booting) .note-editor-blocks {
 /* ===== EDITOR DE BLOCOS ===== */
 .note-editor-blocks {
   flex: 1;
-  overflow-y: auto;
+  /* Sem overflow-y aqui — quem rola é .note-editor (ver acima), pra pasta,
+     título e propriedades subirem junto com o conteúdo em vez de ficarem
+     presos acima de uma área com rolagem própria. */
   /* padding-left maior que os outros lados: reserva espaço pros controles
      de bloco (+ / ⠿) que aparecem ao passar o mouse */
   padding: 12px 14px 26px 34px;
@@ -919,27 +924,22 @@ body:not(.booting) .note-editor-blocks {
 }
 .note-section.ctrl-active .note-editor-blocks a { cursor: pointer; }
 
-/* Link interno entre notas ([[Título]] ou [Texto](nota:uid)) */
+/* Link interno entre notas ([[Título]] ou [Texto](nota:uid)) — texto plano na
+   cor de destaque, sem ícone nem fundo de "chip", igual ao Obsidian. Uma
+   menção cuja nota ainda não existe (link "unresolved") fica na cor
+   apagada — só cria a nota de verdade quando alguém clica. */
 .note-editor-blocks a.note-internal-link {
   color: var(--accent);
   text-decoration: none;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  padding: 1px 6px;
-  border-radius: 4px;
   font-weight: 500;
-  display: inline-block;
-  line-height: 1.35;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease;
 }
-.note-editor-blocks a.note-internal-link::before {
-  content: '📄 ';
-  font-size: 0.85em;
-  opacity: 0.85;
+.note-editor-blocks a.note-internal-link.is-unresolved {
+  color: var(--text-muted);
 }
 .note-section.ctrl-active .note-editor-blocks a.note-internal-link { cursor: pointer; }
-.note-section.ctrl-active .note-editor-blocks a.note-internal-link:hover,
-.note-editor-blocks a.note-internal-link:hover {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
+.note-section.ctrl-active .note-editor-blocks a.note-internal-link:hover {
+  text-decoration: underline;
 }
 
 /* ===== TABELA ===== */
@@ -1011,6 +1011,12 @@ body:not(.booting) .note-editor-blocks {
   max-width: 100%;
 }
 
+.image-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
 .block-image img {
   display: block;
   max-width: 100%;
@@ -1020,14 +1026,42 @@ body:not(.booting) .note-editor-blocks {
   cursor: zoom-in;
   background: var(--bg-secondary);
   /* Teto de altura: um print de tela inteira colado numa coluna estreita
-     empurraria o resto da nota pra fora da vista. */
+     empurraria o resto da nota pra fora da vista. Some assim que a imagem
+     ganha uma largura explícita (redimensionada) — ver aplicarTamanhoImagem. */
   max-height: 320px;
   object-fit: contain;
 }
 
+/* Alça no canto da imagem — arrastar muda a largura, mesma ideia do
+   redimensionamento de imagem do Obsidian. Só aparece no hover pra não
+   poluir a leitura normal da nota. */
+.image-resize-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--bg);
+  border: 1.5px solid var(--accent);
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.image-frame:hover .image-resize-handle,
+.block-image.is-resizing .image-resize-handle {
+  opacity: 0.9;
+}
+.image-resize-handle:hover {
+  opacity: 1;
+}
+
 /* Arquivo que não foi encontrado (faxina, banco limpo): mostra a moldura vazia
-   com o texto alternativo, em vez de um ícone de imagem quebrada. */
-.block-image-missing img { display: none; }
+   com o texto alternativo, em vez de um ícone de imagem quebrada. Mesma marca
+   serve imagem, áudio e vídeo. */
+.block-image-missing img,
+.block-image-missing audio,
+.block-image-missing video { display: none; }
 .block-image-missing::before {
   content: 'imagem não encontrada';
   display: block;
@@ -1036,6 +1070,33 @@ body:not(.booting) .note-editor-blocks {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 11.5px;
+}
+.block-audio.block-image-missing::before { content: 'áudio não encontrado'; }
+.block-video.block-image-missing::before { content: 'vídeo não encontrado'; }
+
+/* ===== ÁUDIO E VÍDEO NA NOTA ===== */
+/* Mesma moldura da imagem — bloco não editável, ferramentas só no hover. */
+.block-audio, .block-video {
+  margin: 6px 0;
+  position: relative;
+  max-width: 100%;
+}
+
+.block-audio audio {
+  width: 100%;
+  max-width: 420px;
+  display: block;
+}
+
+.block-video video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #000;
+  max-height: 320px;
+  object-fit: contain;
 }
 
 /* A barra só aparece no hover — como a da tabela, que só existe enquanto o
@@ -1048,7 +1109,9 @@ body:not(.booting) .note-editor-blocks {
   flex-wrap: wrap;
 }
 
-.block-image:hover .image-tools { display: flex; }
+.block-image:hover .image-tools,
+.block-audio:hover .image-tools,
+.block-video:hover .image-tools { display: flex; }
 
 .image-btn {
   background: var(--bg-secondary);
@@ -1154,9 +1217,19 @@ body:not(.booting) .note-editor-blocks {
   transform: scale(1.22);
 }
 
+.note-tab-title-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  line-height: 1.15;
+}
+
 .note-tab-title {
   font-size: 11px;
-  line-height: 1;
+  line-height: 1.15;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1169,6 +1242,42 @@ body:not(.booting) .note-editor-blocks {
   flex-shrink: 0;
   cursor: pointer;
   --icon-opsz: 20;
+}
+
+.note-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 2px;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+.note-tab:hover .note-tab-close,
+.note-tab.active .note-tab-close {
+  opacity: 0.6;
+}
+
+.note-tab-close:hover {
+  opacity: 1 !important;
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.note-tab-close svg,
+.note-tab-close .qd-icon {
+  width: 11px;
+  height: 11px;
+  font-size: 11px;
 }
 
 /* ===== MENU "⋯" DA ABA (nome + ícone/cor + copiar/baixar/excluir, tudo num
@@ -1245,11 +1354,81 @@ body:not(.booting) .note-editor-blocks {
   cursor: pointer;
 }
 
-/* ===== SELETOR DE ÍCONE DA NOTA (Material Symbols) ===== */
+/* ===== SELETOR DE ÍCONE DA NOTA (Catálogo 4.000+ Material Symbols) ===== */
+.icon-catalog-header-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.icon-search-wrap {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin: 4px 0 6px;
+}
+
+.icon-search-input {
+  width: 100%;
+  height: 26px;
+  box-sizing: border-box;
+  font-size: 11px;
+  padding: 0 24px 0 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text);
+  outline: none;
+}
+
+.icon-search-input:focus {
+  border-color: var(--accent);
+}
+
+.icon-search-clear {
+  position: absolute;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.icon-catalog-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.icon-catalog-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg);
+  padding: 4px;
+  margin-bottom: 6px;
+}
+
 .icon-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 3px;
+}
+
+.icon-catalog-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 16px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .icon-swatch {
@@ -3139,12 +3318,12 @@ html[data-platform="mobile"] .aside-search-label {
   display: none;
 }
 
-/* Cabeçalho em Grid: [Menu/H] [Novo/+] [Abas centrais] [Sync/S] [Mais/M] */
+/* Cabeçalho em Grid: [Menu/H] [Novo/+] [Abas centrais] [Sync/S] */
 html[data-platform="extension"] .notes-tabbar,
 html[data-platform="mobile"] .notes-tabbar {
   order: 1;
   display: grid;
-  grid-template-columns: auto auto 1fr auto auto;
+  grid-template-columns: auto auto 1fr auto;
   align-items: center;
   gap: 5px;
   padding: 8px;
@@ -3170,16 +3349,16 @@ html[data-platform="mobile"] .notes-tabbar::before {
   z-index: 2;
 }
 
-/* Degradê fade direito (atrás do botão S, projetando profundidade sobre as abas) */
+/* Degradê fade direito (atrás do botão Sync, projetando profundidade sobre as abas) */
 html[data-platform="extension"] .notes-tabbar::after,
 html[data-platform="mobile"] .notes-tabbar::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 60px;
-  width: 42px;
-  background: linear-gradient(to left, var(--bg) 35%, transparent 100%);
+  right: 14px;
+  width: 48px;
+  background: linear-gradient(to left, var(--bg) 40%, transparent 100%);
   pointer-events: none;
   z-index: 2;
 }
@@ -3652,67 +3831,50 @@ html[data-platform="desktop"] .calendar-view[hidden] {
   display: none !important;
 }
 
-/* Quando qualquer visão secundária estiver ativa, oculta o editor de notas em todas as plataformas */
-html.view-templates .note-section,
-html.view-grafo .note-section,
-html.view-board .note-section,
-html.view-calendar .note-section,
-body.view-templates .note-section,
-body.view-grafo .note-section,
-body.view-board .note-section,
-body.view-calendar .note-section,
-html.view-templates #btn-touch-select,
-html.view-grafo #btn-touch-select,
-html.view-board #btn-touch-select,
-html.view-calendar #btn-touch-select {
+/* Quando a visão estiver em tela cheia (100%), oculta o editor de notas e controles */
+html.view-fullscreen .note-section,
+body.view-fullscreen .note-section,
+html.view-fullscreen #btn-touch-select,
+body.view-fullscreen #btn-touch-select,
+html.view-fullscreen #resize-handle,
+body.view-fullscreen #resize-handle {
   display: none !important;
 }
 
-/* Na extensão e no mobile, telas completas cobrem 100% e ocultam barra de abas, resize e docs */
-html[data-platform="extension"].view-templates .notes-tabbar,
-html[data-platform="extension"].view-grafo .notes-tabbar,
-html[data-platform="extension"].view-board .notes-tabbar,
-html[data-platform="extension"].view-calendar .notes-tabbar,
-html[data-platform="extension"].view-templates #resize-handle,
-html[data-platform="extension"].view-grafo #resize-handle,
-html[data-platform="extension"].view-board #resize-handle,
-html[data-platform="extension"].view-calendar #resize-handle,
-html[data-platform="extension"].view-templates .docs-section,
-html[data-platform="extension"].view-grafo .docs-section,
-html[data-platform="extension"].view-board .docs-section,
-html[data-platform="extension"].view-calendar .docs-section,
-body.view-templates html[data-platform="extension"] .notes-tabbar,
-body.view-grafo html[data-platform="extension"] .notes-tabbar,
-body.view-board html[data-platform="extension"] .notes-tabbar,
-body.view-calendar html[data-platform="extension"] .notes-tabbar,
-body.view-templates html[data-platform="extension"] #resize-handle,
-body.view-grafo html[data-platform="extension"] #resize-handle,
-body.view-board html[data-platform="extension"] #resize-handle,
-body.view-calendar html[data-platform="extension"] #resize-handle,
-body.view-templates html[data-platform="extension"] .docs-section,
-body.view-grafo html[data-platform="extension"] .docs-section,
-body.view-board html[data-platform="extension"] .docs-section,
-body.view-calendar html[data-platform="extension"] .docs-section,
-html[data-platform="mobile"].view-templates .notes-tabbar,
-html[data-platform="mobile"].view-grafo .notes-tabbar,
-html[data-platform="mobile"].view-board .notes-tabbar,
-html[data-platform="mobile"].view-calendar .notes-tabbar,
-html[data-platform="mobile"].view-templates .docs-section,
-html[data-platform="mobile"].view-grafo .docs-section,
-html[data-platform="mobile"].view-board .docs-section,
-html[data-platform="mobile"].view-calendar .docs-section {
+/* Quando qualquer visão auxiliar secundária estiver ativa, oculta a seção de documentos para dar lugar à visão */
+html.view-templates .docs-section,
+html.view-grafo .docs-section,
+html.view-board .docs-section,
+html.view-calendar .docs-section,
+body.view-templates .docs-section,
+body.view-grafo .docs-section,
+body.view-board .docs-section,
+body.view-calendar .docs-section {
   display: none !important;
 }
 
-/* Na extensão e mobile, a visão ativa ocupa 100% da viewport e fica à frente */
-html[data-platform="extension"] .templates-gallery-view,
-html[data-platform="extension"] .graph-view,
-html[data-platform="extension"] .board-view,
-html[data-platform="extension"] .calendar-view,
-html[data-platform="mobile"] .templates-gallery-view,
-html[data-platform="mobile"] .graph-view,
-html[data-platform="mobile"] .board-view,
-html[data-platform="mobile"] .calendar-view {
+/* Em tela cheia modal no extension/mobile, oculta barra de abas e resize handle */
+html[data-platform="extension"].view-fullscreen .notes-tabbar,
+html[data-platform="extension"].view-fullscreen #resize-handle,
+body.view-fullscreen html[data-platform="extension"] .notes-tabbar,
+body.view-fullscreen html[data-platform="extension"] #resize-handle,
+html[data-platform="mobile"].view-fullscreen .notes-tabbar,
+html[data-platform="mobile"].view-fullscreen #resize-handle {
+  display: none !important;
+}
+
+/* Visões em tela cheia 100% (Extension e Mobile) */
+html[data-platform="extension"].view-fullscreen.view-templates .templates-gallery-view,
+html[data-platform="mobile"].view-fullscreen.view-templates .templates-gallery-view,
+html[data-platform="extension"].view-fullscreen.view-grafo .graph-view,
+html[data-platform="extension"].view-fullscreen.view-board .board-view,
+html[data-platform="extension"].view-fullscreen.view-calendar .calendar-view,
+html[data-platform="mobile"].view-fullscreen.view-grafo .graph-view,
+html[data-platform="mobile"].view-fullscreen.view-board .board-view,
+html[data-platform="mobile"].view-fullscreen.view-calendar .calendar-view,
+html[data-platform="extension"].view-fullscreen .graph-view,
+html[data-platform="extension"].view-fullscreen .board-view,
+html[data-platform="extension"].view-fullscreen .calendar-view {
   order: 1 !important;
   flex: 1 1 100% !important;
   width: 100% !important;
@@ -3724,6 +3886,54 @@ html[data-platform="mobile"] .calendar-view {
   z-index: 100 !important;
   display: flex !important;
   flex-direction: column !important;
+}
+
+/* Visões auxiliares ativas em modo dividido (split-view): dividem a tela simultaneamente com as notas */
+html[data-platform="extension"].view-grafo:not(.view-fullscreen) .graph-view:not([hidden]),
+html[data-platform="extension"].view-board:not(.view-fullscreen) .board-view:not([hidden]),
+html[data-platform="extension"].view-calendar:not(.view-fullscreen) .calendar-view:not([hidden]),
+html[data-platform="mobile"].view-grafo:not(.view-fullscreen) .graph-view:not([hidden]),
+html[data-platform="mobile"].view-board:not(.view-fullscreen) .board-view:not([hidden]),
+html[data-platform="mobile"].view-calendar:not(.view-fullscreen) .calendar-view:not([hidden]),
+html[data-platform="extension"] .graph-view.split-active:not([hidden]),
+html[data-platform="extension"] .board-view.split-active:not([hidden]),
+html[data-platform="extension"] .calendar-view.split-active:not([hidden]) {
+  order: 4 !important;
+  flex: 1 1 0px !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  width: 100% !important;
+  position: relative !important;
+  inset: auto !important;
+  z-index: 2 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: var(--bg);
+}
+
+/* Visões auxiliares inativas ou com [hidden] JAMAIS devem ser exibidas em qualquer plataforma */
+.graph-view[hidden],
+.board-view[hidden],
+.calendar-view[hidden],
+.templates-gallery-view[hidden],
+.docs-section[hidden],
+html[data-platform="extension"] .graph-view[hidden],
+html[data-platform="extension"] .board-view[hidden],
+html[data-platform="extension"] .calendar-view[hidden],
+html[data-platform="extension"] .templates-gallery-view[hidden],
+html[data-platform="extension"] .docs-section[hidden],
+html[data-platform="mobile"] .graph-view[hidden],
+html[data-platform="mobile"] .board-view[hidden],
+html[data-platform="mobile"] .calendar-view[hidden],
+html[data-platform="mobile"] .templates-gallery-view[hidden],
+html[data-platform="mobile"] .docs-section[hidden],
+html:not(.view-grafo) .graph-view,
+html:not(.view-board) .board-view,
+html:not(.view-calendar) .calendar-view,
+html:not(.view-templates) .templates-gallery-view {
+  display: none !important;
 }
 
 html[data-platform="mobile"] .docs-section {
@@ -4984,9 +5194,7 @@ html[data-platform="mobile"] #btn-nav-board {
 
   /* 2. Palco central (Editor e Telas completas: Galeria, Grafo e Quadro) à DIREITA */
   html[data-platform="desktop"] .note-section,
-  html[data-platform="desktop"] .templates-gallery-view,
-  html[data-platform="desktop"] .graph-view,
-  html[data-platform="desktop"] .board-view {
+  html[data-platform="desktop"] .templates-gallery-view {
     order: 2 !important;
     flex: 1 1 auto;
     width: 0;
@@ -4999,21 +5207,104 @@ html[data-platform="mobile"] #btn-nav-board {
     background: var(--bg);
   }
 
-  html[data-platform="desktop"] .note-section[hidden],
-  html[data-platform="desktop"] .templates-gallery-view[hidden],
-  html[data-platform="desktop"] .graph-view[hidden],
-  html[data-platform="desktop"] .board-view[hidden] {
+  /* Visões auxiliares em tela cheia 100% no desktop: ocupam o palco central inteiro ao lado da sidebar */
+  html[data-platform="desktop"].view-fullscreen .note-section {
     display: none !important;
   }
 
-  /* Editor de notas centralizado ergonomicamente */
+  html[data-platform="desktop"].view-fullscreen .graph-view,
+  html[data-platform="desktop"].view-fullscreen .board-view,
+  html[data-platform="desktop"].view-fullscreen .calendar-view,
+  html[data-platform="desktop"].view-fullscreen .templates-gallery-view {
+    order: 2 !important;
+    flex: 1 1 auto !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    overflow: hidden !important;
+    background: var(--bg) !important;
+    border-left: none !important;
+  }
+
+  /* No desktop, quando visão auxiliar estiver ativa em modo dividido (split), o editor divide a tela 50/50 com a visão */
+  html.view-grafo .note-section,
+  html.view-board .note-section,
+  html.view-calendar .note-section,
+  html[data-platform="desktop"]:not(.view-fullscreen).view-grafo .note-section,
+  html[data-platform="desktop"]:not(.view-fullscreen).view-board .note-section,
+  html[data-platform="desktop"]:not(.view-fullscreen).view-calendar .note-section,
+  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-grafo):not(.view-board):not(.view-calendar) #app:has(.docs-section:not([hidden]):not(.is-collapsed):not(.is-minimized)) .note-section {
+    flex: 1 1 50% !important;
+    width: 50% !important;
+    min-width: 340px !important;
+  }
+
+  /* Visões auxiliares posicionadas lado a lado com o editor em modo dividido (NAV | NOTA | OUTRA VIEW) */
+  html[data-platform="desktop"]:not(.view-fullscreen) .graph-view,
+  html[data-platform="desktop"]:not(.view-fullscreen) .board-view,
+  html[data-platform="desktop"]:not(.view-fullscreen) .calendar-view,
+  html[data-platform="desktop"]:not(.view-fullscreen) .docs-section {
+    order: 3 !important;
+    flex: 1 1 50% !important;
+    width: 50% !important;
+    min-width: 340px !important;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    transition: height 0.2s ease, max-height 0.2s ease;
+  }
+
+  /* Caso: Altura toda (100% da altura da janela - padrão) */
+  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .graph-view,
+  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .board-view,
+  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .calendar-view,
+  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .docs-section {
+    height: 100vh !important;
+    max-height: 100vh !important;
+  }
+
+  /* Caso: Metade da altura (50% da altura da janela) */
+  html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .graph-view,
+  html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .board-view,
+  html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .calendar-view,
+  html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .docs-section {
+    height: 50vh !important;
+    max-height: 50vh !important;
+    align-self: flex-end !important;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  html[data-platform="desktop"] .docs-section[hidden],
+  html[data-platform="desktop"] .docs-section.is-collapsed {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] .note-section[hidden],
+  html[data-platform="desktop"] .templates-gallery-view[hidden],
+  html[data-platform="desktop"] .graph-view[hidden],
+  html[data-platform="desktop"] .board-view[hidden],
+  html[data-platform="desktop"] .calendar-view[hidden] {
+    display: none !important;
+  }
+
+  /* Editor de notas centralizado ergonomicamente. Rolagem no .note-editor —
+     ver comentário na regra base — então aqui só overflow-x fica escondido
+     pra a coluna centralizada não abrir barra horizontal. */
   html[data-platform="desktop"] .note-editor {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     width: 100%;
     border-top: none;
   }
@@ -5023,8 +5314,6 @@ html[data-platform="mobile"] #btn-nav-board {
     width: 100%;
     margin: 0 auto;
     padding: 32px 52px 68px;
-    height: 100%;
-    overflow-y: auto;
   }
 
   /* Barra de abas / cabeçalho da sidebar no desktop */
@@ -5214,28 +5503,17 @@ html[data-platform="mobile"] #btn-nav-board {
     flex-shrink: 0;
   }
 
-  /* Seção de Documentos na aside à esquerda */
+  /* Seção de Documentos e Visões Auxiliares no Desktop operam na coluna 3 (NAV | NOTA | OUTRA VIEW) */
   html[data-platform="desktop"] .docs-section {
-    order: 2;
-    border-top: 1px solid var(--border);
-    flex: 0 0 auto;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: var(--bg-secondary);
+    order: 3 !important;
   }
+}
 
-  html[data-platform="desktop"] .docs-section.is-collapsed {
-    height: 38px !important;
-    min-height: 38px !important;
-    max-height: 38px !important;
-    flex: 0 0 38px !important;
-  }
-
-  html[data-platform="desktop"] .docs-section:not(.is-collapsed) {
-    max-height: 42vh;
-    overflow-y: auto;
-  }
+/* Controles de altura de visão auxiliar (100% / 50%) exclusivos do Desktop */
+html[data-platform="extension"] .view-height-btn,
+html[data-platform="mobile"] .view-height-btn,
+html.view-fullscreen .view-height-btn {
+  display: none !important;
 }
 
 /* Responsividade Mobile e Telas Estreitas para a Galeria */
@@ -5444,10 +5722,121 @@ html[data-platform="mobile"] #btn-nav-board {
   font-size: 16px;
 }
 
+.folder-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.65;
+  transition: opacity 0.12s;
+  flex-shrink: 0;
+}
+
+.folder-header:hover .folder-actions-wrap {
+  opacity: 1;
+}
+
+.folder-add-note-btn,
+.folder-add-subfolder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+.folder-add-note-btn:hover,
+.folder-add-subfolder-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.folder-add-note-btn svg,
+.folder-add-note-btn .qd-icon,
+.folder-add-subfolder-btn svg,
+.folder-add-subfolder-btn .qd-icon {
+  width: 15px;
+  height: 15px;
+  font-size: 15px;
+}
+
+.folder-inline-rename-input {
+  flex: 1 1 auto;
+  min-width: 60px;
+  height: 22px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm, 4px);
+  padding: 0 6px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.folder-children.drag-over {
+  background: rgba(37, 99, 235, 0.08) !important;
+  outline: 1px dashed var(--accent);
+  border-radius: var(--radius-sm);
+}
+
 .folder-children {
   display: flex;
   flex-direction: column;
   width: 100%;
+  position: relative;
+  padding-bottom: 2px;
+}
+
+/* Linha vertical que desce da seta (arrow/chevron) da pasta */
+.folder-children::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 4px;
+  left: var(--guide-left, 17px);
+  width: 1.5px;
+  background: var(--border);
+  opacity: 0.75;
+  pointer-events: none;
+  border-radius: 1px;
+  z-index: 1;
+}
+
+/* Itens de nota dentro da pasta: recuados à direita da linha guia para que
+   o fundo da nota ativa (.current) e o hover NUNCA sobreponham a linha */
+.folder-children > .notes-list-item {
+  position: relative;
+  margin-left: calc(var(--guide-left, 17px) + 7px) !important;
+  width: calc(100% - var(--guide-left, 17px) - 11px) !important;
+  padding-left: 8px !important;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* Indicador de pasta vazia */
+.folder-empty-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: calc(var(--guide-left, 17px) + 7px);
+  padding: 4px 8px;
+  user-select: none;
+}
+
+/* Realce suave da linha de guia ao passar o mouse na pasta */
+.folder-item:hover > .folder-children::before {
+  background: var(--accent);
+  opacity: 0.65;
 }
 
 /* Badge de pasta em resultados de busca */
@@ -5467,22 +5856,58 @@ html[data-platform="mobile"] #btn-nav-board {
   flex-shrink: 0;
 }
 
-/* Badge de pasta na aba de notas */
+/* Caminho da pasta na aba de notas (abaixo do nome, com fonte menor e sem chip) */
+.note-tab-folder,
 .note-tab-folder-badge {
-  font-size: 9.5px;
-  padding: 0 5px;
-  height: 16px;
-  line-height: 16px;
-  border-radius: 4px;
-  background: var(--bg-hover, var(--border));
+  display: block;
+  font-size: 8.5px;
+  line-height: 1.1;
   color: var(--text-muted);
-  max-width: 72px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  height: auto;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: 0.15px;
+  opacity: 0.8;
   flex-shrink: 0;
-  margin-left: auto;
+}
+
+.note-tab:hover .note-tab-folder,
+.note-tab:hover .note-tab-folder-badge {
+  opacity: 1;
+}
+
+.note-tab.active .note-tab-folder,
+.note-tab.active .note-tab-folder-badge {
+  color: var(--text-muted);
+  opacity: 0.9;
+}
+
+html[data-platform="extension"] .note-tab.has-folder,
+html[data-platform="mobile"] .note-tab.has-folder {
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+}
+
+html[data-platform="extension"] .note-tab.has-folder .note-tab-title,
+html[data-platform="mobile"] .note-tab.has-folder .note-tab-title {
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+html[data-platform="desktop"] .note-tab.has-folder {
+  height: 36px;
+  min-height: 36px;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 /* Cabeçalho da pasta raiz na lista */
@@ -5504,6 +5929,7 @@ html[data-platform="mobile"] #btn-nav-board {
   border: 1px solid var(--border);
   border-radius: var(--radius-md, 8px);
   background: var(--bg-surface);
+  z-index: 2500 !important;
 }
 
 .folder-modal-input {
@@ -5577,10 +6003,153 @@ html[data-platform="mobile"] #btn-nav-board {
   background: rgba(220, 38, 38, 0.08) !important;
 }
 
-.folder-picker-popover {
+.folder-picker-popover,
+.folder-context-menu {
   max-height: 360px;
   overflow-y: auto;
   min-width: 220px;
+  z-index: 2500 !important;
+}
+
+/* ===== ASIDE DRAWER DE NOTAS E PASTAS ===== */
+.notes-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1190;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 0.22s ease;
+}
+
+.notes-drawer-backdrop.open {
+  opacity: 1;
+}
+
+.notes-aside-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(340px, 86vw);
+  max-width: 100vw;
+  height: 100%;
+  max-height: 100vh;
+  background: var(--bg-surface, var(--bg));
+  border-right: 1px solid var(--border);
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.32);
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  transform: translateX(-100%);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  user-select: none;
+}
+
+.notes-aside-drawer.open {
+  transform: translateX(0);
+}
+
+.notes-aside-drawer.closing {
+  transform: translateX(-100%);
+}
+
+.notes-aside-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card, var(--bg-surface));
+  flex-shrink: 0;
+}
+
+.notes-aside-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.notes-aside-title-icon {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.notes-aside-title-icon svg,
+.notes-aside-title-icon .qd-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.notes-aside-title-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.notes-aside-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+.notes-aside-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notes-aside-action-btn,
+.notes-aside-close-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.notes-aside-action-btn:hover,
+.notes-aside-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.notes-aside-action-btn svg,
+.notes-aside-action-btn .qd-icon,
+.notes-aside-close-btn svg,
+.notes-aside-close-btn .qd-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+
+.notes-aside-drawer .notes-list-scroll {
+  flex: 1 1 auto;
+  max-height: none;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px 6px 16px;
 }
 
 /* ===== AUTOCOMPLETE DE LINKS [[ ===== */
@@ -6183,22 +6752,18 @@ html[data-platform="mobile"] #btn-nav-board {
   display: none !important;
 }
 
-html.view-board .note-section,
-body.view-board .note-section {
-  display: none !important;
-}
-
 /* ==========================================================================
    BARRA DE PROPRIEDADES DA NOTA (NOTION / OBSIDIAN PROPERTIES STYLE)
    ========================================================================== */
 
+/* Sem caixa: linhas soltas por baixo do título, igual ao Obsidian — só uma
+   linha fina separando as propriedades do corpo da nota. */
 .note-properties-bar {
   margin: 4px 14px 8px 34px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
   overflow: visible;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease;
   font-size: 12px;
 }
 
@@ -6283,30 +6848,97 @@ body.view-board .note-section {
 }
 
 .note-properties-list {
-  padding: 6px 8px 8px;
+  padding: 2px 4px 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-top: 1px solid var(--border);
 }
 
 .note-properties-list[hidden] {
   display: none !important;
 }
 
-.note-properties-empty {
-  font-size: 11px;
+/* Nota sem propriedade nenhuma: some a caixa com borda/cabeçalho e sobra só
+   este link discreto — igual a uma nota nova do Obsidian, que não carrega a
+   seção de Properties até alguém pedir uma. */
+.note-properties-bar.is-empty-ghost {
+  border: none;
+  background: transparent;
+  margin-bottom: 2px;
+}
+.note-properties-bar.is-empty-ghost .note-properties-header {
+  display: none;
+}
+.note-properties-bar.is-empty-ghost .note-properties-list {
+  padding: 0;
+  border-top: none;
+}
+.note-properties-ghost-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
   color: var(--text-muted);
-  font-style: italic;
-  padding: 4px 2px;
+  font-size: 11.5px;
+  font-family: inherit;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
+}
+.note-properties-ghost-add:hover {
+  opacity: 1;
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+.note-properties-ghost-add .qd-icon {
+  font-size: 14px;
+}
+
+.note-property-row-new {
+  border-top: 1px dashed var(--border);
+  margin-top: 2px;
+  padding-top: 6px;
+}
+.property-name-input-new {
+  flex: 1;
+  max-width: none;
 }
 
 .note-property-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 2px 0;
   min-height: 26px;
+}
+.note-property-row.is-dragging {
+  opacity: 0.4;
+}
+
+.property-drag-handle {
+  font-size: 15px;
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: grab;
+  flex-shrink: 0;
+  transition: opacity 0.12s ease;
+  margin-left: -4px;
+}
+.note-property-row:hover .property-drag-handle {
+  opacity: 0.6;
+}
+.property-drag-handle:hover {
+  opacity: 1 !important;
+}
+
+.note-property-drop-indicator {
+  height: 2px;
+  margin: 0 4px;
+  background: var(--accent);
+  border-radius: 1px;
 }
 
 .note-property-label-wrap {
@@ -6352,6 +6984,23 @@ body.view-board .note-section {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: text;
+}
+.note-property-label-wrap .property-name:hover {
+  color: var(--text);
+}
+
+.property-name-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 11.5px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--text);
+  outline: none;
 }
 
 .note-property-value-wrap {
@@ -6536,7 +7185,8 @@ body.view-board .note-section {
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
@@ -6856,3 +7506,1136 @@ body.view-board .note-section {
   border: 1px solid var(--border);
   flex-shrink: 0;
 }
+
+/* ===== BASES (BANCOS DE DADOS QUICKDOCK) ===== */
+.block-base {
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.base-component-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 280px;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+}
+
+.base-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.base-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.base-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.base-header-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.base-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.base-tab-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.base-tab-btn.is-active {
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 550;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.base-tab-add {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 2px 7px;
+}
+
+.base-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.base-search-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--text);
+  outline: none;
+  width: 130px;
+  transition: width 0.2s, border-color 0.2s;
+}
+
+.base-search-input:focus {
+  width: 180px;
+  border-color: var(--accent);
+}
+
+.base-header-btn {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.base-header-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.base-header-btn.active {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.base-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 500;
+}
+
+.base-btn-primary:hover {
+  opacity: 0.9;
+  background: var(--accent);
+}
+
+.base-viewport {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--bg);
+}
+
+/* TABELA */
+.base-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.base-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12px;
+}
+
+.base-th {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 6px 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  position: relative;
+  user-select: none;
+}
+
+.base-th-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.base-th-resizer:hover {
+  background: var(--accent);
+}
+
+.base-td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.base-td:last-child, .base-th:last-child {
+  border-right: none;
+}
+
+.base-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.base-tfoot td {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-top: 2px solid var(--border);
+}
+
+/* QUADRO (KANBAN) */
+.base-board-container {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  overflow-x: auto;
+  align-items: flex-start;
+  min-height: 320px;
+}
+
+.base-board-column {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 250px;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.base-board-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.base-board-cards {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 60px;
+}
+
+.base-board-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+}
+
+.base-board-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.base-board-card.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+/* GALERIA (CARDS) */
+.base-gallery-container {
+  padding: 14px;
+}
+
+.base-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.base-gallery-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  display: flex;
+  flex-direction: column;
+}
+
+.base-gallery-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.base-gallery-cover {
+  height: 105px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.base-gallery-cover.cover-placeholder {
+  color: var(--text-muted);
+}
+
+.base-gallery-body {
+  padding: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.base-gallery-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.base-gallery-props {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.base-gallery-prop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.base-gallery-prop-name {
+  color: var(--text-muted);
+}
+
+.base-gallery-add-card {
+  border: 1px dashed var(--border);
+  background: transparent;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.base-gallery-add-card:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-hover);
+  transform: none;
+}
+
+.base-gallery-add-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+/* LISTA */
+.base-list-container {
+  padding: 8px 12px;
+}
+
+.base-list-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.base-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid var(--border);
+}
+
+.base-list-row:hover {
+  background: var(--bg-hover);
+}
+
+.base-list-row-icon {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.base-list-row-title {
+  font-weight: 500;
+  font-size: 12px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.base-list-row-props {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.base-list-prop-badge {
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.base-list-add-row {
+  border-bottom: none;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.base-list-add-row:hover {
+  color: var(--accent);
+}
+
+/* CALENDÁRIO */
+.base-calendar-container {
+  padding: 12px;
+}
+
+.base-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.base-cal-month-title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.base-cal-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.base-cal-btn {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.base-cal-btn:hover {
+  background: var(--bg-hover);
+}
+
+.base-cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.base-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding-bottom: 4px;
+}
+
+.base-cal-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.base-cal-day-cell {
+  min-height: 70px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.base-cal-day-cell.is-other-month {
+  opacity: 0.4;
+  background: var(--bg-secondary);
+}
+
+.base-cal-day-cell.is-today {
+  border-color: var(--accent);
+  background: rgba(35, 131, 226, 0.04);
+}
+
+.base-cal-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.base-cal-day-add {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.base-cal-day-cell:hover .base-cal-day-add {
+  opacity: 1;
+}
+
+.base-cal-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.base-cal-item {
+  font-size: 10.5px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.base-cal-item:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* BADGES DE SELECT E POPUP */
+.base-select-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.base-select-dropdown, .base-add-view-dropdown {
+  position: fixed;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  z-index: 10000;
+  padding: 6px;
+  min-width: 150px;
+  font-size: 12px;
+}
+
+.base-select-option, .base-add-view-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.base-select-option:hover, .base-add-view-item:hover {
+  background: var(--bg-hover);
+}
+
+.base-raw-editor-wrap {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+
+.base-raw-editor {
+  width: 100%;
+  min-height: 200px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 8px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  resize: vertical;
+}
+
+.base-raw-editor:focus {
+  border-color: var(--accent);
+}
+
+.note-editor[hidden],
+.notes-empty-dashboard[hidden] {
+  display: none !important;
+}
+
+body.no-note-open .docs-section,
+body.no-note-open .graph-view,
+body.no-note-open .board-view,
+body.no-note-open .calendar-view,
+body.no-note-open #resize-handle,
+body.no-note-open .mobile-notion-toolbar,
+html.no-note-open .docs-section,
+html.no-note-open .graph-view,
+html.no-note-open .board-view,
+html.no-note-open .calendar-view,
+html.no-note-open #resize-handle,
+html.no-note-open .mobile-notion-toolbar {
+  display: none !important;
+}
+
+/* Se uma visão auxiliar ou de modelos for aberta em tela cheia mesmo sem nota aberta, exibe-a */
+body.view-fullscreen.view-grafo .graph-view,
+body.view-fullscreen.view-board .board-view,
+body.view-fullscreen.view-calendar .calendar-view,
+html.view-fullscreen.view-grafo .graph-view,
+html.view-fullscreen.view-board .board-view,
+html.view-fullscreen.view-calendar .calendar-view,
+body.view-templates .templates-gallery-view,
+html.view-templates .templates-gallery-view {
+  display: flex !important;
+}
+
+body.view-fullscreen .notes-empty-dashboard,
+html.view-fullscreen .notes-empty-dashboard {
+  display: none !important;
+}
+
+body.no-note-open .note-section,
+html.no-note-open .note-section {
+  height: 100% !important;
+  flex: 1 1 auto !important;
+  max-height: none !important;
+}
+
+/* ===== DASHBOARD ZERO-ABAS (QUANDO TODAS AS ABAS ESTÃO FECHADAS) ===== */
+.notes-empty-dashboard {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 24px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.empty-dashboard-inner {
+  width: 100%;
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.empty-dashboard-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 6px;
+}
+
+.empty-dashboard-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(168, 85, 247, 0.12));
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.empty-dashboard-icon-wrap .qd-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.empty-dashboard-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.empty-dashboard-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 380px;
+  line-height: 1.4;
+}
+
+.empty-dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty-dashboard-section-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-dashboard-section-title .qd-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+}
+
+.empty-dashboard-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.empty-dashboard-action-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.1s, border-color 0.12s, box-shadow 0.12s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.empty-dashboard-action-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dash-action-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dash-action-icon .qd-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.dash-action-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-action-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-action-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-dashboard-recents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.empty-dashboard-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bg-surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.empty-dashboard-recent-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.recent-item-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-item-folder {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  flex-shrink: 0;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-item-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.empty-dashboard-tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.empty-dashboard-tip-card {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-card, var(--bg-surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  align-items: flex-start;
+  text-align: left;
+}
+
+.empty-dashboard-tip-card.is-clickable {
+  cursor: pointer;
+}
+
+.empty-dashboard-tip-card.is-clickable:hover {
+  border-color: var(--accent);
+}
+
+.tip-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--border);
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.tip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tip-content strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tip-content span {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* ===== RODAPÉ DO DRAWER LATERAL (AÇÕES E VISÕES) ===== */
+.notes-aside-footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-card, var(--bg-surface));
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.aside-footer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aside-footer-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.aside-footer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.aside-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bg-surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  user-select: none;
+  min-height: 34px;
+  box-sizing: border-box;
+}
+
+.aside-footer-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover, var(--border));
+}
+
+.aside-footer-btn:active {
+  transform: scale(0.98);
+}
+
+.aside-footer-btn .qd-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.aside-footer-btn:hover .qd-icon {
+  color: var(--accent);
+}
+
+/* ===== SELETOR DE VISÃO AUXILIAR NO CABEÇALHO DE DOCUMENTOS ===== */
+.docs-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.aux-view-switcher-btn {
+  padding: 2px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.aux-view-switcher-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.aux-view-switcher-btn .qd-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.aux-view-menu,
+.aux-view-dropdown {
+  position: fixed !important;
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+  z-index: 10000 !important;
+  min-width: 230px;
+  padding: 5px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: menu-in 0.1s ease-out;
+  box-sizing: border-box;
+}
+
+.aux-view-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.aux-view-opt:hover {
+  background: var(--bg-hover);
+}
+
+.aux-view-opt .aux-view-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.aux-view-opt:hover .aux-view-icon {
+  color: var(--accent);
+}
+
+.aux-view-opt .aux-view-icon .qd-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.aux-view-opt .aux-view-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.aux-view-opt .aux-view-title,
+.aux-view-opt .aux-view-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.aux-view-opt .aux-view-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: normal;
+  line-height: 1.25;
+}
+
+
+

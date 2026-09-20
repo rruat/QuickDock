@@ -10,6 +10,85 @@ import { podeInserirNaPagina, isExtension, platformStorage } from './platform.js
 import { isTouchSelectionMode } from './note.js';
 import { iconSvg } from './icons.js';
 import { toggleDocsExtension } from './resizer.js';
+import { positionPopover } from './popover.js';
+import { switchView, getCurrentView, isViewFullscreen, toggleViewFullscreen } from './views.js';
+
+let auxViewMenuEl = null;
+
+export function closeAuxViewMenu() {
+  auxViewMenuEl?.remove();
+  auxViewMenuEl = null;
+}
+
+export function openAuxViewMenu(anchorEl) {
+  closeAuxViewMenu();
+  if (!anchorEl) return;
+  const menu = document.createElement('div');
+  menu.className = 'copy-menu aux-view-menu aux-view-dropdown';
+  menu.addEventListener('mousedown', e => e.stopPropagation());
+  menu.addEventListener('pointerdown', e => e.stopPropagation());
+
+  const addOpt = (iconName, label, desc, onClick) => {
+    const opt = document.createElement('button');
+    opt.type = 'button';
+    opt.className = 'copy-opt aux-view-opt';
+    opt.innerHTML = `
+      <span class="aux-view-icon">${iconSvg(iconName)}</span>
+      <span class="aux-view-text">
+        <span class="aux-view-title aux-view-label">${label}</span>
+        ${desc ? `<span class="aux-view-desc">${desc}</span>` : ''}
+      </span>
+    `;
+    opt.addEventListener('mousedown', e => e.stopPropagation());
+    opt.addEventListener('click', async e => {
+      e.stopPropagation();
+      closeAuxViewMenu();
+      await onClick();
+    });
+    menu.appendChild(opt);
+  };
+
+  addOpt('description', 'Documentos', 'Anexos e arquivos da nota', async () => {
+    switchView('editor');
+    const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
+    if (isExt) {
+      const docsSec = document.querySelector('.docs-section');
+      if (docsSec?.classList.contains('is-minimized')) toggleDocsExtension();
+    } else {
+      if (isDocsCollapsed) toggleDocsCollapsed();
+    }
+  });
+  addOpt('space_dashboard', 'Quadro Infinito', 'Dividir tela com a nota', () => switchView('board', { split: true }));
+  addOpt('hub', 'Grafo de Conexões', 'Dividir tela com a nota', () => switchView('grafo', { split: true }));
+  addOpt('calendar_month', 'Calendário', 'Dividir tela com a nota', () => switchView('calendar', { split: true }));
+
+  const curView = getCurrentView();
+  if (curView !== 'editor') {
+    const isFull = isViewFullscreen();
+    addOpt(
+      isFull ? 'fullscreen_exit' : 'fullscreen',
+      isFull ? 'Dividir tela com a nota' : 'Expandir para tela cheia (100%)',
+      'Alternar modo de exibição',
+      () => toggleViewFullscreen()
+    );
+  }
+
+  document.body.appendChild(menu);
+  auxViewMenuEl = menu;
+  positionPopover(menu, anchorEl);
+
+  const onDown = e => {
+    if (!auxViewMenuEl) return;
+    if (auxViewMenuEl.contains(e.target) || anchorEl.contains(e.target)) return;
+    closeAuxViewMenu();
+    document.removeEventListener('mousedown', onDown);
+    document.removeEventListener('pointerdown', onDown);
+  };
+  setTimeout(() => {
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown);
+  }, 10);
+}
 
 const grid           = document.getElementById('doc-grid');
 const dropZone       = document.getElementById('drop-zone');
@@ -396,9 +475,36 @@ export async function initDocuments() {
     });
   }
 
+  const attachSwitcher = (btnId, wrapId) => {
+    const btn = document.getElementById(btnId);
+    const wrap = wrapId ? document.getElementById(wrapId) : null;
+    if (btn && !btn._switcherBound) {
+      btn._switcherBound = true;
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (auxViewMenuEl) closeAuxViewMenu();
+        else openAuxViewMenu(btn);
+      });
+    }
+    if (wrap && !wrap._switcherBound) {
+      wrap._switcherBound = true;
+      wrap.addEventListener('click', e => {
+        if (e.target.closest('.aux-view-switcher-btn')) return;
+        e.stopPropagation();
+        if (auxViewMenuEl) closeAuxViewMenu();
+        else openAuxViewMenu(btn || wrap);
+      });
+    }
+  };
+
+  attachSwitcher('btn-aux-view-switcher', 'docs-title-wrap');
+  attachSwitcher('btn-graph-aux-switcher', 'graph-title-wrap');
+  attachSwitcher('btn-board-aux-switcher', null);
+  attachSwitcher('btn-calendar-aux-switcher', 'calendar-title-wrap');
+
   if (docsHeader) {
     docsHeader.addEventListener('click', e => {
-      if (e.target.closest('#btn-upload, .docs-view-opt, #file-input, .icon-btn')) return;
+      if (e.target.closest('#btn-upload, .docs-view-opt, #file-input, .icon-btn, .docs-title-wrap')) return;
       const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
       if (isExt) {
         const docsSection = document.querySelector('.docs-section');

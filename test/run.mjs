@@ -3010,6 +3010,12 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('pastas ui · style.css define barra de pasta no editor e badge de pasta nas abas', styleSource.includes('.note-folder-bar') && styleSource.includes('.note-folder-btn') && styleSource.includes('.note-tab-folder-badge'));
   ok('pastas ui · index.html define barra de pasta no editor da nota', htmlSource.includes('id="note-folder-bar"') && htmlSource.includes('id="btn-note-folder"') && htmlSource.includes('id="note-folder-name"'));
   ok('pastas ui · notes-tabs.js possui clique com botão direito (contextmenu) para abrir menu de opções', tabsSource.includes("contextmenu"));
+  ok('pastas ui · aside drawer de notas implementado', tabsSource.includes('openNotesAsideDrawer') && tabsSource.includes('closeNotesAsideDrawer'));
+  ok('pastas ui · criação direta de nota em pasta exportada', tabsSource.includes('createNoteInFolder'));
+  ok('pastas ui · botão de adicionar nota na pasta e no menu', tabsSource.includes('folder-add-note-btn') && tabsSource.includes('Nova nota nesta pasta'));
+  ok('pastas ui · style.css define painel aside drawer e backdrop', styleSource.includes('.notes-aside-drawer') && styleSource.includes('.notes-drawer-backdrop'));
+  ok('pastas ui · style.css define ações de pasta e criação direta', styleSource.includes('.folder-actions-wrap') && styleSource.includes('.folder-add-note-btn'));
+  ok('pastas ui · style.css define drop na área de filhos da pasta', styleSource.includes('.folder-children.drag-over'));
 
   // 19.5: Execução real de buildFolderTree com verificação estrutural (previne regressões de ReferenceError)
   const fnMatch = tabsSource.match(/export function buildFolderTree[\s\S]+?return root;\s*\}/);
@@ -3966,6 +3972,291 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('live-preview · CSS esconde pill do callout durante o foco para exibir sintaxe editável',
     styleCssSource.includes('.note-editor-blocks .block[data-callout-first]:focus-within::before') &&
     styleCssSource.includes('display: none !important;'));
+}
+
+// ── 30. Gestão de Abas Abertas (Fechar Abas) & Pastas/Subpastas Inline (Sem Modais) ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const tabsJsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+
+  // 30.1: Gestão de Abas Abertas e Botão de Fechar
+  ok('abas · exporta closeTab para fechar abas individualmente',
+    tabsJsSource.includes('export async function closeTab(noteId)'));
+
+  ok('abas · armazena e recupera openTabIds via OPEN_TABS_KEY',
+    tabsJsSource.includes("const OPEN_TABS_KEY = 'quickdock:open_tabs'") &&
+    tabsJsSource.includes('function getOpenTabIds()') &&
+    tabsJsSource.includes('function saveOpenTabIds(ids)'));
+
+  ok('abas · renderiza botão .note-tab-close em cada aba com aria-label e stopPropagation',
+    tabsJsSource.includes("closeBtn.className = 'note-tab-close icon-btn'") &&
+    tabsJsSource.includes("closeBtn.setAttribute('aria-label', 'Fechar aba')") &&
+    tabsJsSource.includes("await closeTab(meta.id)"));
+
+  ok('abas · clique com botão do meio (auxclick button 1) fecha a aba',
+    tabsJsSource.includes("tab.addEventListener('auxclick'") &&
+    tabsJsSource.includes("e.button === 1") &&
+    tabsJsSource.includes("await closeTab(meta.id)"));
+
+  ok('abas · menu de contexto da aba possui opções de fechar aba e fechar outras abas',
+    tabsJsSource.includes("addOpt('Fechar aba'") &&
+    tabsJsSource.includes("addOpt('Fechar outras abas'"));
+
+  ok('abas · activateNote adiciona nota em openTabIds se não estiver aberta',
+    tabsJsSource.includes("if (!openTabIds.includes(numId))") &&
+    tabsJsSource.includes("openTabIds.push(numId)") &&
+    tabsJsSource.includes("saveOpenTabIds(openTabIds)"));
+
+  ok('abas · CSS de .note-tab-close com transição de opacidade e hover',
+    styleCssSource.includes('.note-tab-close {') &&
+    styleCssSource.includes('.note-tab:hover .note-tab-close') &&
+    styleCssSource.includes('.note-tab-close:hover'));
+
+  // 30.2: Criação e Renomeação de Pastas/Subpastas Inline no Drawer
+  ok('pastas inline · exporta startCreateFolderInline para criar pasta/subpasta diretamente na árvore',
+    tabsJsSource.includes('export async function startCreateFolderInline(parentPath =') &&
+    tabsJsSource.includes('await criarPasta(candidate)') &&
+    tabsJsSource.includes('renamingFolderPath = candidate'));
+
+  ok('pastas inline · exporta startRenameFolderInline para renomear pastas diretamente na árvore',
+    tabsJsSource.includes('export async function startRenameFolderInline(caminho') &&
+    tabsJsSource.includes('renamingFolderPath = caminho'));
+
+  ok('pastas inline · renderNode renderiza input .folder-inline-rename-input quando em modo de renomeação',
+    tabsJsSource.includes("inputRename.className = 'folder-inline-rename-input'") &&
+    tabsJsSource.includes("inputRename.addEventListener('keydown'") &&
+    tabsJsSource.includes("await renomearPasta(sub.caminho, novoCaminho)"));
+
+  ok('pastas inline · botão .folder-add-subfolder-btn disponível para criar subpastas e pastas na raiz',
+    tabsJsSource.includes("folder-add-subfolder-btn") &&
+    tabsJsSource.includes("addRootFolderBtn.title = 'Nova pasta na raiz'") &&
+    tabsJsSource.includes("addSubBtn.title = 'Nova subpasta'"));
+
+  ok('pastas inline · CSS para .folder-inline-rename-input e .folder-add-subfolder-btn',
+    styleCssSource.includes('.folder-inline-rename-input {') &&
+    styleCssSource.includes('.folder-add-subfolder-btn') &&
+    styleCssSource.includes('z-index: 2500 !important;'));
+
+  // 30.3: Fechar todas as abas & Dashboard Zero-Abas (Recentes + Ações Rápidas)
+  ok('zero-abas · closeTab permite fechar todas as abas e invoca deactivateActiveNote',
+    tabsJsSource.includes('await deactivateActiveNote()') &&
+    tabsJsSource.includes('showEmptyDashboard()'));
+
+  ok('zero-abas · switchToNote trata id nulo limpando editor e cabeçalho sem erros',
+    tabsJsSource.includes('await switchToNote(null)') ||
+    tabsJsSource.includes('switchToNote(null)'));
+
+  ok('zero-abas · renderEmptyDashboardContent cria Hero, Ações Rápidas, Recentes e Dicas',
+    tabsJsSource.includes('empty-dashboard-hero') &&
+    tabsJsSource.includes('empty-dashboard-actions-grid') &&
+    tabsJsSource.includes('empty-dashboard-recents-list') &&
+    tabsJsSource.includes('empty-dashboard-tips-grid'));
+
+  ok('zero-abas · CSS para .notes-empty-dashboard e itens recentes',
+    styleCssSource.includes('.notes-empty-dashboard {') &&
+    styleCssSource.includes('.empty-dashboard-action-card') &&
+    styleCssSource.includes('.empty-dashboard-recent-item'));
+
+  // 30.4: Catálogo Completo de mais de 4.000 Ícones Material Symbols
+  const { MATERIAL_ICONS } = await import('../sidepanel/modules/material-icons-list.js');
+  ok('catalogo-icones · material-icons-list.js exporta mais de 4.000 ícones oficiais',
+    Array.isArray(MATERIAL_ICONS) && MATERIAL_ICONS.length >= 4000);
+
+  ok('catalogo-icones · renderAppearanceContent inclui campo de busca, scroll e contador',
+    tabsJsSource.includes("icon-search-input") &&
+    tabsJsSource.includes("icon-catalog-scroll") &&
+    tabsJsSource.includes("icon-catalog-grid") &&
+    tabsJsSource.includes("icon-catalog-header-count"));
+
+  ok('catalogo-icones · CSS de estilo para o catálogo de ícones e campo de busca',
+    styleCssSource.includes('.icon-catalog-header-count') &&
+    styleCssSource.includes('.icon-search-input') &&
+    styleCssSource.includes('.icon-catalog-scroll'));
+
+  // 30.5: Remoção do campo manual redundante de nome de ícone
+  ok('catalogo-icones · removeu campo manual redundante icon-custom-row e link externo',
+    !tabsJsSource.includes('icon-custom-row') &&
+    !tabsJsSource.includes('icon-hint-link'));
+
+  // 30.6: Visibilidade e abertura de notas no estado zero-abas
+  const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  ok('zero-abas · CSS sobrescreve display:flex com display:none !important em elementos com [hidden]',
+    styleCssSource.includes('.note-editor[hidden]') &&
+    styleCssSource.includes('.notes-empty-dashboard[hidden]'));
+
+  ok('zero-abas · CSS oculta documentos, resizer e barra inteligente quando nenhuma nota estiver aberta',
+    styleCssSource.includes('body.no-note-open .docs-section') &&
+    styleCssSource.includes('body.no-note-open #resize-handle') &&
+    styleCssSource.includes('body.no-note-open .mobile-notion-toolbar'));
+
+  ok('zero-abas · updateMobileToolbarState oculta a barra móvel/inteligente quando !currentNoteId',
+    noteJsSource.includes('if (!currentNoteId)') &&
+    noteJsSource.includes('mobileNotionToolbar.style.display = \'none\''));
+
+  // 30.7: Seletor de visão auxiliar e migração do menu More para o Aside Drawer
+  const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  const docsJsSource = await readFile(new URL('../sidepanel/modules/documents.js', import.meta.url), 'utf8');
+
+  ok('visoes · index.html removeu botão #btn-app-menu (descontinuado) e adicionou #btn-aux-view-switcher',
+    !htmlSource.includes('id="btn-app-menu"') &&
+    htmlSource.includes('id="btn-aux-view-switcher"'));
+
+  ok('visoes · aside drawer possui rodapé .notes-aside-footer com seções de Visões e Ações',
+    tabsJsSource.includes('notes-aside-footer') &&
+    tabsJsSource.includes('aside-footer-grid') &&
+    tabsJsSource.includes('Quadro') &&
+    tabsJsSource.includes('Grafo') &&
+    tabsJsSource.includes('Calendário'));
+
+  ok('visoes · documents.js exporta e gerencia openAuxViewMenu para alternar entre Documentos, Quadro, Grafo e Calendário',
+    docsJsSource.includes('export function openAuxViewMenu') &&
+    docsJsSource.includes('btn-aux-view-switcher') &&
+    docsJsSource.includes('Quadro Infinito') &&
+    docsJsSource.includes('Grafo de Conexões') &&
+    docsJsSource.includes('Calendário'));
+
+  // 30.8: Caminho da pasta abaixo do nome da nota na aba
+  ok('abas · pasta é exibida abaixo do nome dentro de .note-tab-title-group sem visual de chip',
+    tabsJsSource.includes('note-tab-title-group') &&
+    tabsJsSource.includes('note-tab-folder note-tab-folder-badge') &&
+    styleCssSource.includes('.note-tab-title-group {') &&
+    styleCssSource.includes('.note-tab-folder,') &&
+    styleCssSource.includes('font-size: 8.5px;'));
+
+  // 30.9: Visualização simultânea em Split-View (Notas + Visões Auxiliares)
+  const viewsJsModSource = await readFile(new URL('../sidepanel/modules/views.js', import.meta.url), 'utf8');
+  ok('split-view · views.js mantém note-section e resize-handle visíveis nas visões grafo, board e calendar',
+    viewsJsModSource.includes("viewName === 'grafo'") &&
+    viewsJsModSource.includes("if (noteSection) noteSection.hidden = false;") &&
+    viewsJsModSource.includes("if (resizeHandle) resizeHandle.hidden = false;") &&
+    viewsJsModSource.includes("expandDocsToHalf()"));
+
+  ok('split-view · style.css posiciona visões auxiliares na order 4 no mobile/extensão para split com note-section',
+    styleCssSource.includes('html[data-platform="extension"] .graph-view') &&
+    styleCssSource.includes('html[data-platform="extension"] .board-view') &&
+    styleCssSource.includes('html[data-platform="extension"] .calendar-view') &&
+    styleCssSource.includes('order: 4 !important;'));
+
+  ok('split-view · index.html possui botões de alternância rápida em todos os cabeçalhos auxiliares',
+    htmlSource.includes('id="btn-graph-aux-switcher"') &&
+    htmlSource.includes('id="btn-board-aux-switcher"') &&
+    htmlSource.includes('id="btn-calendar-aux-switcher"'));
+
+  ok('split-view · documents.js anexa o menu de visão auxiliar a todos os cabeçalhos',
+    docsJsSource.includes("attachSwitcher('btn-aux-view-switcher', 'docs-title-wrap')") &&
+    docsJsSource.includes("attachSwitcher('btn-graph-aux-switcher', 'graph-title-wrap')") &&
+    docsJsSource.includes("attachSwitcher('btn-board-aux-switcher', null)") &&
+    docsJsSource.includes("attachSwitcher('btn-calendar-aux-switcher', 'calendar-title-wrap')"));
+
+  ok('split-view · no-note-open oculta todas as visões auxiliares quando nenhuma nota estiver aberta',
+    styleCssSource.includes('body.no-note-open .graph-view') &&
+    styleCssSource.includes('body.no-note-open .board-view') &&
+    styleCssSource.includes('body.no-note-open .calendar-view'));
+
+  // 30.10: Destaque de nota ativa no grafo, guias das pastas na aside e fade do sync
+  const graphViewSourceMod = await readFile(new URL('../sidepanel/modules/graph-view.js', import.meta.url), 'utf8');
+  const tabsJsSourceMod = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  const styleCssSourceMod = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+
+  ok('grafo · graph-view.js destaca nota ativa e não fecha o grafo ao clicar em outro nó',
+    graphViewSourceMod.includes('getCurrentNoteId') &&
+    graphViewSourceMod.includes('isActiveNote') &&
+    graphViewSourceMod.includes('● ${text}') &&
+    !graphViewSourceMod.includes("switchView('editor')"));
+
+  ok('aside · style.css implementa linha exclusivamente vertical e evita que a nota aberta sobreponha a linha',
+    tabsJsSourceMod.includes("--guide-left") &&
+    styleCssSourceMod.includes('.folder-children::before') &&
+    styleCssSourceMod.includes('.folder-children > .notes-list-item') &&
+    styleCssSourceMod.includes('margin-left: calc(var(--guide-left') &&
+    !styleCssSourceMod.includes('.folder-children::after'));
+
+  ok('header · style.css reposiciona o degradê fade direito atrás do botão Sync',
+    styleCssSourceMod.includes('.notes-tabbar::after') &&
+    styleCssSourceMod.includes('right: 14px;') &&
+    styleCssSourceMod.includes('grid-template-columns: auto auto 1fr auto;'));
+
+  // 30.11: Coexistência de Tela Cheia (100%) e Tela Dividida (Split-View) para Quadro, Grafo e Calendário
+  const viewsJsSource = await readFile(new URL('../sidepanel/modules/views.js', import.meta.url), 'utf8');
+  const docJsSource = await readFile(new URL('../sidepanel/modules/documents.js', import.meta.url), 'utf8');
+
+  ok('views · views.js exporta isViewSplit, isViewFullscreen e toggleViewFullscreen',
+    viewsJsSource.includes('export function isViewSplit') &&
+    viewsJsSource.includes('export function isViewFullscreen') &&
+    viewsJsSource.includes('export function toggleViewFullscreen') &&
+    viewsJsSource.includes('updateFullscreenButtons'));
+
+  ok('views · views.js gerencia classes view-fullscreen e view-split',
+    viewsJsSource.includes("'view-fullscreen'") &&
+    viewsJsSource.includes("'view-split'") &&
+    viewsJsSource.includes('isSplitMode'));
+
+  ok('headers · index.html define botões de alternância de tela cheia/split para grafo, quadro e calendário',
+    htmlSource.includes('id="btn-graph-toggle-fullscreen"') &&
+    htmlSource.includes('id="btn-board-toggle-fullscreen"') &&
+    htmlSource.includes('id="btn-calendar-toggle-fullscreen"'));
+
+  ok('menu · documents.js suporta abertura em split e opção de alternar tela cheia',
+    docJsSource.includes("switchView('board', { split: true })") &&
+    docJsSource.includes("switchView('grafo', { split: true })") &&
+    docJsSource.includes("switchView('calendar', { split: true })") &&
+    docJsSource.includes('toggleViewFullscreen()'));
+
+  ok('design · style.css implementa regras para 100% tela cheia e modo dividido no desktop e mobile',
+    styleCssSourceMod.includes('html.view-fullscreen .note-section') &&
+    styleCssSourceMod.includes('html[data-platform="extension"].view-fullscreen .graph-view') &&
+    styleCssSourceMod.includes('html[data-platform="desktop"].view-fullscreen .graph-view') &&
+    styleCssSourceMod.includes('html[data-platform="desktop"]:not(.view-fullscreen) .graph-view'));
+
+  // 30.12: Layout Desktop 3 Colunas (NAV | NOTA | OUTRA VIEW) e Alternância de Altura (100% / 50%)
+  ok('desktop-layout · HTML organiza NAV, NOTA e visões auxiliares em 3 colunas horizontais',
+    styleCssSourceMod.includes('html[data-platform="desktop"] #app {') &&
+    styleCssSourceMod.includes('flex-direction: row;') &&
+    styleCssSourceMod.includes('html[data-platform="desktop"] .app-aside {') &&
+    styleCssSourceMod.includes('order: 1 !important;') &&
+    styleCssSourceMod.includes('html[data-platform="desktop"] .note-section,') &&
+    styleCssSourceMod.includes('order: 2 !important;') &&
+    styleCssSourceMod.includes('order: 3 !important;'));
+
+  ok('desktop-layout · views.js gerencia alternância de altura (100% / 50%) com isViewHalfHeight e toggleViewHeight',
+    viewsJsSource.includes('export function isViewHalfHeight') &&
+    viewsJsSource.includes('export function toggleViewHeight') &&
+    viewsJsSource.includes('export function setHalfHeightMode') &&
+    viewsJsSource.includes('export function updateHeightButtons') &&
+    viewsJsSource.includes('btn-graph-toggle-height') &&
+    viewsJsSource.includes('btn-board-toggle-height') &&
+    viewsJsSource.includes('btn-calendar-toggle-height') &&
+    viewsJsSource.includes('btn-docs-toggle-height'));
+
+  ok('desktop-layout · index.html define botões de controle de altura view-height-btn nos 4 cabeçalhos',
+    htmlSource.includes('id="btn-graph-toggle-height"') &&
+    htmlSource.includes('id="btn-board-toggle-height"') &&
+    htmlSource.includes('id="btn-calendar-toggle-height"') &&
+    htmlSource.includes('id="btn-docs-toggle-height"'));
+
+  ok('desktop-layout · style.css define regras para altura total (100vh) e meia altura (50vh) ancorada no desktop',
+    styleCssSourceMod.includes('html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .graph-view') &&
+    styleCssSourceMod.includes('html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .graph-view') &&
+    styleCssSourceMod.includes('height: 50vh !important;') &&
+    styleCssSourceMod.includes('align-self: flex-end !important;') &&
+    styleCssSourceMod.includes('html[data-platform="extension"] .view-height-btn,'));
+
+  // 30.13: Isolamento estrito de visões auxiliares na extensão e mobile
+  ok('isolamento-visoes · style.css oculta estritamente visões inativas ou com [hidden] na extensão',
+    styleCssSourceMod.includes('html:not(.view-grafo) .graph-view') &&
+    styleCssSourceMod.includes('html:not(.view-board) .board-view') &&
+    styleCssSourceMod.includes('html:not(.view-calendar) .calendar-view') &&
+    styleCssSourceMod.includes('html:not(.view-templates) .templates-gallery-view') &&
+    styleCssSourceMod.includes('html[data-platform="extension"].view-grafo:not(.view-fullscreen) .graph-view:not([hidden])'));
+
+  // 30.14: Menu dropdown de alternância de visão auxiliar
+  ok('switcher-menu · documents.js e style.css garantem visibilidade e posicionamento fixo do menu auxiliar',
+    docsJsSource.includes("menu.className = 'copy-menu aux-view-menu aux-view-dropdown'") &&
+    styleCssSourceMod.includes('.aux-view-menu,') &&
+    styleCssSourceMod.includes('.aux-view-dropdown') &&
+    styleCssSourceMod.includes('position: fixed !important;') &&
+    styleCssSourceMod.includes('z-index: 10000 !important;'));
 }
 
 if (falhas.length) {

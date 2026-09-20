@@ -8,8 +8,9 @@
 
 import { loadAllNotesMeta, obterTodosLinks } from './storage.js';
 import { construirGrafo } from './links.js';
-import { switchView, goBack } from './views.js';
+import { switchView, goBack, getCurrentView, isViewFullscreen } from './views.js';
 import { escHtml } from './blocks.js';
+import { getCurrentNoteId } from './note.js';
 
 const CONFIG_STORAGE_KEY = 'quickdock:graph:config';
 
@@ -122,6 +123,14 @@ export function initGraphView() {
 
   document.addEventListener('quickdock:refresh-graph-view', () => {
     carregarERenderizarGrafo();
+  });
+
+  document.addEventListener('quickdock:active-note-changed', () => {
+    if (getCurrentView() === 'grafo') render();
+  });
+
+  document.addEventListener('quickdock:note-loaded', () => {
+    if (getCurrentView() === 'grafo') render();
   });
 }
 
@@ -731,13 +740,16 @@ function render() {
 
   // 2. Desenha nós
   const currentShape = config.nodeShape || 'star';
+  const activeNoteId = typeof getCurrentNoteId === 'function' ? getCurrentNoteId() : null;
+
   for (const node of nodes) {
     const isHovered = hoveredNode === node;
+    const isActiveNote = (node.noteId != null && activeNoteId != null && String(node.noteId) === String(activeNoteId));
     const isNeighbor = activeNeighborSet && activeNeighborSet.has(node.id);
     const isDimmed = hoveredNode && !isHovered && !isNeighbor;
 
     const baseRadius = node.radius || 6;
-    const r = isHovered ? baseRadius * 1.3 : baseRadius;
+    const r = (isHovered || isActiveNote) ? baseRadius * 1.3 : baseRadius;
 
     ctx.save();
     if (isDimmed) {
@@ -746,8 +758,22 @@ function render() {
 
     let nodeColor = node.color || accentColor;
 
-    // Brilho / Halo neon em hover
-    if (isHovered) {
+    if (isActiveNote) {
+      // Destaque brilhante para a nota ativa
+      ctx.shadowColor = accentColor;
+      ctx.shadowBlur = 18;
+
+      // Anel pontilhado externo destacando a nota atual
+      ctx.save();
+      ctx.beginPath();
+      const outerR = (currentShape === 'star' ? r * 1.35 : r) + 4.5;
+      ctx.arc(node.x, node.y, outerR, 0, Math.PI * 2);
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.restore();
+    } else if (isHovered) {
       ctx.shadowColor = nodeColor;
       ctx.shadowBlur = 14;
     }
@@ -758,20 +784,27 @@ function render() {
     ctx.fill();
 
     ctx.shadowBlur = 0; // Desativa blur para manter a borda nítida
-    ctx.strokeStyle = isHovered ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.2)');
-    ctx.lineWidth = isHovered ? 2.5 : 1.2;
+    if (isActiveNote) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.8;
+    } else {
+      ctx.strokeStyle = isHovered ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.2)');
+      ctx.lineWidth = isHovered ? 2.5 : 1.2;
+    }
     ctx.stroke();
 
     // Rótulo da nota
-    const shouldShowLabel = isHovered || isNeighbor || config.alwaysShowLabels || zoom >= 0.75 || node.degree > 1;
+    const shouldShowLabel = isActiveNote || isHovered || isNeighbor || config.alwaysShowLabels || zoom >= 0.75 || node.degree > 1;
     if (shouldShowLabel) {
-      ctx.font = isHovered ? '600 12px system-ui, sans-serif' : '11px system-ui, sans-serif';
-      ctx.fillStyle = isDark ? '#e4e4e7' : '#18181b';
+      ctx.font = (isActiveNote || isHovered) ? '600 12px system-ui, sans-serif' : '11px system-ui, sans-serif';
+      ctx.fillStyle = isActiveNote ? accentColor : (isDark ? '#e4e4e7' : '#18181b');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
 
       let text = node.title || 'Sem título';
-      if (text.length > 22 && !isHovered && !config.alwaysShowLabels) {
+      if (isActiveNote) {
+        text = `● ${text}`;
+      } else if (text.length > 22 && !isHovered && !config.alwaysShowLabels) {
         text = text.slice(0, 20) + '…';
       }
       const visualRadius = currentShape === 'star' ? r * 1.35 : r;
@@ -878,14 +911,17 @@ function onPointerUp(e) {
     canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
   }
 
-  // Clique em nó sem arrastar abre a nota diretamente
+  // Clique em nó sem arrastar abre a nota diretamente sem fechar o grafo
   if (!pointerMoved && hoveredNode) {
     const target = hoveredNode;
     hideTooltip();
+    if (isViewFullscreen()) {
+      switchView('grafo', { split: true });
+    }
     document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
       detail: { id: target.noteId, uid: target.id }
     }));
-    switchView('editor');
+    render();
   }
 }
 

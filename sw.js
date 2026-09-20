@@ -43,6 +43,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/templates-gallery.js',
   'sidepanel/modules/views.js',
   'sidepanel/modules/icons.js',
+  'sidepanel/modules/material-icons-list.js',
   'sidepanel/modules/backup.js',
   'sidepanel/modules/snapshot.js',
   'sidepanel/modules/sync-engine.js',
