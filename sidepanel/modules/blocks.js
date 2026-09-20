@@ -80,6 +80,7 @@ const INLINE_MD = [
   { re: /\*\*([^\n]+?)\*\*/g, tag: 'strong' },
   { re: /~~([^\n]+?)~~/g, tag: 's' },
   { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?!\*)/g, tag: 'em' },
+  { re: /(?:^|(?<=[\s,.:;!?'"([{<]))#([a-zA-Z\u00C0-\u017F0-9_\-]+(?:\/[a-zA-Z\u00C0-\u017F0-9_\-]+)*)(?=$|[\s,.:;!?'")\]}>])/g, tag: 'tag' },
 ];
 
 function parseInlineMarkdown(text) {
@@ -92,8 +93,10 @@ function parseInlineMarkdown(text) {
       if (matches.some(e => e.start < end && e.end > start)) continue;
       if (tag === 'wikilink') {
         matches.push({ start, end, tag, content: m[1], alias: m[2] });
-      } else {
+      } else if (tag === 'a') {
         matches.push({ start, end, tag, content: m[1], href: m[2] });
+      } else {
+        matches.push({ start, end, tag, content: m[1] ?? m[0] });
       }
     }
   }
@@ -117,6 +120,13 @@ function parseInlineMarkdown(text) {
         html += href
           ? `<a href="${escHtml(href)}">${escHtml(m.content)}</a>`
           : escHtml(text.slice(m.start, m.end));
+      }
+    } else if (m.tag === 'tag') {
+      const rawTag = (m.content || '').trim();
+      if (!/^\d+$/.test(rawTag)) {
+        html += `<span class="note-tag" data-tag="${escHtml(rawTag)}">#${escHtml(rawTag)}</span>`;
+      } else {
+        html += `#${escHtml(rawTag)}`;
       }
     } else {
       html += `<${m.tag}>${escHtml(m.content)}</${m.tag}>`;

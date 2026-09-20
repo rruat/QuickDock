@@ -643,6 +643,9 @@ body:not(.booting) .note-editor-blocks {
   color: var(--callout);
   user-select: none;
 }
+.note-editor-blocks .block[data-callout-first]:focus-within::before {
+  display: none !important;
+}
 
 /* A margem de indentação empurraria o bloco pra fora da barra da citação; aqui
    ela vira recuo por dentro, e a barra continua inteira. */
@@ -792,32 +795,36 @@ body:not(.booting) .note-editor-blocks {
 
 .block-divider {
   position: relative;
-  min-height: 24px;
+  min-height: 20px;
   cursor: text;
-  padding: 4px 0;
+  padding: 6px 0;
+  display: flex;
+  align-items: center;
 }
 .block-divider .divider-content {
   display: none;
+  width: 100%;
   font-family: var(--font-mono, monospace);
   font-size: 13px;
-  color: var(--text-muted);
   letter-spacing: 2px;
-  padding: 2px 0;
   outline: none;
+  line-height: 1.5;
+  min-height: 1.2em;
+  color: var(--text-muted);
 }
 .block-divider hr {
+  width: 100%;
+  margin: 0;
   border: none;
   border-top: 1px solid var(--border);
-  margin: 11px 0;
+  pointer-events: none;
 }
-.block-divider.is-active .divider-content,
-.block-divider.is-focused .divider-content,
-.block-divider:focus-within .divider-content {
+.block-divider:focus-within .divider-content,
+.block-divider.is-active .divider-content {
   display: block;
 }
-.block-divider.is-active hr,
-.block-divider.is-focused hr,
-.block-divider:focus-within hr {
+.block-divider:focus-within hr,
+.block-divider.is-active hr {
   display: none;
 }
 
@@ -842,6 +849,43 @@ body:not(.booting) .note-editor-blocks {
   opacity: 0.65;
   user-select: text;
   display: inline;
+}
+.md-syntax-callout {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: var(--callout, var(--text-muted));
+  opacity: 0.9;
+}
+.md-syntax-link-href {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  color: var(--text-muted);
+  opacity: 0.85;
+  text-decoration: none !important;
+}
+
+/* Tags (#tag e #tag/aninhada no estilo Obsidian) */
+.note-editor-blocks .note-tag,
+.note-editor-blocks mark.tag {
+  display: inline-block;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 0.9em;
+  font-weight: 500;
+  line-height: 1.35;
+  cursor: pointer;
+  user-select: text;
+  text-decoration: none !important;
+  font-style: normal;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.note-editor-blocks .note-tag:hover,
+.note-editor-blocks mark.tag:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 /* Marcações inline reais (aplicadas ao digitar **, *, ~~, ` ou pela barra) */

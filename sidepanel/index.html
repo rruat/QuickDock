@@ -6,15 +6,7 @@
   <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>QuickDock</title>
-  <script>
-    (function() {
-      var isExt = (typeof chrome !== 'undefined' && !!chrome?.storage?.local) || (typeof location !== 'undefined' && location.protocol === 'chrome-extension:');
-      var q = typeof location !== 'undefined' && location.search ? new URLSearchParams(location.search).get('platform') : null;
-      var p = (q === 'extension' || q === 'mobile' || q === 'desktop') ? q : (isExt ? 'extension' : (window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'mobile' : 'desktop'));
-      document.documentElement.dataset.platform = p;
-      document.documentElement.classList.add('platform-' + p);
-    })();
-  </script>
+  <script src="boot-platform.js"></script>
   <!-- Ícones da interface: fonte variável Material Symbols Rounded do Google,
        carregada abaixo. Cobre o catálogo inteiro — não tem mais SVG local pra
        manter em dia. display=block evita o pisca de texto cru ("star") antes

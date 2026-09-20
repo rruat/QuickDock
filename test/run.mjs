@@ -3248,7 +3248,9 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const appSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
 
-  // 22.1: Banco Dexie v11 e Persistência de Quadros
+  // CSP: Manifest V3 proíbe qualquer tag <script> inline (sem src)
+  ok('segurança · sidepanel/index.html não possui scripts inline (conformidade CSP Manifest V3)',
+    !/<script(?![^>]*src=)[^>]*>[\s\S]*?<\/script>/i.test(sidepanelHtmlSource));
   ok('quadro · schema v11 declara tabela boards', storageSource.includes('db.version(11)') && storageSource.includes('boards: "++id, uid, title, updatedAt"'));
   ok('quadro · storage.js exporta funções de persistência de quadros', storageSource.includes('loadAllBoards') && storageSource.includes('saveBoardRecord') && storageSource.includes('getBoardByUid'));
 
@@ -3777,11 +3779,23 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     noteJsSource.includes("prevContent.focus();") &&
     noteJsSource.includes("setCaretOffset(prevContent, prevContent.textContent.length);"));
 
+  ok('live-preview · Enter no divisor insere novo parágrafo abaixo preservando o divisor',
+    noteJsSource.includes("if (type === 'divider') {") &&
+    noteJsSource.includes("const newBlock = createBlockEl('paragraph');") &&
+    noteJsSource.includes("block.after(newBlock);") &&
+    noteJsSource.includes("focusBlockStart(newBlock);"));
+
   // 28.2: Cabeçalhos com redução de nível e prefixo editável
   ok('live-preview · Backspace reduz nível do cabeçalho (h3 -> h2 -> h1 -> parágrafo)',
     noteJsSource.includes("const level = Number(type.replace('heading', ''));") &&
     noteJsSource.includes("convertBlockType(block, `heading${level - 1}`);") &&
     noteJsSource.includes("convertBlockType(block, 'paragraph');"));
+
+  ok('live-preview · Apagar o # do cabeçalho via Backspace desformata imediatamente para parágrafo',
+    noteJsSource.includes('if (HEADING_TAGS[block.dataset.type]) {') &&
+    noteJsSource.includes('if (hashCount === 0) {') &&
+    noteJsSource.includes("convertBlockType(block, 'paragraph');") &&
+    noteJsSource.includes("oldContent.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());"));
 
   ok('live-preview · Motor de Live Preview revela prefixos de cabeçalho e citação reais no foco',
     noteJsSource.includes('function revealBlockSyntax(') &&
@@ -3806,13 +3820,144 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('font-family: var(--font-mono, monospace);') &&
     styleCssSource.includes('text-decoration: none !important;'));
 
+  ok('live-preview · Desfaz formatação inline ao apagar delimitadores com Backspace ou Delete',
+    noteJsSource.includes('(e.key === \'Backspace\' || e.key === \'Delete\') && livePreviewActiveInline') &&
+    noteJsSource.includes('inline.replaceWith(fragment);') &&
+    noteJsSource.includes('inline.replaceWith(...inline.childNodes);'));
+
   ok('live-preview · updateLivePreviewState chamado no selectionchange e blur no root',
     noteJsSource.includes('updateLivePreviewState();') &&
+    noteJsSource.includes('const sel = document.getSelection();') &&
+    noteJsSource.includes('if (!sel || sel.rangeCount === 0)') &&
     noteJsSource.includes('collapseBlockSyntax(livePreviewActiveBlock)') &&
     noteJsSource.includes('collapseInlineSyntax(livePreviewActiveInline)'));
 
   ok('live-preview · sanitização segura remove elementos temporários de sintaxe',
     noteJsSource.includes("div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());"));
+}
+
+// ── 29. Obsidian Live Preview Completo & Paridade Avançada ────────────────────
+{
+  const { readFile } = await import('node:fs/promises');
+  const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const { parseMarkdownToBlocks, blocksToMarkdown } = await import('../sidepanel/modules/blocks.js');
+
+  // 29.1: Tags (#tag e #tag/aninhada)
+  const b1 = parseMarkdownToBlocks('Nota com #projeto e #trabalho/fase-1/modulo_2 aqui');
+  ok('tags · gera span com classe note-tag e data-tag',
+    b1[0].html.includes('<span class="note-tag" data-tag="projeto">#projeto</span>') &&
+    b1[0].html.includes('<span class="note-tag" data-tag="trabalho/fase-1/modulo_2">#trabalho/fase-1/modulo_2</span>'));
+
+  const md1 = blocksToMarkdown(b1);
+  igual('tags · roundtrip preserva tags e tags aninhadas', md1, 'Nota com #projeto e #trabalho/fase-1/modulo_2 aqui');
+
+  const bNum = parseMarkdownToBlocks('Protocolo #12345 não é tag');
+  ok('tags · número puro #12345 não vira tag', !bNum[0].html.includes('note-tag') && bNum[0].html.includes('#12345'));
+
+  const bHead = parseMarkdownToBlocks('# Título Importante com #tag');
+  igual('tags · título com tag preserva tipo de cabeçalho', bHead[0].type, 'heading1');
+  ok('tags · tag dentro de título é formatada', bHead[0].html.includes('<span class="note-tag" data-tag="tag">#tag</span>'));
+
+  ok('tags · detector de tags presente no note.js e DETECTORS',
+    noteJsSource.includes("type: 'tag'") &&
+    noteJsSource.includes("cls = 'note-tag tag';") &&
+    noteJsSource.includes("mark.dataset.tag = m.raw.replace(/^#/, '');"));
+
+  ok('tags · clique em tag dispara busca por tag na interface',
+    noteJsSource.includes("const tagEl = e.target.closest('.note-tag, mark.tag');") &&
+    noteJsSource.includes("searchInput.value = `#${tagValue}`;") &&
+    noteJsSource.includes("'quickdock:search-notes'"));
+
+  ok('tags · CSS estiliza tags e tags aninhadas com visual pill/badge',
+    styleCssSource.includes('.note-editor-blocks .note-tag') &&
+    styleCssSource.includes('mark.tag') &&
+    styleCssSource.includes('background: color-mix(in srgb, var(--accent) 14%, transparent);'));
+
+  // 29.2: Atalhos de cabeçalho preservando texto existente (# separado vs #junto)
+  const ini = noteJsSource.indexOf('const BLOCK_SHORTCUTS = [');
+  const fim = noteJsSource.indexOf('];', ini);
+  const shortcuts = new Function(`${noteJsSource.slice(ini, fim + 2)}\nreturn BLOCK_SHORTCUTS;`)();
+  const testShortcut = str => {
+    for (const s of shortcuts) {
+      const m = s.re.exec(str);
+      if (m) return { type: s.type(m), rest: m[2] };
+    }
+    return null;
+  };
+
+  igual('cabeçalho · "# texto existente" vira heading1 preservando texto', testShortcut('# meu texto'), { type: 'heading1', rest: 'meu texto' });
+  igual('cabeçalho · "## texto existente" vira heading2 preservando texto', testShortcut('## subtitulo aqui'), { type: 'heading2', rest: 'subtitulo aqui' });
+  igual('cabeçalho · "#tag" junto não vira título', testShortcut('#minhatag'), null);
+  igual('cabeçalho · "# tag" separado vira título', testShortcut('# minhatag'), { type: 'heading1', rest: 'minhatag' });
+
+  ok('cabeçalho · checkBlockShortcut remove prefixo e preserva texto restante',
+    noteJsSource.includes('const prefixLen = s.prefixLen ? s.prefixLen(m) : m[0].length;') &&
+    noteJsSource.includes('r.deleteContents();') &&
+    noteJsSource.includes('convertBlockType(block, type, checked);'));
+
+  // 29.3: Auto-pair / envolver seleção de texto e conversão imediata para formatação
+  ok('auto-pair · suporte a delimitação com trim de espaços em branco externos',
+    noteJsSource.includes("const leadingSpace = leadMatch ? leadMatch[0] : '';") &&
+    noteJsSource.includes("const trailingSpace = trailMatch ? trailMatch[0] : '';") &&
+    noteJsSource.includes("const coreText = rawSelected.slice(leadingSpace.length"));
+
+  ok('auto-pair · duplo [ converte seleção imediatamente em link interno note-internal-link',
+    noteJsSource.includes("if (e.key === '[' || e.key === ']')") &&
+    noteJsSource.includes("if (/^\\[([^\\]]+)\\]$/.test(coreText))") &&
+    noteJsSource.includes("a.className = 'note-internal-link';"));
+
+  ok('auto-pair · duplo * converte seleção imediatamente em negrito strong com Live Preview',
+    noteJsSource.includes("if (e.key === '*')") &&
+    noteJsSource.includes("if (/^\\*([^*]+)\\*$/.test(coreText))") &&
+    noteJsSource.includes("const strong = document.createElement('strong');"));
+
+  ok('auto-pair · tecla # com texto selecionado no início/bloco converte em título',
+    noteJsSource.includes("if (e.key === '#')") &&
+    noteJsSource.includes("convertBlockType(block, nextType);"));
+
+  ok('auto-pair · tecla # com texto selecionado no meio envolve como tag #',
+    noteJsSource.includes("const textNode = document.createTextNode(`#${coreText}`);"));
+
+  ok('auto-pair · pares literais e encadeamento preservam seleção',
+    noteJsSource.includes("const PAIRS = {") &&
+    noteJsSource.includes("newRange.selectNode(nodeToSelect);"));
+
+  // 29.4: Linha divisória --- (hr completo e edição estilo Obsidian)
+  ok('divisor · checkDividerShortcut foca linha seguinte para exibir hr completo',
+    noteJsSource.includes("checkDividerShortcut(block)") &&
+    noteJsSource.includes("dividerContent.textContent = text;") &&
+    noteJsSource.includes("focusBlockStart(next);"));
+
+  ok('divisor · CSS exibe hr completo e oculta divider-content fora de foco',
+    styleCssSource.includes(".block-divider hr") &&
+    styleCssSource.includes("width: 100%;") &&
+    styleCssSource.includes(".block-divider:focus-within .divider-content") &&
+    styleCssSource.includes(".block-divider:focus-within hr"));
+
+  // 29.4: Links e Callouts editáveis no Live Preview (paridade com **texto**)
+  ok('live-preview · revealInlineSyntax suporta links web com [ e ](url) editável',
+    noteJsSource.includes("inlineEl.tagName === 'A' && !isWiki") &&
+    noteJsSource.includes("openSpan.textContent = '[';") &&
+    noteJsSource.includes("md-syntax-link-href"));
+
+  ok('live-preview · collapseInlineSyntax atualiza href do link ao fechar',
+    noteJsSource.includes("const hrefSpan = inlineEl.querySelector('.md-syntax-link-href');") &&
+    noteJsSource.includes("inlineEl.setAttribute('href', safeHref(newHref) || newHref);"));
+
+  ok('live-preview · revealBlockSyntax suporta callouts editáveis (> [!NOTE] etc)',
+    noteJsSource.includes("prefixSpan.textContent = `> [!${callout.toUpperCase()}] `;") &&
+    noteJsSource.includes("prefixSpan.dataset.syntaxType = 'callout';") &&
+    noteJsSource.includes("md-syntax-callout"));
+
+  ok('live-preview · input monitora edição/remoção de callout',
+    noteJsSource.includes("if (block.dataset.callout)") &&
+    noteJsSource.includes("setBlockCallout(block, newType);") &&
+    noteJsSource.includes("delete block.dataset.callout;"));
+
+  ok('live-preview · CSS esconde pill do callout durante o foco para exibir sintaxe editável',
+    styleCssSource.includes('.note-editor-blocks .block[data-callout-first]:focus-within::before') &&
+    styleCssSource.includes('display: none !important;'));
 }
 
 if (falhas.length) {

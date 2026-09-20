@@ -345,9 +345,10 @@ function buildCopyOptions(type, raw) {
 
 // ── Detecção inteligente (CPF / CNPJ / telefone / data / CEP / e-mail / cálculo) ──
 const DETECTORS = [
-  { type: 'email', re: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g },
-  { type: 'cnpj',  re: /[A-Z0-9]{2}\.[A-Z0-9]{3}\.[A-Z0-9]{3}\/[A-Z0-9]{4}-\d{2}/gi },
-  { type: 'cpf',   re: /\d{3}\.\d{3}\.\d{3}-\d{2}/g                         },
+  { type: 'tag',           re: /(?:^|(?<=[\s,.:;!?'"([{<]))#([a-zA-Z\u00C0-\u017F0-9_\-]+(?:\/[a-zA-Z\u00C0-\u017F0-9_\-]+)*)(?=$|[\s,.:;!?'")\]}>])/g },
+  { type: 'email',         re: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g },
+  { type: 'cnpj',          re: /[A-Z0-9]{2}\.[A-Z0-9]{3}\.[A-Z0-9]{3}\/[A-Z0-9]{4}-\d{2}/gi },
+  { type: 'cpf',           re: /\d{3}\.\d{3}\.\d{3}-\d{2}/g                         },
   { type: 'cep',           re: /\b\d{5}-\d{3}\b/g },
   { type: 'datetimerange', re: /\b\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}[ \t]+\d{1,2}:\d{2}(?::\d{2})?[ \t]+at[eé][ \t]+\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}[ \t]+\d{1,2}:\d{2}(?::\d{2})?\b/gi },
   { type: 'daterange',     re: /\b\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}[ \t]+at[eé][ \t]+\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}\b/gi },
@@ -372,6 +373,7 @@ function findDetectionMatches(text) {
     while ((m = re.exec(text)) !== null) {
       const start = m.index;
       const end   = start + m[0].length;
+      if (type === 'tag'          && (/^\d+$/.test(m[1] || '') || !(m[1] || '').trim())) continue;
       if (type === 'date'          && !parseDate(m[0]))          continue;
       if (type === 'daterange'     && !parseDateRange(m[0]))     continue;
       if (type === 'timerange'     && !parseTimeRange(m[0]))     continue;
@@ -416,6 +418,10 @@ function applyDetectionMarks(el) {
       let cls = m.type;
       if (m.type === 'cpf')  cls += validateCPF(m.raw)  ? ' valid' : ' invalid';
       if (m.type === 'cnpj') cls += validateCNPJ(m.raw) ? ' valid' : ' invalid';
+      if (m.type === 'tag') {
+        cls = 'note-tag tag';
+        mark.dataset.tag = m.raw.replace(/^#/, '');
+      }
       mark.className = cls;
       mark.dataset.type = m.type;
       mark.dataset.value = m.raw;
@@ -584,7 +590,6 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
   } else if (type === 'divider') {
     el = document.createElement('div');
     el.className = 'block block-divider';
-    el.contentEditable = 'true';
     const content = document.createElement('span');
     content.className = 'block-content divider-content';
     content.contentEditable = 'true';
@@ -594,12 +599,10 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
     el.append(content, hr);
 
     el.addEventListener('mousedown', e => {
-      if (document.activeElement !== content) {
-        e.preventDefault();
-        el.classList.add('is-active');
-        content.focus();
-        setCaretOffset(content, content.textContent.length);
-      }
+      e.preventDefault();
+      el.classList.add('is-active');
+      content.focus();
+      setCaretOffset(content, content.textContent.length);
     });
 
     el.addEventListener('focusin', () => el.classList.add('is-active'));
@@ -607,8 +610,14 @@ function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
       el.classList.remove('is-active');
       const text = content.textContent.trim();
       if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) {
-        const para = convertBlockType(el, 'paragraph');
-        getContentEl(para).textContent = text;
+        if (text === '') {
+          const prev = el.previousElementSibling ?? el.nextElementSibling;
+          el.remove();
+          if (prev) focusBlockEnd(prev);
+        } else {
+          const para = convertBlockType(el, 'paragraph');
+          getContentEl(para).textContent = text;
+        }
       }
     });
 
@@ -1101,6 +1110,7 @@ function convertBlockType(blockEl, newType, checked = false) {
   }
 
   const oldContent = getContentEl(blockEl);
+  oldContent.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
   const newBlock = createBlockEl(newType, oldContent.innerHTML, checked);
   setBlockDepth(newBlock, blockDepth(blockEl));
   setBlockQuoted(newBlock, isBlockQuoted(blockEl));
@@ -2264,6 +2274,24 @@ root.addEventListener('click', e => {
     return;
   }
 
+  const tagEl = e.target.closest('.note-tag, mark.tag');
+  if (tagEl && root.contains(tagEl)) {
+    const tagValue = tagEl.dataset.tag || tagEl.textContent.replace(/^#/, '').trim();
+    if (tagValue) {
+      e.preventDefault();
+      const searchInput = document.querySelector('.notes-search-input');
+      if (searchInput) {
+        searchInput.value = `#${tagValue}`;
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        searchInput.focus();
+      }
+      document.dispatchEvent(new CustomEvent('quickdock:search-notes', {
+        detail: { query: `#${tagValue}` }
+      }));
+      return;
+    }
+  }
+
   const mark = e.target.closest('mark');
   if (!mark) {
     if (isBlockSelectActive) {
@@ -3242,8 +3270,9 @@ export function revealBlockSyntax(block) {
   const type = block.dataset.type;
   const isHeading = HEADING_TAGS[type];
   const isQuoted = isBlockQuoted(block);
+  const callout = block.dataset.callout;
 
-  if (!isHeading && !isQuoted) return;
+  if (!isHeading && !isQuoted && !callout) return;
 
   const contentEl = getContentEl(block);
   if (!contentEl) return;
@@ -3253,7 +3282,11 @@ export function revealBlockSyntax(block) {
   prefixSpan.className = 'md-syntax-prefix';
   prefixSpan.contentEditable = 'true';
 
-  if (isHeading) {
+  if (callout) {
+    prefixSpan.textContent = `> [!${callout.toUpperCase()}] `;
+    prefixSpan.dataset.syntaxType = 'callout';
+    prefixSpan.classList.add('md-syntax-callout');
+  } else if (isHeading) {
     const level = Number(type.replace('heading', ''));
     prefixSpan.textContent = '#'.repeat(level) + ' ';
     prefixSpan.dataset.syntaxType = 'heading';
@@ -3288,6 +3321,24 @@ export function revealInlineSyntax(inlineEl) {
   if (inlineEl.querySelector(':scope > .md-syntax-open')) return;
 
   const isWiki = inlineEl.classList?.contains('note-internal-link');
+  if (inlineEl.tagName === 'A' && !isWiki) {
+    const href = inlineEl.getAttribute('href') || '';
+    const openSpan = document.createElement('span');
+    openSpan.className = 'md-syntax md-syntax-open';
+    openSpan.contentEditable = 'true';
+    openSpan.textContent = '[';
+
+    const closeSpan = document.createElement('span');
+    closeSpan.className = 'md-syntax md-syntax-close';
+    closeSpan.contentEditable = 'true';
+    closeSpan.innerHTML = `](<span class="md-syntax-link-href" contenteditable="true">${escHtml(href)}</span>)`;
+
+    inlineEl.prepend(openSpan);
+    inlineEl.append(closeSpan);
+    inlineEl.classList.add('md-token-open');
+    return;
+  }
+
   const openSyntax = isWiki ? '[[' : INLINE_SYNTAX_MAP[inlineEl.tagName];
   const closeSyntax = isWiki ? ']]' : openSyntax;
 
@@ -3310,6 +3361,15 @@ export function revealInlineSyntax(inlineEl) {
 
 export function collapseInlineSyntax(inlineEl) {
   if (!inlineEl) return;
+  if (inlineEl.tagName === 'A' && !inlineEl.classList?.contains('note-internal-link')) {
+    const hrefSpan = inlineEl.querySelector('.md-syntax-link-href');
+    if (hrefSpan) {
+      const newHref = hrefSpan.textContent.trim();
+      if (newHref) {
+        inlineEl.setAttribute('href', safeHref(newHref) || newHref);
+      }
+    }
+  }
   inlineEl.querySelectorAll(':scope > .md-syntax').forEach(s => s.remove());
   inlineEl.classList.remove('md-token-open');
 }
@@ -3337,7 +3397,7 @@ export function updateLivePreviewState() {
   }
 
   const el = anchor.nodeType === Node.ELEMENT_NODE ? anchor : anchor.parentElement;
-  const inline = el?.closest?.('.note-editor-blocks strong, .note-editor-blocks b, .note-editor-blocks em, .note-editor-blocks i, .note-editor-blocks s, .note-editor-blocks strike, .note-editor-blocks del, .note-editor-blocks code, .note-editor-blocks a.note-internal-link');
+  const inline = el?.closest?.('.note-editor-blocks strong, .note-editor-blocks b, .note-editor-blocks em, .note-editor-blocks i, .note-editor-blocks s, .note-editor-blocks strike, .note-editor-blocks del, .note-editor-blocks code, .note-editor-blocks a');
 
   if (inline !== livePreviewActiveInline) {
     if (livePreviewActiveInline) collapseInlineSyntax(livePreviewActiveInline);
@@ -3348,17 +3408,17 @@ export function updateLivePreviewState() {
 
 // ── Atalhos de Markdown → tipo de bloco ───────────────────────────────────────
 const BLOCK_SHORTCUTS = [
-  { re: /^(#{1,6}) $/, type: m => `heading${m[1].length}` },
+  { re: /^(#{1,6}) (.*)$/s, type: m => `heading${m[1].length}`, prefixLen: m => m[1].length + 1 },
   // Sem hífen na frente de propósito: "- [ ] " nunca dispara, porque "- "
   // sozinho já vira lista de marcador antes de "[ ] " terminar de ser digitado
   // (o atalho roda a cada tecla). "[]"/"[ ]"/"[x] " direto evita a corrida.
-  { re: /^\[([ xX]?)\] $/, type: () => 'checklist', checked: m => /[xX]/.test(m[1]) },
-  { re: /^[-*] $/, type: () => 'bullet' },
-  { re: /^\d+\. $/, type: () => 'number' },
-  { re: /^> $/, type: () => 'quote' },
+  { re: /^\[([ xX]?)\] (.*)$/s, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), prefixLen: m => m[1].length + 3 },
+  { re: /^[-*] (?!\[)(.*)$/s, type: () => 'bullet', prefixLen: () => 2 },
+  { re: /^\d+\. (.*)$/s, type: () => 'number', prefixLen: m => m[0].length - m[1].length },
+  { re: /^> (.*)$/s, type: () => 'quote', prefixLen: () => 2 },
   // A palavra-chave é a do markdown (inglês), igual à que vai pro arquivo.
-  { re: /^\[!(note|tip|important|warning|caution)\] $/i, type: m => `callout:${m[1].toLowerCase()}` },
-  { re: /^```$/, type: () => 'code' },
+  { re: /^\[!(note|tip|important|warning|caution)\] (.*)$/is, type: m => `callout:${m[1].toLowerCase()}`, prefixLen: m => m[0].length - m[2].length },
+  { re: /^```$/, type: () => 'code', prefixLen: () => 3 },
 ];
 
 function checkDividerShortcut(block) {
@@ -3367,27 +3427,45 @@ function checkDividerShortcut(block) {
   if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) return false;
 
   const divider = createBlockEl('divider');
-  block.replaceWith(divider);
-  divider.classList.add('is-active');
   const dividerContent = getContentEl(divider);
   dividerContent.textContent = text;
-  dividerContent.focus();
-  setCaretOffset(dividerContent, text.length);
+  block.replaceWith(divider);
+
+  let next = divider.nextElementSibling;
+  if (!next) {
+    next = createBlockEl('paragraph');
+    divider.after(next);
+  }
+  focusBlockStart(next);
   renumberLists();
+  closeSlashMenu();
   return true;
 }
 
 function checkBlockShortcut(block) {
-  const text = getContentEl(block).textContent;
+  const content = getContentEl(block);
+  if (!content) return false;
+  const text = content.textContent;
   for (const s of BLOCK_SHORTCUTS) {
     const m = s.re.exec(text);
     if (!m) continue;
     const type = s.type(m);
     const checked = s.checked ? s.checked(m) : false;
+    const prefixLen = s.prefixLen ? s.prefixLen(m) : m[0].length;
+
+    if (prefixLen > 0 && prefixLen <= content.textContent.length) {
+      const r = rangeFromOffsets(content, 0, prefixLen);
+      r.deleteContents();
+    }
     const newBlock = convertBlockType(block, type, checked);
-    clearContent(getContentEl(newBlock));
     revealBlockSyntax(newBlock);
-    focusBlockEnd(newBlock);
+    const newContent = getContentEl(newBlock);
+    const prefixEl = newContent.querySelector(':scope > .md-syntax-prefix');
+    if (prefixEl) {
+      setCaretOffset(newContent, prefixEl.textContent.length);
+    } else {
+      focusBlockStart(newBlock);
+    }
     renumberLists();
     closeSlashMenu();
     return true;
@@ -3526,6 +3604,16 @@ function handleEnter(block) {
   const content  = getContentEl(block);
   const offset   = getCaretOffset(content);
   const type     = block.dataset.type;
+
+  // Divisor no Enter: insere um parágrafo novo depois do divisor e move o cursor para lá
+  if (type === 'divider') {
+    const newBlock = createBlockEl('paragraph');
+    block.after(newBlock);
+    focusBlockStart(newBlock);
+    renumberLists();
+    return;
+  }
+
   const isListish = type === 'bullet' || type === 'number' || type === 'checklist';
   // A folha de cálculo se repete no Enter como uma lista se repete, e sai pelo
   // mesmo gesto: Enter numa linha vazia.
@@ -3597,15 +3685,18 @@ function handleBackspaceAtStart(block) {
     return;
   }
 
-  // Divisor: apagar no início remove o divisor
+  // Divisor: apagar no início remove o divisor e foca o anterior
   if (type === 'divider') {
+    const prev = block.previousElementSibling;
     const next = block.nextElementSibling;
-    if (next) {
-      block.remove();
+    block.remove();
+    if (prev) {
+      focusBlockEnd(prev);
+    } else if (next) {
       focusBlockStart(next);
     } else {
-      const para = convertBlockType(block, 'paragraph');
-      clearContent(getContentEl(para));
+      const para = createBlockEl('paragraph');
+      root.appendChild(para);
       focusBlockStart(para);
     }
     renumberLists();
@@ -3614,10 +3705,11 @@ function handleBackspaceAtStart(block) {
 
   // Cabeçalhos: Backspace no início reduz o nível (h3 -> h2 -> h1 -> parágrafo),
   // permitindo desformatar ou alterar o nível sem precisar da toolbar.
-  if (HEADING_TAGS[type] && !isEmpty) {
+  if (HEADING_TAGS[type]) {
     const level = Number(type.replace('heading', ''));
     if (level > 1) {
       const novo = convertBlockType(block, `heading${level - 1}`);
+      revealBlockSyntax(novo);
       focusBlockStart(novo);
       renumberLists();
       return;
@@ -3652,6 +3744,7 @@ function handleBackspaceAtStart(block) {
   if (prev.dataset.type === 'divider') {
     const prevContent = getContentEl(prev);
     if (isEmpty) block.remove();
+    prev.classList.add('is-active');
     prevContent.focus();
     setCaretOffset(prevContent, prevContent.textContent.length);
     renumberLists();
@@ -3716,43 +3809,129 @@ root.addEventListener('input', () => {
     return;
   }
 
-  // Live Preview: monitorar edição do prefixo de bloco (# ou >)
-  const prefixSpan = getContentEl(block)?.querySelector?.(':scope > .md-syntax-prefix');
-  if (prefixSpan) {
-    const raw = prefixSpan.textContent;
-    if (prefixSpan.dataset.syntaxType === 'heading') {
-      const m = /^(#{1,6}) ?$/.exec(raw);
-      if (m) {
-        const newLevel = m[1].length;
-        if (block.dataset.type !== `heading${newLevel}`) {
-          convertBlockType(block, `heading${newLevel}`);
-        }
-      } else if (!raw.includes('#')) {
-        prefixSpan.remove();
-        convertBlockType(block, 'paragraph');
-      }
-    } else if (prefixSpan.dataset.syntaxType === 'quote') {
-      if (!raw.includes('>')) {
-        prefixSpan.remove();
-        setBlockQuoted(block, false);
+  // Live Preview: monitorar edição do cabeçalho (#)
+  if (HEADING_TAGS[block.dataset.type]) {
+    const contentEl = getContentEl(block);
+    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    
+    let hashCount = 0;
+    if (prefixSpan) {
+      const match = /^(#{1,6})/.exec(prefixSpan.textContent);
+      if (match) hashCount = match[1].length;
+    } else {
+      const match = /^(#{1,6})/.exec(contentEl.textContent);
+      if (match) hashCount = match[1].length;
+    }
+
+    if (hashCount === 0) {
+      if (prefixSpan) prefixSpan.remove();
+      const curOffset = getCaretOffset(contentEl);
+      const para = convertBlockType(block, 'paragraph');
+      livePreviewActiveBlock = para;
+      const paraContent = getContentEl(para);
+      paraContent.focus();
+      setCaretOffset(paraContent, Math.min(curOffset, paraContent.textContent.length));
+      scheduleSave();
+      return;
+    } else if (hashCount >= 1 && hashCount <= 6) {
+      const targetType = `heading${hashCount}`;
+      if (block.dataset.type !== targetType) {
+        const curOffset = getCaretOffset(contentEl);
+        const novo = convertBlockType(block, targetType);
+        livePreviewActiveBlock = novo;
+        revealBlockSyntax(novo);
+        const novoContent = getContentEl(novo);
+        novoContent.focus();
+        setCaretOffset(novoContent, Math.min(curOffset, novoContent.textContent.length));
+        scheduleSave();
+        return;
       }
     }
   }
 
-  // Live Preview: monitorar edição de delimitadores inline (** ou ` etc.)
+  // Live Preview: monitorar edição do callout (> [!...])
+  if (block.dataset.callout) {
+    const contentEl = getContentEl(block);
+    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    const textToCheck = prefixSpan ? prefixSpan.textContent : contentEl.textContent;
+    const m = />\s*\[!(note|tip|important|warning|caution)\]/i.exec(textToCheck);
+    if (m) {
+      const newType = m[1].toLowerCase();
+      if (block.dataset.callout !== newType) {
+        setBlockCallout(block, newType);
+        markCalloutEdges();
+        scheduleSave();
+      }
+    } else {
+      if (textToCheck.includes('>')) {
+        delete block.dataset.callout;
+        if (prefixSpan) {
+          prefixSpan.dataset.syntaxType = 'quote';
+          prefixSpan.classList.remove('md-syntax-callout');
+        }
+      } else {
+        if (prefixSpan) prefixSpan.remove();
+        delete block.dataset.callout;
+        setBlockQuoted(block, false);
+      }
+      markCalloutEdges();
+      scheduleSave();
+    }
+  }
+
+  // Live Preview: monitorar edição da citação (>)
+  if (isBlockQuoted(block) && !block.dataset.callout) {
+    const contentEl = getContentEl(block);
+    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    let hasQuote = false;
+    if (prefixSpan) {
+      hasQuote = prefixSpan.textContent.includes('>');
+    } else {
+      hasQuote = contentEl.textContent.startsWith('>');
+    }
+    if (!hasQuote) {
+      if (prefixSpan) prefixSpan.remove();
+      setBlockQuoted(block, false);
+      scheduleSave();
+    }
+  }
+
+  // Live Preview: monitorar edição de delimitadores inline (** ou ` ou [link](url))
   if (livePreviewActiveInline) {
-    const openSpan = livePreviewActiveInline.querySelector(':scope > .md-syntax-open');
-    const closeSpan = livePreviewActiveInline.querySelector(':scope > .md-syntax-close');
+    const inline = livePreviewActiveInline;
+    const openSpan = inline.querySelector(':scope > .md-syntax-open');
+    const closeSpan = inline.querySelector(':scope > .md-syntax-close');
     if (openSpan && closeSpan) {
-      const isWiki = livePreviewActiveInline.classList?.contains('note-internal-link');
-      const expectedOpen = isWiki ? '[[' : INLINE_SYNTAX_MAP[livePreviewActiveInline.tagName];
-      const expectedClose = isWiki ? ']]' : expectedOpen;
-      if (openSpan.textContent !== expectedOpen || closeSpan.textContent !== expectedClose) {
-        const inline = livePreviewActiveInline;
+      const isWiki = inline.classList?.contains('note-internal-link');
+      const isStdLink = inline.tagName === 'A' && !isWiki;
+
+      let shouldUnwrap = false;
+      if (isStdLink) {
+        if (!openSpan.textContent.includes('[') || !closeSpan.textContent.includes('](')) {
+          shouldUnwrap = true;
+        }
+      } else {
+        const expectedOpen = isWiki ? '[[' : INLINE_SYNTAX_MAP[inline.tagName];
+        const expectedClose = isWiki ? ']]' : expectedOpen;
+        if (openSpan.textContent !== expectedOpen || closeSpan.textContent !== expectedClose) {
+          shouldUnwrap = true;
+        }
+      }
+
+      if (shouldUnwrap) {
+        const blockEl = currentBlock();
+        const content = blockEl ? getContentEl(blockEl) : inline.parentElement;
+        const caretBefore = content ? getCaretOffset(content) : 0;
         livePreviewActiveInline = null;
         openSpan.remove();
         closeSpan.remove();
+        inline.classList.remove('md-token-open');
         inline.replaceWith(...inline.childNodes);
+        if (content) {
+          content.normalize();
+          setCaretOffset(content, Math.min(caretBefore, content.textContent.length));
+        }
+        scheduleSave();
       }
     }
   }
@@ -3801,6 +3980,251 @@ root.addEventListener('keydown', e => {
     return;
   }
 
+  if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+    const sel = document.getSelection();
+    if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (root.contains(range.commonAncestorContainer)) {
+        let rawSelected = range.toString();
+        if (rawSelected) {
+          const leadMatch = rawSelected.match(/^\s+/);
+          const leadingSpace = leadMatch ? leadMatch[0] : '';
+          const trailMatch = rawSelected.match(/\s+$/);
+          const trailingSpace = trailMatch ? trailMatch[0] : '';
+          const coreText = rawSelected.slice(leadingSpace.length, rawSelected.length - trailingSpace.length);
+
+          if (coreText) {
+            const block = currentBlock();
+
+            // Intercepta formatação por teclas de atalho Obsidian
+            if (e.key === '#') {
+              e.preventDefault();
+              captureUndoPoint();
+              if (block) {
+                const content = getContentEl(block);
+                const isAtBlockStart = (range.startContainer === content && range.startOffset === 0) ||
+                                      (range.startContainer === content.firstChild && range.startOffset === 0);
+                const isFullBlock = rawSelected.trim() === content.textContent.trim();
+                if (isAtBlockStart || isFullBlock) {
+                  const currentType = block.dataset.type;
+                  let nextType = 'heading1';
+                  if (HEADING_TAGS[currentType]) {
+                    const lvl = Number(currentType.replace('heading', ''));
+                    nextType = lvl < 6 ? `heading${lvl + 1}` : 'heading1';
+                  }
+                  const novo = convertBlockType(block, nextType);
+                  revealBlockSyntax(novo);
+                  focusBlockStart(novo);
+                } else {
+                  range.deleteContents();
+                  const frag = document.createDocumentFragment();
+                  if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
+                  const textNode = document.createTextNode(`#${coreText}`);
+                  frag.appendChild(textNode);
+                  if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
+                  range.insertNode(frag);
+                  const newRange = document.createRange();
+                  newRange.selectNode(textNode);
+                  sel.removeAllRanges();
+                  sel.addRange(newRange);
+                }
+                scheduleSave();
+                return;
+              }
+            }
+
+            if (e.key === '[' || e.key === ']') {
+              e.preventDefault();
+              captureUndoPoint();
+              range.deleteContents();
+
+              const frag = document.createDocumentFragment();
+              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
+
+              let nodeToSelect;
+              // Se já está como [texto], o 2º '[' converte imediatamente para link interno [[texto]]
+              if (/^\[([^\]]+)\]$/.test(coreText)) {
+                const inner = coreText.slice(1, -1);
+                const a = document.createElement('a');
+                a.className = 'note-internal-link';
+                a.setAttribute('href', `nota:${encodeURIComponent(inner)}`);
+                a.dataset.noteTitle = inner;
+                a.title = `Ctrl+clique para abrir nota: ${inner}`;
+                a.textContent = inner;
+                frag.appendChild(a);
+                revealInlineSyntax(a);
+                livePreviewActiveInline = a;
+                nodeToSelect = a;
+              } else if (/^\[\[([^\]]+)\]\]$/.test(coreText)) {
+                // Já é [[texto]]: desfaz para texto puro
+                const inner = coreText.slice(2, -2);
+                nodeToSelect = document.createTextNode(inner);
+                frag.appendChild(nodeToSelect);
+              } else {
+                // 1º '[': envolve com [texto]
+                nodeToSelect = document.createTextNode(`[${coreText}]`);
+                frag.appendChild(nodeToSelect);
+              }
+
+              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
+              range.insertNode(frag);
+
+              const newRange = document.createRange();
+              newRange.selectNode(nodeToSelect);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+              scheduleSave();
+              return;
+            }
+
+            if (e.key === '*') {
+              e.preventDefault();
+              captureUndoPoint();
+              range.deleteContents();
+
+              const frag = document.createDocumentFragment();
+              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
+
+              let nodeToSelect;
+              // Se já está como *texto*, o 2º '*' converte imediatamente para negrito <strong>
+              if (/^\*([^*]+)\*$/.test(coreText)) {
+                const inner = coreText.slice(1, -1);
+                const strong = document.createElement('strong');
+                strong.textContent = inner;
+                frag.appendChild(strong);
+                revealInlineSyntax(strong);
+                livePreviewActiveInline = strong;
+                nodeToSelect = strong;
+              } else if (/^\*\*([^*]+)\*\*$/.test(coreText)) {
+                // Já é **texto**: desfaz para texto puro
+                const inner = coreText.slice(2, -2);
+                nodeToSelect = document.createTextNode(inner);
+                frag.appendChild(nodeToSelect);
+              } else {
+                // 1º '*': envolve com *texto*
+                nodeToSelect = document.createTextNode(`*${coreText}*`);
+                frag.appendChild(nodeToSelect);
+              }
+
+              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
+              range.insertNode(frag);
+
+              const newRange = document.createRange();
+              newRange.selectNode(nodeToSelect);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+              scheduleSave();
+              return;
+            }
+
+            if (e.key === '~') {
+              e.preventDefault();
+              captureUndoPoint();
+              range.deleteContents();
+
+              const frag = document.createDocumentFragment();
+              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
+
+              let nodeToSelect;
+              // Se já está como ~texto~, o 2º '~' converte para riscado <s>
+              if (/^~([^~]+)~$/.test(coreText)) {
+                const inner = coreText.slice(1, -1);
+                const s = document.createElement('s');
+                s.textContent = inner;
+                frag.appendChild(s);
+                revealInlineSyntax(s);
+                livePreviewActiveInline = s;
+                nodeToSelect = s;
+              } else if (/^~~([^~]+)~~$/.test(coreText)) {
+                const inner = coreText.slice(2, -2);
+                nodeToSelect = document.createTextNode(inner);
+                frag.appendChild(nodeToSelect);
+              } else {
+                nodeToSelect = document.createTextNode(`~${coreText}~`);
+                frag.appendChild(nodeToSelect);
+              }
+
+              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
+              range.insertNode(frag);
+
+              const newRange = document.createRange();
+              newRange.selectNode(nodeToSelect);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+              scheduleSave();
+              return;
+            }
+
+            if (e.key === '`') {
+              e.preventDefault();
+              captureUndoPoint();
+              range.deleteContents();
+
+              const frag = document.createDocumentFragment();
+              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
+
+              let nodeToSelect;
+              if (/^`([^`]+)`$/.test(coreText)) {
+                const inner = coreText.slice(1, -1);
+                nodeToSelect = document.createTextNode(inner);
+                frag.appendChild(nodeToSelect);
+              } else {
+                const code = document.createElement('code');
+                code.textContent = coreText;
+                frag.appendChild(code);
+                revealInlineSyntax(code);
+                livePreviewActiveInline = code;
+                nodeToSelect = code;
+              }
+
+              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
+              range.insertNode(frag);
+
+              const newRange = document.createRange();
+              newRange.selectNode(nodeToSelect);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+              scheduleSave();
+              return;
+            }
+
+            // Pares literais: ", ', (, {, _
+            const PAIRS = {
+              '_': [ '_', '_' ],
+              '"': [ '"', '"' ],
+              "'": [ "'", "'" ],
+              '(': [ '(', ')' ],
+              ')': [ '(', ')' ],
+              '{': [ '{', '}' ],
+              '}': [ '{', '}' ],
+            };
+            const pair = PAIRS[e.key];
+            if (pair) {
+              e.preventDefault();
+              captureUndoPoint();
+              range.deleteContents();
+
+              const frag = document.createDocumentFragment();
+              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
+              const [left, right] = pair;
+              const textNode = document.createTextNode(`${left}${coreText}${right}`);
+              frag.appendChild(textNode);
+              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
+              range.insertNode(frag);
+
+              const newRange = document.createRange();
+              newRange.selectNode(textNode);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+              scheduleSave();
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Apagar blocos inteiros é o gesto de uma seleção de BLOCOS (alça ou
   // Ctrl+arrastar), onde não existe texto selecionado. Numa seleção espelhada
   // de texto, Backspace tem que apagar o texto marcado e mais nada — selecionar
@@ -3821,22 +4245,28 @@ root.addEventListener('keydown', e => {
 
   // Obsidian Live Preview: Backspace ou Delete na borda de um elemento com formatação
   // ativa desfaz a formatação (unwrap) permitindo apagar o delimitador sem toolbar.
-  if ((e.key === 'Backspace' || e.key === 'Delete') && currentActiveInlineEl) {
+  if ((e.key === 'Backspace' || e.key === 'Delete') && livePreviewActiveInline) {
     const sel = document.getSelection();
     if (sel && sel.isCollapsed && sel.rangeCount > 0) {
-      const inline = currentActiveInlineEl;
+      const inline = livePreviewActiveInline;
+      const openSpan = inline.querySelector(':scope > .md-syntax-open');
+      const closeSpan = inline.querySelector(':scope > .md-syntax-close');
       const r = sel.getRangeAt(0);
       const isAtStart = (r.startContainer === inline && r.startOffset === 0) ||
-                        (r.startContainer === inline.firstChild && r.startOffset === 0);
+                        (r.startContainer === inline.firstChild && r.startOffset === 0) ||
+                        (openSpan && openSpan.contains(r.startContainer));
       const isAtEnd = (r.startContainer === inline && r.startOffset === inline.childNodes.length) ||
-                      (r.startContainer === inline.lastChild && r.startOffset === (inline.lastChild.textContent || '').length);
+                      (r.startContainer === inline.lastChild && r.startOffset === (inline.lastChild.textContent || '').length) ||
+                      (closeSpan && closeSpan.contains(r.startContainer));
 
       if ((e.key === 'Backspace' && isAtStart) || (e.key === 'Delete' && isAtEnd)) {
         e.preventDefault();
         const block = currentBlock();
         const content = block ? getContentEl(block) : inline.parentElement;
-        inline.classList.remove('md-inline-active');
-        currentActiveInlineEl = null;
+        inline.classList.remove('md-inline-active', 'md-token-open');
+        livePreviewActiveInline = null;
+        if (openSpan) openSpan.remove();
+        if (closeSpan) closeSpan.remove();
 
         const fragment = document.createDocumentFragment();
         while (inline.firstChild) fragment.appendChild(inline.firstChild);
@@ -6345,6 +6775,7 @@ document.addEventListener('selectionchange', () => {
   // Gesto de arrastar em andamento tem dono — não mexe na seleção no meio dele.
   if (pointerDown || ctrlPointerDown || reorderState) return;
 
+  const sel = document.getSelection();
   if (!sel || sel.rangeCount === 0) return;
   if (!root.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
 
