@@ -241,6 +241,7 @@ export class SyncController {
       recarregarNotaAberta: async (id, uid) => {
         if (this.recarregarNotaAberta) await this.recarregarNotaAberta(id, uid);
         if (this.onNotesChanged) await this.onNotesChanged();
+        document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
       },
       antesDeSincronizar: this.antesDeSincronizar,
       emModoModelo: this.emModoModelo,
@@ -467,8 +468,10 @@ export class SyncController {
       await this._excluirMeta('lastSyncError');
 
       // Se houve alterações remotas que entraram no banco local, atualiza as abas
+      // e qualquer visão derivada de todas as notas (hoje só o Grafo/Constelações).
       if (resultado.baixadas > 0 || resultado.conflitos > 0 || resultado.apagadas > 0) {
         if (this.onNotesChanged) await this.onNotesChanged();
+        document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
       }
     } catch (err) {
       // Estado de erro explícito: falha calada faz a pessoa achar que está segura

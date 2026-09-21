@@ -147,6 +147,14 @@ export function initGraphView() {
     if (isGrafoVisivel()) render();
   });
 
+  // Nota criada, excluída ou com conteúdo salvo (local ou via sincronização)
+  // em qualquer lugar do app — se o painel estiver aberto, recarrega o grafo
+  // inteiro (o conjunto de nós/arestas pode ter mudado, não só o destaque da
+  // nota ativa, por isso é carregarERenderizarGrafo() e não só render()).
+  document.addEventListener('quickdock:notes-changed', () => {
+    if (isGrafoVisivel()) carregarERenderizarGrafo();
+  });
+
   // No desktop o grafo nunca mais passa por switchView, então o listener de
   // quickdock:view-changed acima (que só reage a currentView==='grafo') não
   // dispara mais o "senão pára a simulação" pra ele — esse fechamento agora

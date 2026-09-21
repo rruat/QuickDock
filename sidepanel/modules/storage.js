@@ -1,5 +1,16 @@
 import { blocksToPlainText } from './blocks.js';
 import { platformStorage, setPlatformDb } from './platform.js';
+import { extrairLinksDeBlocos, resolverLinks } from './links.js';
+
+// Sinal genérico de "o conjunto de notas mudou" (criação, exclusão ou edição
+// de conteúdo) — quem mantém uma visão derivada de TODAS as notas (o Grafo/
+// Constelações é o único caso hoje) escuta isto pra saber quando reconstruir
+// em vez de exigir que a pessoa reabra cada nota manualmente.
+function dispatchNotesChanged() {
+  if (typeof document !== 'undefined') {
+    document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
+  }
+}
 // O esquema mora numa função (`definirEsquema`, mais abaixo) pra poder ser
 // aplicado a mais de um banco. O de verdade é este; o banco de provas cria um
 // descartável com `criarBancoDeProvas()` e exercita a camada de armazenamento
@@ -277,7 +288,7 @@ export async function createNoteRecord({ title, content = '', blocks = [], color
     ? crypto.randomUUID()
     : `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`);
   const now = Date.now();
-  return db.notes.add({
+  const novoId = await db.notes.add({
     uid: novoUid,
     title,
     content,
@@ -295,6 +306,8 @@ export async function createNoteRecord({ title, content = '', blocks = [], color
     createdAt: now,
     updatedAt: now
   });
+  dispatchNotesChanged();
+  return novoId;
 }
 
 // `blocks` é a fonte de verdade do editor; `content` é uma
@@ -322,7 +335,9 @@ export async function deleteNoteRecordById(id) {
       console.warn('Erro ao limpar links da nota excluída:', err);
     }
   }
-  return db.notes.delete(id);
+  const resultado = await db.notes.delete(id);
+  dispatchNotesChanged();
+  return resultado;
 }
 
 // --- LINKS ENTRE NOTAS ---
@@ -843,13 +858,45 @@ export class DexieSyncStore {
     const content = blocksToPlainText(nota.blocks ?? []);
     const existente = await this.obterNotaPorUid(nota.uid);
     const pasta = nota.pasta !== undefined ? normalizarCaminhoPasta(nota.pasta) : (existente?.pasta ?? '');
+    let novoId;
     if (existente) {
       await this.db.notes.update(existente.id, { ...nota, pasta, content });
-      return existente.id;
+      novoId = existente.id;
+    } else {
+      // `id` vem do auto-incremento; mandar o do outro aparelho colidiria.
+      const { id, ...semId } = nota;
+      novoId = await this.db.notes.add({ ...semId, pasta, content });
     }
-    // `id` vem do auto-incremento; mandar o do outro aparelho colidiria.
-    const { id, ...semId } = nota;
-    return this.db.notes.add({ ...semId, pasta, content });
+    await this._reindexarLinksLocal(nota);
+    return novoId;
+  }
+
+  // Uma nota que chega por sincronização nunca passa pelo `flushSave()` do
+  // editor (só quem a abre localmente aciona aquele caminho) — sem isto, os
+  // links de uma nota sincronizada só apareciam no Grafo depois que a pessoa
+  // abria cada nota manualmente pra "ativar" a indexação. `uidDestino` pode
+  // ficar nulo aqui se o alvo ainda não chegou nesta rodada — sem problema,
+  // construirGrafo() (links.js) resolve de novo por título contra a lista
+  // completa de notas no momento de montar o grafo.
+  async _reindexarLinksLocal(nota) {
+    if (!this.db?.links || !nota?.uid) return;
+    try {
+      const refs = extrairLinksDeBlocos(nota.blocks ?? []);
+      const todasNotas = await this.db.notes.toArray();
+      const resolvidos = resolverLinks(refs, nota.uid, todasNotas);
+      await this.db.transaction('rw', this.db.links, async () => {
+        await this.db.links.where('uidOrigem').equals(nota.uid).delete();
+        if (resolvidos.length > 0) {
+          await this.db.links.bulkAdd(resolvidos.map(l => ({
+            uidOrigem: nota.uid,
+            uidDestino: l.uidDestino || null,
+            tituloAlvo: (l.tituloAlvo || '').trim()
+          })));
+        }
+      });
+    } catch (err) {
+      console.warn('Falha ao reindexar links da nota sincronizada:', err);
+    }
   }
 
   async excluirNotaLocal(uid) {

@@ -1683,6 +1683,12 @@ export async function flushSave() {
   } catch (err) {
     console.warn('Erro ao indexar links da nota:', err);
   }
+
+  // Avisa quem mantém uma visão derivada de TODAS as notas (Grafo/Constelações)
+  // que os links desta nota acabaram de ser reindexados — dispara mesmo sem
+  // mudança real de conteúdo (flushSave roda ao trocar de nota também), mas
+  // quem escuta só faz trabalho de verdade se estiver com o painel aberto.
+  document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
 }
 
 export function getCurrentNoteId() {

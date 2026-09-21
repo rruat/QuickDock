@@ -3148,6 +3148,9 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const appSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const storageSource = await readFile(new URL('../sidepanel/modules/storage.js', import.meta.url), 'utf8');
+  const noteSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const syncControllerSource = await readFile(new URL('../sidepanel/modules/sync-controller.js', import.meta.url), 'utf8');
 
   // 21.1: Módulo do Grafo e Algoritmo de Força
   ok('grafo · graph-view.js exporta initGraphView e carregarERenderizarGrafo', graphSource.includes('export function initGraphView') && graphSource.includes('export async function carregarERenderizarGrafo'));
@@ -3236,6 +3239,27 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   // deve sumir do grafo quando o usuário filtra pela pasta "Pai")
   ok('grafo · filtro de pasta inclui notas de subpastas (prefixo "pasta/")',
     graphSource.includes("pasta.startsWith(prefixo)")
+  );
+
+  // 21.8: Grafo se atualiza sozinho (criação/exclusão/edição local e
+  // sincronização) sem exigir que a pessoa abra cada nota manualmente
+  ok('grafo · escuta quickdock:notes-changed e recarrega o grafo inteiro quando visível',
+    graphSource.includes("addEventListener('quickdock:notes-changed'") &&
+    graphSource.includes('carregarERenderizarGrafo()')
+  );
+  ok('storage.js · createNoteRecord e deleteNoteRecordById avisam quickdock:notes-changed',
+    storageSource.includes('function dispatchNotesChanged') &&
+    storageSource.includes("new CustomEvent('quickdock:notes-changed')")
+  );
+  ok('note.js · flushSave avisa quickdock:notes-changed depois de reindexar os links',
+    noteSource.includes("new CustomEvent('quickdock:notes-changed')")
+  );
+  ok('storage.js · DexieSyncStore reindexa os links de uma nota sincronizada sem depender do editor',
+    storageSource.includes('async _reindexarLinksLocal') &&
+    storageSource.includes('await this._reindexarLinksLocal(nota)')
+  );
+  ok('sync-controller.js · avisa quickdock:notes-changed ao final de uma rodada que trouxe mudanças remotas',
+    syncControllerSource.includes("new CustomEvent('quickdock:notes-changed')")
   );
 
   // Verificação matemática da convergência de resfriamento em simulated annealing
