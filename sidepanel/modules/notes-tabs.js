@@ -951,6 +951,18 @@ function buildTab(meta) {
 // Escolher um ícone ou uma cor não fecha quem estiver mostrando isto, só
 // re-renderiza este bloco no lugar, pra dar pra ajustar os dois sem reabrir
 // nada — os dois pontos de entrada chamam a mesma função, o mesmo estado.
+// Aplica os campos mudados também na entrada de verdade do notesMeta —
+// necessário porque `meta` pode ser um objeto de fora (o cabeçalho da nota,
+// em note.js, guarda o seu próprio via getNoteById(), separado deste array).
+// Mutar só o `meta` recebido deixava a aside intocada quando o ícone/cor eram
+// trocados pelo cabeçalho: refreshOpenAsideRows() reconstruía a lista, mas a
+// partir do notesMeta antigo, sem efeito visível nenhum.
+function sincronizarComNotesMeta(meta, patch) {
+  Object.assign(meta, patch);
+  const real = notesMeta.find(n => n.id === meta.id);
+  if (real && real !== meta) Object.assign(real, patch);
+}
+
 export function renderAppearanceContent(pop, meta) {
   pop.innerHTML = '';
 
@@ -993,7 +1005,7 @@ export function renderAppearanceContent(pop, meta) {
 
   const pickIcon = async (name) => {
     await updateNoteMetaById(meta.id, { icon: name });
-    meta.icon = name;
+    sincronizarComNotesMeta(meta, { icon: name });
     renderTabs();
     renderAppearanceContent(pop, meta);
     refreshOpenAsideRows();
@@ -1100,7 +1112,7 @@ export function renderAppearanceContent(pop, meta) {
   fillCheckbox.addEventListener('change', async e => {
     e.stopPropagation();
     await updateNoteMetaById(meta.id, { iconFilled: e.target.checked });
-    meta.iconFilled = e.target.checked;
+    sincronizarComNotesMeta(meta, { iconFilled: e.target.checked });
     renderTabs();
     renderAppearanceContent(pop, meta);
     refreshOpenAsideRows();
@@ -1122,7 +1134,7 @@ export function renderAppearanceContent(pop, meta) {
 
   const pickColor = async (hex) => {
     await updateNoteMetaById(meta.id, { color: hex });
-    meta.color = hex;
+    sincronizarComNotesMeta(meta, { color: hex });
     if (meta.id === activeId) setAccent(hex);
     renderTabs();
     renderAppearanceContent(pop, meta);

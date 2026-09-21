@@ -4318,6 +4318,16 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     tabsJsSourceMod.includes('function ligarCliqueEDuploCliqueNaLinha') &&
     tabsJsSourceMod.includes("label.addEventListener('dblclick'") &&
     styleCssSourceMod.includes('.notes-list-rename-input'));
+
+  // 30.16: Ícone/cor trocados pelo cabeçalho da nota (headerNoteRef, um objeto
+  // separado do notesMeta da aside — vem do seu próprio getNoteById()) tinham
+  // que sincronizar a entrada de verdade do notesMeta, não só o objeto que o
+  // cabeçalho passou — senão refreshOpenAsideRows() reconstruía a lista a
+  // partir de dados antigos e nada mudava na tela.
+  ok('aside · pickIcon/iconFilled/pickColor sincronizam a entrada real do notesMeta, não só o objeto recebido',
+    tabsJsSourceMod.includes('function sincronizarComNotesMeta') &&
+    tabsJsSourceMod.includes('notesMeta.find(n => n.id === meta.id)') &&
+    (tabsJsSourceMod.match(/sincronizarComNotesMeta\(meta, /g) || []).length >= 3);
 }
 
 if (falhas.length) {
