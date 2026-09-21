@@ -153,7 +153,7 @@ function openAppMenu() {
     }
   });
   addOpt('auto_stories', 'Galeria de modelos', () => switchView('templates'));
-  addOpt('hub', 'Grafo de conexões', () => switchView('grafo'));
+  addOpt('hub', 'Constelações', () => switchView('grafo'));
   addOpt('space_dashboard', 'Quadro Infinito', () => switchView('board'));
   addOpt('calendar_month', 'Calendário', () => switchView('calendar'));
   addOpt('menu_book', 'Ver tutorial', createTutorialNote);

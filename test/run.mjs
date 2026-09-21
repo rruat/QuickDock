@@ -3224,6 +3224,20 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleSource.includes('clip-path: polygon')
   );
 
+  // 21.6: Modo de nó "Ícone da nota" (com fallback pra estrela)
+  ok('grafo · modo de formato "icon" usa o ícone da nota e cai pra estrela quando não há um',
+    htmlSource.includes('value="icon"') &&
+    graphSource.includes("config.nodeShape === 'icon'") &&
+    graphSource.includes('node.icon ?') &&
+    graphSource.includes('Material Symbols Rounded')
+  );
+
+  // 21.7: Filtro por pasta no grafo inclui subpastas (nota em "Pai/Filho" não
+  // deve sumir do grafo quando o usuário filtra pela pasta "Pai")
+  ok('grafo · filtro de pasta inclui notas de subpastas (prefixo "pasta/")',
+    graphSource.includes("pasta.startsWith(prefixo)")
+  );
+
   // Verificação matemática da convergência de resfriamento em simulated annealing
   let testAlpha = 1.0;
   let stepsToCool = 0;
@@ -4106,14 +4120,14 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     tabsJsSource.includes('notes-aside-footer') &&
     tabsJsSource.includes('aside-footer-grid') &&
     tabsJsSource.includes('Quadro') &&
-    tabsJsSource.includes('Grafo') &&
+    tabsJsSource.includes('Constelações') &&
     tabsJsSource.includes('Calendário'));
 
-  ok('visoes · documents.js exporta e gerencia openAuxViewMenu para alternar entre Documentos, Quadro, Grafo e Calendário',
+  ok('visoes · documents.js exporta e gerencia openAuxViewMenu para alternar entre Documentos, Quadro, Constelações e Calendário',
     docsJsSource.includes('export function openAuxViewMenu') &&
     docsJsSource.includes('btn-aux-view-switcher') &&
     docsJsSource.includes('Quadro Infinito') &&
-    docsJsSource.includes('Grafo de Conexões') &&
+    docsJsSource.includes('Constelações') &&
     docsJsSource.includes('Calendário'));
 
   // 30.8: Caminho da pasta abaixo do nome da nota na aba

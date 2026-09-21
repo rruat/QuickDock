@@ -185,7 +185,7 @@
       </div>
     </section>
 
-    <!-- Visão em Grafo de Conexões -->
+    <!-- Visão em Constelações (Grafo de Conexões) -->
     <section class="graph-view" id="graph-view" hidden>
       <header class="graph-header">
         <div class="graph-header-left">
@@ -193,8 +193,8 @@
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
           </button>
           <div class="graph-title-group" id="graph-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
-            <h1 class="graph-title">Grafo de Conexões</h1>
-            <button id="btn-graph-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Grafo, Calendário)" aria-label="Alternar visão">
+            <h1 class="graph-title">Constelações</h1>
+            <button id="btn-graph-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
             <span id="graph-stats-badge" class="graph-stats-badge">0 notas · 0 conexões</span>
@@ -216,7 +216,7 @@
           <button id="btn-graph-toggle-fullscreen" class="icon-btn graph-fullscreen-btn" title="Expandir para tela cheia (100%)" aria-label="Alternar tela cheia">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">fullscreen</span>
           </button>
-          <button id="btn-graph-settings" class="icon-btn" title="Configurações do Grafo" aria-label="Configurações do Grafo">
+          <button id="btn-graph-settings" class="icon-btn" title="Configurações das Constelações" aria-label="Configurações das Constelações">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">tune</span>
           </button>
         </div>
@@ -230,10 +230,10 @@
         </div>
         <div id="graph-tooltip" class="graph-tooltip" hidden></div>
 
-        <!-- Painel de Configurações do Grafo -->
+        <!-- Painel de Configurações das Constelações -->
         <div id="graph-settings-panel" class="graph-settings-panel" hidden>
           <div class="graph-settings-header">
-            <span class="graph-settings-title">Configurações do Grafo</span>
+            <span class="graph-settings-title">Configurações das Constelações</span>
             <button id="btn-graph-settings-close" class="icon-btn graph-settings-close" title="Fechar" aria-label="Fechar">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>
             </button>
@@ -266,6 +266,7 @@
                 <select id="graph-setting-shape" class="graph-setting-select">
                   <option value="star">Estrela de 4 pontas (Logo)</option>
                   <option value="circle">Círculo clássico</option>
+                  <option value="icon">Ícone da nota (estrela se não houver)</option>
                 </select>
               </div>
             </div>
@@ -324,7 +325,7 @@
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
           </button>
           <div class="board-title-group">
-            <button id="btn-board-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Grafo, Calendário)" aria-label="Alternar visão">
+            <button id="btn-board-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
             <input type="text" id="board-title-input" class="board-title-input" value="Quadro de Ideias" placeholder="Nome do quadro..." aria-label="Nome do quadro" />
@@ -430,7 +431,7 @@
           </button>
           <div class="calendar-title-group" id="calendar-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
             <h1 id="calendar-month-year" class="calendar-month-title">Setembro de 2026</h1>
-            <button id="btn-calendar-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Grafo, Calendário)" aria-label="Alternar visão">
+            <button id="btn-calendar-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
             <span id="calendar-note-count" class="calendar-count-badge">0 notas</span>
@@ -506,9 +507,9 @@
           <span class="aside-nav-label">Modelos</span>
           <span id="nav-templates-count" class="aside-nav-badge">0</span>
         </button>
-        <button id="btn-nav-graph" class="icon-btn aside-nav-btn" title="Grafo de Conexões" aria-label="Grafo de Conexões">
+        <button id="btn-nav-graph" class="icon-btn aside-nav-btn" title="Constelações" aria-label="Constelações">
           <span class="qd-icon material-symbols-rounded" aria-hidden="true">hub</span>
-          <span class="aside-nav-label">Grafo</span>
+          <span class="aside-nav-label">Constelações</span>
         </button>
         <button id="btn-nav-board" class="icon-btn aside-nav-btn" title="Quadro Infinito (Aba dedicada)" aria-label="Quadro Infinito">
           <span class="qd-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span>
@@ -535,7 +536,7 @@
           </button>
           <div class="docs-title-wrap" id="docs-title-wrap" title="Clique para alternar a visão auxiliar">
             <span class="docs-title" id="docs-title">Documentos</span>
-            <button id="btn-aux-view-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Grafo, Calendário)" aria-label="Alternar visão">
+            <button id="btn-aux-view-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
           </div>

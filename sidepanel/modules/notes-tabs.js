@@ -2599,7 +2599,7 @@ export function openNotesAsideDrawer() {
     document.dispatchEvent(new CustomEvent('quickdock:toggle-docs'));
   }));
   gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => switchView('board', { fullscreen: true })));
-  gridViews.appendChild(createFooterBtn('hub', 'Grafo', () => switchView('grafo', { fullscreen: true })));
+  gridViews.appendChild(createFooterBtn('hub', 'Constelações', () => switchView('grafo', { fullscreen: true })));
   gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => switchView('calendar', { fullscreen: true })));
   gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
 
@@ -2862,7 +2862,7 @@ function initDesktopNotesAsideDrawer() {
   // liga/desliga só o seu, em vez de substituir o que já estava aberto.
   gridViews.appendChild(createFooterBtn('description', 'Documentos', () => toggleDesktopPanel('docs'), 'docs'));
   gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => toggleDesktopPanel('board'), 'board'));
-  gridViews.appendChild(createFooterBtn('hub', 'Grafo', () => toggleDesktopPanel('grafo'), 'grafo'));
+  gridViews.appendChild(createFooterBtn('hub', 'Constelações', () => toggleDesktopPanel('grafo'), 'grafo'));
   gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => toggleDesktopPanel('calendar'), 'calendar'));
   gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
 

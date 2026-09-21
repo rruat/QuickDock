@@ -58,7 +58,7 @@ export function openAuxViewMenu(anchorEl) {
       () => toggleDesktopPanel('docs'), isDesktopPanelOpen('docs'));
     addOpt('space_dashboard', 'Quadro Infinito', 'Abrir/fechar como painel',
       () => toggleDesktopPanel('board'), isDesktopPanelOpen('board'));
-    addOpt('hub', 'Grafo de Conexões', 'Abrir/fechar como painel',
+    addOpt('hub', 'Constelações', 'Abrir/fechar como painel',
       () => toggleDesktopPanel('grafo'), isDesktopPanelOpen('grafo'));
     addOpt('calendar_month', 'Calendário', 'Abrir/fechar como painel',
       () => toggleDesktopPanel('calendar'), isDesktopPanelOpen('calendar'));
@@ -74,7 +74,7 @@ export function openAuxViewMenu(anchorEl) {
       }
     });
     addOpt('space_dashboard', 'Quadro Infinito', 'Dividir tela com a nota', () => switchView('board', { split: true }));
-    addOpt('hub', 'Grafo de Conexões', 'Dividir tela com a nota', () => switchView('grafo', { split: true }));
+    addOpt('hub', 'Constelações', 'Dividir tela com a nota', () => switchView('grafo', { split: true }));
     addOpt('calendar_month', 'Calendário', 'Dividir tela com a nota', () => switchView('calendar', { split: true }));
 
     const curView = getCurrentView();

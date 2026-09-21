@@ -158,6 +158,12 @@ export function initGraphView() {
       fecharSettingsPanel();
     }
   });
+
+  // No modo 'icon' os nós desenham glifos da fonte Material Symbols Rounded;
+  // se o canvas renderizar antes dela terminar de carregar, o glifo sai
+  // errado (ou nem aparece) até o próximo redraw — reforça um redesenho
+  // assim que a fonte estiver pronta, sem custo nos outros modos.
+  document.fonts?.ready?.then(() => render()).catch(() => {});
 }
 
 function carregarConfig() {
@@ -166,7 +172,7 @@ function carregarConfig() {
     if (raw) {
       const parsed = JSON.parse(raw);
       config = { ...DEFAULT_GRAPH_CONFIG, ...parsed };
-      if (config.nodeShape !== 'circle' && config.nodeShape !== 'star') {
+      if (!['circle', 'star', 'icon'].includes(config.nodeShape)) {
         config.nodeShape = 'star';
       }
     } else {
@@ -222,7 +228,8 @@ function initSettingsUI() {
   });
 
   shapeSelect?.addEventListener('change', e => {
-    config.nodeShape = e.target.value === 'circle' ? 'circle' : 'star';
+    const v = e.target.value;
+    config.nodeShape = (v === 'circle' || v === 'icon') ? v : 'star';
     salvarConfig();
     render();
   });
@@ -396,10 +403,15 @@ export async function carregarERenderizarGrafo() {
 }
 
 function aplicarFiltros(manterCamera = true) {
-  // 1. Filtrar por pasta
+  // 1. Filtrar por pasta (inclui subpastas — mesma regra de "pertence a esta
+  // pasta ou a uma descendente dela" usada em storage.js excluirPasta/etc.)
   let filteredNodes = rawGraphNodes;
   if (config.selectedFolder) {
-    filteredNodes = filteredNodes.filter(n => (n.pasta || '') === config.selectedFolder);
+    const prefixo = config.selectedFolder + '/';
+    filteredNodes = filteredNodes.filter(n => {
+      const pasta = n.pasta || '';
+      return pasta === config.selectedFolder || pasta.startsWith(prefixo);
+    });
   }
 
   const validNodeIds = new Set(filteredNodes.map(n => n.id));
@@ -701,7 +713,9 @@ export function drawStar4(ctx, cx, cy, r) {
 
 /**
  * Desenha a forma do nó no Canvas 2D conforme a configuração atual:
- * 'star' (estrela de 4 pontas da marca) ou 'circle' (círculo clássico).
+ * 'star' (estrela de 4 pontas da marca), 'circle' (círculo clássico) ou
+ * 'icon' (mesmo contorno circular do círculo, servindo de fundo pro glifo
+ * do ícone da nota — ver desenharIconeDoNo).
  */
 export function drawNodeShape(ctx, cx, cy, r, shape = 'star') {
   if (shape === 'star') {
@@ -713,6 +727,27 @@ export function drawNodeShape(ctx, cx, cy, r, shape = 'star') {
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.closePath();
   }
+}
+
+/**
+ * No modo 'icon', cada nó usa o ícone da própria nota (mesmo catálogo Material
+ * Symbols usado nas abas/aside — ver icons.js); notas sem ícone caem de volta
+ * pra estrela padrão. Retorna a forma REAL a desenhar para este nó específico.
+ */
+function formaEfetivaDoNo(node) {
+  if (config.nodeShape === 'icon') {
+    return node.icon ? 'icon' : 'star';
+  }
+  return config.nodeShape === 'circle' ? 'circle' : 'star';
+}
+
+/** Desenha o glifo do ícone da nota centralizado sobre o nó (modo 'icon'). */
+function desenharIconeDoNo(ctx, node, cx, cy, r) {
+  ctx.font = `${Math.round(r * 1.4)}px "Material Symbols Rounded"`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(node.icon, cx, cy + 1);
 }
 
 // ── Renderização no Canvas ─────────────────────────────────────────────────────
@@ -765,7 +800,6 @@ function render() {
   }
 
   // 2. Desenha nós
-  const currentShape = config.nodeShape || 'star';
   const activeNoteId = typeof getCurrentNoteId === 'function' ? getCurrentNoteId() : null;
 
   for (const node of nodes) {
@@ -776,6 +810,8 @@ function render() {
 
     const baseRadius = node.radius || 6;
     const r = (isHovered || isActiveNote) ? baseRadius * 1.3 : baseRadius;
+    const nodeShape = formaEfetivaDoNo(node);
+    const isStarShape = nodeShape === 'star';
 
     ctx.save();
     if (isDimmed) {
@@ -792,7 +828,7 @@ function render() {
       // Anel pontilhado externo destacando a nota atual
       ctx.save();
       ctx.beginPath();
-      const outerR = (currentShape === 'star' ? r * 1.35 : r) + 4.5;
+      const outerR = (isStarShape ? r * 1.35 : r) + 4.5;
       ctx.arc(node.x, node.y, outerR, 0, Math.PI * 2);
       ctx.strokeStyle = accentColor;
       ctx.lineWidth = 1.8;
@@ -804,7 +840,7 @@ function render() {
       ctx.shadowBlur = 14;
     }
 
-    drawNodeShape(ctx, node.x, node.y, r, currentShape);
+    drawNodeShape(ctx, node.x, node.y, r, nodeShape === 'icon' ? 'circle' : nodeShape);
 
     ctx.fillStyle = nodeColor;
     ctx.fill();
@@ -818,6 +854,10 @@ function render() {
       ctx.lineWidth = isHovered ? 2.5 : 1.2;
     }
     ctx.stroke();
+
+    if (nodeShape === 'icon') {
+      desenharIconeDoNo(ctx, node, node.x, node.y, r);
+    }
 
     // Rótulo da nota
     const shouldShowLabel = isActiveNote || isHovered || isNeighbor || config.alwaysShowLabels || zoom >= 0.75 || node.degree > 1;
@@ -833,7 +873,7 @@ function render() {
       } else if (text.length > 22 && !isHovered && !config.alwaysShowLabels) {
         text = text.slice(0, 20) + '…';
       }
-      const visualRadius = currentShape === 'star' ? r * 1.35 : r;
+      const visualRadius = isStarShape ? r * 1.35 : r;
       ctx.fillText(text, node.x, node.y + visualRadius + 4);
     }
 
@@ -853,10 +893,10 @@ function worldCoordinates(clientX, clientY) {
 }
 
 function findNodeAt(worldX, worldY) {
-  const isStar = (config.nodeShape || 'star') === 'star';
   for (let i = nodes.length - 1; i >= 0; i--) {
     const node = nodes[i];
     const baseRadius = node.radius || 6;
+    const isStar = formaEfetivaDoNo(node) === 'star';
     const hitRadius = (isStar ? baseRadius * 1.35 : baseRadius) + 6;
     const dist = Math.hypot(worldX - node.x, worldY - node.y);
     if (dist <= hitRadius) {
