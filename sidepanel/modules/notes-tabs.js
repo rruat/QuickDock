@@ -32,9 +32,10 @@ const noteSection   = document.querySelector('.note-section');
 
 // A tira de abas só rola na horizontal, mas a roda do mouse manda scroll
 // vertical por padrão (só vira horizontal segurando Shift) — aqui a gente
-// já converte deltaY em scrollLeft direto, sem precisar da tecla.
+// já converte deltaY em scrollLeft direto, sem precisar da tecla. Vale pra
+// todas as plataformas: no desktop o #notes-tabs também é uma tira horizontal
+// (fica no topo do .note-section, ver initDesktopNotesAsideDrawer).
 tabsEl.addEventListener('wheel', e => {
-  if (document.documentElement.dataset.platform === 'desktop') return; // Na aside vertical do desktop o scroll já é vertical naturalmente
   if (e.deltaY === 0) return;
   e.preventDefault();
   tabsEl.scrollLeft += e.deltaY;
