@@ -2676,6 +2676,22 @@ function initDesktopNotesAsideDrawer() {
   const drawer = document.createElement('aside');
   drawer.className = 'notes-aside-drawer notes-list-popover open';
 
+  // Logo do QuickDock — o drawer permanente do desktop é construído do zero
+  // aqui via JS (não reaproveita o .app-aside antigo, que fica escondido
+  // nesse modo), então a marca precisa ser injetada de novo; mesmo SVG usado
+  // em .aside-brand-icon pro mobile/extensão, pra manter a identidade igual.
+  const brand = document.createElement('div');
+  brand.className = 'notes-aside-brand';
+  brand.innerHTML = `
+    <svg class="notes-aside-brand-icon" viewBox="0 0 512 512" width="18" height="18" aria-hidden="true">
+      <path d="M153.03 153.03 A150 150 0 1 1 358.97 358.97 A150 150 0 0 0 153.03 153.03 Z" fill="currentColor"/>
+      <path d="M153.03 153.03 A150 150 0 1 0 358.97 358.97 A150 150 0 0 1 153.03 153.03 Z" fill="currentColor"/>
+      <path d="M241.59 241.59 L476.35 431.09 L386.18 431.44 Z" fill="currentColor"/>
+    </svg>
+    <span class="notes-aside-brand-title">QuickDock</span>
+  `;
+  drawer.appendChild(brand);
+
   // Cabeçalho do Drawer Aside
   const asideHeader = document.createElement('div');
   asideHeader.className = 'notes-aside-header';

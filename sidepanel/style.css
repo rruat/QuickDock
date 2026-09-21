@@ -2068,6 +2068,11 @@ body.template-mode .note-watermark {
   box-sizing: border-box;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.docs-header::-webkit-scrollbar {
+  display: none;
 }
 
 /* ===== CABEÇALHOS RESPONSIVOS (ver sidepanel/modules/responsive-header.js) =====
@@ -5324,15 +5329,21 @@ html[data-platform="mobile"] #btn-nav-board {
     border-left: 1px solid var(--border);
   }
 
+  /* Sem vão reservado entre colunas: a alça é filha do próprio wrapper (ver
+     desktop-panels.js) e fica sobreposta à borda esquerda dele, sem tirar
+     espaço nenhum do layout — é a linha da borda que fica arrastável, não um
+     espaço à parte. Começa em left:0 (não centralizada com offset negativo)
+     de propósito: o wrapper tem overflow:hidden, e um offset negativo
+     cortaria metade da área de agarrar. */
   html[data-platform="desktop"] .desktop-panel-handle {
-    flex: 0 0 6px;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
     width: 6px;
-    min-width: 6px;
-    height: 100vh;
     cursor: col-resize;
     background: transparent;
-    position: relative;
-    z-index: 20;
+    z-index: 25;
   }
 
   html[data-platform="desktop"] .desktop-panel-handle:hover,
@@ -5378,18 +5389,25 @@ html[data-platform="mobile"] #btn-nav-board {
     max-width: none;
     height: auto;
     border-left: none;
+    /* Ancora a alça de altura (posicionada em cima da borda de baixo deste
+       painel, ver .desktop-panel-row-handle) — sem isto ela se posicionaria
+       relativa a algum ancestral mais distante. */
+    position: relative;
   }
 
   /* O último da pilha absorve o espaço sobrando (igual a Nota já faz na
      horizontal); os demais ficam com a altura fixa arrastável em
-     --panel-height. desktop-panel-stack-last é alternada via JS a cada
-     reconciliação — não dá pra usar :last-child porque a ordem visual vem do
-     `order` inline, não da ordem no DOM. */
+     --panel-height, com uma borda embaixo (é essa linha que a alça de altura
+     fica sobrepondo — sem vão nenhum entre os dois painéis empilhados).
+     desktop-panel-stack-last é alternada via JS a cada reconciliação — não dá
+     pra usar :last-child porque a ordem visual vem do `order` inline, não da
+     ordem no DOM. */
   html[data-platform="desktop"] .desktop-panel-column > .board-view:not(.desktop-panel-stack-last),
   html[data-platform="desktop"] .desktop-panel-column > .graph-view:not(.desktop-panel-stack-last),
   html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not(.desktop-panel-stack-last),
   html[data-platform="desktop"] .desktop-panel-column > .docs-section:not(.desktop-panel-stack-last) {
     flex: 0 0 var(--panel-height, 240px) !important;
+    border-bottom: 1px solid var(--border);
   }
 
   html[data-platform="desktop"] .desktop-panel-column > .board-view.desktop-panel-stack-last,
@@ -5399,14 +5417,17 @@ html[data-platform="mobile"] #btn-nav-board {
     flex: 1 1 auto !important;
   }
 
+  /* Mesma lógica da .desktop-panel-handle acima, na vertical: filha do
+     próprio painel (não um vão à parte), sobreposta à borda de baixo dele. */
   html[data-platform="desktop"] .desktop-panel-row-handle {
-    flex: 0 0 6px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
     height: 6px;
-    width: 100%;
     cursor: row-resize;
     background: transparent;
-    position: relative;
-    z-index: 20;
+    z-index: 25;
   }
 
   html[data-platform="desktop"] .desktop-panel-row-handle:hover,
@@ -5555,12 +5576,12 @@ html[data-platform="mobile"] #btn-nav-board {
        44px. */
     flex: 0 0 auto;
     width: 100%;
-    height: 44px;
-    max-height: 44px;
+    height: 52px;
+    max-height: 52px;
     padding: 0 14px;
     overflow-x: auto;
     overflow-y: hidden;
-    scrollbar-width: thin;
+    scrollbar-width: none;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     box-sizing: border-box;
@@ -5571,7 +5592,7 @@ html[data-platform="mobile"] #btn-nav-board {
   }
 
   html[data-platform="desktop"] .note-section #notes-tabs::-webkit-scrollbar {
-    height: 4px;
+    display: none;
   }
 
   html[data-platform="desktop"] .note-section #notes-tabs .note-tab {
@@ -6317,6 +6338,31 @@ html[data-platform="desktop"] .note-tab.has-folder {
   transform: translateX(-100%);
 }
 
+/* Logo do QuickDock no topo do drawer permanente do desktop — só existe
+   nesse contexto porque o drawer é montado do zero via JS (ver
+   initDesktopNotesAsideDrawer em notes-tabs.js), sem reaproveitar o
+   .aside-brand do .app-aside antigo, que fica escondido no desktop. */
+.notes-aside-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 0;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.notes-aside-brand-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.notes-aside-brand-title {
+  font-weight: 700;
+  font-size: 14.5px;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+
 .notes-aside-header {
   display: flex;
   align-items: center;
@@ -6608,6 +6654,11 @@ html[data-platform="desktop"] .note-tab.has-folder {
   box-sizing: border-box;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.graph-header::-webkit-scrollbar {
+  display: none;
 }
 
 .graph-header-left {
@@ -7469,6 +7520,11 @@ html[data-platform="desktop"] .note-tab.has-folder {
   box-sizing: border-box;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.calendar-header::-webkit-scrollbar {
+  display: none;
 }
 
 .calendar-header-left {

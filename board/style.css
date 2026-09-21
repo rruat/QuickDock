@@ -89,8 +89,12 @@
      hipóteses dá pra arrastar até eles. */
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+}
+
+.board-header::-webkit-scrollbar {
+  display: none;
 }
 
 .board-header-left,

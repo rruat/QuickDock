@@ -198,6 +198,14 @@ function applyLayout() {
     wrapper.style.order = String(PANEL_ORDER[raiz]);
     wrapper.style.setProperty('--panel-width', `${panelWidths[raiz] || DEFAULT_WIDTH}px`);
 
+    // A alça de largura é filha do próprio wrapper (posicionada em cima da
+    // borda esquerda dele via CSS) — só existe uma vez que o wrapper existe,
+    // por isso é anexada aqui e não em createHandle().
+    if (handles[raiz]) {
+      wrapper.appendChild(handles[raiz]);
+      handles[raiz].hidden = false;
+    }
+
     // Monta a cadeia (raiz, filho, neto...) com guarda de ciclo por segurança
     // contra um storage salvo à mão/corrompido.
     const cadeia = [];
@@ -225,8 +233,10 @@ function applyLayout() {
         temAlcaEmbaixo.add(nome);
         const alca = rowHandles[nome];
         if (alca) {
-          wrapper.appendChild(alca);
-          alca.style.order = String(i * 2 + 1);
+          // Filha do próprio painel `nome` (posicionada em cima da borda de
+          // baixo dele via CSS), não do wrapper — a divisa é entre este
+          // painel e o próximo da pilha, então é aqui que ela precisa estar.
+          el.appendChild(alca);
           alca.hidden = false;
         }
       }
@@ -234,7 +244,7 @@ function applyLayout() {
   }
 
   for (const nome of PANEL_NAMES) {
-    if (handles[nome]) handles[nome].hidden = !raizes.includes(nome);
+    if (handles[nome] && !raizes.includes(nome)) handles[nome].hidden = true;
     if (rowHandles[nome] && !temAlcaEmbaixo.has(nome)) rowHandles[nome].hidden = true;
   }
 }
@@ -273,11 +283,14 @@ export function toggleDesktopPanel(name) {
   }
 }
 
+// A alça não é mais um item de flex à parte (que reservava um vão fixo entre
+// as colunas) — vira filho do próprio wrapper que ela redimensiona,
+// posicionado em cima da borda esquerda dele (position:absolute, sem tirar
+// espaço do layout). É a própria linha da borda que fica arrastável.
 function createHandle(name) {
   const handle = document.createElement('div');
   handle.className = 'desktop-panel-handle';
   handle.dataset.panel = name;
-  handle.style.order = String(PANEL_ORDER[name] - 1);
   handle.title = 'Arraste para redimensionar';
   handle.hidden = true;
 
@@ -314,10 +327,11 @@ function createHandle(name) {
     persist();
   });
 
-  document.getElementById('app')?.appendChild(handle);
   return handle;
 }
 
+// Mesma ideia do createHandle acima, mas na vertical: filho do próprio
+// painel `name`, em cima da borda de baixo dele.
 function createRowHandle(name) {
   const handle = document.createElement('div');
   handle.className = 'desktop-panel-row-handle';
@@ -358,7 +372,6 @@ function createRowHandle(name) {
     persist();
   });
 
-  document.getElementById('app')?.appendChild(handle);
   return handle;
 }
 
