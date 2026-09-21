@@ -4295,6 +4295,29 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSourceMod.includes('.aux-view-dropdown') &&
     styleCssSourceMod.includes('position: fixed !important;') &&
     styleCssSourceMod.includes('z-index: 10000 !important;'));
+
+  // 30.15: Título/ícone/cor mudados em qualquer lugar (cabeçalho, menu "⋯" da
+  // aba ou renomear por duplo clique na aside) refletem em todo o resto sem
+  // precisar fechar e reabrir a nota; e renomear com 2 cliques direto na aside
+  const noteJsSourceMod = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+
+  ok('aside · refreshOpenAsideRows() é chamado depois de mudar ícone, cor ou título pelo menu "⋯"',
+    tabsJsSourceMod.includes('async function refreshOpenAsideRows()') &&
+    (tabsJsSourceMod.match(/refreshOpenAsideRows\(\)/g) || []).length >= 4);
+
+  ok('cabeçalho · note.js rebusca a nota (getNoteById) antes de re-renderizar ao mudar ícone/cor/título por fora',
+    noteJsSourceMod.includes("document.addEventListener('quickdock:note-appearance-updated'") &&
+    noteJsSourceMod.includes('headerNoteRef = fresh'));
+
+  ok('aside · título editado no cabeçalho avisa quickdock:note-title-committed e a aside escuta pra sincronizar o notesMeta',
+    noteJsSourceMod.includes("new CustomEvent('quickdock:note-title-committed'") &&
+    tabsJsSourceMod.includes("addEventListener('quickdock:note-title-committed'"));
+
+  ok('aside · renomear com duplo clique direto na linha, sem abrir o menu "⋯"',
+    tabsJsSourceMod.includes('function iniciarRenomeacaoInlineNaAside') &&
+    tabsJsSourceMod.includes('function ligarCliqueEDuploCliqueNaLinha') &&
+    tabsJsSourceMod.includes("label.addEventListener('dblclick'") &&
+    styleCssSourceMod.includes('.notes-list-rename-input'));
 }
 
 if (falhas.length) {

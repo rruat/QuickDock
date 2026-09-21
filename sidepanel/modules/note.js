@@ -1814,6 +1814,12 @@ function commitHeaderTitle() {
   if (val === headerNoteRef.title) return;
   updateNoteMetaById(headerNoteRef.id, { title: val });
   headerNoteRef.title = val;
+  // O título editado aqui nunca passa pelo notesMeta da aside (notes-tabs.js
+  // mantém seu próprio cache) — sem isto, o nome ficava desatualizado ali até
+  // fechar e reabrir a nota.
+  document.dispatchEvent(new CustomEvent('quickdock:note-title-committed', {
+    detail: { noteId: headerNoteRef.id, title: val }
+  }));
 }
 
 if (headerTitleEl) {
@@ -1848,11 +1854,19 @@ headerColorBtn?.addEventListener('click', e => {
   if (headerNoteRef) openAppearancePopover(headerColorBtn, headerNoteRef);
 });
 
-// A aba pode mudar ícone/cor desta mesma nota (pelo menu "⋯"); o cabeçalho
-// precisa refletir isso mesmo quando não foi ele quem disparou a troca.
-document.addEventListener('quickdock:note-appearance-updated', e => {
+// A aba (ou a aside) pode mudar título/ícone/cor desta mesma nota por fora do
+// cabeçalho (menu "⋯"); precisa refletir isso mesmo quando não foi o
+// cabeçalho quem disparou a troca. `headerNoteRef` é um objeto próprio deste
+// módulo (vem de um getNoteById() separado do notesMeta da aside) — sem
+// buscar de novo, renderNoteHeader(headerNoteRef) só repetiria os dados
+// antigos, sem mudar nada na tela.
+document.addEventListener('quickdock:note-appearance-updated', async e => {
   if (!headerNoteRef || e.detail?.noteId !== headerNoteRef.id) return;
-  renderNoteHeader(headerNoteRef);
+  const fresh = await getNoteById(headerNoteRef.id);
+  if (fresh) {
+    headerNoteRef = fresh;
+    renderNoteHeader(headerNoteRef);
+  }
 });
 
 // ── Barra de Propriedades da Nota (Notion / Obsidian style) ───────────────────

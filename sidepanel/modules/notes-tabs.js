@@ -996,6 +996,7 @@ export function renderAppearanceContent(pop, meta) {
     meta.icon = name;
     renderTabs();
     renderAppearanceContent(pop, meta);
+    refreshOpenAsideRows();
     document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
   };
 
@@ -1102,6 +1103,7 @@ export function renderAppearanceContent(pop, meta) {
     meta.iconFilled = e.target.checked;
     renderTabs();
     renderAppearanceContent(pop, meta);
+    refreshOpenAsideRows();
     document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
   });
   const fillLabel = document.createElement('span');
@@ -1124,6 +1126,7 @@ export function renderAppearanceContent(pop, meta) {
     if (meta.id === activeId) setAccent(hex);
     renderTabs();
     renderAppearanceContent(pop, meta);
+    refreshOpenAsideRows();
     document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
   };
 
@@ -1278,6 +1281,10 @@ function renderTabMenu(meta, anchorEl) {
     await updateNoteMetaById(meta.id, { title: val });
     meta.title = val;
     renderTabs();
+    refreshOpenAsideRows();
+    // Se esta for a nota aberta no momento, o cabeçalho precisa saber —
+    // reaproveita o mesmo aviso do ícone/cor (note.js já busca dados frescos).
+    document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
   });
   menu.appendChild(renameInput);
 
@@ -1976,7 +1983,7 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
       row.appendChild(editBtn);
 
       row.addEventListener('mousedown', e => e.stopPropagation());
-      row.addEventListener('click', async () => {
+      ligarCliqueEDuploCliqueNaLinha(row, label, meta, async () => {
         closeNotesAsideDrawer();
         if (meta.id !== activeId) { await activateNote(meta.id); renderTabs(); }
         scrollTabIntoView(meta.id);
@@ -2017,7 +2024,7 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
     row.appendChild(editBtn);
 
     row.addEventListener('mousedown', e => e.stopPropagation());
-    row.addEventListener('click', async () => {
+    ligarCliqueEDuploCliqueNaLinha(row, label, meta, async () => {
       closeNotesAsideDrawer();
       if (meta.id !== activeId) { await activateNote(meta.id); renderTabs(); }
       scrollTabIntoView(meta.id);
@@ -2665,6 +2672,83 @@ export function openNotesAsideDrawer() {
 
 export function openNotesListPopover() {
   openNotesAsideDrawer();
+}
+
+// Reflete uma mudança de metadado (título, ícone, cor...) na lista de "Todas
+// as notas" já aberta — sem isto, a linha da aside ficava com o valor antigo
+// até a pessoa fechar e reabrir a busca/pasta que a redesenha do zero. No
+// desktop o drawer fica sempre `.open` (é o nav permanente), então isto roda
+// toda vez; nas outras plataformas só faz algo se o popover estiver na tela.
+async function refreshOpenAsideRows() {
+  if (!notesAsideDrawer || !notesAsideDrawer.classList.contains('open')) return;
+  const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
+  if (!scroll) return;
+  const input = notesAsideDrawer.querySelector('.notes-search-input');
+  const countEl = notesAsideDrawer.querySelector('.notes-search-count');
+  const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
+  await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
+}
+
+// Renomear com 2 cliques direto na linha da aside, sem passar pelo menu "⋯".
+// Troca o <span> do título por um <input> no lugar; Enter/perder foco grava,
+// Escape cancela. `refreshOpenAsideRows()` no fim resolve os dois casos: ele
+// reconstrói a linha a partir do notesMeta (já atualizado ou não), então tanto
+// faz gravar quanto cancelar, o <input> sempre volta a ser um <span> normal.
+function iniciarRenomeacaoInlineNaAside(label, meta) {
+  const input = document.createElement('input');
+  input.className = 'notes-list-rename-input';
+  input.value = meta.title || '';
+  input.placeholder = 'Sem título';
+  label.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const commit = async () => {
+    input.removeEventListener('blur', commit);
+    const val = input.value.trim() || 'Sem título';
+    if (val !== meta.title) {
+      await updateNoteMetaById(meta.id, { title: val });
+      meta.title = val;
+      renderTabs();
+      if (meta.id === activeId) {
+        document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
+      }
+    }
+    await refreshOpenAsideRows();
+  };
+
+  input.addEventListener('mousedown', e => e.stopPropagation());
+  input.addEventListener('click', e => e.stopPropagation());
+  input.addEventListener('dblclick', e => e.stopPropagation());
+  input.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = meta.title; input.blur(); }
+  });
+  input.addEventListener('blur', commit);
+}
+
+// Distingue clique único (abre a nota) de duplo clique (renomeia) no mesmo
+// elemento: o único jeito confiável é atrasar a ação do clique único e
+// cancelá-la se um segundo clique chegar antes do tempo — dblclick nativo
+// dispara à parte, depois do 2º click, então continua funcionando normal.
+function ligarCliqueEDuploCliqueNaLinha(row, label, meta, aoAtivar) {
+  let timerClique = null;
+  row.addEventListener('click', () => {
+    if (timerClique) {
+      clearTimeout(timerClique);
+      timerClique = null;
+      return;
+    }
+    timerClique = setTimeout(() => {
+      timerClique = null;
+      aoAtivar();
+    }, 220);
+  });
+  label.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    iniciarRenomeacaoInlineNaAside(label, meta);
+  });
 }
 
 // ── Drawer permanente para Desktop ──────────────────────────────────────────
@@ -3362,13 +3446,20 @@ document.addEventListener('quickdock:note-folder-changed', async e => {
     updateNoteFolderBar(meta);
   }
   renderTabs();
-  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
-    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
-    const input = notesAsideDrawer.querySelector('.notes-search-input');
-    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
-    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
-    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
-  }
+  await refreshOpenAsideRows();
+});
+
+// Título editado direto no cabeçalho da nota (note.js) — diferente do preview
+// a cada tecla (só cosmético, só a aba), este dispara já com o valor gravado
+// no banco, então é aqui que o notesMeta de verdade (usado pela busca e pela
+// lista "Todas as notas") fica sincronizado.
+document.addEventListener('quickdock:note-title-committed', async e => {
+  const { noteId, title } = e.detail || {};
+  const meta = notesMeta.find(n => n.id === Number(noteId));
+  if (!meta || meta.title === title) return;
+  meta.title = title;
+  renderTabs();
+  await refreshOpenAsideRows();
 });
 
 export async function refreshNotesList() {

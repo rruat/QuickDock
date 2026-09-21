@@ -2892,6 +2892,24 @@ body.template-mode .note-watermark {
   white-space: nowrap;
 }
 
+/* Substitui o <span> do título na linha da aside durante o renomear por
+   duplo clique (ver ligarCliqueEDuploCliqueNaLinha em notes-tabs.js) — mesmo
+   tamanho/peso do .copy-opt-value que ela troca de lugar, só com borda pra
+   deixar claro que virou um campo editável. */
+.notes-list-rename-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 4px;
+  outline: none;
+}
+
 .copy-opt-hint {
   font-size: 10px;
   color: var(--text-muted);
