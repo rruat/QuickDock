@@ -688,6 +688,18 @@ export async function saveSplitRatio(ratio) {
   return platformStorage.set('split_ratio', ratio);
 }
 
+// --- LAYOUT DE PAINÉIS DO DESKTOP (Quadro/Grafo/Calendário/Documentos simultâneos) ---
+export async function loadDesktopPanelLayout() {
+  const layout = await platformStorage.get('desktop_panel_layout');
+  return (layout && typeof layout === 'object')
+    ? { open: Array.isArray(layout.open) ? layout.open : [], widths: layout.widths || {} }
+    : { open: [], widths: {} };
+}
+
+export async function saveDesktopPanelLayout(layout) {
+  return platformStorage.set('desktop_panel_layout', layout);
+}
+
 // --- TEMA ---
 export async function loadTheme() {
   const theme = await platformStorage.get('theme');

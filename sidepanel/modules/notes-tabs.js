@@ -20,6 +20,7 @@ import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks } from './bl
 import { buildBackup, parseBackup } from './backup.js';
 import { iconSvg, createIcon } from './icons.js';
 import { switchView, getCurrentView } from './views.js';
+import { toggleDesktopPanel, isDesktopPanelOpen } from './desktop-panels.js';
 import { MATERIAL_ICONS } from './material-icons-list.js';
 
 const tabsEl        = document.getElementById('notes-tabs');
@@ -2827,9 +2828,10 @@ function initDesktopNotesAsideDrawer() {
   const gridViews = document.createElement('div');
   gridViews.className = 'aside-footer-grid';
 
-  const createFooterBtn = (iconNameF, label, onClick) => {
+  const createFooterBtn = (iconNameF, label, onClick, panelKey = null) => {
     const b = document.createElement('button');
     b.className = 'aside-footer-btn';
+    if (panelKey) b.dataset.panel = panelKey;
     b.innerHTML = `${iconSvg(iconNameF)}<span>${label}</span>`;
     b.addEventListener('click', async e => {
       e.stopPropagation();
@@ -2838,13 +2840,22 @@ function initDesktopNotesAsideDrawer() {
     return b;
   };
 
-  gridViews.appendChild(createFooterBtn('description', 'Documentos', () => {
-    document.dispatchEvent(new CustomEvent('quickdock:toggle-docs'));
-  }));
-  gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => switchView('board', { split: true })));
-  gridViews.appendChild(createFooterBtn('hub', 'Grafo', () => switchView('grafo', { split: true })));
-  gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => switchView('calendar', { split: true })));
+  // Quadro/Grafo/Calendário/Documentos agora são painéis independentes que
+  // podem ficar abertos ao mesmo tempo (ver desktop-panels.js) — cada botão
+  // liga/desliga só o seu, em vez de substituir o que já estava aberto.
+  gridViews.appendChild(createFooterBtn('description', 'Documentos', () => toggleDesktopPanel('docs'), 'docs'));
+  gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => toggleDesktopPanel('board'), 'board'));
+  gridViews.appendChild(createFooterBtn('hub', 'Grafo', () => toggleDesktopPanel('grafo'), 'grafo'));
+  gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => toggleDesktopPanel('calendar'), 'calendar'));
   gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
+
+  const syncPanelButtonsActiveState = () => {
+    for (const btn of gridViews.querySelectorAll('[data-panel]')) {
+      btn.classList.toggle('is-active', isDesktopPanelOpen(btn.dataset.panel));
+    }
+  };
+  syncPanelButtonsActiveState();
+  document.addEventListener('quickdock:desktop-panels-changed', syncPanelButtonsActiveState);
 
   secViews.appendChild(gridViews);
   footer.appendChild(secViews);

@@ -11,6 +11,15 @@ import { construirGrafo } from './links.js';
 import { switchView, goBack, getCurrentView, isViewFullscreen } from './views.js';
 import { escHtml } from './blocks.js';
 import { getCurrentNoteId } from './note.js';
+import { isDesktopMode } from './platform.js';
+import { isDesktopPanelOpen, toggleDesktopPanel } from './desktop-panels.js';
+
+// No desktop, o Grafo passou a ser um painel independente (ver
+// desktop-panels.js) em vez de "a visão atual" — fora do desktop continua
+// tudo pelo modelo antigo de switchView/currentView.
+function isGrafoVisivel() {
+  return isDesktopMode() ? isDesktopPanelOpen('grafo') : getCurrentView() === 'grafo';
+}
 
 const CONFIG_STORAGE_KEY = 'quickdock:graph:config';
 
@@ -78,7 +87,12 @@ export function initGraphView() {
   carregarConfig();
 
   // Botões do cabeçalho
-  document.getElementById('btn-graph-back')?.addEventListener('click', () => goBack());
+  // No desktop o Grafo é um painel que se liga/desliga (ver desktop-panels.js),
+  // não uma tela cheia com histórico pra "voltar" — o botão fecha o painel.
+  document.getElementById('btn-graph-back')?.addEventListener('click', () => {
+    if (isDesktopMode()) toggleDesktopPanel('grafo');
+    else goBack();
+  });
   document.getElementById('btn-graph-zoom-in')?.addEventListener('click', () => zoomBy(1.25));
   document.getElementById('btn-graph-zoom-out')?.addEventListener('click', () => zoomBy(0.8));
   document.getElementById('btn-graph-zoom-reset')?.addEventListener('click', () => resetCamera(true));
@@ -126,11 +140,23 @@ export function initGraphView() {
   });
 
   document.addEventListener('quickdock:active-note-changed', () => {
-    if (getCurrentView() === 'grafo') render();
+    if (isGrafoVisivel()) render();
   });
 
   document.addEventListener('quickdock:note-loaded', () => {
-    if (getCurrentView() === 'grafo') render();
+    if (isGrafoVisivel()) render();
+  });
+
+  // No desktop o grafo nunca mais passa por switchView, então o listener de
+  // quickdock:view-changed acima (que só reage a currentView==='grafo') não
+  // dispara mais o "senão pára a simulação" pra ele — esse fechamento agora
+  // vem por aqui, disparado só quando o PRÓPRIO painel do grafo é fechado
+  // (fechar outro painel simultâneo não deve afetar o grafo que continua aberto).
+  document.addEventListener('quickdock:panel-closed', e => {
+    if (e.detail?.panel === 'grafo') {
+      stopSimulation();
+      fecharSettingsPanel();
+    }
   });
 }
 
@@ -915,7 +941,10 @@ function onPointerUp(e) {
   if (!pointerMoved && hoveredNode) {
     const target = hoveredNode;
     hideTooltip();
-    if (isViewFullscreen()) {
+    // No desktop currentView nunca chega a ser 'grafo' (o painel não passa
+    // mais por switchView), então isViewFullscreen() já dá sempre falso ali —
+    // este guard só é necessário mesmo fora do desktop.
+    if (!isDesktopMode() && isViewFullscreen()) {
       switchView('grafo', { split: true });
     }
     document.dispatchEvent(new CustomEvent('quickdock:activate-note', {

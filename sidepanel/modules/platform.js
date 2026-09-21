@@ -62,6 +62,15 @@ export function applyPlatform() {
 }
 
 /**
+ * Fonte única de verdade pra "estamos no modo desktop-web?" — usada por vários
+ * módulos (notes-tabs, documents, graph-view, desktop-panels) que precisam
+ * ramificar comportamento só pra esse modo.
+ */
+export function isDesktopMode() {
+  return typeof document !== 'undefined' && document.documentElement.dataset.platform === 'desktop';
+}
+
+/**
  * Armazenamento assíncrono de chave-valor para preferências (tema, layout, notas ativas, histórico).
  */
 export const platformStorage = {

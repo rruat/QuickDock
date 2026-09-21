@@ -5166,7 +5166,13 @@ html[data-platform="mobile"] #btn-nav-board {
     display: flex;
     flex-direction: row;
     height: 100vh;
-    overflow: hidden;
+    /* overflow-x:auto é a rede de segurança de última instância — com vários
+       painéis abertos (Quadro/Grafo/Calendário/Documentos, ver desktop-
+       panels.js) numa janela estreita, é melhor rolar do que empurrar um
+       painel pra fora da tela sem deixar rastro (mesma lição do cabeçalho do
+       Quadro, ver board/style.css). */
+    overflow-x: auto;
+    overflow-y: hidden;
     background: var(--bg);
   }
 
@@ -5220,7 +5226,7 @@ html[data-platform="mobile"] #btn-nav-board {
     order: 2 !important;
     flex: 1 1 auto;
     width: 0;
-    min-width: 0;
+    min-width: 320px;
     height: 100vh !important;
     display: flex;
     flex-direction: column;
@@ -5241,14 +5247,12 @@ html[data-platform="mobile"] #btn-nav-board {
     height: 100vh !important;
   }
 
-  /* Visões auxiliares em tela cheia 100% no desktop: ocupam o palco central inteiro ao lado da sidebar */
+  /* "Modelos" (galeria de templates) continua no modelo antigo de visão única
+     em tela cheia — não faz parte do sistema de painéis simultâneos abaixo. */
   html[data-platform="desktop"].view-fullscreen .note-section {
     display: none !important;
   }
 
-  html[data-platform="desktop"].view-fullscreen .graph-view,
-  html[data-platform="desktop"].view-fullscreen .board-view,
-  html[data-platform="desktop"].view-fullscreen .calendar-view,
   html[data-platform="desktop"].view-fullscreen .templates-gallery-view {
     order: 2 !important;
     flex: 1 1 auto !important;
@@ -5263,56 +5267,97 @@ html[data-platform="mobile"] #btn-nav-board {
     border-left: none !important;
   }
 
-  /* No desktop, quando visão auxiliar estiver ativa em modo dividido (split), o editor divide a tela 50/50 com a visão */
-  html.view-grafo .note-section,
-  html.view-board .note-section,
-  html.view-calendar .note-section,
-  html[data-platform="desktop"]:not(.view-fullscreen).view-grafo .note-section,
-  html[data-platform="desktop"]:not(.view-fullscreen).view-board .note-section,
-  html[data-platform="desktop"]:not(.view-fullscreen).view-calendar .note-section,
-  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-grafo):not(.view-board):not(.view-calendar) #app:has(.docs-section:not([hidden]):not(.is-collapsed):not(.is-minimized)) .note-section {
-    flex: 1 1 50% !important;
-    width: 50% !important;
-    min-width: 340px !important;
-  }
+  /* ===== PAINÉIS SIMULTÂNEOS E REDIMENSIONÁVEIS =====
+     Quadro/Grafo/Calendário/Documentos deixaram de ser "a única visão
+     auxiliar" (que substituía qualquer outra) e viraram colunas
+     independentes, cada uma ligada/desligada e redimensionada por conta
+     própria (ver sidepanel/modules/desktop-panels.js). A ordem entre elas é
+     fixa via `order` (não depende de qual foi aberta primeiro); a largura de
+     cada uma vem de --panel-width, uma custom property setada em JS e
+     arrastável pela alça .desktop-panel-handle correspondente. */
+  html[data-platform="desktop"] .board-view { order: 20; }
+  html[data-platform="desktop"] .graph-view { order: 30; }
+  html[data-platform="desktop"] .calendar-view { order: 40; }
+  html[data-platform="desktop"] .docs-section { order: 50; }
 
-  /* Visões auxiliares posicionadas lado a lado com o editor em modo dividido (NAV | NOTA | OUTRA VIEW) */
-  html[data-platform="desktop"]:not(.view-fullscreen) .graph-view,
-  html[data-platform="desktop"]:not(.view-fullscreen) .board-view,
-  html[data-platform="desktop"]:not(.view-fullscreen) .calendar-view,
-  html[data-platform="desktop"]:not(.view-fullscreen) .docs-section {
-    order: 3 !important;
-    flex: 1 1 50% !important;
-    width: 50% !important;
-    min-width: 340px !important;
-    display: flex;
+  /* !important necessário: uma regra global antiga (~linha 3933,
+     "html:not(.view-board) .board-view{display:none!important}" e as
+     equivalentes de grafo/calendário/docs) parte do princípio de que sempre
+     existe uma classe view-<nome> em <html> pra visão que deve aparecer — o
+     sistema de painéis novo nunca mais adiciona essas classes, então sem o
+     !important aqui essa regra antiga vencia e escondia tudo de novo. */
+  html[data-platform="desktop"] .board-view:not([hidden]),
+  html[data-platform="desktop"] .graph-view:not([hidden]),
+  html[data-platform="desktop"] .calendar-view:not([hidden]),
+  html[data-platform="desktop"] .docs-section:not([hidden]):not(.is-collapsed) {
+    flex: 0 1 var(--panel-width, 380px) !important;
+    width: var(--panel-width, 380px) !important;
+    min-width: 260px;
+    max-width: 70vw;
+    height: 100vh;
+    display: flex !important;
     flex-direction: column;
     position: relative;
     overflow: hidden;
     background: var(--bg);
     border-left: 1px solid var(--border);
-    transition: height 0.2s ease, max-height 0.2s ease;
   }
 
-  /* Caso: Altura toda (100% da altura da janela - padrão) */
-  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .graph-view,
-  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .board-view,
-  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .calendar-view,
-  html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .docs-section {
-    height: 100vh !important;
-    max-height: 100vh !important;
+  html[data-platform="desktop"] .desktop-panel-handle {
+    flex: 0 0 6px;
+    width: 6px;
+    min-width: 6px;
+    height: 100vh;
+    cursor: col-resize;
+    background: transparent;
+    position: relative;
+    z-index: 20;
   }
 
-  /* Caso: Metade da altura (50% da altura da janela) */
-  html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .graph-view,
-  html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .board-view,
-  html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .calendar-view,
-  html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .docs-section {
-    height: 50vh !important;
-    max-height: 50vh !important;
-    align-self: flex-end !important;
-    border-top: 1px solid var(--border);
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  html[data-platform="desktop"] .desktop-panel-handle:hover,
+  html[data-platform="desktop"] .desktop-panel-handle:active {
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-handle[hidden] {
+    display: none;
+  }
+
+  /* Sem nota aberta, painéis abertos continuam visíveis (a regra global
+     "body.no-note-open .graph-view{display:none}" mais abaixo no arquivo foi
+     pensada pro modelo antigo de visão única e, sem esta exceção, esconderia
+     qualquer painel deste sistema novo mesmo com ele ligado). */
+  html[data-platform="desktop"] body.no-note-open .board-view:not([hidden]),
+  html[data-platform="desktop"] body.no-note-open .graph-view:not([hidden]),
+  html[data-platform="desktop"] body.no-note-open .calendar-view:not([hidden]),
+  html[data-platform="desktop"] body.no-note-open .docs-section:not([hidden]):not(.is-collapsed) {
+    display: flex !important;
+  }
+
+  /* ...mas o placeholder "Nenhuma nota aberta" (dentro de .note-section) só
+     faz sentido ocupar uma coluna quando NENHUM painel auxiliar está aberto —
+     se algum estiver, libera o espaço pra eles em vez de deixar a coluna da
+     nota vazia ao lado. */
+  html[data-platform="desktop"] body.no-note-open:has(
+    .board-view:not([hidden]),
+    .graph-view:not([hidden]),
+    .calendar-view:not([hidden]),
+    .docs-section:not([hidden]):not(.is-collapsed)
+  ) .note-section {
+    display: none !important;
+  }
+
+  /* Tela-cheia/meia-altura por visão não compõem com painéis simultâneos —
+     os botões somem só no desktop (mobile/extensão continuam com os deles). */
+  html[data-platform="desktop"] #btn-graph-toggle-fullscreen,
+  html[data-platform="desktop"] #btn-board-toggle-fullscreen,
+  html[data-platform="desktop"] #btn-calendar-toggle-fullscreen,
+  html[data-platform="desktop"] #btn-graph-toggle-height,
+  html[data-platform="desktop"] #btn-board-toggle-height,
+  html[data-platform="desktop"] #btn-calendar-toggle-height,
+  html[data-platform="desktop"] #btn-docs-toggle-height {
+    display: none !important;
   }
 
   html[data-platform="desktop"] .docs-section[hidden],
@@ -5595,10 +5640,6 @@ html[data-platform="mobile"] #btn-nav-board {
     flex-shrink: 0;
   }
 
-  /* Seção de Documentos e Visões Auxiliares no Desktop operam na coluna 3 (NAV | NOTA | OUTRA VIEW) */
-  html[data-platform="desktop"] .docs-section {
-    order: 3 !important;
-  }
 }
 
 /* Controles de altura de visão auxiliar (100% / 50%) exclusivos do Desktop */
@@ -8610,6 +8651,19 @@ html.no-note-open .note-section {
   color: var(--accent);
 }
 
+/* Painel aberto no sistema de colunas simultâneas do desktop (Quadro/Grafo/
+   Calendário/Documentos, ver desktop-panels.js) — os botões de "Visões" que
+   têm data-panel refletem esse estado, os outros (Modelos) ficam de fora. */
+.aside-footer-btn.is-active {
+  background: var(--bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.aside-footer-btn.is-active .qd-icon {
+  color: var(--accent);
+}
+
 /* ===== SELETOR DE VISÃO AUXILIAR NO CABEÇALHO DE DOCUMENTOS ===== */
 .docs-title-wrap {
   display: flex;
@@ -8683,6 +8737,17 @@ html.no-note-open .note-section {
 
 .aux-view-opt:hover {
   background: var(--bg-hover);
+}
+
+/* Painel aberto no sistema de colunas simultâneas do desktop (ver
+   desktop-panels.js) — some sozinho fora do desktop, já que o addOpt()
+   correspondente só passa isActive=true nesse modo. */
+.aux-view-opt.is-active {
+  background: var(--bg-hover);
+}
+
+.aux-view-opt.is-active .aux-view-icon {
+  color: var(--accent);
 }
 
 .aux-view-opt .aux-view-icon {

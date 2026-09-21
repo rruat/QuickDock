@@ -7,6 +7,8 @@
 import { loadAllNotesMeta, createNoteRecord, getNoteById } from './storage.js';
 import { switchView, goBack } from './views.js';
 import { escHtml } from './blocks.js';
+import { isDesktopMode } from './platform.js';
+import { toggleDesktopPanel } from './desktop-panels.js';
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -162,7 +164,13 @@ export function initCalendarView() {
   if (!containerEl) return;
 
   // Botões de navegação
-  document.getElementById('btn-calendar-back')?.addEventListener('click', () => goBack());
+  // No desktop o Calendário é um painel que se liga/desliga (ver
+  // desktop-panels.js), não uma tela cheia com histórico pra "voltar" — o
+  // botão fecha o painel.
+  document.getElementById('btn-calendar-back')?.addEventListener('click', () => {
+    if (isDesktopMode()) toggleDesktopPanel('calendar');
+    else goBack();
+  });
 
   document.getElementById('btn-calendar-prev')?.addEventListener('click', () => {
     mesAtual--;
@@ -244,7 +252,9 @@ export async function criarENavegarNotaPorData(dataStr, categoria = '') {
     document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
       detail: { id }
     }));
-    switchView('editor');
+    // No desktop a coluna da nota já fica sempre visível ao lado do
+    // Calendário — não existe "voltar pro editor" pra fazer ali.
+    if (!isDesktopMode()) switchView('editor');
   } catch (err) {
     console.error('Falha ao criar nota no calendário:', err);
   }
@@ -372,7 +382,7 @@ export async function carregarERenderizarCalendario() {
         document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
           detail: { id: nota.id, uid: nota.uid }
         }));
-        switchView('editor');
+        if (!isDesktopMode()) switchView('editor');
       });
 
       notasDiaEl.appendChild(chipEl);

@@ -6,12 +6,13 @@ import { openModal } from './modal.js';
 import { startInject, startInjectMultiple } from './inject.js';
 import { initSelection, clearSelection, getSelectedMetas } from './selection.js';
 import { setActiveArea } from './active-area.js';
-import { podeInserirNaPagina, isExtension, platformStorage } from './platform.js';
+import { podeInserirNaPagina, isExtension, platformStorage, isDesktopMode } from './platform.js';
 import { isTouchSelectionMode } from './note.js';
 import { iconSvg } from './icons.js';
 import { toggleDocsExtension } from './resizer.js';
 import { positionPopover } from './popover.js';
 import { switchView, getCurrentView, isViewFullscreen, toggleViewFullscreen } from './views.js';
+import { toggleDesktopPanel, isDesktopPanelOpen } from './desktop-panels.js';
 
 let auxViewMenuEl = null;
 
@@ -28,10 +29,10 @@ export function openAuxViewMenu(anchorEl) {
   menu.addEventListener('mousedown', e => e.stopPropagation());
   menu.addEventListener('pointerdown', e => e.stopPropagation());
 
-  const addOpt = (iconName, label, desc, onClick) => {
+  const addOpt = (iconName, label, desc, onClick, isActive = false) => {
     const opt = document.createElement('button');
     opt.type = 'button';
-    opt.className = 'copy-opt aux-view-opt';
+    opt.className = 'copy-opt aux-view-opt' + (isActive ? ' is-active' : '');
     opt.innerHTML = `
       <span class="aux-view-icon">${iconSvg(iconName)}</span>
       <span class="aux-view-text">
@@ -48,29 +49,44 @@ export function openAuxViewMenu(anchorEl) {
     menu.appendChild(opt);
   };
 
-  addOpt('description', 'Documentos', 'Anexos e arquivos da nota', async () => {
-    switchView('editor');
-    const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
-    if (isExt) {
-      const docsSec = document.querySelector('.docs-section');
-      if (docsSec?.classList.contains('is-minimized')) toggleDocsExtension();
-    } else {
-      if (isDocsCollapsed) toggleDocsCollapsed();
-    }
-  });
-  addOpt('space_dashboard', 'Quadro Infinito', 'Dividir tela com a nota', () => switchView('board', { split: true }));
-  addOpt('hub', 'Grafo de Conexões', 'Dividir tela com a nota', () => switchView('grafo', { split: true }));
-  addOpt('calendar_month', 'Calendário', 'Dividir tela com a nota', () => switchView('calendar', { split: true }));
+  if (isDesktopMode()) {
+    // No desktop, Quadro/Grafo/Calendário/Documentos são painéis
+    // independentes (ver desktop-panels.js) — este menu vira uma lista de
+    // toggles em vez de "trocar para X", e não existe mais um conceito único
+    // de tela-cheia/dividida pra alternar (por isso a opção de baixo some).
+    addOpt('description', 'Documentos', 'Anexos e arquivos da nota',
+      () => toggleDesktopPanel('docs'), isDesktopPanelOpen('docs'));
+    addOpt('space_dashboard', 'Quadro Infinito', 'Abrir/fechar como painel',
+      () => toggleDesktopPanel('board'), isDesktopPanelOpen('board'));
+    addOpt('hub', 'Grafo de Conexões', 'Abrir/fechar como painel',
+      () => toggleDesktopPanel('grafo'), isDesktopPanelOpen('grafo'));
+    addOpt('calendar_month', 'Calendário', 'Abrir/fechar como painel',
+      () => toggleDesktopPanel('calendar'), isDesktopPanelOpen('calendar'));
+  } else {
+    addOpt('description', 'Documentos', 'Anexos e arquivos da nota', async () => {
+      switchView('editor');
+      const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
+      if (isExt) {
+        const docsSec = document.querySelector('.docs-section');
+        if (docsSec?.classList.contains('is-minimized')) toggleDocsExtension();
+      } else {
+        if (isDocsCollapsed) toggleDocsCollapsed();
+      }
+    });
+    addOpt('space_dashboard', 'Quadro Infinito', 'Dividir tela com a nota', () => switchView('board', { split: true }));
+    addOpt('hub', 'Grafo de Conexões', 'Dividir tela com a nota', () => switchView('grafo', { split: true }));
+    addOpt('calendar_month', 'Calendário', 'Dividir tela com a nota', () => switchView('calendar', { split: true }));
 
-  const curView = getCurrentView();
-  if (curView !== 'editor') {
-    const isFull = isViewFullscreen();
-    addOpt(
-      isFull ? 'fullscreen_exit' : 'fullscreen',
-      isFull ? 'Dividir tela com a nota' : 'Expandir para tela cheia (100%)',
-      'Alternar modo de exibição',
-      () => toggleViewFullscreen()
-    );
+    const curView = getCurrentView();
+    if (curView !== 'editor') {
+      const isFull = isViewFullscreen();
+      addOpt(
+        isFull ? 'fullscreen_exit' : 'fullscreen',
+        isFull ? 'Dividir tela com a nota' : 'Expandir para tela cheia (100%)',
+        'Alternar modo de exibição',
+        () => toggleViewFullscreen()
+      );
+    }
   }
 
   document.body.appendChild(menu);
