@@ -4330,6 +4330,138 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     (tabsJsSourceMod.match(/sincronizarComNotesMeta\(meta, /g) || []).length >= 3);
 }
 
+// ── 31. Bases: Painel Dedicado (tela cheia / dividida / painel simultâneo) ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const viewsJsSource = await readFile(new URL('../sidepanel/modules/views.js', import.meta.url), 'utf8');
+  const panelsJsSource = await readFile(new URL('../sidepanel/modules/desktop-panels.js', import.meta.url), 'utf8');
+  const docsJsSource = await readFile(new URL('../sidepanel/modules/documents.js', import.meta.url), 'utf8');
+  const appJsSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
+  const blocksJsSource = await readFile(new URL('../sidepanel/modules/blocks.js', import.meta.url), 'utf8');
+  const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const basesViewJsSource = await readFile(new URL('../sidepanel/modules/bases-view.js', import.meta.url), 'utf8');
+  const containerJsSource = await readFile(new URL('../sidepanel/modules/bases/bases-view-container.js', import.meta.url), 'utf8');
+  const tableViewJsSource = await readFile(new URL('../sidepanel/modules/bases/bases-table-view.js', import.meta.url), 'utf8');
+  const boardBaseViewJsSource = await readFile(new URL('../sidepanel/modules/bases/bases-board-view.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const swJsSource = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const sidepanelHtml = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+
+  // 31.1: Helper de escopo por nota e ação de criar base na nota atual
+  ok('blocks.js · exporta getBaseBlocksFromNote', blocksJsSource.includes('export function getBaseBlocksFromNote'));
+  ok('note.js · exporta appendBaseBlockToCurrentNote e requestSaveFromExternalEdit',
+    noteJsSource.includes('export async function appendBaseBlockToCurrentNote') &&
+    noteJsSource.includes('export function requestSaveFromExternalEdit'));
+  ok('note.js · fechar a última aba avisa quickdock:active-note-changed com id nulo',
+    noteJsSource.includes("new CustomEvent('quickdock:active-note-changed', { detail: { id: null } })"));
+  ok('note.js · switchToNote() avisa quickdock:active-note-changed pra QUALQUER troca de nota, não só pela aside (handleCreateNewNote do painel de Base chama switchToNote() direto)',
+    noteJsSource.includes("new CustomEvent('quickdock:active-note-changed', { detail: { id } })"));
+
+  // 31.2: Novo módulo bases-view.js — glue, sem reimplementar renderização
+  ok('bases-view.js · reaproveita renderBaseComponent, não reimplementa a Base',
+    basesViewJsSource.includes("import { renderBaseComponent } from './bases/bases-view-container.js'") &&
+    basesViewJsSource.includes('export function initBasesView'));
+  ok('bases-view.js · escuta os eventos certos (nota ativa, refresh do painel, troca de tela, notas mudaram)',
+    basesViewJsSource.includes("addEventListener('quickdock:active-note-changed'") &&
+    basesViewJsSource.includes("addEventListener('quickdock:refresh-bases-view'") &&
+    basesViewJsSource.includes("addEventListener('quickdock:view-changed'") &&
+    basesViewJsSource.includes("addEventListener('quickdock:notes-changed'"));
+  ok('bases-view.js · escreve de volta pelo bloco inline (dataset.config + requestSaveFromExternalEdit), não direto no banco',
+    basesViewJsSource.includes("querySelector('#note-editor-blocks .block-base')") &&
+    basesViewJsSource.includes('requestSaveFromExternalEdit()'));
+
+  // 31.3: HTML da seção dedicada — presente e idêntico nos dois arquivos
+  for (const [nome, fonte] of [['sidepanel/index.html', sidepanelHtml], ['index.html (raiz)', indexHtml]]) {
+    ok(`bases · ${nome} define a seção #bases-view com cabeçalho completo`,
+      fonte.includes('id="bases-view"') &&
+      fonte.includes('id="bases-body"') &&
+      fonte.includes('id="btn-bases-back"') &&
+      fonte.includes('id="btn-bases-aux-switcher"') &&
+      fonte.includes('id="btn-bases-toggle-height"') &&
+      fonte.includes('id="btn-bases-toggle-fullscreen"'));
+  }
+  ok('bases · index.html e sidepanel/index.html têm a mesma seção #bases-view (cópias mantidas à mão)',
+    indexHtml.slice(indexHtml.indexOf('id="bases-view"') - 60, indexHtml.indexOf('id="bases-body"'))
+      .replace(/\s+/g, ' ')
+    === sidepanelHtml.slice(sidepanelHtml.indexOf('id="bases-view"') - 60, sidepanelHtml.indexOf('id="bases-body"'))
+      .replace(/\s+/g, ' '));
+
+  // 31.4: views.js — quinta visão auxiliar, mesmo padrão de grafo/board/calendar
+  ok('views.js · switchView() trata a visão "bases" (mostra a seção, aplica classes, dispara refresh)',
+    viewsJsSource.includes("viewName === 'bases'") &&
+    viewsJsSource.includes("getElementById('bases-view')") &&
+    viewsJsSource.includes("new CustomEvent('quickdock:refresh-bases-view'"));
+  ok('views.js · guarda de no-note-open e listas de botões incluem bases',
+    viewsJsSource.includes("viewName === 'bases')") &&
+    viewsJsSource.includes("'btn-bases-toggle-height'") &&
+    viewsJsSource.includes("'btn-bases-toggle-fullscreen'"));
+
+  // 31.5: desktop-panels.js — quinto painel simultâneo
+  ok('desktop-panels.js · registra o painel "bases" (ordem, elemento, cabeçalho, evento de refresh)',
+    panelsJsSource.includes('bases: 60') &&
+    panelsJsSource.includes("case 'bases': return document.querySelector('.bases-view')") &&
+    panelsJsSource.includes("case 'bases': return document.querySelector('.bases-header')") &&
+    panelsJsSource.includes("bases: 'bases'"));
+
+  // 31.6: documents.js — quinta opção no menu de alternância de visão
+  ok('documents.js · openAuxViewMenu() ganha a opção "Base" nos dois modos (painel desktop e split não-desktop)',
+    docsJsSource.includes("toggleDesktopPanel('bases')") &&
+    docsJsSource.includes("switchView('bases', { split: true })") &&
+    docsJsSource.includes("attachSwitcher('btn-bases-aux-switcher', 'bases-title-wrap')"));
+
+  const tabsJsSourceForBases = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  ok('notes-tabs.js · grade de visões da aside (desktop e mobile/extensão) ganha o botão "Base"',
+    tabsJsSourceForBases.includes("createFooterBtn('view_kanban', 'Base', () => toggleDesktopPanel('bases'), 'bases')") &&
+    tabsJsSourceForBases.includes("createFooterBtn('view_kanban', 'Base', () => switchView('bases', { fullscreen: true }))"));
+  ok('notes-tabs.js · escuta quickdock:active-note-changed pra sincronizar activeId quando a troca de nota vem de fora da aside (painel de Base cria nota chamando switchToNote() direto)',
+    tabsJsSourceForBases.includes("addEventListener('quickdock:active-note-changed', e => {") &&
+    tabsJsSourceForBases.includes('if (id === activeId) return;'));
+
+  // 31.7: app.js — inicialização registrada antes de initDesktopPanels()
+  ok('app.js · importa e chama initBasesView() antes de initDesktopPanels()',
+    appJsSource.includes("import { initBasesView } from './modules/bases-view.js'") &&
+    appJsSource.indexOf('initBasesView()') < appJsSource.indexOf('initDesktopPanels()'));
+
+  // 31.8: CSS — nomes de classe corrigidos (drift confirmado entre CSS e JS)
+  ok('style.css · nomes de classe do Base corrigidos pra bater com o JS (tabela, quadro, select)',
+    styleCssSource.includes('.base-table-wrap') &&
+    styleCssSource.includes('.base-board-columns-wrap') &&
+    styleCssSource.includes('.base-column-header') &&
+    styleCssSource.includes('.base-column-cards') &&
+    styleCssSource.includes('.base-select-opt,') &&
+    styleCssSource.includes('.base-tfoot-td') &&
+    !styleCssSource.includes('.base-table-container') &&
+    !styleCssSource.includes('.base-board-container'));
+  ok('style.css · define .bases-header/.bases-view com a mesma altura/fundo dos outros 4 cabeçalhos',
+    styleCssSource.includes('.bases-header {') &&
+    styleCssSource.includes('.bases-view {') &&
+    /\.bases-header\s*\{[^}]*height:\s*52px/.test(styleCssSource));
+  ok('style.css · réplica das regras de isolamento/painel do .calendar-view pro .bases-view',
+    styleCssSource.includes('.bases-view[hidden]') &&
+    styleCssSource.includes('view-fullscreen.view-bases .bases-view') &&
+    styleCssSource.includes("view-bases:not(.view-fullscreen) .bases-view:not([hidden])") &&
+    styleCssSource.includes('html:not(.view-bases) .bases-view') &&
+    styleCssSource.includes('body.no-note-open .bases-view') &&
+    styleCssSource.includes('html[data-platform="desktop"] .bases-view { order: 60; }') &&
+    styleCssSource.includes('#btn-bases-toggle-fullscreen'));
+
+  // 31.9: sw.js — módulo novo no pré-cache e versão do cache trocada
+  ok('sw.js · lista bases-view.js e os módulos de sidepanel/modules/bases/ no pré-cache, com CACHE_NAME trocado',
+    swJsSource.includes("'sidepanel/modules/bases-view.js'") &&
+    swJsSource.includes("'sidepanel/modules/bases/bases-view-container.js'") &&
+    !swJsSource.includes("'quickdock-v3.0.0-2'"));
+
+  // 31.10: Duplicação de barra de ferramentas corrigida (bug pré-existente)
+  ok('bases-view-container.js · passa showOwnToolbar:false pras views de tabela/quadro',
+    containerJsSource.includes('showOwnToolbar: false'));
+  ok('bases-table-view.js e bases-board-view.js · aceitam showOwnToolbar e escondem a barra própria quando desligada',
+    tableViewJsSource.includes('showOwnToolbar = true') &&
+    tableViewJsSource.includes('if (showOwnToolbar)') &&
+    boardBaseViewJsSource.includes('showOwnToolbar = true') &&
+    boardBaseViewJsSource.includes('if (showOwnToolbar)'));
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

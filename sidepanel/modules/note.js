@@ -1695,6 +1695,29 @@ export function getCurrentNoteId() {
   return currentNoteId;
 }
 
+// Usado pelo painel dedicado de Base (bases-view.js) quando a nota aberta não
+// tem nenhum bloco de base ainda — reaproveita createBlockEl('base') (mesma
+// função que o menu "/" já usa) pra não duplicar o que é "uma base nova".
+export async function appendBaseBlockToCurrentNote() {
+  if (currentNoteId == null) return false;
+  captureUndoPoint();
+  const bloco = createBlockEl('base');
+  root.appendChild(bloco);
+  root.appendChild(createBlockEl('paragraph'));
+  renumberLists();
+  await flushSave();
+  return true;
+}
+
+// O painel dedicado de Base escreve a config nova direto no dataset do bloco
+// embutido (mesmo elemento que o editor já serializa) e só pede pra gravar
+// por aqui — evita ter dois escritores diferentes tentando salvar a mesma
+// nota (o autosave normal, disparado por qualquer tecla, sempre serializa o
+// DOM vivo do editor; gravar direto no banco por fora seria apagado por ele).
+export function requestSaveFromExternalEdit() {
+  scheduleSave();
+}
+
 export function isEditorFocused() {
   return !!noteEditorEl?.contains(document.activeElement);
 }
@@ -1762,6 +1785,11 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
     headerNoteRef = null;
     if (headerTitleEl) headerTitleEl.textContent = '';
     if (headerIconEl) headerIconEl.textContent = '';
+    // Fechar a última aba nunca disparava este aviso (só ativar uma nota
+    // dispara, em notes-tabs.js) — sem isto, quem escuta pra saber "qual nota
+    // está aberta agora" (bases-view.js) não sabia que passou a não ter
+    // nenhuma.
+    document.dispatchEvent(new CustomEvent('quickdock:active-note-changed', { detail: { id: null } }));
     return;
   }
   const note = await getNoteById(id);
@@ -1772,6 +1800,13 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
   renderPropertiesBar(note);
   atualizarLinksInternos();
   await refreshBacklinks(id);
+  // Centralizado aqui (não só em notes-tabs.js activateNote()) porque nem
+  // toda troca de nota passa por lá — o próprio painel de Base (bases-view-
+  // container.js handleCreateNewNote) chama switchToNote() direto. Sem isto,
+  // criar uma nota pelo painel de Base trocava a nota ativa mas o painel
+  // continuava mostrando a base da nota anterior. Duplica o aviso no caminho
+  // que já passa por activateNote() — seguro, quem escuta só re-renderiza.
+  document.dispatchEvent(new CustomEvent('quickdock:active-note-changed', { detail: { id } }));
 }
 
 // ── Cabeçalho da Nota (ícone, título editável, cor) ───────────────────────────

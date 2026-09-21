@@ -279,7 +279,10 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     // 3. Ordena notas
     const sortedNotes = sortBaseNotes(filteredNotes, currentView.sort);
 
-    // Callbacks comuns para as visões
+    // Callbacks comuns para as visões. showOwnToolbar: false porque a barra
+    // de cima (headerEl, logo acima) já dá busca + "Nova Nota" — sem isto, a
+    // tabela/quadro desenhavam uma segunda barra própria com os dois
+    // duplicados por cima da primeira.
     const callbacks = {
       onOpenNote: async (noteId) => {
         await switchToNote(noteId);
@@ -287,6 +290,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       onAddNote: async (extraProps) => {
         await handleCreateNewNote(extraProps);
       },
+      showOwnToolbar: false,
     };
 
     // Renderiza a visão ativa correspondente

@@ -19,7 +19,7 @@ import { createNoteRecord } from '../storage.js';
  * @param {Function} params.onDefChange Callback chamado ao alterar a configuração da Base
  * @returns {HTMLElement} Elemento container da Tabela
  */
-export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {} }) {
+export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, showOwnToolbar = true }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-table-view';
 
@@ -34,56 +34,62 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   if (!activeView.summaries) activeView.summaries = { title: 'count' };
 
   // ── 1. Barra de ferramentas da Base ─────────────────────────────────────────
-  const toolbar = document.createElement('div');
-  toolbar.className = 'base-toolbar';
+  // showOwnToolbar=false quando montada dentro de bases-view-container.js: a
+  // barra de cima (base-header-bar) já dá busca + "Nova Nota" — sem isto,
+  // apareciam duas de cada, uma embaixo da outra.
+  let countBadge = null;
+  if (showOwnToolbar) {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'base-toolbar';
 
-  const toolbarLeft = document.createElement('div');
-  toolbarLeft.className = 'base-toolbar-left';
+    const toolbarLeft = document.createElement('div');
+    toolbarLeft.className = 'base-toolbar-left';
 
-  // Campo de busca rápida
-  const searchInput = document.createElement('input');
-  searchInput.className = 'base-search-input';
-  searchInput.type = 'text';
-  searchInput.placeholder = 'Buscar na base...';
-  searchInput.addEventListener('input', () => {
-    quickSearchQuery = searchInput.value;
-    renderTableBody();
-  });
-  toolbarLeft.appendChild(searchInput);
-
-  // Contador de notas
-  const countBadge = document.createElement('span');
-  countBadge.className = 'base-count-badge';
-  toolbarLeft.appendChild(countBadge);
-
-  const toolbarRight = document.createElement('div');
-  toolbarRight.className = 'base-toolbar-right';
-
-  // Botão Nova Nota
-  const newNoteBtn = document.createElement('button');
-  newNoteBtn.className = 'base-btn base-btn-primary';
-  newNoteBtn.innerHTML = '<span class="qd-icon material-symbols-rounded">add</span><span>Nova Nota</span>';
-  newNoteBtn.onclick = async () => {
-    const initialFolder = baseDef.source?.folder || '';
-    const initialProps = {};
-    if (baseDef.source?.tag) initialProps.tags = [baseDef.source.tag.replace(/^#/, '')];
-
-    const nova = await createNoteRecord({
-      title: 'Sem título',
-      pasta: initialFolder,
-      properties: initialProps,
+    // Campo de busca rápida
+    const searchInput = document.createElement('input');
+    searchInput.className = 'base-search-input';
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Buscar na base...';
+    searchInput.addEventListener('input', () => {
+      quickSearchQuery = searchInput.value;
+      renderTableBody();
     });
+    toolbarLeft.appendChild(searchInput);
 
-    currentNotes.unshift(nova);
-    renderTableBody();
+    // Contador de notas
+    countBadge = document.createElement('span');
+    countBadge.className = 'base-count-badge';
+    toolbarLeft.appendChild(countBadge);
 
-    // Notifica o app e abre a nova nota no editor se desejado
-    document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: nova.id } }));
-  };
-  toolbarRight.appendChild(newNoteBtn);
+    const toolbarRight = document.createElement('div');
+    toolbarRight.className = 'base-toolbar-right';
 
-  toolbar.append(toolbarLeft, toolbarRight);
-  container.appendChild(toolbar);
+    // Botão Nova Nota
+    const newNoteBtn = document.createElement('button');
+    newNoteBtn.className = 'base-btn base-btn-primary';
+    newNoteBtn.innerHTML = '<span class="qd-icon material-symbols-rounded">add</span><span>Nova Nota</span>';
+    newNoteBtn.onclick = async () => {
+      const initialFolder = baseDef.source?.folder || '';
+      const initialProps = {};
+      if (baseDef.source?.tag) initialProps.tags = [baseDef.source.tag.replace(/^#/, '')];
+
+      const nova = await createNoteRecord({
+        title: 'Sem título',
+        pasta: initialFolder,
+        properties: initialProps,
+      });
+
+      currentNotes.unshift(nova);
+      renderTableBody();
+
+      // Notifica o app e abre a nova nota no editor se desejado
+      document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: nova.id } }));
+    };
+    toolbarRight.appendChild(newNoteBtn);
+
+    toolbar.append(toolbarLeft, toolbarRight);
+    container.appendChild(toolbar);
+  }
 
   // ── 2. Tabela de dados ──────────────────────────────────────────────────────
   const tableWrap = document.createElement('div');
@@ -211,7 +217,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     // Aplica ordenação
     const sorted = sortBaseNotes(filtered, activeSorts, schema);
 
-    countBadge.textContent = `${sorted.length} ${sorted.length === 1 ? 'nota' : 'notas'}`;
+    if (countBadge) countBadge.textContent = `${sorted.length} ${sorted.length === 1 ? 'nota' : 'notas'}`;
 
     if (sorted.length === 0) {
       const emptyRow = document.createElement('tr');
@@ -462,6 +468,7 @@ export function renderBaseTableView(container, notes, schema, viewConfig = {}, c
     activeView: viewConfig,
     schema,
     onDefChange: callbacks.onDefChange || (() => {}),
+    showOwnToolbar: callbacks.showOwnToolbar,
   });
   container.appendChild(tableEl);
 }

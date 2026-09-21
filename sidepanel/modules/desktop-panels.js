@@ -26,7 +26,7 @@ import { loadDesktopPanelLayout, saveDesktopPanelLayout } from './storage.js';
 // redimensionar largura ficam em PANEL_ORDER-1, entre a coluna anterior e a
 // coluna deste painel — só aparecem quando o painel É uma raiz (dono de uma
 // coluna própria); um painel empilhado não tem largura independente.
-const PANEL_ORDER = { board: 20, grafo: 30, calendar: 40, docs: 50 };
+const PANEL_ORDER = { board: 20, grafo: 30, calendar: 40, docs: 50, bases: 60 };
 const PANEL_NAMES = Object.keys(PANEL_ORDER);
 const DEFAULT_WIDTH = 380;
 const MIN_WIDTH = 260;
@@ -49,6 +49,7 @@ function panelElement(name) {
     case 'grafo': return document.querySelector('.graph-view');
     case 'calendar': return document.querySelector('.calendar-view');
     case 'docs': return document.querySelector('.docs-section');
+    case 'bases': return document.querySelector('.bases-view');
     default: return null;
   }
 }
@@ -59,6 +60,7 @@ function panelHeaderElement(name) {
     case 'grafo': return document.querySelector('.graph-header');
     case 'calendar': return document.querySelector('.calendar-header');
     case 'docs': return document.querySelector('.docs-header');
+    case 'bases': return document.querySelector('.bases-header');
     default: return null;
   }
 }
@@ -251,7 +253,7 @@ function applyLayout() {
 
 // Nome do painel → nome usado no evento de refresh de cada módulo (grafo é a
 // exceção: o evento existente chama-se "graph", não "grafo").
-const REFRESH_EVENT_NAME = { board: 'board', grafo: 'graph', calendar: 'calendar' };
+const REFRESH_EVENT_NAME = { board: 'board', grafo: 'graph', calendar: 'calendar', bases: 'bases' };
 
 function refreshPanelContent(name) {
   // 'docs' não precisa: o grid de documentos já se mantém em sincronia com a

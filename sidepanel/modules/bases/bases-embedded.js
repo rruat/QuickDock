@@ -4,6 +4,17 @@
 
 import { renderBaseComponent } from './bases-view-container.js';
 
+// YAML padrão de uma Base recém-criada — exportado pra quem monta um bloco
+// 'base' sem config nenhuma (aqui e em note.js's appendBaseBlockToCurrentNote)
+// usar exatamente o mesmo texto, em vez de duas cópias que podem desalinhar.
+export const DEFAULT_BASE_CONFIG = `name: Base de Notas
+source:
+  folder: /
+views:
+  - type: table
+    name: Visão Geral
+    columns: [title, folder, tags, updatedAt]`;
+
 /**
  * Cria o elemento de bloco DOM para uma Base embutida.
  * @param {string} rawConfig - Configuração YAML/JSON salva no bloco
@@ -15,19 +26,16 @@ export function buildEmbeddedBaseBlock(rawConfig = '', onSave = null) {
   block.className = 'block block-base';
   block.contentEditable = 'false';
   block.dataset.type = 'base';
-  block.dataset.config = rawConfig || '';
+
+  const initialConfig = rawConfig && rawConfig.trim() ? rawConfig : DEFAULT_BASE_CONFIG;
+  // Grava o config resolvido (não o bruto, possivelmente vazio) desde já —
+  // sem isso, uma base recém-criada só ganhava um config de verdade gravado
+  // no banco depois da primeira interação da pessoa (onConfigChange abaixo).
+  block.dataset.config = initialConfig;
 
   const wrapper = document.createElement('div');
   wrapper.className = 'base-embedded-wrapper';
   block.appendChild(wrapper);
-
-  const initialConfig = rawConfig && rawConfig.trim() ? rawConfig : `name: Base de Notas
-source:
-  folder: /
-views:
-  - type: table
-    name: Visão Geral
-    columns: [title, folder, tags, updatedAt]`;
 
   // Inicializa o componente de Base
   setTimeout(() => {

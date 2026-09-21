@@ -2620,6 +2620,7 @@ export function openNotesAsideDrawer() {
   gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => switchView('board', { fullscreen: true })));
   gridViews.appendChild(createFooterBtn('hub', 'Constelações', () => switchView('grafo', { fullscreen: true })));
   gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => switchView('calendar', { fullscreen: true })));
+  gridViews.appendChild(createFooterBtn('view_kanban', 'Base', () => switchView('bases', { fullscreen: true })));
   gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
 
   secViews.appendChild(gridViews);
@@ -2960,6 +2961,7 @@ function initDesktopNotesAsideDrawer() {
   gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => toggleDesktopPanel('board'), 'board'));
   gridViews.appendChild(createFooterBtn('hub', 'Constelações', () => toggleDesktopPanel('grafo'), 'grafo'));
   gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => toggleDesktopPanel('calendar'), 'calendar'));
+  gridViews.appendChild(createFooterBtn('view_kanban', 'Base', () => toggleDesktopPanel('bases'), 'bases'));
   gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
 
   const syncPanelButtonsActiveState = () => {
@@ -3375,6 +3377,36 @@ async function activateNote(id) {
   }
   document.dispatchEvent(new CustomEvent('quickdock:active-note-changed', { detail: { id } }));
 }
+
+// Nem toda troca de nota passa por activateNote() acima — o painel de Base
+// (bases-view-container.js handleCreateNewNote) chama switchToNote() direto
+// ao criar uma nota pelo botão "+ Nova Nota". Sem isto, `activeId` ficava
+// preso na nota antiga: um clique na aside pra voltar pra ela era ignorado,
+// porque o guard "meta.id !== activeId" (ver ligarCliqueEDuploCliqueNaLinha)
+// achava, errado, que já era a nota atual.
+document.addEventListener('quickdock:active-note-changed', e => {
+  const { id } = e.detail ?? {};
+  if (id === activeId) return; // já veio daqui mesmo, activateNote() já fez tudo
+  activeId = id;
+  if (id != null) {
+    hideEmptyDashboard();
+    const numId = Number(id);
+    if (!openTabIds.includes(numId)) {
+      openTabIds.push(numId);
+      saveOpenTabIds(openTabIds);
+    }
+    const meta = notesMeta.find(n => n.id === id);
+    setAccent(meta?.color);
+    updateNoteFolderBar(meta);
+  } else {
+    setAccent(null);
+    updateNoteFolderBar(null);
+    showEmptyDashboard();
+  }
+  saveActiveNoteId(id);
+  setDocumentsNote(id);
+  renderTabs();
+});
 
 document.addEventListener('quickdock:use-template-note', async e => {
   const { template } = e.detail || {};

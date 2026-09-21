@@ -336,6 +336,13 @@ export function normalizeBlock(b) {
   return { ...b, type: 'paragraph', quoted: true };
 }
 
+// Uma nota pode ter mais de um bloco de base — a visão dedicada (bases-view.js)
+// mostra sempre o primeiro; é uma decisão simples de propósito (a lista
+// completa continua disponível pra quem precisar de mais no futuro).
+export function getBaseBlocksFromNote(note) {
+  return (note?.blocks || []).filter(b => b?.type === 'base');
+}
+
 // ── Markdown (string) → blocos ────────────────────────────────────────────────
 export function parseMarkdownToBlocks(markdown) {
   // Normaliza quebras de linha (Windows manda \r\n) — sem isso, cada linha

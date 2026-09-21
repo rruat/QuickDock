@@ -194,7 +194,7 @@
           </button>
           <div class="graph-title-group" id="graph-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
             <h1 class="graph-title">Constelações</h1>
-            <button id="btn-graph-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário)" aria-label="Alternar visão">
+            <button id="btn-graph-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário, Base)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
             <span id="graph-stats-badge" class="graph-stats-badge">0 notas · 0 conexões</span>
@@ -325,7 +325,7 @@
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
           </button>
           <div class="board-title-group">
-            <button id="btn-board-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário)" aria-label="Alternar visão">
+            <button id="btn-board-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário, Base)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
             <input type="text" id="board-title-input" class="board-title-input" value="Quadro de Ideias" placeholder="Nome do quadro..." aria-label="Nome do quadro" />
@@ -431,7 +431,7 @@
           </button>
           <div class="calendar-title-group" id="calendar-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
             <h1 id="calendar-month-year" class="calendar-month-title">Setembro de 2026</h1>
-            <button id="btn-calendar-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário)" aria-label="Alternar visão">
+            <button id="btn-calendar-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário, Base)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
             <span id="calendar-note-count" class="calendar-count-badge">0 notas</span>
@@ -482,6 +482,32 @@
         </div>
         <div id="calendar-grid" class="calendar-grid"></div>
       </main>
+    </section>
+
+    <!-- Visão dedicada de Base (a mesma Base do bloco embutido, num painel/tela própria) -->
+    <section class="bases-view" id="bases-view" hidden>
+      <header class="bases-header">
+        <div class="bases-header-left">
+          <button id="btn-bases-back" class="icon-btn bases-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="bases-title-group" id="bases-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
+            <h1 class="bases-title">Base</h1>
+            <button id="btn-bases-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário, Base)" aria-label="Alternar visão">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
+            </button>
+          </div>
+        </div>
+        <div class="bases-header-right">
+          <button id="btn-bases-toggle-height" class="icon-btn bases-height-btn view-height-btn" title="Alternar altura (Altura total / Metade da altura)" aria-label="Alternar altura">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_less</span>
+          </button>
+          <button id="btn-bases-toggle-fullscreen" class="icon-btn bases-fullscreen-btn" title="Expandir para tela cheia (100%)" aria-label="Alternar tela cheia">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">fullscreen</span>
+          </button>
+        </div>
+      </header>
+      <div class="bases-body" id="bases-body"></div>
     </section>
 
     <div id="resize-handle" class="resize-handle" title="Arraste para redimensionar"></div>
@@ -536,7 +562,7 @@
           </button>
           <div class="docs-title-wrap" id="docs-title-wrap" title="Clique para alternar a visão auxiliar">
             <span class="docs-title" id="docs-title">Documentos</span>
-            <button id="btn-aux-view-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário)" aria-label="Alternar visão">
+            <button id="btn-aux-view-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Quadro, Constelações, Calendário, Base)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
           </div>

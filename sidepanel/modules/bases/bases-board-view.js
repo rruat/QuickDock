@@ -18,7 +18,7 @@ import { createNoteRecord, updateNoteMetaById } from '../storage.js';
  * @param {Function} params.onDefChange Callback ao alterar configuração
  * @returns {HTMLElement}
  */
-export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {} }) {
+export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, showOwnToolbar = true }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-board-view';
 
@@ -29,28 +29,33 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
   const cardProps = Array.isArray(activeView.cardProperties) ? activeView.cardProperties : ['tags', 'prazo', 'prioridade'];
 
   // ── Barra de ferramentas do Kanban ──────────────────────────────────────────
-  const toolbar = document.createElement('div');
-  toolbar.className = 'base-toolbar';
+  // showOwnToolbar=false quando montada dentro de bases-view-container.js —
+  // a barra de cima (base-header-bar) já tem busca (ver bases-table-view.js).
+  let countBadge = null;
+  if (showOwnToolbar) {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'base-toolbar';
 
-  const toolbarLeft = document.createElement('div');
-  toolbarLeft.className = 'base-toolbar-left';
+    const toolbarLeft = document.createElement('div');
+    toolbarLeft.className = 'base-toolbar-left';
 
-  const searchInput = document.createElement('input');
-  searchInput.className = 'base-search-input';
-  searchInput.type = 'text';
-  searchInput.placeholder = 'Buscar no quadro...';
-  searchInput.addEventListener('input', () => {
-    quickSearchQuery = searchInput.value;
-    renderBoard();
-  });
-  toolbarLeft.appendChild(searchInput);
+    const searchInput = document.createElement('input');
+    searchInput.className = 'base-search-input';
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Buscar no quadro...';
+    searchInput.addEventListener('input', () => {
+      quickSearchQuery = searchInput.value;
+      renderBoard();
+    });
+    toolbarLeft.appendChild(searchInput);
 
-  const countBadge = document.createElement('span');
-  countBadge.className = 'base-count-badge';
-  toolbarLeft.appendChild(countBadge);
+    countBadge = document.createElement('span');
+    countBadge.className = 'base-count-badge';
+    toolbarLeft.appendChild(countBadge);
 
-  toolbar.appendChild(toolbarLeft);
-  container.appendChild(toolbar);
+    toolbar.appendChild(toolbarLeft);
+    container.appendChild(toolbar);
+  }
 
   // ── Colunas do Kanban ───────────────────────────────────────────────────────
   const boardWrap = document.createElement('div');
@@ -95,7 +100,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       quickSearch: quickSearchQuery,
     });
 
-    countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'nota' : 'notas'}`;
+    if (countBadge) countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'nota' : 'notas'}`;
     const columnsConfig = getColumnsConfig();
 
     for (const col of columnsConfig) {
@@ -316,6 +321,7 @@ export function renderBaseBoardView(container, notes, schema, viewConfig = {}, c
     activeView: viewConfig,
     schema,
     onDefChange: callbacks.onDefChange || (() => {}),
+    showOwnToolbar: callbacks.showOwnToolbar,
   });
   container.appendChild(boardEl);
 }

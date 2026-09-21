@@ -3872,7 +3872,10 @@ html[data-platform="mobile"] .board-view[hidden],
 html[data-platform="desktop"] .board-view[hidden],
 html[data-platform="extension"] .calendar-view[hidden],
 html[data-platform="mobile"] .calendar-view[hidden],
-html[data-platform="desktop"] .calendar-view[hidden] {
+html[data-platform="desktop"] .calendar-view[hidden],
+html[data-platform="extension"] .bases-view[hidden],
+html[data-platform="mobile"] .bases-view[hidden],
+html[data-platform="desktop"] .bases-view[hidden] {
   display: none !important;
 }
 
@@ -3891,10 +3894,12 @@ html.view-templates .docs-section,
 html.view-grafo .docs-section,
 html.view-board .docs-section,
 html.view-calendar .docs-section,
+html.view-bases .docs-section,
 body.view-templates .docs-section,
 body.view-grafo .docs-section,
 body.view-board .docs-section,
-body.view-calendar .docs-section {
+body.view-calendar .docs-section,
+body.view-bases .docs-section {
   display: none !important;
 }
 
@@ -3914,12 +3919,15 @@ html[data-platform="mobile"].view-fullscreen.view-templates .templates-gallery-v
 html[data-platform="extension"].view-fullscreen.view-grafo .graph-view,
 html[data-platform="extension"].view-fullscreen.view-board .board-view,
 html[data-platform="extension"].view-fullscreen.view-calendar .calendar-view,
+html[data-platform="extension"].view-fullscreen.view-bases .bases-view,
 html[data-platform="mobile"].view-fullscreen.view-grafo .graph-view,
 html[data-platform="mobile"].view-fullscreen.view-board .board-view,
 html[data-platform="mobile"].view-fullscreen.view-calendar .calendar-view,
+html[data-platform="mobile"].view-fullscreen.view-bases .bases-view,
 html[data-platform="extension"].view-fullscreen .graph-view,
 html[data-platform="extension"].view-fullscreen .board-view,
-html[data-platform="extension"].view-fullscreen .calendar-view {
+html[data-platform="extension"].view-fullscreen .calendar-view,
+html[data-platform="extension"].view-fullscreen .bases-view {
   order: 1 !important;
   flex: 1 1 100% !important;
   width: 100% !important;
@@ -3937,12 +3945,15 @@ html[data-platform="extension"].view-fullscreen .calendar-view {
 html[data-platform="extension"].view-grafo:not(.view-fullscreen) .graph-view:not([hidden]),
 html[data-platform="extension"].view-board:not(.view-fullscreen) .board-view:not([hidden]),
 html[data-platform="extension"].view-calendar:not(.view-fullscreen) .calendar-view:not([hidden]),
+html[data-platform="extension"].view-bases:not(.view-fullscreen) .bases-view:not([hidden]),
 html[data-platform="mobile"].view-grafo:not(.view-fullscreen) .graph-view:not([hidden]),
 html[data-platform="mobile"].view-board:not(.view-fullscreen) .board-view:not([hidden]),
 html[data-platform="mobile"].view-calendar:not(.view-fullscreen) .calendar-view:not([hidden]),
+html[data-platform="mobile"].view-bases:not(.view-fullscreen) .bases-view:not([hidden]),
 html[data-platform="extension"] .graph-view.split-active:not([hidden]),
 html[data-platform="extension"] .board-view.split-active:not([hidden]),
-html[data-platform="extension"] .calendar-view.split-active:not([hidden]) {
+html[data-platform="extension"] .calendar-view.split-active:not([hidden]),
+html[data-platform="extension"] .bases-view.split-active:not([hidden]) {
   order: 4 !important;
   flex: 1 1 0px !important;
   min-height: 0 !important;
@@ -3962,21 +3973,25 @@ html[data-platform="extension"] .calendar-view.split-active:not([hidden]) {
 .graph-view[hidden],
 .board-view[hidden],
 .calendar-view[hidden],
+.bases-view[hidden],
 .templates-gallery-view[hidden],
 .docs-section[hidden],
 html[data-platform="extension"] .graph-view[hidden],
 html[data-platform="extension"] .board-view[hidden],
 html[data-platform="extension"] .calendar-view[hidden],
+html[data-platform="extension"] .bases-view[hidden],
 html[data-platform="extension"] .templates-gallery-view[hidden],
 html[data-platform="extension"] .docs-section[hidden],
 html[data-platform="mobile"] .graph-view[hidden],
 html[data-platform="mobile"] .board-view[hidden],
 html[data-platform="mobile"] .calendar-view[hidden],
+html[data-platform="mobile"] .bases-view[hidden],
 html[data-platform="mobile"] .templates-gallery-view[hidden],
 html[data-platform="mobile"] .docs-section[hidden],
 html:not(.view-grafo) .graph-view,
 html:not(.view-board) .board-view,
 html:not(.view-calendar) .calendar-view,
+html:not(.view-bases) .bases-view,
 html:not(.view-templates) .templates-gallery-view {
   display: none !important;
 }
@@ -5324,6 +5339,7 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .graph-view { order: 30; }
   html[data-platform="desktop"] .calendar-view { order: 40; }
   html[data-platform="desktop"] .docs-section { order: 50; }
+  html[data-platform="desktop"] .bases-view { order: 60; }
 
   /* !important necessário: uma regra global antiga (~linha 3933,
      "html:not(.view-board) .board-view{display:none!important}" e as
@@ -5334,7 +5350,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .board-view:not([hidden]),
   html[data-platform="desktop"] .graph-view:not([hidden]),
   html[data-platform="desktop"] .calendar-view:not([hidden]),
-  html[data-platform="desktop"] .docs-section:not([hidden]):not(.is-collapsed) {
+  html[data-platform="desktop"] .docs-section:not([hidden]):not(.is-collapsed),
+  html[data-platform="desktop"] .bases-view:not([hidden]) {
     flex: 0 1 var(--panel-width, 380px) !important;
     width: var(--panel-width, 380px) !important;
     min-width: 260px;
@@ -5402,7 +5419,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .desktop-panel-column > .board-view:not([hidden]),
   html[data-platform="desktop"] .desktop-panel-column > .graph-view:not([hidden]),
   html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not([hidden]),
-  html[data-platform="desktop"] .desktop-panel-column > .docs-section:not([hidden]):not(.is-collapsed) {
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section:not([hidden]):not(.is-collapsed),
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view:not([hidden]) {
     width: 100% !important;
     min-width: 0;
     max-width: none;
@@ -5424,7 +5442,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .desktop-panel-column > .board-view:not(.desktop-panel-stack-last),
   html[data-platform="desktop"] .desktop-panel-column > .graph-view:not(.desktop-panel-stack-last),
   html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not(.desktop-panel-stack-last),
-  html[data-platform="desktop"] .desktop-panel-column > .docs-section:not(.desktop-panel-stack-last) {
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view:not(.desktop-panel-stack-last) {
     flex: 0 0 var(--panel-height, 240px) !important;
     border-bottom: 1px solid var(--border);
   }
@@ -5432,7 +5451,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .desktop-panel-column > .board-view.desktop-panel-stack-last,
   html[data-platform="desktop"] .desktop-panel-column > .graph-view.desktop-panel-stack-last,
   html[data-platform="desktop"] .desktop-panel-column > .calendar-view.desktop-panel-stack-last,
-  html[data-platform="desktop"] .desktop-panel-column > .docs-section.desktop-panel-stack-last {
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view.desktop-panel-stack-last {
     flex: 1 1 auto !important;
   }
 
@@ -5498,7 +5518,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] body.no-note-open .board-view:not([hidden]),
   html[data-platform="desktop"] body.no-note-open .graph-view:not([hidden]),
   html[data-platform="desktop"] body.no-note-open .calendar-view:not([hidden]),
-  html[data-platform="desktop"] body.no-note-open .docs-section:not([hidden]):not(.is-collapsed) {
+  html[data-platform="desktop"] body.no-note-open .docs-section:not([hidden]):not(.is-collapsed),
+  html[data-platform="desktop"] body.no-note-open .bases-view:not([hidden]) {
     display: flex !important;
   }
 
@@ -5510,7 +5531,8 @@ html[data-platform="mobile"] #btn-nav-board {
     .board-view:not([hidden]),
     .graph-view:not([hidden]),
     .calendar-view:not([hidden]),
-    .docs-section:not([hidden]):not(.is-collapsed)
+    .docs-section:not([hidden]):not(.is-collapsed),
+    .bases-view:not([hidden])
   ) .note-section {
     display: none !important;
   }
@@ -5520,10 +5542,12 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] #btn-graph-toggle-fullscreen,
   html[data-platform="desktop"] #btn-board-toggle-fullscreen,
   html[data-platform="desktop"] #btn-calendar-toggle-fullscreen,
+  html[data-platform="desktop"] #btn-bases-toggle-fullscreen,
   html[data-platform="desktop"] #btn-graph-toggle-height,
   html[data-platform="desktop"] #btn-board-toggle-height,
   html[data-platform="desktop"] #btn-calendar-toggle-height,
-  html[data-platform="desktop"] #btn-docs-toggle-height {
+  html[data-platform="desktop"] #btn-docs-toggle-height,
+  html[data-platform="desktop"] #btn-bases-toggle-height {
     display: none !important;
   }
 
@@ -5536,7 +5560,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .templates-gallery-view[hidden],
   html[data-platform="desktop"] .graph-view[hidden],
   html[data-platform="desktop"] .board-view[hidden],
-  html[data-platform="desktop"] .calendar-view[hidden] {
+  html[data-platform="desktop"] .calendar-view[hidden],
+  html[data-platform="desktop"] .bases-view[hidden] {
     display: none !important;
   }
 
@@ -7995,6 +8020,56 @@ html[data-platform="desktop"] .note-tab.has-folder {
   background: var(--accent);
 }
 
+/* Barra própria de tabela/quadro (busca + contagem) — só aparece quando
+   showOwnToolbar não foi desligado (ver bases-view-container.js). */
+.base-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.base-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.base-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.base-count-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Base genérica de botão — .base-btn-primary sozinho só dá cor/fundo, não
+   layout (usado por botões que não têm .base-header-btn junto). */
+.base-btn, .base-raw-apply {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.base-btn:hover, .base-raw-apply:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
 .base-viewport {
   flex: 1;
   overflow: auto;
@@ -8003,7 +8078,7 @@ html[data-platform="desktop"] .note-tab.has-folder {
 }
 
 /* TABELA */
-.base-table-container {
+.base-table-wrap {
   width: 100%;
   overflow-x: auto;
 }
@@ -8051,11 +8126,94 @@ html[data-platform="desktop"] .note-tab.has-folder {
   border-right: none;
 }
 
+.base-th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.base-th-icon {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.base-th-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.base-th-sort {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.base-tr {
+  transition: background 0.1s;
+}
+
 .base-table tbody tr:hover {
   background: var(--bg-hover);
 }
 
-.base-tfoot td {
+.base-td-empty, .base-cell-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.base-title-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.base-title-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.base-title-icon {
+  color: var(--text-muted);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.base-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.base-checkbox {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.base-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.base-cell-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+
+.base-tfoot-td {
   padding: 6px 10px;
   font-size: 11px;
   color: var(--text-muted);
@@ -8063,8 +8221,39 @@ html[data-platform="desktop"] .note-tab.has-folder {
   border-top: 2px solid var(--border);
 }
 
+.base-summary-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.base-summary-label {
+  color: var(--text-muted);
+}
+
+.base-summary-value {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.base-add-summary-btn {
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.base-add-summary-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* QUADRO (KANBAN) */
-.base-board-container {
+.base-board-columns-wrap {
   display: flex;
   gap: 12px;
   padding: 12px;
@@ -8084,7 +8273,7 @@ html[data-platform="desktop"] .note-tab.has-folder {
   max-height: 100%;
 }
 
-.base-board-col-header {
+.base-column-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -8094,7 +8283,42 @@ html[data-platform="desktop"] .note-tab.has-folder {
   font-weight: 600;
 }
 
-.base-board-cards {
+.base-column-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.base-column-badge {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.base-column-count {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.base-column-add-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.base-column-add-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.base-column-cards {
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -8102,6 +8326,10 @@ html[data-platform="desktop"] .note-tab.has-folder {
   overflow-y: auto;
   flex: 1;
   min-height: 60px;
+}
+
+.base-column-cards.drag-over {
+  background: var(--bg-hover);
 }
 
 .base-board-card {
@@ -8122,6 +8350,41 @@ html[data-platform="desktop"] .note-tab.has-folder {
 .base-board-card.is-dragging {
   opacity: 0.5;
   transform: scale(0.98);
+}
+
+.base-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.base-card-icon {
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.base-card-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.base-card-props {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.base-card-prop-item {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* GALERIA (CARDS) */
@@ -8202,6 +8465,13 @@ html[data-platform="desktop"] .note-tab.has-folder {
 
 .base-gallery-prop-name {
   color: var(--text-muted);
+}
+
+.base-gallery-prop-value {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .base-gallery-add-card {
@@ -8331,6 +8601,12 @@ html[data-platform="desktop"] .note-tab.has-folder {
   background: var(--bg-hover);
 }
 
+.base-cal-btn-today {
+  font-weight: 500;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .base-cal-grid {
   display: flex;
   flex-direction: column;
@@ -8345,6 +8621,10 @@ html[data-platform="desktop"] .note-tab.has-folder {
   font-weight: 500;
   color: var(--text-muted);
   padding-bottom: 4px;
+}
+
+.base-cal-weekday-cell {
+  padding: 2px 0;
 }
 
 .base-cal-days {
@@ -8381,6 +8661,15 @@ html[data-platform="desktop"] .note-tab.has-folder {
   font-size: 10.5px;
   font-weight: 600;
   color: var(--text-muted);
+}
+
+.base-cal-day-num {
+  color: var(--text);
+}
+
+.is-today .base-cal-day-num {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .base-cal-day-add {
@@ -8443,7 +8732,7 @@ html[data-platform="desktop"] .note-tab.has-folder {
   font-size: 12px;
 }
 
-.base-select-option, .base-add-view-item {
+.base-select-opt, .base-add-view-item {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -8453,8 +8742,47 @@ html[data-platform="desktop"] .note-tab.has-folder {
   transition: background 0.1s;
 }
 
-.base-select-option:hover, .base-add-view-item:hover {
+.base-select-opt:hover, .base-add-view-item:hover {
   background: var(--bg-hover);
+}
+
+.base-select-opt.active {
+  background: var(--bg-hover);
+  font-weight: 500;
+}
+
+.base-select-opt-clear {
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  margin-bottom: 2px;
+  padding-bottom: 6px;
+}
+
+.base-select-opt-create {
+  color: var(--accent);
+}
+
+.base-select-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--text);
+  outline: none;
+  margin-bottom: 4px;
+}
+
+.base-select-search:focus {
+  border-color: var(--accent);
+}
+
+.base-select-options-list {
+  max-height: 220px;
+  overflow-y: auto;
 }
 
 .base-raw-editor-wrap {
@@ -8483,6 +8811,111 @@ html[data-platform="desktop"] .note-tab.has-folder {
   border-color: var(--accent);
 }
 
+/* ===== VISÃO DEDICADA DE BASE (painel/tela cheia/dividida) ===== */
+.bases-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.bases-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+  gap: 8px;
+  height: 52px;
+  min-height: 52px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.bases-header::-webkit-scrollbar {
+  display: none;
+}
+
+.bases-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.bases-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bases-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bases-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+
+.bases-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.bases-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.bases-empty-icon {
+  font-size: 40px;
+  opacity: 0.5;
+}
+
+.bases-empty-state p {
+  font-size: 13px;
+  max-width: 280px;
+  margin: 0;
+}
+
+.bases-empty-action {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.bases-empty-action:hover {
+  opacity: 0.9;
+}
+
 .note-editor[hidden],
 .notes-empty-dashboard[hidden] {
   display: none !important;
@@ -8492,12 +8925,14 @@ body.no-note-open .docs-section,
 body.no-note-open .graph-view,
 body.no-note-open .board-view,
 body.no-note-open .calendar-view,
+body.no-note-open .bases-view,
 body.no-note-open #resize-handle,
 body.no-note-open .mobile-notion-toolbar,
 html.no-note-open .docs-section,
 html.no-note-open .graph-view,
 html.no-note-open .board-view,
 html.no-note-open .calendar-view,
+html.no-note-open .bases-view,
 html.no-note-open #resize-handle,
 html.no-note-open .mobile-notion-toolbar {
   display: none !important;
@@ -8507,9 +8942,11 @@ html.no-note-open .mobile-notion-toolbar {
 body.view-fullscreen.view-grafo .graph-view,
 body.view-fullscreen.view-board .board-view,
 body.view-fullscreen.view-calendar .calendar-view,
+body.view-fullscreen.view-bases .bases-view,
 html.view-fullscreen.view-grafo .graph-view,
 html.view-fullscreen.view-board .board-view,
 html.view-fullscreen.view-calendar .calendar-view,
+html.view-fullscreen.view-bases .bases-view,
 body.view-templates .templates-gallery-view,
 html.view-templates .templates-gallery-view {
   display: flex !important;
