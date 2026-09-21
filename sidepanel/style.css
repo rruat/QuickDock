@@ -5229,6 +5229,18 @@ html[data-platform="mobile"] #btn-nav-board {
     background: var(--bg);
   }
 
+  /* No desktop, .docs-section nunca fica empilhado sob o editor (é uma coluna
+     à parte, ver mais abaixo) — mas a regra global "#app:has(.docs-section.is-
+     collapsed) .note-section { height: calc(100vh - 38px) !important }" (pensada
+     pro empilhamento vertical do mobile/extensão) tem especificidade maior que
+     a regra de 100vh acima por causa do #app + :has(), e .docs-section nasce
+     com .is-collapsed por padrão. Sem isto, o editor ficava 38px mais baixo que
+     a janela, deixando a barra de formatação flutuando acima do rodapé em vez
+     de colada nele. */
+  html[data-platform="desktop"] #app:has(.docs-section.is-collapsed) .note-section {
+    height: 100vh !important;
+  }
+
   /* Visões auxiliares em tela cheia 100% no desktop: ocupam o palco central inteiro ao lado da sidebar */
   html[data-platform="desktop"].view-fullscreen .note-section {
     display: none !important;
@@ -5336,6 +5348,64 @@ html[data-platform="mobile"] #btn-nav-board {
     width: 100%;
     margin: 0 auto;
     padding: 32px 52px 68px;
+  }
+
+  /* Pasta, cabeçalho, propriedades e backlinks são irmãos de .note-editor-blocks
+     dentro de .note-editor — sem isto, o align-items:center ali em cima os
+     encolhe pro tamanho do conteúdo em vez de esticar pra coluna de 760px,
+     deixando-os centralizados e apertados em vez de alinhados com o texto. */
+  html[data-platform="desktop"] .note-folder-bar,
+  html[data-platform="desktop"] .note-header-bar,
+  html[data-platform="desktop"] .note-properties-bar,
+  html[data-platform="desktop"] .note-backlinks-section {
+    width: 100%;
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+  }
+
+  /* Barra de abas das notas abertas: nasce dentro do .app-aside antigo, que o
+     desktop esconde inteiro em favor do drawer permanente — reaproveitada aqui
+     como tira horizontal no topo do editor (ver initDesktopNotesAsideDrawer,
+     que já move o mesmo elemento #notes-tabs pra dentro de .note-section). */
+  html[data-platform="desktop"] .note-section #notes-tabs {
+    order: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    /* flex:0 0 auto (não só flex-shrink) porque a regra antiga da lista vertical
+       (".notes-tabs { flex:1 1 auto; max-height:calc(100vh - 380px) }" mais
+       abaixo) também bate no MESMO elemento pela classe .notes-tabs — como
+       especificidade é por propriedade, não por regra inteira, seu flex-grow
+       sobrevivia mesmo com a nossa altura fixa, esticando a barra bem além dos
+       44px. */
+    flex: 0 0 auto;
+    width: 100%;
+    height: 44px;
+    max-height: 44px;
+    padding: 0 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    box-sizing: border-box;
+  }
+
+  html[data-platform="desktop"] .note-section #notes-tabs:empty {
+    display: none;
+  }
+
+  html[data-platform="desktop"] .note-section #notes-tabs::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  html[data-platform="desktop"] .note-section #notes-tabs .note-tab {
+    width: auto;
+    max-width: 200px;
+    flex-shrink: 0;
   }
 
   /* Barra de abas / cabeçalho da sidebar no desktop */

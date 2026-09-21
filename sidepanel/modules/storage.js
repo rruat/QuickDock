@@ -592,8 +592,8 @@ export async function moverNotaParaPasta(notaId, novaPasta) {
 // Migra a nota única antiga (armazenamento legado) para a primeira nota do Dexie.
 // Executa apenas uma vez: se já existir alguma nota no Dexie, não faz nada.
 // Se não houver conteúdo legado nenhum (instalação nova de verdade), não cria
-// nota nenhuma — quem decide o que mostrar pra um primeiro acesso é o
-// initNotesTabs() (nota-tutorial), não esta migração.
+// nota nenhuma — um primeiro acesso sem notas mostra o dashboard vazio
+// (renderEmptyDashboardContent), que já tem um card "Ver Tutorial" pra quem quiser.
 export async function migrateLegacyNoteIfNeeded() {
   const count = await db.notes.count();
   if (count > 0) return;

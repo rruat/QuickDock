@@ -918,16 +918,14 @@ function buildTab(meta) {
     if (noteDragSrcId == null || noteDragSrcId === meta.id || !tabDropIndicatorEl) return;
     e.preventDefault();
     const rect = tab.getBoundingClientRect();
-    const isVertical = document.documentElement.dataset.platform === 'desktop';
-    const before = isVertical ? (e.clientY < rect.top + rect.height / 2) : (e.clientX < rect.left + rect.width / 2);
+    const before = e.clientX < rect.left + rect.width / 2;
     tab[before ? 'before' : 'after'](tabDropIndicatorEl);
   });
   tab.addEventListener('drop', async e => {
     e.preventDefault();
     if (noteDragSrcId == null) return;
     const rect = tab.getBoundingClientRect();
-    const isVertical = document.documentElement.dataset.platform === 'desktop';
-    const before = isVertical ? (e.clientY < rect.top + rect.height / 2) : (e.clientX < rect.left + rect.width / 2);
+    const before = e.clientX < rect.left + rect.width / 2;
     const srcId = noteDragSrcId;
     cleanupTabDrag();
     const srcIdx = openTabIds.indexOf(srcId);
@@ -2910,6 +2908,15 @@ function initDesktopNotesAsideDrawer() {
 
   notesAsideDrawer = drawer;
   notesListPopover = drawer;
+
+  // A barra de abas (#notes-tabs) nasce dentro do .app-aside antigo, que o
+  // desktop esconde inteiro (display:none!important) em favor deste drawer.
+  // Sem isto, as notas abertas ficavam sem nenhuma aba visível no desktop —
+  // move o mesmo elemento (mesma referência, renderTabs() continua achando
+  // ele) pro topo do editor, onde vira uma tira horizontal (ver style.css).
+  if (tabsEl && noteSection) {
+    noteSection.prepend(tabsEl);
+  }
 }
 
 btnNotesList.addEventListener('click', e => {
@@ -3285,14 +3292,6 @@ export async function initNotesTabs() {
   await gcInlineFiles();
   await initTemplates();
   notesMeta = await loadAllNotesMeta();
-
-  // Primeira vez que a extensão é aberta (nenhuma nota, nem legado migrado):
-  // cria a nota-tutorial em vez de uma nota em branco.
-  if (notesMeta.length === 0) {
-    const fields = buildTutorialNoteFields();
-    const id = await createNoteRecord(fields);
-    notesMeta = [{ id, title: fields.title, color: fields.color, icon: fields.icon, updatedAt: Date.now() }];
-  }
 
   // Evento do botão de pasta no cabeçalho do editor
   document.getElementById('btn-note-folder')?.addEventListener('click', e => {
