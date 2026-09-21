@@ -2063,6 +2063,27 @@ body.template-mode .note-watermark {
   padding: 10px 14px;
   gap: 4px;
   flex-shrink: 0;
+  height: 52px;
+  min-height: 52px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ===== CABEÇALHOS RESPONSIVOS (ver sidepanel/modules/responsive-header.js) =====
+   Escondido por classe (não removido do DOM) porque views.js acha vários
+   desses botões por getElementById pra trocar ícone/título — o botão precisa
+   continuar existindo, só não visível. */
+.header-overflow-hidden {
+  display: none !important;
+}
+
+.header-more-btn {
+  flex-shrink: 0;
+}
+
+.header-overflow-menu {
+  min-width: 180px;
 }
 
 .docs-title {
@@ -6582,8 +6603,11 @@ html[data-platform="desktop"] .note-tab.has-folder {
   border-bottom: 1px solid var(--border);
   gap: 12px;
   flex-shrink: 0;
-  min-height: 56px;
+  height: 52px;
+  min-height: 52px;
   box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .graph-header-left {
@@ -7440,7 +7464,11 @@ html[data-platform="desktop"] .note-tab.has-folder {
   background: var(--bg-secondary);
   flex-shrink: 0;
   gap: 8px;
-  flex-wrap: wrap;
+  height: 52px;
+  min-height: 52px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .calendar-header-left {

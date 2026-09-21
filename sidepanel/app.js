@@ -14,6 +14,7 @@ import { initGraphView } from './modules/graph-view.js';
 import { initBoardView, abrirQuadroInfinitoEmAba } from './modules/board-view.js';
 import { initCalendarView } from './modules/calendar-view.js';
 import { initDesktopPanels } from './modules/desktop-panels.js';
+import { initResponsiveHeaders } from './modules/responsive-header.js';
 
 // Aplica a identificação de plataforma (extension, mobile, desktop) imediatamente
 applyPlatform();
@@ -228,6 +229,7 @@ async function init() {
     // quickdock:refresh-*-view que initDesktopPanels() precisa pra restaurar
     // o conteúdo dos painéis que já estavam abertos numa sessão anterior.
     initDesktopPanels();
+    initResponsiveHeaders();
 
     const btnNavTemplates = document.getElementById('btn-nav-templates');
     if (btnNavTemplates) {

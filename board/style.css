@@ -102,28 +102,6 @@
   flex-shrink: 0;
 }
 
-/* Abaixo disso os rótulos de texto das ferramentas somados ao título e aos
-   botões da direita não cabem mais — vira ícone-só, que é o que realmente
-   evita precisar do scroll de emergência acima na maioria das telas. O corte
-   é generoso (bem acima da largura da janela em si) porque a visão embutida
-   no painel do desktop tem uma coluna de navegação fixa de ~290px além do
-   próprio quadro, então "janela grande" não quer dizer "cabeçalho com espaço
-   sobrando" — só a aba dedicada (board/index.html) usa a janela inteira. */
-@media (max-width: 1400px) {
-  .board-title-input {
-    min-width: 70px;
-    max-width: 140px;
-  }
-
-  .tool-btn-label {
-    display: none;
-  }
-
-  .board-tool-btn {
-    padding: 6px 8px;
-  }
-}
-
 .board-brand-icon {
   color: var(--accent);
   display: block;
