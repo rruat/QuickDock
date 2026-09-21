@@ -81,6 +81,16 @@
   z-index: 50;
   gap: 16px;
   box-shadow: var(--shadow-sm);
+  /* Última linha de defesa: com os três grupos (esquerda/ferramentas/direita)
+     tudo somado, o cabeçalho não cabe em telas estreitas (extensão, mobile, e
+     até o desktop dividido) — sem isto os botões da direita (exportar, altura,
+     tela cheia, nova aba) ficavam empurrados pra fora da tela, invisíveis e
+     inclicáveis, sem nenhum jeito de alcançá-los. Com scroll, na pior das
+     hipóteses dá pra arrastar até eles. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .board-header-left,
@@ -89,6 +99,29 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Abaixo disso os rótulos de texto das ferramentas somados ao título e aos
+   botões da direita não cabem mais — vira ícone-só, que é o que realmente
+   evita precisar do scroll de emergência acima na maioria das telas. O corte
+   é generoso (bem acima da largura da janela em si) porque a visão embutida
+   no painel do desktop tem uma coluna de navegação fixa de ~290px além do
+   próprio quadro, então "janela grande" não quer dizer "cabeçalho com espaço
+   sobrando" — só a aba dedicada (board/index.html) usa a janela inteira. */
+@media (max-width: 1400px) {
+  .board-title-input {
+    min-width: 70px;
+    max-width: 140px;
+  }
+
+  .tool-btn-label {
+    display: none;
+  }
+
+  .board-tool-btn {
+    padding: 6px 8px;
+  }
 }
 
 .board-brand-icon {
