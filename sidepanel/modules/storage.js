@@ -321,7 +321,13 @@ export async function updateNoteMetaById(id, patch) {
   if (dados.pasta !== undefined) {
     dados.pasta = normalizarCaminhoPasta(dados.pasta);
   }
-  return db.notes.update(id, dados);
+  const resultado = await db.notes.update(id, dados);
+  // Título/ícone/cor mudam por aqui (cabeçalho, menu "⋯", renomear na aside)
+  // sem passar pelo flushSave() do editor — sem isto, o Grafo/Constelações só
+  // pegava a mudança quando a pessoa trocava de nota (o que aciona o
+  // flushSave e dispara este mesmo aviso por outro caminho).
+  dispatchNotesChanged();
+  return resultado;
 }
 
 export async function deleteNoteRecordById(id) {
