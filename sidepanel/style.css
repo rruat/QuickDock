@@ -5324,6 +5324,112 @@ html[data-platform="mobile"] #btn-nav-board {
     display: none;
   }
 
+  /* ===== EMPILHAR PAINÉIS (arrastar e soltar embaixo de outro) =====
+     Cada coluna aberta agora vive dentro de um wrapper .desktop-panel-column
+     (criado por desktop-panels.js, nunca no HTML) — ele é quem recebe a
+     ordem/largura que antes ficavam direto no painel, o que permite dois (ou
+     mais) painéis dividirem a mesma coluna, um embaixo do outro. */
+  html[data-platform="desktop"] .desktop-panel-column {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    min-width: 260px;
+    max-width: 70vw;
+    flex: 0 1 var(--panel-width, 380px);
+    width: var(--panel-width, 380px);
+  }
+
+  /* Um painel dentro de uma coluna some com a própria largura/borda (quem
+     manda nisso agora é o wrapper) e passa a ocupar só a fatia de altura que
+     lhe cabe em vez de 100vh — precisa de mais especificidade (o combinador
+     ">") que a regra antiga de visibilidade (~linha 5289) pra vencer, já que
+     as duas usam !important nas mesmas propriedades. */
+  html[data-platform="desktop"] .desktop-panel-column > .board-view:not([hidden]),
+  html[data-platform="desktop"] .desktop-panel-column > .graph-view:not([hidden]),
+  html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not([hidden]),
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section:not([hidden]):not(.is-collapsed) {
+    width: 100% !important;
+    min-width: 0;
+    max-width: none;
+    height: auto;
+    border-left: none;
+  }
+
+  /* O último da pilha absorve o espaço sobrando (igual a Nota já faz na
+     horizontal); os demais ficam com a altura fixa arrastável em
+     --panel-height. desktop-panel-stack-last é alternada via JS a cada
+     reconciliação — não dá pra usar :last-child porque a ordem visual vem do
+     `order` inline, não da ordem no DOM. */
+  html[data-platform="desktop"] .desktop-panel-column > .board-view:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .graph-view:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section:not(.desktop-panel-stack-last) {
+    flex: 0 0 var(--panel-height, 240px) !important;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-column > .board-view.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .graph-view.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .calendar-view.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section.desktop-panel-stack-last {
+    flex: 1 1 auto !important;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-row-handle {
+    flex: 0 0 6px;
+    height: 6px;
+    width: 100%;
+    cursor: row-resize;
+    background: transparent;
+    position: relative;
+    z-index: 20;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-row-handle:hover,
+  html[data-platform="desktop"] .desktop-panel-row-handle:active {
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-row-handle[hidden] {
+    display: none;
+  }
+
+  /* Grip de arrastar, injetado como primeiro filho de cada cabeçalho — nunca
+     o cabeçalho inteiro (o Quadro tem um <input> de título editável ali
+     dentro, e draggable=true num ancestral atrapalharia a edição). */
+  html[data-platform="desktop"] .desktop-panel-drag-grip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-right: 2px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: grab;
+    flex-shrink: 0;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-drag-grip:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  html[data-platform="desktop"] .desktop-panel-drag-grip .qd-icon {
+    font-size: 18px;
+  }
+
+  /* Destaque enquanto se arrasta um painel sobre a metade de baixo de outro —
+     o alvo só recebe isto quando ainda não tem ninguém empilhado embaixo
+     dele (soltar aceita só um filho por nível). */
+  html[data-platform="desktop"] .desktop-panel-drop-target-bottom {
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+
   /* Sem nota aberta, painéis abertos continuam visíveis (a regra global
      "body.no-note-open .graph-view{display:none}" mais abaixo no arquivo foi
      pensada pro modelo antigo de visão única e, sem esta exceção, esconderia

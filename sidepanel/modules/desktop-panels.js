@@ -1,5 +1,6 @@
 // ── desktop-panels.js ──────────────────────────────────────────────────────
-// Sistema de painéis simultâneos e redimensionáveis do modo desktop-web.
+// Sistema de painéis simultâneos, redimensionáveis e empilháveis do modo
+// desktop-web.
 //
 // O modelo antigo (views.js) é uma máquina de estado EXCLUSIVA: só existe uma
 // "view atual", trocar de view esconde qualquer outra. Isso continua servindo
@@ -7,8 +8,10 @@
 // tela-cheia/templates/editor em qualquer plataforma.
 //
 // No desktop, Quadro/Grafo/Calendário/Documentos agora podem ficar abertos ao
-// mesmo tempo, cada um como uma coluna de largura própria ao lado da Nota.
-// Este módulo é deliberadamente "de baixo nível" — só mexe em `platform.js`,
+// mesmo tempo, cada um como uma coluna de largura própria ao lado da Nota —
+// e dois (ou mais) podem ficar empilhados dentro da MESMA coluna, arrastando
+// o cabeçalho de um painel e soltando na metade de baixo de outro. Este
+// módulo é deliberadamente "de baixo nível" — só mexe em `platform.js`,
 // `storage.js` e no DOM diretamente, nunca importa de `documents.js`/
 // `views.js`/`graph-view.js`/`board-engine.js`/`calendar-view.js`, pra não
 // criar ciclo de import. A comunicação com esses módulos é só por evento
@@ -18,17 +21,27 @@
 import { isDesktopMode } from './platform.js';
 import { loadDesktopPanelLayout, saveDesktopPanelLayout } from './storage.js';
 
-// Ordem fixa da esquerda pra direita quando várias colunas estão abertas
+// Ordem fixa da esquerda pra direita quando várias COLUNAS estão abertas
 // (a Nota fica implicitamente em 10 via CSS já existente). Os handles de
-// redimensionar ficam em PANEL_ORDER-1, entre a coluna anterior e o painel.
+// redimensionar largura ficam em PANEL_ORDER-1, entre a coluna anterior e a
+// coluna deste painel — só aparecem quando o painel É uma raiz (dono de uma
+// coluna própria); um painel empilhado não tem largura independente.
 const PANEL_ORDER = { board: 20, grafo: 30, calendar: 40, docs: 50 };
 const PANEL_NAMES = Object.keys(PANEL_ORDER);
 const DEFAULT_WIDTH = 380;
 const MIN_WIDTH = 260;
+const DEFAULT_HEIGHT = 240;
+const MIN_HEIGHT = 120;
 
 const openPanels = new Set();
-const panelWidths = {};
-const handles = {};
+const panelWidths = {};   // largura em px, indexada pelo nome da RAIZ (dona da coluna)
+const panelHeights = {};  // altura em px, indexada por qualquer painel que tenha algo empilhado embaixo
+const stackParent = {};   // filho -> pai; ausência = raiz (dona de uma coluna própria)
+const handles = {};       // alças de largura, uma por nome fixo
+const rowHandles = {};    // alças de altura (entre um painel e o que está empilhado embaixo dele)
+const columnWrappers = {}; // wrapper .desktop-panel-column atual, indexado pelo nome da raiz
+
+let dragSrcPanel = null;
 
 function panelElement(name) {
   switch (name) {
@@ -36,6 +49,16 @@ function panelElement(name) {
     case 'grafo': return document.querySelector('.graph-view');
     case 'calendar': return document.querySelector('.calendar-view');
     case 'docs': return document.querySelector('.docs-section');
+    default: return null;
+  }
+}
+
+function panelHeaderElement(name) {
+  switch (name) {
+    case 'board': return document.querySelector('.board-header');
+    case 'grafo': return document.querySelector('.graph-header');
+    case 'calendar': return document.querySelector('.calendar-header');
+    case 'docs': return document.querySelector('.docs-header');
     default: return null;
   }
 }
@@ -53,14 +76,19 @@ function setPanelVisible(name, visible) {
   }
 }
 
-function applyPanelWidth(name) {
+function applyPanelHeight(name) {
   const el = panelElement(name);
   if (!el) return;
-  el.style.setProperty('--panel-width', `${panelWidths[name] || DEFAULT_WIDTH}px`);
+  el.style.setProperty('--panel-height', `${panelHeights[name] || DEFAULT_HEIGHT}px`);
 }
 
 function persist() {
-  saveDesktopPanelLayout({ open: [...openPanels], widths: { ...panelWidths } });
+  saveDesktopPanelLayout({
+    open: [...openPanels],
+    widths: { ...panelWidths },
+    stackParent: { ...stackParent },
+    heights: { ...panelHeights },
+  });
 }
 
 function notifyChanged() {
@@ -69,56 +97,145 @@ function notifyChanged() {
   }));
 }
 
-function createHandle(name) {
-  const handle = document.createElement('div');
-  handle.className = 'desktop-panel-handle';
-  handle.dataset.panel = name;
-  handle.style.order = String(PANEL_ORDER[name] - 1);
-  handle.title = 'Arraste para redimensionar';
-  handle.hidden = true;
-
-  let dragging = false;
-  let startX = 0;
-  let startWidth = 0;
-
-  handle.addEventListener('mousedown', e => {
-    dragging = true;
-    startX = e.clientX;
-    startWidth = panelWidths[name] || DEFAULT_WIDTH;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    // A alça fica na borda ESQUERDA do painel: arrastar pra direita encolhe,
-    // pra esquerda cresce.
-    const delta = e.clientX - startX;
-    const maxWidth = Math.max(MIN_WIDTH, window.innerWidth * 0.7);
-    const novaLargura = Math.round(Math.min(maxWidth, Math.max(MIN_WIDTH, startWidth - delta)));
-    panelWidths[name] = novaLargura;
-    applyPanelWidth(name);
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    dragging = false;
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    persist();
-  });
-
-  document.getElementById('app')?.appendChild(handle);
-  return handle;
+// Só existem 4 painéis possíveis, então um mapa "filho -> pai" já basta pra
+// representar o empilhamento (não precisa de árvore genérica). Uma coluna só
+// aceita um filho por nível — soltar num alvo que já tem filho é ignorado.
+function childOf(name) {
+  return PANEL_NAMES.find(n => stackParent[n] === name) || null;
 }
 
+function rootOf(name) {
+  let cur = name;
+  const visto = new Set();
+  while (stackParent[cur] != null && openPanels.has(stackParent[cur]) && !visto.has(cur)) {
+    visto.add(cur);
+    cur = stackParent[cur];
+  }
+  return cur;
+}
+
+// `name` está entre os descendentes de `possivelAncestral`? (percorre a
+// cadeia de filhos) — usado só pra recusar um drop que criaria um ciclo.
+function isDescendant(name, possivelAncestral) {
+  let cur = possivelAncestral;
+  const visto = new Set();
+  while (cur != null && !visto.has(cur)) {
+    if (cur === name) return true;
+    visto.add(cur);
+    cur = childOf(cur);
+  }
+  return false;
+}
+
+// Desanexa `name` de onde estiver, promovendo quem estava empilhado embaixo
+// dele pro lugar que `name` ocupava — sem isto, fechar (ou redocar) um painel
+// do meio de uma cadeia de 3 deixaria o resto órfão, sem coluna nenhuma pra
+// aparecer.
+function detach(name) {
+  const filho = childOf(name);
+  if (filho) {
+    if (name in stackParent) stackParent[filho] = stackParent[name];
+    else delete stackParent[filho];
+  }
+  delete stackParent[name];
+}
+
+function closePanel(name) {
+  detach(name);
+  openPanels.delete(name);
+}
+
+function dockBelow(dragged, target) {
+  if (dragged == null || dragged === target) return;
+  if (childOf(target) != null) return; // alvo já tem alguém embaixo — só um filho por nível
+  if (isDescendant(target, dragged)) return; // soltar em cima do próprio descendente criaria um ciclo
+  detach(dragged);
+  stackParent[dragged] = target;
+  applyLayout();
+  persist();
+}
+
+function getOrCreateColumnWrapper(root) {
+  if (columnWrappers[root]) return columnWrappers[root];
+  const wrapper = document.createElement('div');
+  wrapper.className = 'desktop-panel-column';
+  wrapper.dataset.root = root;
+  document.getElementById('app')?.appendChild(wrapper);
+  columnWrappers[root] = wrapper;
+  return wrapper;
+}
+
+// Reconciliação completa a cada chamada (não um patch incremental): recalcula
+// todas as raízes do zero, desmonta colunas que sobraram e remonta cada uma —
+// mais simples e muito menos sujeito a estado inconsistente do que tentar
+// aplicar só a diferença.
 function applyLayout() {
   for (const name of PANEL_NAMES) {
-    const isOpen = openPanels.has(name);
-    setPanelVisible(name, isOpen);
-    applyPanelWidth(name);
-    if (handles[name]) handles[name].hidden = !isOpen;
+    setPanelVisible(name, openPanels.has(name));
+  }
+
+  const raizes = PANEL_NAMES.filter(n => openPanels.has(n) && rootOf(n) === n);
+  const appEl = document.getElementById('app');
+
+  // Nunca remover uma coluna com um painel ainda dentro dela — panelElement()
+  // usa querySelector, que só acha nós presos no documento; um painel preso
+  // dentro de um wrapper removido ficaria inalcançável pra sempre.
+  for (const raiz of Object.keys(columnWrappers)) {
+    if (!raizes.includes(raiz)) {
+      const wrapper = columnWrappers[raiz];
+      while (wrapper.firstChild) {
+        appEl?.appendChild(wrapper.firstChild);
+      }
+      wrapper.remove();
+      delete columnWrappers[raiz];
+    }
+  }
+
+  const temAlcaEmbaixo = new Set();
+
+  for (const raiz of raizes) {
+    const wrapper = getOrCreateColumnWrapper(raiz);
+    wrapper.style.order = String(PANEL_ORDER[raiz]);
+    wrapper.style.setProperty('--panel-width', `${panelWidths[raiz] || DEFAULT_WIDTH}px`);
+
+    // Monta a cadeia (raiz, filho, neto...) com guarda de ciclo por segurança
+    // contra um storage salvo à mão/corrompido.
+    const cadeia = [];
+    const visto = new Set();
+    let cur = raiz;
+    while (cur != null && openPanels.has(cur) && !visto.has(cur)) {
+      visto.add(cur);
+      cadeia.push(cur);
+      cur = childOf(cur);
+    }
+
+    cadeia.forEach((nome, i) => {
+      const el = panelElement(nome);
+      if (!el) return;
+      wrapper.appendChild(el);
+      // order par (0,2,4...) deixa os valores ímpares (1,3,5...) livres pras
+      // alças de altura entre um painel e o próximo da pilha.
+      el.style.order = String(i * 2);
+      const ehUltimo = i === cadeia.length - 1;
+      el.classList.toggle('desktop-panel-stack-last', ehUltimo);
+      if (ehUltimo) {
+        el.style.removeProperty('--panel-height');
+      } else {
+        applyPanelHeight(nome);
+        temAlcaEmbaixo.add(nome);
+        const alca = rowHandles[nome];
+        if (alca) {
+          wrapper.appendChild(alca);
+          alca.style.order = String(i * 2 + 1);
+          alca.hidden = false;
+        }
+      }
+    });
+  }
+
+  for (const nome of PANEL_NAMES) {
+    if (handles[nome]) handles[nome].hidden = !raizes.includes(nome);
+    if (rowHandles[nome] && !temAlcaEmbaixo.has(nome)) rowHandles[nome].hidden = true;
   }
 }
 
@@ -144,7 +261,7 @@ export function toggleDesktopPanel(name) {
   if (abrindo) {
     openPanels.add(name);
   } else {
-    openPanels.delete(name);
+    closePanel(name);
   }
   applyLayout();
   persist();
@@ -156,24 +273,178 @@ export function toggleDesktopPanel(name) {
   }
 }
 
+function createHandle(name) {
+  const handle = document.createElement('div');
+  handle.className = 'desktop-panel-handle';
+  handle.dataset.panel = name;
+  handle.style.order = String(PANEL_ORDER[name] - 1);
+  handle.title = 'Arraste para redimensionar';
+  handle.hidden = true;
+
+  let dragging = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startX = e.clientX;
+    startWidth = panelWidths[name] || DEFAULT_WIDTH;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    // A alça fica na borda ESQUERDA da coluna: arrastar pra direita encolhe,
+    // pra esquerda cresce.
+    const delta = e.clientX - startX;
+    const maxWidth = Math.max(MIN_WIDTH, window.innerWidth * 0.7);
+    const novaLargura = Math.round(Math.min(maxWidth, Math.max(MIN_WIDTH, startWidth - delta)));
+    panelWidths[name] = novaLargura;
+    const wrapper = columnWrappers[name];
+    if (wrapper) wrapper.style.setProperty('--panel-width', `${novaLargura}px`);
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    persist();
+  });
+
+  document.getElementById('app')?.appendChild(handle);
+  return handle;
+}
+
+function createRowHandle(name) {
+  const handle = document.createElement('div');
+  handle.className = 'desktop-panel-row-handle';
+  handle.dataset.panel = name;
+  handle.title = 'Arraste para redimensionar';
+  handle.hidden = true;
+
+  let dragging = false;
+  let startY = 0;
+  let startHeight = 0;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startY = e.clientY;
+    startHeight = panelHeights[name] || DEFAULT_HEIGHT;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    // A alça fica na borda DE BAIXO do painel `name`: arrastar pra baixo
+    // cresce ele (empurra a divisa pra baixo), pra cima encolhe.
+    const delta = e.clientY - startY;
+    const wrapper = panelElement(name)?.closest('.desktop-panel-column');
+    const maxHeight = wrapper ? Math.max(MIN_HEIGHT, wrapper.clientHeight * 0.8) : 2000;
+    const novaAltura = Math.round(Math.min(maxHeight, Math.max(MIN_HEIGHT, startHeight + delta)));
+    panelHeights[name] = novaAltura;
+    applyPanelHeight(name);
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    persist();
+  });
+
+  document.getElementById('app')?.appendChild(handle);
+  return handle;
+}
+
+// Injeta um "grip" pequeno e dedicado em cada cabeçalho (nunca o cabeçalho
+// inteiro — o Quadro tem um <input> editável de título ali dentro, e
+// draggable=true num ancestral atrapalharia a seleção/edição de texto nele).
+// Espelha o padrão já usado pras abas de notas em notes-tabs.js: guarda a
+// origem numa variável de módulo em vez de dataTransfer, já que origem e
+// destino vivem na mesma página.
+function initPanelDragAndDrop() {
+  for (const name of PANEL_NAMES) {
+    const header = panelHeaderElement(name);
+    const panel = panelElement(name);
+    if (!header || !panel) continue;
+
+    const grip = document.createElement('span');
+    grip.className = 'desktop-panel-drag-grip';
+    grip.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">drag_indicator</span>';
+    grip.title = 'Arraste para encaixar embaixo de outro painel';
+    grip.draggable = true;
+    header.prepend(grip);
+
+    grip.addEventListener('dragstart', e => {
+      dragSrcPanel = name;
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    grip.addEventListener('dragend', () => {
+      dragSrcPanel = null;
+      document.querySelectorAll('.desktop-panel-drop-target-bottom')
+        .forEach(el => el.classList.remove('desktop-panel-drop-target-bottom'));
+    });
+
+    panel.addEventListener('dragover', e => {
+      if (dragSrcPanel == null || dragSrcPanel === name || childOf(name) != null) {
+        panel.classList.remove('desktop-panel-drop-target-bottom');
+        return;
+      }
+      const rect = panel.getBoundingClientRect();
+      const naFaixaDeBaixo = (e.clientY - rect.top) / rect.height > 0.65;
+      if (!naFaixaDeBaixo) {
+        panel.classList.remove('desktop-panel-drop-target-bottom');
+        return;
+      }
+      e.preventDefault();
+      panel.classList.add('desktop-panel-drop-target-bottom');
+    });
+    panel.addEventListener('dragleave', () => {
+      panel.classList.remove('desktop-panel-drop-target-bottom');
+    });
+    panel.addEventListener('drop', e => {
+      const origem = dragSrcPanel;
+      panel.classList.remove('desktop-panel-drop-target-bottom');
+      dragSrcPanel = null;
+      if (origem == null || origem === name || childOf(name) != null) return;
+      e.preventDefault();
+      dockBelow(origem, name);
+    });
+  }
+}
+
 export function initDesktopPanels() {
   if (!isDesktopMode()) return;
 
   for (const name of PANEL_NAMES) {
     panelWidths[name] = DEFAULT_WIDTH;
     handles[name] = createHandle(name);
+    rowHandles[name] = createRowHandle(name);
   }
+  initPanelDragAndDrop();
   // Estado inicial (tudo fechado) já aplicado de cara — initDocuments() pode
   // ter deixado .docs-section sem .is-collapsed por causa de uma chave antiga
   // compartilhada com o mobile; isto evita um flash antes do layout salvo
   // (assíncrono) carregar.
   applyLayout();
 
-  loadDesktopPanelLayout().then(({ open, widths }) => {
+  loadDesktopPanelLayout().then(({ open, widths, stackParent: savedStackParent, heights }) => {
     for (const name of open) {
       if (PANEL_ORDER[name]) openPanels.add(name);
     }
     Object.assign(panelWidths, widths);
+    Object.assign(panelHeights, heights);
+    for (const [filho, pai] of Object.entries(savedStackParent || {})) {
+      if (PANEL_ORDER[filho] && PANEL_ORDER[pai] && openPanels.has(filho) && openPanels.has(pai)) {
+        stackParent[filho] = pai;
+      }
+    }
     applyLayout();
     notifyChanged();
     for (const name of openPanels) {

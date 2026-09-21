@@ -692,8 +692,16 @@ export async function saveSplitRatio(ratio) {
 export async function loadDesktopPanelLayout() {
   const layout = await platformStorage.get('desktop_panel_layout');
   return (layout && typeof layout === 'object')
-    ? { open: Array.isArray(layout.open) ? layout.open : [], widths: layout.widths || {} }
-    : { open: [], widths: {} };
+    ? {
+      open: Array.isArray(layout.open) ? layout.open : [],
+      widths: layout.widths || {},
+      // stackParent/heights não existiam antes de empilhar painéis virar possível —
+      // registros salvos de antes simplesmente não têm essas chaves, o que já
+      // significa "nenhum empilhamento", sem precisar de migração.
+      stackParent: layout.stackParent || {},
+      heights: layout.heights || {},
+    }
+    : { open: [], widths: {}, stackParent: {}, heights: {} };
 }
 
 export async function saveDesktopPanelLayout(layout) {
