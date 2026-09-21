@@ -2069,6 +2069,7 @@ body.template-mode .note-watermark {
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
+  background: var(--bg);
 }
 
 .docs-header::-webkit-scrollbar {
@@ -5583,7 +5584,7 @@ html[data-platform="mobile"] #btn-nav-board {
     overflow-y: hidden;
     scrollbar-width: none;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
+    background: var(--bg);
     box-sizing: border-box;
   }
 
@@ -7512,7 +7513,7 @@ html[data-platform="desktop"] .note-tab.has-folder {
   justify-content: space-between;
   padding: 8px 16px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
+  background: var(--bg);
   flex-shrink: 0;
   gap: 8px;
   height: 52px;
