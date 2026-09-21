@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-1';
+const CACHE_NAME = 'quickdock-v3.0.0-2';
 
 const ASSET_PATHS = [
   '',
@@ -21,6 +21,7 @@ const ASSET_PATHS = [
   'sidepanel/style.css',
   'lib/dexie.min.js',
   'sidepanel/app.js',
+  'sidepanel/boot-platform.js',
   'sidepanel/modules/platform.js',
   'sidepanel/modules/google-config.js',
   'sidepanel/modules/google-auth.js',
