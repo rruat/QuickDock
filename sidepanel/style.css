@@ -5537,12 +5537,11 @@ html[data-platform="mobile"] #btn-nav-board {
     display: none !important;
   }
 
-  /* Tela-cheia/meia-altura por visão não compõem com painéis simultâneos —
-     os botões somem só no desktop (mobile/extensão continuam com os deles). */
-  html[data-platform="desktop"] #btn-graph-toggle-fullscreen,
-  html[data-platform="desktop"] #btn-board-toggle-fullscreen,
-  html[data-platform="desktop"] #btn-calendar-toggle-fullscreen,
-  html[data-platform="desktop"] #btn-bases-toggle-fullscreen,
+  /* Meia-altura por visão não compõe com painéis simultâneos — esses botões
+     somem só no desktop (mobile/extensão continuam com os deles). Tela cheia
+     continua visível (ver desktop-panels.js toggleMaximizePanel): no desktop
+     ela vira "maximizar este painel por cima dos outros", não trocar de
+     visão exclusiva. */
   html[data-platform="desktop"] #btn-graph-toggle-height,
   html[data-platform="desktop"] #btn-board-toggle-height,
   html[data-platform="desktop"] #btn-calendar-toggle-height,
@@ -5562,6 +5561,33 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .board-view[hidden],
   html[data-platform="desktop"] .calendar-view[hidden],
   html[data-platform="desktop"] .bases-view[hidden] {
+    display: none !important;
+  }
+
+  /* Painel maximizado (botão de tela cheia do cabeçalho — ver
+     toggleMaximizePanel em desktop-panels.js): cobre a tela toda por cima de
+     tudo, sem precisar esconder Nota/outros painéis (eles continuam exatamente
+     como estavam, só ficam visualmente por baixo). !important em tudo pra
+     vencer as regras de largura/altura de coluna acima, que também usam
+     !important nas mesmas propriedades. */
+  html[data-platform="desktop"] .desktop-panel-maximized {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    min-width: 0 !important;
+    z-index: 500 !important;
+    border-left: none !important;
+  }
+
+  /* Alças de redimensionar e o grip de arrastar não fazem sentido enquanto
+     algum painel está maximizado (nem no maximizado, que ocupa a tela toda
+     de propósito, nem nos outros, cobertos por baixo dele). */
+  html[data-platform="desktop"].has-maximized-panel .desktop-panel-handle,
+  html[data-platform="desktop"].has-maximized-panel .desktop-panel-row-handle,
+  html[data-platform="desktop"].has-maximized-panel .desktop-panel-drag-grip {
     display: none !important;
   }
 

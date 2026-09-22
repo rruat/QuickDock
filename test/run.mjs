@@ -4444,7 +4444,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('html:not(.view-bases) .bases-view') &&
     styleCssSource.includes('body.no-note-open .bases-view') &&
     styleCssSource.includes('html[data-platform="desktop"] .bases-view { order: 60; }') &&
-    styleCssSource.includes('#btn-bases-toggle-fullscreen'));
+    styleCssSource.includes('#btn-bases-toggle-height'));
 
   // 31.9: sw.js — módulo novo no pré-cache e versão do cache trocada
   ok('sw.js · lista bases-view.js e os módulos de sidepanel/modules/bases/ no pré-cache, com CACHE_NAME trocado',
@@ -4460,6 +4460,32 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     tableViewJsSource.includes('if (showOwnToolbar)') &&
     boardBaseViewJsSource.includes('showOwnToolbar = true') &&
     boardBaseViewJsSource.includes('if (showOwnToolbar)'));
+}
+
+// ── 32. Maximizar painel no desktop (botão de tela cheia reaproveitado) ────
+{
+  const { readFile } = await import('node:fs/promises');
+  const panelsJsSource = await readFile(new URL('../sidepanel/modules/desktop-panels.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+
+  ok('desktop-panels.js · exporta toggleMaximizePanel/isPanelMaximized e mapeia os 4 botões de tela cheia (board/grafo/calendar/bases)',
+    panelsJsSource.includes('export function toggleMaximizePanel') &&
+    panelsJsSource.includes('export function isPanelMaximized') &&
+    panelsJsSource.includes("btn-board-toggle-fullscreen") &&
+    panelsJsSource.includes("btn-graph-toggle-fullscreen") &&
+    panelsJsSource.includes("btn-calendar-toggle-fullscreen") &&
+    panelsJsSource.includes("btn-bases-toggle-fullscreen"));
+  ok('desktop-panels.js · fechar o painel maximizado sai do modo maximizado automaticamente',
+    panelsJsSource.includes('if (maximizedPanel === name) maximizedPanel = null;'));
+  ok('desktop-panels.js · Escape sai do modo maximizado',
+    panelsJsSource.includes("e.key === 'Escape' && maximizedPanel"));
+  ok('style.css · botões de tela cheia voltam a aparecer no desktop (só o de meia-altura continua escondido)',
+    !styleCssSource.includes('html[data-platform="desktop"] #btn-graph-toggle-fullscreen') &&
+    styleCssSource.includes('html[data-platform="desktop"] #btn-graph-toggle-height'));
+  ok('style.css · .desktop-panel-maximized cobre a tela toda (position fixed + inset 0) por cima dos outros painéis',
+    styleCssSource.includes('.desktop-panel-maximized {') &&
+    /\.desktop-panel-maximized\s*\{[^}]*position:\s*fixed\s*!important/.test(styleCssSource) &&
+    /\.desktop-panel-maximized\s*\{[^}]*inset:\s*0\s*!important/.test(styleCssSource));
 }
 
 if (falhas.length) {

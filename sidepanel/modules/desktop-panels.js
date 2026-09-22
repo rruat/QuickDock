@@ -33,6 +33,18 @@ const MIN_WIDTH = 260;
 const DEFAULT_HEIGHT = 240;
 const MIN_HEIGHT = 120;
 
+// Nome do painel → id do botão de tela cheia no cabeçalho dele (grafo é a
+// exceção, o id existente chama-se "graph", não "grafo" — mesmo mapeamento
+// de REFRESH_EVENT_NAME mais abaixo). Docs não tem esse botão (nunca teve,
+// nem no modelo antigo de visão exclusiva).
+const MAXIMIZE_BTN_ID = { board: 'btn-board-toggle-fullscreen', grafo: 'btn-graph-toggle-fullscreen', calendar: 'btn-calendar-toggle-fullscreen', bases: 'btn-bases-toggle-fullscreen' };
+
+// Painel maximizado "por cima" dos outros — os demais continuam abertos por
+// baixo (nada em openPanels/stackParent muda) e voltam exatamente como
+// estavam ao sair do modo. Deliberadamente não persiste entre recarregamentos
+// (é um modo de foco temporário, não uma escolha de layout).
+let maximizedPanel = null;
+
 const openPanels = new Set();
 const panelWidths = {};   // largura em px, indexada pelo nome da RAIZ (dona da coluna)
 const panelHeights = {};  // altura em px, indexada por qualquer painel que tenha algo empilhado embaixo
@@ -145,6 +157,40 @@ function detach(name) {
 function closePanel(name) {
   detach(name);
   openPanels.delete(name);
+  if (maximizedPanel === name) maximizedPanel = null;
+}
+
+// Reaproveita o mesmo botão de "tela cheia" que já existe em cada cabeçalho
+// (escondido no desktop até agora — ver o comentário na regra CSS que o
+// escondia) com um comportamento adaptado: em vez de trocar a visão exclusiva
+// inteira (que não existe mais aqui), só faz ESTE painel cobrir a tela toda
+// por cima dos outros, que continuam abertos por baixo sem perder largura,
+// empilhamento nem posição de rolagem — sair do modo devolve tudo do jeito
+// que estava, sem precisar de applyLayout() nenhum.
+export function toggleMaximizePanel(name) {
+  if (!PANEL_ORDER[name] || !openPanels.has(name)) return;
+  maximizedPanel = (maximizedPanel === name) ? null : name;
+  applyMaximizeState();
+}
+
+export function isPanelMaximized(name) {
+  return maximizedPanel === name;
+}
+
+function applyMaximizeState() {
+  document.documentElement.classList.toggle('has-maximized-panel', !!maximizedPanel);
+  for (const nome of Object.keys(MAXIMIZE_BTN_ID)) {
+    const el = panelElement(nome);
+    const isto = nome === maximizedPanel;
+    if (el) el.classList.toggle('desktop-panel-maximized', isto);
+    const btn = document.getElementById(MAXIMIZE_BTN_ID[nome]);
+    if (!btn) continue;
+    const titulo = isto ? 'Sair da tela cheia' : 'Expandir para tela cheia (100%)';
+    btn.title = titulo;
+    btn.setAttribute('aria-label', titulo);
+    const icone = btn.querySelector('.qd-icon');
+    if (icone) icone.textContent = isto ? 'fullscreen_exit' : 'fullscreen';
+  }
 }
 
 function dockBelow(dragged, target) {
@@ -443,6 +489,13 @@ export function initDesktopPanels() {
     rowHandles[name] = createRowHandle(name);
   }
   initPanelDragAndDrop();
+
+  for (const [nome, btnId] of Object.entries(MAXIMIZE_BTN_ID)) {
+    document.getElementById(btnId)?.addEventListener('click', () => toggleMaximizePanel(nome));
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && maximizedPanel) toggleMaximizePanel(maximizedPanel);
+  });
   // Estado inicial (tudo fechado) já aplicado de cara — initDocuments() pode
   // ter deixado .docs-section sem .is-collapsed por causa de uma chave antiga
   // compartilhada com o mobile; isto evita um flash antes do layout salvo
