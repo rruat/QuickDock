@@ -112,8 +112,9 @@ function parseInlineMarkdown(text) {
     } else if (m.tag === 'a') {
       const href = safeHref(m.href);
       if (href && /^nota:/i.test(href)) {
-        const target = href.replace(/^nota:/i, '');
-        html += `<a href="${escHtml(href)}" class="note-internal-link" data-note-format="md" data-note-uid="${escHtml(target)}">${escHtml(m.content)}</a>`;
+        let target = href.replace(/^nota:/i, '');
+        try { target = decodeURIComponent(target); } catch {}
+        html += `<a href="${escHtml(href)}" class="note-internal-link" data-note-title="${escHtml(target)}">${escHtml(m.content)}</a>`;
       } else {
         // Endereço recusado: mantém o texto original visível em vez de descartar
         // silenciosamente o que a pessoa escreveu.
@@ -553,11 +554,12 @@ function nodeToMarkdown(node) {
       case 'A': {
         const href = child.getAttribute('href');
         if (href && /^nota:/i.test(href)) {
-          if (child.getAttribute('data-note-format') === 'md') {
-            out += `[${inner}](${href})`;
-            break;
+          let target = child.getAttribute('data-note-title');
+          if (!target) {
+            const rawTarget = href.replace(/^nota:/i, '');
+            try { target = decodeURIComponent(rawTarget); }
+            catch { target = rawTarget; }
           }
-          const target = child.getAttribute('data-note-title') || href.replace(/^nota:/i, '');
           if (!inner || inner === target) {
             out += `[[${target}]]`;
           } else {

@@ -1542,10 +1542,23 @@ function sanitizeForSave(html, keepBreaks = false) {
   // funil por onde passa tudo que é persistido — inclusive HTML colado de fora
   // —, então é onde href hostil e atributos de evento morrem.
   div.querySelectorAll('a').forEach(a => {
-    const href = safeHref(a.getAttribute('href'));
+    const rawHref = a.getAttribute('href');
+    const href = safeHref(rawHref);
     if (!href) { a.replaceWith(...a.childNodes); return; }
+    const ehNota = /^nota:/i.test(href);
+    const existingTitle = a.getAttribute('data-note-title');
     [...a.attributes].forEach(attr => a.removeAttribute(attr.name));
     a.setAttribute('href', href);
+    if (ehNota) {
+      a.className = 'note-internal-link';
+      let titulo = existingTitle;
+      if (!titulo) {
+        const rawTarget = href.replace(/^nota:/i, '');
+        try { titulo = decodeURIComponent(rawTarget); } catch { titulo = rawTarget; }
+      }
+      a.dataset.noteTitle = titulo;
+      a.title = `Ctrl+clique para abrir nota: ${titulo}`;
+    }
   });
   if (!keepBreaks) div.querySelectorAll('br').forEach(br => br.remove());
   // Âncora invisível da formatação ao digitar (ver replaceRangeWithTag): ela é
@@ -3825,9 +3838,9 @@ export function revealInlineSyntax(inlineEl) {
   if (!inlineEl) return;
   if (inlineEl.querySelector(':scope > .md-syntax-open')) return;
 
-  const isWiki = inlineEl.classList?.contains('note-internal-link');
+  const href = inlineEl.getAttribute?.('href') || '';
+  const isWiki = inlineEl.classList?.contains('note-internal-link') || (inlineEl.tagName === 'A' && /^nota:/i.test(href));
   if (inlineEl.tagName === 'A' && !isWiki) {
-    const href = inlineEl.getAttribute('href') || '';
     const openSpan = document.createElement('span');
     openSpan.className = 'md-syntax md-syntax-open';
     openSpan.contentEditable = 'true';
@@ -3866,7 +3879,9 @@ export function revealInlineSyntax(inlineEl) {
 
 export function collapseInlineSyntax(inlineEl) {
   if (!inlineEl) return;
-  if (inlineEl.tagName === 'A' && !inlineEl.classList?.contains('note-internal-link')) {
+  const href = inlineEl.getAttribute?.('href') || '';
+  const isWiki = inlineEl.classList?.contains('note-internal-link') || (inlineEl.tagName === 'A' && /^nota:/i.test(href));
+  if (inlineEl.tagName === 'A' && !isWiki) {
     const hrefSpan = inlineEl.querySelector('.md-syntax-link-href');
     if (hrefSpan) {
       const newHref = hrefSpan.textContent.trim();
