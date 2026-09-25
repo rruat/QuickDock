@@ -7,6 +7,24 @@ const RE_WIKILINK = /\[\[([^\]\n|]+)(?:\|([^\]\n]+))?\]\]/g;
 const RE_CANONICAL = /\[([^\]]+)\]\(nota:([^\)]+)\)/g;
 const RE_HTML_LINK = /<a\s+[^>]*href="nota:([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
 const RE_DATA_TITLE = /data-note-title="([^"]+)"/gi;
+const RE_DATA_PATH = /data-note-path="([^"]+)"/gi;
+
+/**
+ * Normaliza caminho e título de uma nota para "pasta/titulo" ou "titulo".
+ */
+export function normalizarCaminhoNota(pasta, title) {
+  const p = (pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+  const t = (title || '').trim();
+  return p ? `${p}/${t}` : t;
+}
+
+/**
+ * Normaliza uma string de alvo para comparação segura (sem barras extras e em minúsculas).
+ */
+export function normalizarAlvoLink(alvo) {
+  if (!alvo) return '';
+  return alvo.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+}
 
 /**
  * Extrai todas as referências a notas de uma string de texto/markdown/HTML.
@@ -18,7 +36,7 @@ export function extrairLinksDeTexto(texto) {
   const jaVistos = new Set();
 
   function registrar(alvo, alias, isUid) {
-    const alvoLimpo = (alvo || '').trim();
+    const alvoLimpo = (alvo || '').trim().replace(/\\/g, '/');
     if (!alvoLimpo) return;
     const chave = `${isUid ? 'u:' : 't:'}${alvoLimpo.toLowerCase()}`;
     if (jaVistos.has(chave)) return;
@@ -30,7 +48,7 @@ export function extrairLinksDeTexto(texto) {
     });
   }
 
-  // 1. Wikilinks no formato [[Título]] ou [[Título|Alias]]
+  // 1. Wikilinks no formato [[Título]] ou [[Título|Alias]] ou [[Pasta/Título|Alias]]
   let m;
   const reWiki = new RegExp(RE_WIKILINK.source, 'g');
   while ((m = reWiki.exec(texto)) !== null) {
@@ -40,7 +58,7 @@ export function extrairLinksDeTexto(texto) {
     registrar(alvo, alias, isUid);
   }
 
-  // 2. Links canônicos markdown [Texto](nota:uid_ou_titulo)
+  // 2. Links canônicos markdown [Texto](nota:uid_ou_titulo_ou_caminho)
   const reCanon = new RegExp(RE_CANONICAL.source, 'g');
   while ((m = reCanon.exec(texto)) !== null) {
     const alias = m[1];
@@ -49,13 +67,19 @@ export function extrairLinksDeTexto(texto) {
     registrar(alvo, alias, isUid);
   }
 
-  // 3. Links HTML <a href="nota:..."> ou com data-note-title="..."
+  // 3. Links HTML <a href="nota:..."> ou com data-note-path="..." / data-note-title="..."
   const reHtml = new RegExp(RE_HTML_LINK.source, 'gi');
   while ((m = reHtml.exec(texto)) !== null) {
     const alvo = decodeURIComponent(m[1]);
     const alias = m[2]?.replace(/<[^>]+>/g, '') || null;
     const isUid = alvo.startsWith('u_');
     registrar(alvo, alias, isUid);
+  }
+
+  const reDataPath = new RegExp(RE_DATA_PATH.source, 'gi');
+  while ((m = reDataPath.exec(texto)) !== null) {
+    const caminho = m[1];
+    registrar(caminho, null, false);
   }
 
   const reData = new RegExp(RE_DATA_TITLE.source, 'gi');
@@ -105,17 +129,33 @@ export function extrairLinksDeBlocos(blocks) {
 /**
  * Resolve referências contra a lista de notas existentes, preenchendo
  * uidDestino (se encontrado) e tituloAlvo.
+ * Suporta resolução por UID, caminho completo (pasta/titulo) e desambiguação
+ * por proximidade quando várias notas compartilham o mesmo título.
  * Retorna registros prontos para a tabela Dexie `links`.
  */
 export function resolverLinks(referencias, uidOrigem, todasNotas = []) {
   if (!referencias || !uidOrigem) return [];
   const mapaPorUid = new Map();
-  const mapaPorTitulo = new Map();
+  const mapaPorCaminho = new Map();
+  const notasPorTitulo = new Map();
+  let notaOrigem = null;
 
   for (const nota of todasNotas) {
-    if (nota.uid) mapaPorUid.set(nota.uid, nota);
-    if (nota.title) mapaPorTitulo.set(nota.title.trim().toLowerCase(), nota);
+    if (nota.uid) {
+      mapaPorUid.set(nota.uid, nota);
+      if (nota.uid === uidOrigem) notaOrigem = nota;
+    }
+    const caminho = normalizarAlvoLink(normalizarCaminhoNota(nota.pasta, nota.title));
+    if (caminho) mapaPorCaminho.set(caminho, nota);
+
+    const t = (nota.title || '').trim().toLowerCase();
+    if (t) {
+      if (!notasPorTitulo.has(t)) notasPorTitulo.set(t, []);
+      notasPorTitulo.get(t).push(nota);
+    }
   }
+
+  const pastaOrigem = (notaOrigem?.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
 
   const resultados = [];
   const vistos = new Set();
@@ -123,20 +163,44 @@ export function resolverLinks(referencias, uidOrigem, todasNotas = []) {
   for (const ref of referencias) {
     let uidDestino = null;
     let tituloAlvo = ref.alvo;
+    const alvoNorm = normalizarAlvoLink(ref.alvo);
 
+    // 1. Alvo é UID explícito
     if (ref.isUid || mapaPorUid.has(ref.alvo)) {
       const notaAlvo = mapaPorUid.get(ref.alvo);
       uidDestino = ref.alvo;
       tituloAlvo = notaAlvo?.title || ref.alias || ref.alvo;
-    } else {
-      const notaAlvo = mapaPorTitulo.get(ref.alvo.toLowerCase());
-      if (notaAlvo) {
-        uidDestino = notaAlvo.uid || null;
-        tituloAlvo = notaAlvo.title || ref.alvo;
-      } else {
-        uidDestino = null;
-        tituloAlvo = ref.alvo;
+    }
+    // 2. Alvo casa com caminho completo (ex: "projeto/iris/bugs")
+    else if (mapaPorCaminho.has(alvoNorm)) {
+      const notaAlvo = mapaPorCaminho.get(alvoNorm);
+      uidDestino = notaAlvo.uid || null;
+      tituloAlvo = notaAlvo.title || ref.alvo;
+    }
+    // 3. Alvo é apenas título (ou não achou caminho exato)
+    else if (notasPorTitulo.has(alvoNorm)) {
+      const candidatos = notasPorTitulo.get(alvoNorm);
+      let notaEscolhida = null;
+
+      // 3a. Regra de proximidade: se houver mais de um candidato com o mesmo título,
+      // tenta casar com a nota na mesma pasta da nota de origem
+      if (candidatos.length > 1 && pastaOrigem) {
+        notaEscolhida = candidatos.find(n => {
+          const p = (n.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+          return p === pastaOrigem;
+        });
       }
+
+      // 3b. Se ainda não escolheu, escolhe o primeiro candidato
+      if (!notaEscolhida) {
+        notaEscolhida = candidatos[0];
+      }
+
+      uidDestino = notaEscolhida.uid || null;
+      tituloAlvo = notaEscolhida.title || ref.alvo;
+    } else {
+      uidDestino = null;
+      tituloAlvo = ref.alvo;
     }
 
     // Ignora auto-ligação redundante para evitar laços triviais
@@ -158,7 +222,7 @@ export function resolverLinks(referencias, uidOrigem, todasNotas = []) {
 
 /**
  * Calcula quais notas mencionam uma determinada nota alvo (backlinks).
- * @param {Object} targetNote - { uid, title }
+ * @param {Object} targetNote - { uid, title, pasta }
  * @param {Array} todasNotas - Lista de metadados de todas as notas
  * @param {Array} todosLinks - Registros da tabela `links` ({ uidOrigem, uidDestino, tituloAlvo })
  */
@@ -166,6 +230,7 @@ export function calcularBacklinks(targetNote, todasNotas = [], todosLinks = []) 
   if (!targetNote) return [];
   const targetUid = targetNote.uid;
   const targetTitle = targetNote.title ? targetNote.title.trim().toLowerCase() : '';
+  const targetPath = normalizarAlvoLink(normalizarCaminhoNota(targetNote.pasta, targetNote.title));
 
   const uidsOrigemEncontrados = new Set();
 
@@ -174,12 +239,17 @@ export function calcularBacklinks(targetNote, todasNotas = [], todosLinks = []) 
     if (targetUid && l.uidOrigem === targetUid) continue; // ignora auto-menção
 
     let casa = false;
-    if (targetUid && l.uidDestino === targetUid) {
-      casa = true;
-    } else if (targetTitle && (!l.uidDestino || !targetUid) && (l.tituloAlvo || '').trim().toLowerCase() === targetTitle) {
-      casa = true;
-    } else if (targetTitle && (l.tituloAlvo || '').trim().toLowerCase() === targetTitle) {
-      casa = true;
+    if (targetUid && l.uidDestino) {
+      if (l.uidDestino === targetUid) {
+        casa = true;
+      }
+    } else if (l.tituloAlvo) {
+      const linkNorm = normalizarAlvoLink(l.tituloAlvo);
+      if (targetPath && linkNorm === targetPath) {
+        casa = true;
+      } else if (targetTitle && linkNorm === targetTitle) {
+        casa = true;
+      }
     }
 
     if (casa) {
@@ -215,6 +285,7 @@ export function calcularBacklinks(targetNote, todasNotas = [], todosLinks = []) 
  */
 export function construirGrafo(todasNotas = [], todosLinks = []) {
   const mapaPorUid = new Map();
+  const mapaPorCaminho = new Map();
   const mapaPorTitulo = new Map();
 
   const nodes = todasNotas.map(n => {
@@ -229,7 +300,12 @@ export function construirGrafo(todasNotas = [], todosLinks = []) {
       radius: 6
     };
     if (n.uid) mapaPorUid.set(n.uid, node);
-    if (n.title) mapaPorTitulo.set(n.title.trim().toLowerCase(), node);
+    const path = normalizarAlvoLink(normalizarCaminhoNota(n.pasta, n.title));
+    if (path) mapaPorCaminho.set(path, node);
+    if (n.title) {
+      const t = n.title.trim().toLowerCase();
+      if (!mapaPorTitulo.has(t)) mapaPorTitulo.set(t, node);
+    }
     return node;
   });
 
@@ -243,8 +319,14 @@ export function construirGrafo(todasNotas = [], todosLinks = []) {
     let dst = link.uidDestino;
 
     if (!dst && link.tituloAlvo) {
-      const match = mapaPorTitulo.get(link.tituloAlvo.trim().toLowerCase());
-      if (match) dst = match.id;
+      const alvoNorm = normalizarAlvoLink(link.tituloAlvo);
+      const matchPath = mapaPorCaminho.get(alvoNorm);
+      if (matchPath) {
+        dst = matchPath.id;
+      } else {
+        const matchTitle = mapaPorTitulo.get(alvoNorm);
+        if (matchTitle) dst = matchTitle.id;
+      }
     }
 
     if (src && dst && src !== dst && validIds.has(src) && validIds.has(dst)) {
@@ -271,3 +353,4 @@ export function construirGrafo(todasNotas = [], todosLinks = []) {
 
   return { nodes, edges };
 }
+

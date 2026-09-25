@@ -3050,6 +3050,12 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const volta2 = blocksToMarkdown(blocks2);
   igual('links · wikilink com alias round-trip idêntico', volta2, md2);
 
+  const mdCaminho = 'Ver [[projeto/iris/bugs|bugs]] aqui.';
+  const blocksCaminho = parseMarkdownToBlocks(mdCaminho);
+  ok('links · wikilink com caminho e alias preserva caminho', blocksCaminho[0].html.includes('data-note-path="projeto/iris/bugs"'));
+  const voltaCaminho = blocksToMarkdown(blocksCaminho);
+  igual('links · wikilink com caminho e alias round-trip idêntico', voltaCaminho, mdCaminho);
+
   const md3 = 'Link canônico: [Ver Documento](nota:u_12345).';
   const blocks3 = parseMarkdownToBlocks(md3);
   ok('links · link canônico nota:uid reconhecido', blocks3[0].html.includes('href="nota:u_12345"'));
@@ -3118,6 +3124,52 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const noBeta = grafo.nodes.find(n => n.id === 'u_beta');
   ok('links.js · grau de conexões de Nota Beta reflete conectividade', noBeta.degree >= 2);
   ok('links.js · raio visual do nó aumenta com grau de conexões', noBeta.radius > 6);
+
+  // 20.2.1: Desambiguação de notas com mesmo nome em pastas diferentes
+  const notasComDuplicatas = [
+    { id: 10, uid: 'u_nexus_bugs', title: 'bugs', pasta: 'projeto/nexus' },
+    { id: 11, uid: 'u_iris_bugs', title: 'bugs', pasta: 'projeto/iris' },
+    { id: 12, uid: 'u_nexus_prd', title: 'prd', pasta: 'projeto/nexus' },
+    { id: 13, uid: 'u_iris_doc', title: 'doc', pasta: 'projeto/iris' }
+  ];
+
+  // Link explícito por caminho
+  const refsCaminho = [
+    { alvo: 'projeto/iris/bugs', alias: 'bugs', isUid: false },
+    { alvo: 'projeto/nexus/bugs', alias: 'bugs', isUid: false }
+  ];
+  const resolvidosCaminho = resolverLinks(refsCaminho, 'u_origem', notasComDuplicatas);
+  igual('links.js · resolverLinks com caminho resolve 2 referências distintas', resolvidosCaminho.length, 2);
+  const linkIris = resolvidosCaminho.find(l => l.uidDestino === 'u_iris_bugs');
+  const linkNexus = resolvidosCaminho.find(l => l.uidDestino === 'u_nexus_bugs');
+  ok('links.js · caminho projeto/iris/bugs resolve exclusivamente para u_iris_bugs', !!linkIris);
+  ok('links.js · caminho projeto/nexus/bugs resolve exclusivamente para u_nexus_bugs', !!linkNexus);
+
+  // Link por proximidade (mesma pasta sem qualificar caminho)
+  const refSemCaminho = [{ alvo: 'bugs', alias: null, isUid: false }];
+  const resolvidoIris = resolverLinks(refSemCaminho, 'u_iris_doc', notasComDuplicatas);
+  igual('links.js · proximidade: nota em projeto/iris ligando a [[bugs]] resolve para u_iris_bugs', resolvidoIris[0]?.uidDestino, 'u_iris_bugs');
+
+  const resolvidoNexus = resolverLinks(refSemCaminho, 'u_nexus_prd', notasComDuplicatas);
+  igual('links.js · proximidade: nota em projeto/nexus ligando a [[bugs]] resolve para u_nexus_bugs', resolvidoNexus[0]?.uidDestino, 'u_nexus_bugs');
+
+  // Grafo com notas duplicadas
+  const linksGrafoDuplicatas = [
+    { uidOrigem: 'u_iris_doc', uidDestino: 'u_iris_bugs', tituloAlvo: 'bugs' },
+    { uidOrigem: 'u_nexus_prd', uidDestino: 'u_nexus_bugs', tituloAlvo: 'bugs' }
+  ];
+  const grafoDuplicatas = construirGrafo(notasComDuplicatas, linksGrafoDuplicatas);
+  igual('links.js · grafo cria nós separados para notas de mesmo nome em pastas diferentes', grafoDuplicatas.nodes.length, 4);
+  igual('links.js · grafo cria arestas corretas sem colisão', grafoDuplicatas.edges.length, 2);
+  const arestaIris = grafoDuplicatas.edges.find(e => (e.source === 'u_iris_doc' && e.target === 'u_iris_bugs') || (e.source === 'u_iris_bugs' && e.target === 'u_iris_doc'));
+  const arestaNexus = grafoDuplicatas.edges.find(e => (e.source === 'u_nexus_prd' && e.target === 'u_nexus_bugs') || (e.source === 'u_nexus_bugs' && e.target === 'u_nexus_prd'));
+  ok('links.js · aresta do grafo liga u_iris_doc a u_iris_bugs', !!arestaIris);
+  ok('links.js · aresta do grafo liga u_nexus_prd a u_nexus_bugs', !!arestaNexus);
+
+  // Backlinks com duplicatas
+  const backlinksIris = calcularBacklinks(notasComDuplicatas[1], notasComDuplicatas, linksGrafoDuplicatas);
+  igual('links.js · backlinks de projeto/iris/bugs encontra apenas u_iris_doc', backlinksIris.length, 1);
+  igual('links.js · backlinks de projeto/iris/bugs é u_iris_doc', backlinksIris[0]?.uid, 'u_iris_doc');
 
   // 20.3: Verificação de Schema e Código
   const { readFile } = await import('node:fs/promises');

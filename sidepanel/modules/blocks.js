@@ -106,9 +106,9 @@ function parseInlineMarkdown(text) {
   for (const m of matches) {
     html += escHtml(text.slice(pos, m.start));
     if (m.tag === 'wikilink') {
-      const target = (m.content || '').trim();
+      const target = (m.content || '').trim().replace(/\\/g, '/');
       const display = (m.alias || target).trim();
-      html += `<a href="nota:${escHtml(target)}" class="note-internal-link" data-note-title="${escHtml(target)}">${escHtml(display)}</a>`;
+      html += `<a href="nota:${escHtml(target)}" class="note-internal-link" data-note-title="${escHtml(target)}" data-note-path="${escHtml(target)}">${escHtml(display)}</a>`;
     } else if (m.tag === 'a') {
       const href = safeHref(m.href);
       if (href && /^nota:/i.test(href)) {
@@ -554,7 +554,7 @@ function nodeToMarkdown(node) {
       case 'A': {
         const href = child.getAttribute('href');
         if (href && /^nota:/i.test(href)) {
-          let target = child.getAttribute('data-note-title');
+          let target = child.getAttribute('data-note-path') || child.getAttribute('data-note-title');
           if (!target) {
             const rawTarget = href.replace(/^nota:/i, '');
             try { target = decodeURIComponent(rawTarget); }

@@ -3414,14 +3414,41 @@ document.addEventListener('quickdock:use-template-note', async e => {
 });
 
 document.addEventListener('quickdock:activate-note', async e => {
-  const { id, uid, title, createIfMissing } = e.detail || {};
+  const { id, uid, title, path, createIfMissing } = e.detail || {};
   let target = null;
   if (id != null) {
     target = notesMeta.find(n => n.id === id);
   } else if (uid) {
     target = notesMeta.find(n => n.uid === uid);
-  } else if (title) {
-    target = notesMeta.find(n => (n.title || '').trim().toLowerCase() === title.trim().toLowerCase());
+  } else {
+    const queryPath = (path || (title && title.includes('/') ? title : '')).trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+    if (queryPath) {
+      target = notesMeta.find(n => {
+        const p = (n.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+        const t = (n.title || '').trim();
+        const full = (p ? `${p}/${t}` : t).toLowerCase();
+        return full === queryPath;
+      });
+    }
+
+    if (!target && title) {
+      const titleLower = title.trim().toLowerCase();
+      const candidatos = notesMeta.filter(n => (n.title || '').trim().toLowerCase() === titleLower);
+      if (candidatos.length === 1) {
+        target = candidatos[0];
+      } else if (candidatos.length > 1) {
+        // Proximidade com a nota ativa
+        const activeMeta = notesMeta.find(n => n.id === activeId);
+        const activePasta = (activeMeta?.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+        if (activePasta) {
+          target = candidatos.find(n => {
+            const p = (n.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+            return p === activePasta;
+          });
+        }
+        if (!target) target = candidatos[0];
+      }
+    }
   }
 
   if (target) {
@@ -3431,8 +3458,16 @@ document.addEventListener('quickdock:activate-note', async e => {
     return;
   }
 
-  if (createIfMissing && title) {
-    const novoId = await createNoteRecord({ title: title.trim() });
+  if (createIfMissing && (title || path)) {
+    const raw = (path || title).trim();
+    let pasta = '';
+    let nomeNota = raw;
+    if (raw.includes('/')) {
+      const idx = raw.lastIndexOf('/');
+      pasta = raw.slice(0, idx).trim();
+      nomeNota = raw.slice(idx + 1).trim();
+    }
+    const novoId = await createNoteRecord({ title: nomeNota, pasta: pasta || undefined });
     await refreshNotesList();
     await activateNote(novoId);
     renderTabs();

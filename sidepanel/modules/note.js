@@ -2547,10 +2547,18 @@ export async function atualizarLinksInternos() {
   } catch {
     return;
   }
-  const titulos = new Set(todasNotas.map(n => (n.title || '').trim().toLowerCase()));
+  const alvosExistentes = new Set();
+  for (const n of todasNotas) {
+    if (n.title) alvosExistentes.add(n.title.trim().toLowerCase());
+    if (n.uid) alvosExistentes.add(n.uid.toLowerCase());
+    const p = (n.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    const t = (n.title || '').trim();
+    if (p && t) alvosExistentes.add(`${p}/${t}`.toLowerCase());
+  }
+
   links.forEach(a => {
-    const titulo = (a.dataset.noteTitle || a.textContent || '').trim().toLowerCase();
-    a.classList.toggle('is-unresolved', !titulos.has(titulo));
+    const rawAlvo = (a.dataset.notePath || a.dataset.noteTitle || a.textContent || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+    a.classList.toggle('is-unresolved', !alvosExistentes.has(rawAlvo));
   });
 }
 
@@ -2743,9 +2751,16 @@ root.addEventListener('click', e => {
     }
     if (href.startsWith('nota:') || link.classList.contains('note-internal-link')) {
       e.preventDefault();
+      const targetPath = link.dataset.notePath || null;
+      const targetUid = link.dataset.noteUid || null;
       const targetTitle = link.dataset.noteTitle || decodeURIComponent(href.replace(/^nota:/, ''));
       document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
-        detail: { title: targetTitle, createIfMissing: true }
+        detail: {
+          title: targetTitle,
+          path: targetPath || targetTitle,
+          uid: targetUid,
+          createIfMissing: true
+        }
       }));
       return;
     }
@@ -3745,7 +3760,22 @@ async function confirmLinkAutocompleteSelection() {
     return;
   }
 
-  const finalTitle = item.title;
+  let allNotes = [];
+  try {
+    allNotes = await loadAllNotesMeta();
+  } catch {}
+
+  const duplicateTitle = item.type === 'note' && item.title && allNotes.filter(n => (n.title || '').trim().toLowerCase() === item.title.trim().toLowerCase()).length > 1;
+
+  let targetPath = item.title;
+  if (duplicateTitle && item.pasta) {
+    const cleanPasta = String(item.pasta).trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (cleanPasta) {
+      targetPath = `${cleanPasta}/${item.title}`;
+    }
+  }
+
+  const displayText = item.title;
   if (item.type === 'create') {
     document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
       detail: { title: item.title, createIfMissing: true }
@@ -3758,12 +3788,14 @@ async function confirmLinkAutocompleteSelection() {
     linkAutocompleteStartOffset,
     linkAutocompleteEndOffset,
     'a',
-    finalTitle,
+    displayText,
     {
-      href: `nota:${encodeURIComponent(finalTitle)}`,
+      href: `nota:${encodeURIComponent(targetPath)}`,
       class: 'note-internal-link',
-      'data-note-title': finalTitle,
-      title: `Ctrl+clique para abrir nota: ${finalTitle}`
+      'data-note-title': targetPath,
+      'data-note-path': targetPath,
+      ...(item.uid ? { 'data-note-uid': item.uid } : {}),
+      title: `Ctrl+clique para abrir nota: ${targetPath}`
     }
   );
 
@@ -4098,12 +4130,16 @@ const INLINE_SHORTCUTS = [
   {
     re: /\[\[([^\]\n|]+)(?:\|([^\]\n]+))?\]\]$/,
     tag: 'a',
-    attrs: m => ({
-      href: `nota:${encodeURIComponent(m[1].trim())}`,
-      class: 'note-internal-link',
-      'data-note-title': m[1].trim(),
-      title: `Ctrl+clique para abrir nota: ${m[1].trim()}`
-    }),
+    attrs: m => {
+      const target = m[1].trim().replace(/\\/g, '/');
+      return {
+        href: `nota:${encodeURIComponent(target)}`,
+        class: 'note-internal-link',
+        'data-note-title': target,
+        'data-note-path': target,
+        title: `Ctrl+clique para abrir nota: ${target}`
+      };
+    },
     text: m => (m[2] ? m[2].trim() : m[1].trim())
   },
   { re: /\*\*([^\n]+?)\*\*$/, tag: 'strong' },
