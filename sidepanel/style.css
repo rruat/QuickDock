@@ -11079,7 +11079,16 @@ html[data-platform="desktop"] #mMain .calendar-view,
 html[data-platform="desktop"] #mMain .bases-view,
 html[data-platform="desktop"] #mMain .docs-section,
 html[data-platform="desktop"] #mMain .note-section,
-html[data-platform="desktop"] #mMain .templates-gallery-view {
+html[data-platform="desktop"] #mMain .templates-gallery-view,
+#mMain > .main-section,
+#mMain > section,
+#mMain .board-view,
+#mMain .graph-view,
+#mMain .calendar-view,
+#mMain .bases-view,
+#mMain .docs-section,
+#mMain .note-section,
+#mMain .templates-gallery-view {
   flex: 1 1 0px !important;
   width: auto !important;
   max-width: none !important;
@@ -11087,6 +11096,30 @@ html[data-platform="desktop"] #mMain .templates-gallery-view {
   max-height: 100% !important;
   border-left: none !important;
   box-sizing: border-box !important;
+}
+
+/* Visões ativas no #mMain (sem [hidden]) SEMPRE devem ter display: flex,
+   independentemente de classes legadas no html (ex: html:not(.view-grafo)) ou body.no-note-open */
+#mMain > .main-section:not([hidden]),
+#mMain > section:not([hidden]),
+html[data-platform="desktop"] #mMain > .main-section:not([hidden]),
+html[data-platform="desktop"] #mMain > section:not([hidden]),
+html[data-platform="desktop"] #mMain .board-view:not([hidden]),
+html[data-platform="desktop"] #mMain .graph-view:not([hidden]),
+html[data-platform="desktop"] #mMain .calendar-view:not([hidden]),
+html[data-platform="desktop"] #mMain .bases-view:not([hidden]),
+html[data-platform="desktop"] #mMain .templates-gallery-view:not([hidden]),
+html[data-platform="desktop"] #mMain .docs-section:not([hidden]):not(.is-collapsed),
+html[data-platform="desktop"] #mMain .note-section:not([hidden]),
+#mMain .board-view:not([hidden]),
+#mMain .graph-view:not([hidden]),
+#mMain .calendar-view:not([hidden]),
+#mMain .bases-view:not([hidden]),
+#mMain .templates-gallery-view:not([hidden]),
+#mMain .docs-section:not([hidden]):not(.is-collapsed),
+#mMain .note-section:not([hidden]) {
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 /* Seções ocultadas no #mMain nunca devem ser renderizadas nem ocupar espaço */
@@ -11126,7 +11159,13 @@ html[data-platform="desktop"] #mMain .graph-header,
 html[data-platform="desktop"] #mMain .calendar-header,
 html[data-platform="desktop"] #mMain .bases-header,
 html[data-platform="desktop"] #mMain .docs-header,
-html[data-platform="desktop"] #mMain .gallery-header {
+html[data-platform="desktop"] #mMain .gallery-header,
+#mMain .board-header,
+#mMain .graph-header,
+#mMain .calendar-header,
+#mMain .bases-header,
+#mMain .docs-header,
+#mMain .gallery-header {
   flex-shrink: 0 !important;
 }
 
@@ -11134,8 +11173,18 @@ html[data-platform="desktop"] #mMain .bases-body,
 html[data-platform="desktop"] #mMain .calendar-body,
 html[data-platform="desktop"] #mMain .graph-canvas-container,
 html[data-platform="desktop"] #mMain .gallery-content-scroll,
-html[data-platform="desktop"] #mMain .drop-zone {
+html[data-platform="desktop"] #mMain .drop-zone,
+html[data-platform="desktop"] #mMain .board-view > .board-container,
+#mMain .bases-body,
+#mMain .calendar-body,
+#mMain .graph-canvas-container,
+#mMain .gallery-content-scroll,
+#mMain .drop-zone,
+#mMain .board-view > .board-container {
   flex: 1 1 auto !important;
   min-height: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  position: relative !important;
 }
 

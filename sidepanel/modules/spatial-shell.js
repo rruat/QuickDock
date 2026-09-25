@@ -114,6 +114,11 @@ export function initSpatialShell() {
     updateNoteSectionHeader();
     syncNoteViews(e.detail || {});
   });
+  document.addEventListener('quickdock:activate-note', () => {
+    if (!openViewIds.includes('notes')) {
+      openOrFocusView('notes');
+    }
+  });
   syncNoteViews(typeof getOpenTabsSnapshot === 'function' ? getOpenTabsSnapshot() : {});
 
   setAsideMode('notes');
@@ -156,7 +161,7 @@ function setupActivityBar() {
   if (!navEl) return;
 
   navEl.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', () => {
+    item.addEventListener('click', (e) => {
       const viewId = item.dataset.navView;
       if (!viewId) return;
 
@@ -168,7 +173,7 @@ function setupActivityBar() {
           asideEl.classList.toggle('is-open-mobile');
         }
       }
-      openOrFocusView(viewId);
+      openOrFocusView(viewId, { add: e.shiftKey });
     });
   });
 }
@@ -212,8 +217,9 @@ function setupAside() {
           // contrário do clique em "Notas" no #mNav/#mMenu, que só foca a
           // que já estiver ativa.
           document.getElementById('btn-new-note')?.click();
+          openOrFocusView('notes', { add: true });
         } else if (type) {
-          openOrFocusView(type);
+          openOrFocusView(type, { add: true });
         }
         addMenu.style.display = 'none';
       });
@@ -320,7 +326,7 @@ export function syncNoteSectionDOM() {}
 export function buildNotePlaceholderSection() {}
 
 // ── Gestão de Views Abertas e Foco ────────────────────────────────────────────
-export function openOrFocusView(viewId) {
+export function openOrFocusView(viewId, options = {}) {
   let targetViewId = viewId;
   let targetNoteId = null;
 
@@ -340,10 +346,18 @@ export function openOrFocusView(viewId) {
 
   if (!SHELL_VIEWS.some(v => v.id === targetViewId)) return;
 
-  if (!openViewIds.includes(targetViewId)) {
-    openViewIds.push(targetViewId);
-    try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
+  if (options.add) {
+    if (!openViewIds.includes(targetViewId)) {
+      openViewIds.push(targetViewId);
+    }
+  } else {
+    // Navegação principal: se a view não está aberta, substitui a atual
+    // para uma navegação limpa em tela cheia (sem views ocultas ocupando metade da tela)
+    if (!openViewIds.includes(targetViewId)) {
+      openViewIds = [targetViewId];
+    }
   }
+  try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
   focusedViewId = targetViewId;
 
   const navEl = document.getElementById('mNav');
@@ -383,6 +397,13 @@ export function closeView(viewId) {
   if (focusedViewId === targetId) {
     focusedViewId = openViewIds[openViewIds.length - 1] || null;
   }
+  const navEl = document.getElementById('mNav');
+  if (navEl && focusedViewId) {
+    navEl.querySelectorAll('.nav-item').forEach(item => {
+      item.classList.toggle('is-active', item.dataset.navView === focusedViewId);
+    });
+  }
+
   applyViewVisibility();
   renderAsideViewList();
   setupSectionDividers();
@@ -563,7 +584,11 @@ function applyViewVisibility() {
     el.hidden = !isSectionOpen;
     if (id === 'docs') el.classList.toggle('is-collapsed', !isSectionOpen);
 
-    el.style.display = isSectionOpen ? 'flex' : 'none';
+    if (isSectionOpen) {
+      el.style.setProperty('display', 'flex', 'important');
+    } else {
+      el.style.setProperty('display', 'none', 'important');
+    }
     el.classList.toggle('is-focused', focusedViewId === id);
   }
 
@@ -671,7 +696,13 @@ function setupSectionDividers() {
   // e presentes como filhas diretas visíveis de #mMain
   const visibleSections = openViewIds
     .map(id => mainEl.querySelector(`:scope > [data-id="${id}"]`))
-    .filter(sec => sec && !sec.hidden && sec.style.display !== 'none' && !sec.classList.contains('is-collapsed'));
+    .filter(sec => {
+      if (!sec || sec.hidden || sec.classList.contains('is-collapsed')) return false;
+      const compDisplay = (typeof window !== 'undefined' && window.getComputedStyle)
+        ? window.getComputedStyle(sec).display
+        : sec.style.display;
+      return compDisplay !== 'none' && sec.style.display !== 'none';
+    });
 
   if (visibleSections.length <= 1) {
     visibleSections.forEach(s => {
