@@ -14,7 +14,6 @@ import { initGraphView } from './modules/graph-view.js';
 import { initBoardView, abrirQuadroInfinitoEmAba } from './modules/board-view.js';
 import { initCalendarView } from './modules/calendar-view.js';
 import { initBasesView } from './modules/bases-view.js';
-import { initDesktopPanels } from './modules/desktop-panels.js';
 import { initResponsiveHeaders } from './modules/responsive-header.js';
 import { initSpatialShell } from './modules/spatial-shell.js';
 
@@ -228,10 +227,13 @@ async function init() {
     await initBoardView();
     initCalendarView();
     initBasesView();
-    // Depois dos init*View() de propósito: eles registram os listeners de
-    // quickdock:refresh-*-view que initDesktopPanels() precisa pra restaurar
-    // o conteúdo dos painéis que já estavam abertos numa sessão anterior.
-    initDesktopPanels();
+    // initDesktopPanels() (sistema antigo de 5 painéis, pré-Spatial Shell)
+    // não roda mais no desktop — o mosaico de spatial-shell.js substitui essa
+    // função por completo, e os dois brigavam pelo mesmo espaço em #app (o
+    // painel antigo não tinha grid-area, caía numa linha implícita fora do
+    // grid). As funções toggleDesktopPanel/isDesktopPanelOpen continuam
+    // existindo (outros módulos ainda importam), só não há mais nada
+    // desenhando/restaurando o layout de painéis de verdade.
     initResponsiveHeaders();
     initSpatialShell();
 

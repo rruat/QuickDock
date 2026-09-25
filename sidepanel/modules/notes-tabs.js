@@ -20,7 +20,6 @@ import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks } from './bl
 import { buildBackup, parseBackup } from './backup.js';
 import { iconSvg, createIcon } from './icons.js';
 import { switchView, getCurrentView } from './views.js';
-import { toggleDesktopPanel, isDesktopPanelOpen } from './desktop-panels.js';
 import { MATERIAL_ICONS } from './material-icons-list.js';
 
 const tabsEl        = document.getElementById('notes-tabs');
@@ -2948,26 +2947,18 @@ function initDesktopNotesAsideDrawer() {
   scrollArea.className = 'notes-list-scroll';
   drawer.appendChild(scrollArea);
 
-  // Rodapé do Drawer Aside com Visões e Ações
+  // Rodapé do Drawer Aside com Ações (o grid de "Visões" que existia aqui foi
+  // removido — duplicava as views do mosaico do Spatial Shell, que já tem
+  // seus próprios pontos de entrada: #mNav, #mMenu, "+" e a lista de views
+  // do #mAside. Manter os dois inflava "Documentos" pra 3+ botões diferentes
+  // e ainda abria o painel antigo de desktop-panels.js por fora do mosaico,
+  // sem grid-area — nunca fechava de verdade pelo botão da view.)
   const footer = document.createElement('div');
   footer.className = 'notes-aside-footer';
 
-  // 1. Visões
-  const secViews = document.createElement('div');
-  secViews.className = 'aside-footer-section';
-
-  const titleViews = document.createElement('div');
-  titleViews.className = 'aside-footer-title';
-  titleViews.textContent = 'Visões';
-  secViews.appendChild(titleViews);
-
-  const gridViews = document.createElement('div');
-  gridViews.className = 'aside-footer-grid';
-
-  const createFooterBtn = (iconNameF, label, onClick, panelKey = null) => {
+  const createFooterBtn = (iconNameF, label, onClick) => {
     const b = document.createElement('button');
     b.className = 'aside-footer-btn';
-    if (panelKey) b.dataset.panel = panelKey;
     b.innerHTML = `${iconSvg(iconNameF)}<span>${label}</span>`;
     b.addEventListener('click', async e => {
       e.stopPropagation();
@@ -2975,27 +2966,6 @@ function initDesktopNotesAsideDrawer() {
     });
     return b;
   };
-
-  // Quadro/Grafo/Calendário/Documentos agora são painéis independentes que
-  // podem ficar abertos ao mesmo tempo (ver desktop-panels.js) — cada botão
-  // liga/desliga só o seu, em vez de substituir o que já estava aberto.
-  gridViews.appendChild(createFooterBtn('description', 'Documentos', () => toggleDesktopPanel('docs'), 'docs'));
-  gridViews.appendChild(createFooterBtn('space_dashboard', 'Quadro', () => toggleDesktopPanel('board'), 'board'));
-  gridViews.appendChild(createFooterBtn('hub', 'Constelações', () => toggleDesktopPanel('grafo'), 'grafo'));
-  gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => toggleDesktopPanel('calendar'), 'calendar'));
-  gridViews.appendChild(createFooterBtn('view_kanban', 'Base', () => toggleDesktopPanel('bases'), 'bases'));
-  gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
-
-  const syncPanelButtonsActiveState = () => {
-    for (const btn of gridViews.querySelectorAll('[data-panel]')) {
-      btn.classList.toggle('is-active', isDesktopPanelOpen(btn.dataset.panel));
-    }
-  };
-  syncPanelButtonsActiveState();
-  document.addEventListener('quickdock:desktop-panels-changed', syncPanelButtonsActiveState);
-
-  secViews.appendChild(gridViews);
-  footer.appendChild(secViews);
 
   // 2. Ações & Ajustes
   const secActions = document.createElement('div');

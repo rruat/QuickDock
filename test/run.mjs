@@ -4468,9 +4468,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     docsJsSource.includes("attachSwitcher('btn-bases-aux-switcher', 'bases-title-wrap')"));
 
   const tabsJsSourceForBases = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
-  ok('notes-tabs.js · grade de visões da aside (desktop e mobile/extensão) ganha o botão "Base"',
-    tabsJsSourceForBases.includes("createFooterBtn('view_kanban', 'Base', () => toggleDesktopPanel('bases'), 'bases')") &&
+  ok('notes-tabs.js · grade de visões da aside no mobile/extensão ganha o botão "Base"',
     tabsJsSourceForBases.includes("createFooterBtn('view_kanban', 'Base', () => switchView('bases', { fullscreen: true }))"));
+  ok('notes-tabs.js · drawer permanente do desktop NÃO duplica o grid de views (Spatial Shell já cobre isso via #mNav/#mMenu/"+"/lista de views)',
+    !tabsJsSourceForBases.includes('toggleDesktopPanel') &&
+    !tabsJsSourceForBases.includes("import { toggleDesktopPanel"));
   ok('notes-tabs.js · escuta quickdock:active-note-changed pra sincronizar activeId quando a troca de nota vem de fora da aside (painel de Base cria nota chamando switchToNote() direto)',
     tabsJsSourceForBases.includes("addEventListener('quickdock:active-note-changed', e => {") &&
     tabsJsSourceForBases.includes('if (id === activeId) return;'));
@@ -4685,6 +4687,44 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('.note-placeholder-body') &&
     styleCssSource.includes('.note-placeholder-icon') &&
     styleCssSource.includes('.note-placeholder-focus-btn'));
+}
+
+// ── 36. Spatial Shell: 100% alinhado ao design-pattern (sem view persistente,
+// estado vazio, sem navegação antiga duplicada, fechar todas na omnibar) ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const spatialShellSource = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
+  const appJsSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+
+  ok('app.js · não importa nem chama mais initDesktopPanels() (sistema antigo de 5 painéis, substituído pelo Spatial Shell no desktop)',
+    !appJsSource.includes("import { initDesktopPanels }") &&
+    !appJsSource.includes('initDesktopPanels();'));
+
+  ok('spatial-shell.js · updateEmptyState mostra o estado "Nenhuma view aberta" igual ao design-pattern quando tudo fecha',
+    spatialShellSource.includes('function updateEmptyState') &&
+    spatialShellSource.includes("className = 'empty-state'") &&
+    spatialShellSource.includes('Nenhuma view aberta'));
+
+  ok('style.css · define o visual do estado vazio (empty-state/-icon/-title/-desc/-btn)',
+    styleCssSource.includes('.empty-state {') &&
+    styleCssSource.includes('.empty-state-icon') &&
+    styleCssSource.includes('.empty-state-title') &&
+    styleCssSource.includes('.empty-state-desc') &&
+    styleCssSource.includes('.empty-state-btn'));
+
+  ok('style.css · esconde no desktop a navegação antiga (voltar/alternar visão) duplicada pelo Spatial Shell',
+    styleCssSource.includes('html[data-platform="desktop"] .aux-view-switcher-btn') &&
+    styleCssSource.includes('html[data-platform="desktop"] .board-back-btn') &&
+    styleCssSource.includes('html[data-platform="desktop"] .graph-back-btn') &&
+    styleCssSource.includes('html[data-platform="desktop"] .calendar-back-btn') &&
+    styleCssSource.includes('html[data-platform="desktop"] .bases-back-btn'));
+
+  ok('spatial-shell.js · omnibar tem comando simétrico "Fechar Todas as Views" ao lado de "Abrir Todas as Views"',
+    spatialShellSource.includes("title: 'Abrir Todas as Views'") &&
+    spatialShellSource.includes("title: 'Fechar Todas as Views'") &&
+    spatialShellSource.includes('openViewIds = [];') &&
+    spatialShellSource.includes('focusedViewId = null;'));
 }
 
 if (falhas.length) {

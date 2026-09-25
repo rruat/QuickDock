@@ -661,6 +661,38 @@ function applyViewVisibility() {
   if (focusedViewId === 'graph') window.dispatchEvent(new CustomEvent('quickdock:refresh-graph-view'));
   if (focusedViewId === 'calendar') window.dispatchEvent(new CustomEvent('quickdock:refresh-calendar-view'));
   if (focusedViewId === 'bases') window.dispatchEvent(new CustomEvent('quickdock:refresh-bases-view'));
+
+  updateEmptyState();
+}
+
+// ── Estado Vazio (nenhuma view aberta) — igual ao design-pattern original ────
+function updateEmptyState() {
+  const mainEl = document.getElementById('mMain');
+  if (!mainEl || !isDesktopMode()) return;
+
+  const hasAnythingOpen = openViewIds.length > 0 || activeNoteId != null;
+  let emptyEl = mainEl.querySelector('.empty-state');
+
+  if (hasAnythingOpen) {
+    emptyEl?.remove();
+    return;
+  }
+  if (emptyEl) return;
+
+  emptyEl = document.createElement('div');
+  emptyEl.className = 'empty-state';
+  emptyEl.innerHTML = `
+    <div class="empty-state-icon"><span class="material-symbols-rounded">layers_clear</span></div>
+    <h2 class="empty-state-title">Nenhuma view aberta</h2>
+    <p class="empty-state-desc">Escolha uma view no menu lateral ou crie uma nova nota pra começar.</p>
+    <button id="btnOpenDefault" class="empty-state-btn" type="button">
+      <span class="material-symbols-rounded">add</span> Nova nota
+    </button>
+  `;
+  emptyEl.querySelector('#btnOpenDefault')?.addEventListener('click', () => {
+    document.getElementById('btn-new-note')?.click();
+  });
+  mainEl.appendChild(emptyEl);
 }
 
 // ── Divisórias de Redimensionamento (.section-divider com 3 pontos) ───────────
@@ -835,6 +867,15 @@ async function renderOmnibarResults(query) {
     { title: 'Abrir Todas as Views', desc: 'Espalhar todas as views no workspace', action: () => {
         const noteIds = openViewIds.filter(id => id.startsWith('note-'));
         openViewIds = [...noteIds, ...SHELL_VIEWS.filter(v => v.id !== 'notes').map(v => v.id)];
+        applyViewVisibility();
+        renderAsideViewList();
+        setupSectionDividers();
+        updateSectionMoveButtons();
+      } },
+    { title: 'Fechar Todas as Views', desc: 'Mostrar o estado vazio (nenhuma view aberta)', action: async () => {
+        for (const id of [...openNoteIds]) await closeTab(id);
+        openViewIds = [];
+        focusedViewId = null;
         applyViewVisibility();
         renderAsideViewList();
         setupSectionDividers();
