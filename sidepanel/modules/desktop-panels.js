@@ -191,6 +191,7 @@ function applyMaximizeState() {
     const icone = btn.querySelector('.qd-icon');
     if (icone) icone.textContent = isto ? 'fullscreen_exit' : 'fullscreen';
   }
+  document.dispatchEvent(new CustomEvent('quickdock:maximize-changed', { detail: { maximizedPanel } }));
 }
 
 function dockBelow(dragged, target) {

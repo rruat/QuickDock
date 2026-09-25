@@ -4545,6 +4545,71 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     /\.desktop-panel-maximized\s*\{[^}]*inset:\s*0\s*!important/.test(styleCssSource));
 }
 
+// ── 33. Sumário de Títulos (Outline), Abas de Rodapé e Isolamento da Barra Inteligente ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const indexHtmlSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  const notFoundHtmlSource = await readFile(new URL('../404.html', import.meta.url), 'utf8');
+
+  ok('html · index.html e sidepanel/index.html possuem barra lateral de sumário (note-outline-sidebar)',
+    indexHtmlSource.includes('id="note-outline-sidebar"') &&
+    sidepanelHtmlSource.includes('id="note-outline-sidebar"') &&
+    notFoundHtmlSource.includes('id="note-outline-sidebar"'));
+
+  ok('html · index.html e sidepanel/index.html possuem wrapper note-workspace-body e botão toggle no cabeçalho',
+    indexHtmlSource.includes('class="note-workspace-body"') &&
+    sidepanelHtmlSource.includes('class="note-workspace-body"') &&
+    indexHtmlSource.includes('id="btn-note-outline-toggle-desktop"') &&
+    sidepanelHtmlSource.includes('id="btn-note-outline-toggle-desktop"'));
+
+  ok('html · rodapé da nota possui abas de alternância entre Backlinks e Sumário',
+    indexHtmlSource.includes('id="tab-btn-backlinks"') &&
+    indexHtmlSource.includes('id="tab-btn-outline"') &&
+    sidepanelHtmlSource.includes('id="tab-btn-backlinks"') &&
+    sidepanelHtmlSource.includes('id="tab-btn-outline"') &&
+    indexHtmlSource.includes('id="note-mobile-outline-list"') &&
+    sidepanelHtmlSource.includes('id="note-mobile-outline-list"'));
+
+  ok('note.js · exporta funções do sumário (extrairSumarioDaNota, renderOutline, irParaTitulo)',
+    noteJsSource.includes('export function extrairSumarioDaNota') &&
+    noteJsSource.includes('export function renderOutline') &&
+    noteJsSource.includes('export function irParaTitulo'));
+
+  ok('note.js · exporta funções de alternância de abas e controle de sidebar (setBottomTab, setOutlineSidebarOpen)',
+    noteJsSource.includes('export function setBottomTab') &&
+    noteJsSource.includes('export function setOutlineSidebarOpen'));
+
+  ok('note.js · updateMobileToolbarState oculta a barra móvel/inteligente quando em tela cheia ou painel maximizado',
+    noteJsSource.includes('isFullscreenView') &&
+    noteJsSource.includes('has-maximized-panel') &&
+    noteJsSource.includes('view-fullscreen'));
+
+  ok('style.css · CSS oculta barra inteligente em modo tela cheia e maximizado',
+    styleCssSource.includes('html.has-maximized-panel .mobile-notion-toolbar') &&
+    styleCssSource.includes('html.view-fullscreen .mobile-notion-toolbar'));
+
+  ok('style.css · CSS define layout de note-workspace-body e note-outline-sidebar no desktop',
+    styleCssSource.includes('.note-workspace-body') &&
+    styleCssSource.includes('.note-outline-sidebar') &&
+    styleCssSource.includes('.outline-item') &&
+    styleCssSource.includes('.outline-badge'));
+
+  ok('style.css · CSS define alternador de abas no rodapé e espaçamentos equilibrados nos backlinks',
+    styleCssSource.includes('.note-bottom-tabs') &&
+    styleCssSource.includes('.note-bottom-tab') &&
+    styleCssSource.includes('.note-bottom-bar-header'));
+
+  // Teste funcional de extração de títulos e identificação de níveis
+  const { headingSlug, headingSlugs } = await import('../sidepanel/modules/blocks.js');
+  const mockTitles = ['Introdução ao Projeto', 'Arquitetura do Sistema', 'Subseção Detalhada'];
+  const slugs = headingSlugs(mockTitles);
+  igual('blocks.js · slugs gerados corretamente para títulos', slugs[0], 'introducao-ao-projeto');
+  igual('blocks.js · slug gerado para título com caracteres especiais', headingSlug('Ação & Efeito (100%)'), 'acao-efeito-100');
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

@@ -21,12 +21,25 @@ import { iconSvg, createIcon } from './icons.js';
 import { PROPERTY_TYPES, inferirTipoPropriedade, migrarPropriedadeParaTipo } from './property-types.js';
 import { openAppearancePopover } from './notes-tabs.js';
 import { buildEmbeddedBaseBlock } from './bases/bases-embedded.js';
+import { onViewChange } from './views.js';
 
 const noteSection  = document.querySelector('.note-section');
+const noteWorkspaceBodyEl = document.querySelector('.note-workspace-body');
 const noteEditorEl = document.querySelector('.note-editor');
 const root         = document.getElementById('note-editor-blocks');
 const indicator    = document.getElementById('save-indicator');
 const btnTouchSelect = document.getElementById('btn-touch-select');
+
+// Sumário (Outline) e Abas Inferiores
+const outlineSidebarEl = document.getElementById('note-outline-sidebar');
+const toggleOutlineSidebarBtn = document.getElementById('btn-toggle-outline-sidebar');
+const toggleOutlineHeaderBtn = document.getElementById('btn-note-outline-toggle-desktop');
+const desktopOutlineListEl = document.getElementById('note-desktop-outline-list');
+const desktopOutlineCountEl = document.getElementById('note-outline-desktop-count');
+const mobileOutlineListEl = document.getElementById('note-mobile-outline-list');
+const mobileOutlineCountEl = document.getElementById('note-outline-count');
+const tabBtnBacklinks = document.getElementById('tab-btn-backlinks');
+const tabBtnOutline = document.getElementById('tab-btn-outline');
 
 let currentNoteId  = null;
 let isCtrlHeld     = false;
@@ -1688,6 +1701,7 @@ export function clearTemplateEditing() { editingTemplate = null; }
 
 function scheduleSave() {
   if (editingTemplate) return;
+  scheduleOutlineUpdate();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 800);
 }
@@ -1718,6 +1732,7 @@ export async function flushSave() {
   } catch (err) {
     console.warn('Erro ao indexar links da nota:', err);
   }
+  renderOutline();
 
   // Avisa quem mantém uma visão derivada de TODAS as notas (Grafo/Constelações)
   // que os links desta nota acabaram de ser reindexados — dispara mesmo sem
@@ -1820,6 +1835,7 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
     headerNoteRef = null;
     if (headerTitleEl) headerTitleEl.textContent = '';
     if (headerIconEl) headerIconEl.textContent = '';
+    renderOutline();
     // Fechar a última aba nunca disparava este aviso (só ativar uma nota
     // dispara, em notes-tabs.js) — sem isto, quem escuta pra saber "qual nota
     // está aberta agora" (bases-view.js) não sabia que passou a não ter
@@ -1835,6 +1851,7 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
   renderPropertiesBar(note);
   atualizarLinksInternos();
   await refreshBacklinks(id);
+  renderOutline();
   // Centralizado aqui (não só em notes-tabs.js activateNote()) porque nem
   // toda troca de nota passa por lá — o próprio painel de Base (bases-view-
   // container.js handleCreateNewNote) chama switchToNote() direto. Sem isto,
@@ -2868,7 +2885,7 @@ function titulosDaNota() {
   return titulos.map((el, i) => ({ el, slug: apelidos[i] }));
 }
 
-function irParaTitulo(alvoBruto) {
+export function irParaTitulo(alvoBruto) {
   const alvo = headingSlug(decodeURIComponent(alvoBruto));
   const achado = titulosDaNota().find(t => t.slug === alvo)
     // Sem correspondência exata: tenta sem o sufixo de repetição, pra que um
@@ -2883,6 +2900,126 @@ function irParaTitulo(alvoBruto) {
   achado.el.classList.add('heading-alvo');
   setTimeout(() => achado.el.classList.remove('heading-alvo'), 1200);
 }
+
+// ── Sumário da Nota (Outline) ─────────────────────────────────────────────────
+export function extrairSumarioDaNota() {
+  if (!root || !root.children) return [];
+  const titulos = [...root.children].filter(b => b && b.dataset && HEADING_TAGS[b.dataset.type]);
+  const apelidos = headingSlugs(titulos.map(b => (getContentEl(b)?.textContent || '')));
+  return titulos.map((el, i) => {
+    const rawType = el.dataset.type || 'heading1';
+    const nivel = parseInt(rawType.replace('heading', ''), 10) || 1;
+    const texto = (getContentEl(el)?.textContent || '').trim();
+    return {
+      el,
+      nivel,
+      texto: texto || `Título ${nivel}`,
+      slug: apelidos[i],
+    };
+  });
+}
+
+export function renderOutline() {
+  if (typeof document === 'undefined') return;
+  const headings = extrairSumarioDaNota();
+  const countStr = String(headings.length);
+
+  if (desktopOutlineCountEl) desktopOutlineCountEl.textContent = countStr;
+  if (mobileOutlineCountEl) mobileOutlineCountEl.textContent = countStr;
+
+  const populateList = (listEl) => {
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (headings.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'outline-empty';
+      empty.innerHTML = `
+        <span class="qd-icon material-symbols-rounded">notes</span>
+        <span>Nenhum título na nota</span>
+      `;
+      listEl.appendChild(empty);
+      return;
+    }
+
+    for (const h of headings) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = `outline-item outline-level-${h.nivel}`;
+      item.style.paddingLeft = `${Math.max(8, (h.nivel - 1) * 12 + 8)}px`;
+      item.innerHTML = `
+        <span class="outline-badge">H${h.nivel}</span>
+        <span class="outline-text" title="${escHtml(h.texto)}">${escHtml(h.texto)}</span>
+      `;
+      item.addEventListener('click', () => {
+        irParaTitulo(h.slug);
+      });
+      listEl.appendChild(item);
+    }
+  };
+
+  populateList(desktopOutlineListEl);
+  populateList(mobileOutlineListEl);
+}
+
+let outlineTimer = null;
+export function scheduleOutlineUpdate() {
+  clearTimeout(outlineTimer);
+  outlineTimer = setTimeout(() => {
+    renderOutline();
+  }, 150);
+}
+
+// ── Alternador do Rodapé (Backlinks vs Sumário) ───────────────────────────────
+let activeBottomTab = typeof localStorage !== 'undefined' ? (localStorage.getItem('quickdock:note-bottom-tab') || 'backlinks') : 'backlinks';
+
+export function setBottomTab(tab) {
+  activeBottomTab = tab === 'outline' ? 'outline' : 'backlinks';
+  try { localStorage.setItem('quickdock:note-bottom-tab', activeBottomTab); } catch {}
+
+  const isBacklinks = activeBottomTab === 'backlinks';
+  if (tabBtnBacklinks) {
+    tabBtnBacklinks.classList.toggle('active', isBacklinks);
+    tabBtnBacklinks.setAttribute('aria-selected', isBacklinks ? 'true' : 'false');
+  }
+  if (tabBtnOutline) {
+    tabBtnOutline.classList.toggle('active', !isBacklinks);
+    tabBtnOutline.setAttribute('aria-selected', !isBacklinks ? 'true' : 'false');
+  }
+  if (backlinksListEl) backlinksListEl.hidden = !isBacklinks;
+  if (mobileOutlineListEl) mobileOutlineListEl.hidden = isBacklinks;
+  if (!isBacklinks) renderOutline();
+}
+
+if (tabBtnBacklinks) {
+  tabBtnBacklinks.addEventListener('click', () => setBottomTab('backlinks'));
+}
+if (tabBtnOutline) {
+  tabBtnOutline.addEventListener('click', () => setBottomTab('outline'));
+}
+
+// ── Barra Lateral do Sumário (Desktop) ────────────────────────────────────────
+let outlineSidebarOpen = typeof localStorage !== 'undefined' ? localStorage.getItem('quickdock:outline-sidebar:open') !== 'false' : true;
+
+export function setOutlineSidebarOpen(open) {
+  outlineSidebarOpen = Boolean(open);
+  try { localStorage.setItem('quickdock:outline-sidebar:open', String(outlineSidebarOpen)); } catch {}
+  if (outlineSidebarEl) {
+    outlineSidebarEl.classList.toggle('is-collapsed', !outlineSidebarOpen);
+  }
+  if (toggleOutlineHeaderBtn) {
+    toggleOutlineHeaderBtn.classList.toggle('active', outlineSidebarOpen);
+  }
+}
+
+if (toggleOutlineSidebarBtn) {
+  toggleOutlineSidebarBtn.addEventListener('click', () => setOutlineSidebarOpen(false));
+}
+if (toggleOutlineHeaderBtn) {
+  toggleOutlineHeaderBtn.addEventListener('click', () => setOutlineSidebarOpen(!outlineSidebarOpen));
+}
+
+setOutlineSidebarOpen(outlineSidebarOpen);
+setBottomTab(activeBottomTab);
 
 // ── Cálculo: clique no resultado copia ────────────────────────────────────────
 // O mousedown é cancelado em captura pra que o cursor não saia de onde estava:
@@ -6675,7 +6812,23 @@ document.addEventListener('pointerdown', e => {
 function updateMobileToolbarState() {
   if (typeof document === 'undefined') return;
 
+  const docEl = document.documentElement;
+  const isFullscreenView = docEl.classList.contains('has-maximized-panel') ||
+                           docEl.classList.contains('view-fullscreen') ||
+                           docEl.classList.contains('view-templates') ||
+                           ((docEl.classList.contains('view-grafo') ||
+                             docEl.classList.contains('view-board') ||
+                             docEl.classList.contains('view-calendar') ||
+                             docEl.classList.contains('view-bases')) && !docEl.classList.contains('view-split'));
+
   if (!currentNoteId) {
+    if (mobileNotionToolbar) {
+      mobileNotionToolbar.hidden = true;
+      mobileNotionToolbar.style.display = 'none';
+    }
+    return;
+  }
+  if (isFullscreenView) {
     if (mobileNotionToolbar) {
       mobileNotionToolbar.hidden = true;
       mobileNotionToolbar.style.display = 'none';
@@ -6737,6 +6890,11 @@ function updateMobileToolbarState() {
 }
 
 document.addEventListener('selectionchange', updateMobileToolbarState);
+try {
+  onViewChange(() => updateMobileToolbarState());
+} catch (_) {}
+document.addEventListener('quickdock:view-changed', updateMobileToolbarState);
+document.addEventListener('quickdock:maximize-changed', updateMobileToolbarState);
 
 root.addEventListener('scroll', () => {
   closeMobileAddPopover();

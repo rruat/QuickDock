@@ -70,48 +70,81 @@
           <path d="M0 -58 C0 -10.4 10.4 0 58 0 C10.4 0 0 10.4 0 58 C0 10.4 -10.4 0 -58 0 C-10.4 0 0 -10.4 0 -58 Z" transform="translate(251.23 251.23) rotate(45)" />
         </svg>
       </div>
-      <div class="note-editor">
-        <div id="note-folder-bar" class="note-folder-bar">
-          <button id="btn-note-folder" class="note-folder-btn" title="Pasta da nota (clique para mover)" aria-label="Pasta da nota">
-            <span class="qd-icon material-symbols-rounded" aria-hidden="true">folder</span>
-            <span id="note-folder-name" class="note-folder-name">Sem pasta</span>
-          </button>
-        </div>
-        <div id="note-header-bar" class="note-header-bar">
-          <button id="btn-note-header-icon" class="note-header-icon-btn" type="button" title="Ícone e cor da nota" aria-label="Ícone e cor da nota">
-            <span id="note-header-icon" class="qd-icon material-symbols-rounded" aria-hidden="true"></span>
-          </button>
-          <div id="note-header-title" class="note-header-title" contenteditable="true" role="heading" aria-level="1" spellcheck="false" data-placeholder="Sem título"></div>
-          <button id="btn-note-header-color" class="note-header-color-btn" type="button" title="Cor da nota" aria-label="Cor da nota">
-            <span id="note-header-color-dot" class="note-header-color-dot"></span>
-          </button>
-        </div>
-        <div id="note-properties-bar" class="note-properties-bar">
-          <div class="note-properties-header">
-            <button id="btn-properties-toggle" class="note-properties-toggle-btn" type="button" aria-expanded="false" title="Alternar propriedades da nota">
-              <span class="qd-icon material-symbols-rounded properties-chevron" aria-hidden="true">chevron_right</span>
-              <span class="qd-icon material-symbols-rounded properties-icon" aria-hidden="true">tune</span>
-              <span class="properties-title">Propriedades</span>
-              <span id="note-properties-count" class="properties-count-badge" hidden>0</span>
+      <div class="note-workspace-body">
+        <div class="note-editor">
+          <div id="note-folder-bar" class="note-folder-bar">
+            <button id="btn-note-folder" class="note-folder-btn" title="Pasta da nota (clique para mover)" aria-label="Pasta da nota">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">folder</span>
+              <span id="note-folder-name" class="note-folder-name">Sem pasta</span>
             </button>
-            <div class="note-properties-header-actions">
-              <button id="btn-add-property" class="note-properties-add-btn" type="button" title="Adicionar propriedade">
-                <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
-                <span>Propriedade</span>
+          </div>
+          <div id="note-header-bar" class="note-header-bar">
+            <button id="btn-note-header-icon" class="note-header-icon-btn" type="button" title="Ícone e cor da nota" aria-label="Ícone e cor da nota">
+              <span id="note-header-icon" class="qd-icon material-symbols-rounded" aria-hidden="true"></span>
+            </button>
+            <div id="note-header-title" class="note-header-title" contenteditable="true" role="heading" aria-level="1" spellcheck="false" data-placeholder="Sem título"></div>
+            <button id="btn-note-outline-toggle-desktop" class="icon-btn note-header-outline-btn" type="button" title="Alternar sumário da nota" aria-label="Alternar sumário da nota">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
+            </button>
+            <button id="btn-note-header-color" class="note-header-color-btn" type="button" title="Cor da nota" aria-label="Cor da nota">
+              <span id="note-header-color-dot" class="note-header-color-dot"></span>
+            </button>
+          </div>
+          <div id="note-properties-bar" class="note-properties-bar">
+            <div class="note-properties-header">
+              <button id="btn-properties-toggle" class="note-properties-toggle-btn" type="button" aria-expanded="false" title="Alternar propriedades da nota">
+                <span class="qd-icon material-symbols-rounded properties-chevron" aria-hidden="true">chevron_right</span>
+                <span class="qd-icon material-symbols-rounded properties-icon" aria-hidden="true">tune</span>
+                <span class="properties-title">Propriedades</span>
+                <span id="note-properties-count" class="properties-count-badge" hidden>0</span>
+              </button>
+              <div class="note-properties-header-actions">
+                <button id="btn-add-property" class="note-properties-add-btn" type="button" title="Adicionar propriedade">
+                  <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+                  <span>Propriedade</span>
+                </button>
+              </div>
+            </div>
+            <div id="note-properties-list" class="note-properties-list" hidden></div>
+          </div>
+          <div id="note-editor-blocks" class="note-editor-blocks" contenteditable="true" spellcheck="false"></div>
+          <div id="note-backlinks-section" class="note-backlinks-section" hidden>
+            <div class="note-bottom-bar-header">
+              <div class="note-bottom-tabs" role="tablist">
+                <button id="tab-btn-backlinks" class="note-bottom-tab active" type="button" role="tab" aria-selected="true" aria-controls="note-backlinks-list">
+                  <span class="qd-icon material-symbols-rounded" aria-hidden="true">link</span>
+                  <span>Backlinks</span>
+                  <span id="note-backlinks-count" class="backlinks-count">0</span>
+                </button>
+                <button id="tab-btn-outline" class="note-bottom-tab" type="button" role="tab" aria-selected="false" aria-controls="note-mobile-outline-list">
+                  <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
+                  <span>Sumário</span>
+                  <span id="note-outline-count" class="backlinks-count">0</span>
+                </button>
+              </div>
+              <button id="note-backlinks-toggle" class="note-backlinks-toggle" type="button" aria-expanded="true" title="Recolher / Expandir painel inferior">
+                <span class="qd-icon material-symbols-rounded backlinks-chevron" aria-hidden="true">expand_more</span>
               </button>
             </div>
+            <div class="note-bottom-content">
+              <div id="note-backlinks-list" class="note-backlinks-list" role="tabpanel" aria-labelledby="tab-btn-backlinks"></div>
+              <div id="note-mobile-outline-list" class="note-outline-list note-mobile-outline-list" role="tabpanel" aria-labelledby="tab-btn-outline" hidden></div>
+            </div>
           </div>
-          <div id="note-properties-list" class="note-properties-list" hidden></div>
         </div>
-        <div id="note-editor-blocks" class="note-editor-blocks" contenteditable="true" spellcheck="false"></div>
-        <div id="note-backlinks-section" class="note-backlinks-section" hidden>
-          <button id="note-backlinks-toggle" class="note-backlinks-toggle" type="button" aria-expanded="false">
-            <span class="qd-icon material-symbols-rounded backlinks-chevron" aria-hidden="true">expand_more</span>
-            <span class="backlinks-title">Backlinks</span>
-            <span id="note-backlinks-count" class="backlinks-count">0</span>
-          </button>
-          <div id="note-backlinks-list" class="note-backlinks-list"></div>
-        </div>
+        <aside id="note-outline-sidebar" class="note-outline-sidebar" aria-label="Sumário da nota">
+          <div class="note-outline-header">
+            <div class="note-outline-title-wrap">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
+              <span class="note-outline-title">Sumário</span>
+              <span id="note-outline-desktop-count" class="outline-count-badge">0</span>
+            </div>
+            <button id="btn-toggle-outline-sidebar" class="icon-btn outline-toggle-btn" type="button" title="Recolher sumário" aria-label="Recolher sumário">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">dock_to_right</span>
+            </button>
+          </div>
+          <div id="note-desktop-outline-list" class="note-outline-list"></div>
+        </aside>
       </div>
       <span id="save-indicator" class="save-indicator">
         salvo <span class="qd-icon material-symbols-rounded" aria-hidden="true">check</span>
