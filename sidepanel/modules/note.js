@@ -38,6 +38,8 @@ const desktopOutlineListEl = document.getElementById('note-desktop-outline-list'
 const desktopOutlineCountEl = document.getElementById('note-outline-desktop-count');
 const mobileOutlineListEl = document.getElementById('note-mobile-outline-list');
 const mobileOutlineCountEl = document.getElementById('note-outline-count');
+const floatingOutlineToggleBtn = document.getElementById('btn-outline-floating-toggle');
+const floatingOutlineBadge = document.getElementById('note-outline-floating-badge');
 const tabBtnBacklinks = document.getElementById('tab-btn-backlinks');
 const tabBtnOutline = document.getElementById('tab-btn-outline');
 
@@ -2926,6 +2928,10 @@ export function renderOutline() {
 
   if (desktopOutlineCountEl) desktopOutlineCountEl.textContent = countStr;
   if (mobileOutlineCountEl) mobileOutlineCountEl.textContent = countStr;
+  if (floatingOutlineBadge) {
+    floatingOutlineBadge.textContent = countStr;
+    floatingOutlineBadge.hidden = headings.length === 0;
+  }
 
   const populateList = (listEl) => {
     if (!listEl) return;
@@ -3016,6 +3022,9 @@ if (toggleOutlineSidebarBtn) {
 }
 if (toggleOutlineHeaderBtn) {
   toggleOutlineHeaderBtn.addEventListener('click', () => setOutlineSidebarOpen(!outlineSidebarOpen));
+}
+if (floatingOutlineToggleBtn) {
+  floatingOutlineToggleBtn.addEventListener('click', () => setOutlineSidebarOpen(true));
 }
 
 setOutlineSidebarOpen(outlineSidebarOpen);

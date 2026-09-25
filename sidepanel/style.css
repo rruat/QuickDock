@@ -5658,24 +5658,68 @@ html[data-platform="mobile"] #btn-nav-board {
   }
 
   html[data-platform="desktop"] .note-outline-sidebar {
-    flex: 0 0 240px;
-    width: 240px;
-    height: 100%;
-    background: var(--bg);
-    border-left: 1px solid var(--border);
-    display: flex;
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    width: 250px;
+    max-width: min(320px, calc(100% - 40px));
+    max-height: calc(100% - 32px);
+    background: var(--bg-card, var(--bg));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex !important;
     flex-direction: column;
     overflow: hidden;
     box-sizing: border-box;
-    z-index: 5;
+    z-index: 70;
+    user-select: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
   }
 
   html[data-platform="desktop"] .note-outline-sidebar.is-collapsed {
     display: none !important;
   }
 
+  html[data-platform="desktop"] .note-outline-floating-toggle {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    height: 34px;
+    padding: 0 12px;
+    background: var(--bg-card, var(--bg));
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 69;
+    user-select: none;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+
+  html[data-platform="desktop"] .note-outline-floating-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-normal);
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  html[data-platform="desktop"] .note-outline-sidebar:not(.is-collapsed) ~ .note-outline-floating-toggle {
+    display: none !important;
+  }
+
   html[data-platform="desktop"] #btn-note-outline-toggle-desktop {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     justify-content: center;
     width: 28px;
@@ -6701,8 +6745,12 @@ html[data-platform="desktop"] .note-tab.has-folder {
   overflow: hidden;
 }
 
-.note-outline-sidebar,
-#btn-note-outline-toggle-desktop {
+html[data-platform="extension"] .note-outline-sidebar,
+html[data-platform="mobile"] .note-outline-sidebar,
+html[data-platform="extension"] .note-outline-floating-toggle,
+html[data-platform="mobile"] .note-outline-floating-toggle,
+html[data-platform="extension"] #btn-note-outline-toggle-desktop,
+html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   display: none !important;
 }
 
@@ -9237,6 +9285,7 @@ body.no-note-open .bases-view,
 body.no-note-open #resize-handle,
 body.no-note-open .mobile-notion-toolbar,
 body.no-note-open .note-outline-sidebar,
+body.no-note-open .note-outline-floating-toggle,
 body.no-note-open .note-workspace-body,
 html.no-note-open .docs-section,
 html.no-note-open .graph-view,
@@ -9246,6 +9295,7 @@ html.no-note-open .bases-view,
 html.no-note-open #resize-handle,
 html.no-note-open .mobile-notion-toolbar,
 html.no-note-open .note-outline-sidebar,
+html.no-note-open .note-outline-floating-toggle,
 html.no-note-open .note-workspace-body {
   display: none !important;
 }

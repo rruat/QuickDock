@@ -4554,10 +4554,13 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   const notFoundHtmlSource = await readFile(new URL('../404.html', import.meta.url), 'utf8');
 
-  ok('html · index.html e sidepanel/index.html possuem barra lateral de sumário (note-outline-sidebar)',
+  ok('html · index.html e sidepanel/index.html possuem barra lateral de sumário (note-outline-sidebar) e botão flutuante',
     indexHtmlSource.includes('id="note-outline-sidebar"') &&
     sidepanelHtmlSource.includes('id="note-outline-sidebar"') &&
-    notFoundHtmlSource.includes('id="note-outline-sidebar"'));
+    notFoundHtmlSource.includes('id="note-outline-sidebar"') &&
+    indexHtmlSource.includes('id="btn-outline-floating-toggle"') &&
+    sidepanelHtmlSource.includes('id="btn-outline-floating-toggle"') &&
+    notFoundHtmlSource.includes('id="btn-outline-floating-toggle"'));
 
   ok('html · index.html e sidepanel/index.html possuem wrapper note-workspace-body e botão toggle no cabeçalho',
     indexHtmlSource.includes('class="note-workspace-body"') &&
@@ -4580,7 +4583,8 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   ok('note.js · exporta funções de alternância de abas e controle de sidebar (setBottomTab, setOutlineSidebarOpen)',
     noteJsSource.includes('export function setBottomTab') &&
-    noteJsSource.includes('export function setOutlineSidebarOpen'));
+    noteJsSource.includes('export function setOutlineSidebarOpen') &&
+    noteJsSource.includes('btn-outline-floating-toggle'));
 
   ok('note.js · updateMobileToolbarState oculta a barra móvel/inteligente quando em tela cheia ou painel maximizado',
     noteJsSource.includes('isFullscreenView') &&
@@ -4591,9 +4595,10 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('html.has-maximized-panel .mobile-notion-toolbar') &&
     styleCssSource.includes('html.view-fullscreen .mobile-notion-toolbar'));
 
-  ok('style.css · CSS define layout de note-workspace-body e note-outline-sidebar no desktop',
+  ok('style.css · CSS define sumário flutuante (position: absolute) e botão flutuante no desktop',
     styleCssSource.includes('.note-workspace-body') &&
     styleCssSource.includes('.note-outline-sidebar') &&
+    styleCssSource.includes('.note-outline-floating-toggle') &&
     styleCssSource.includes('.outline-item') &&
     styleCssSource.includes('.outline-badge'));
 
