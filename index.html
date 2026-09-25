@@ -71,6 +71,24 @@
         </svg>
       </div>
       <div class="note-workspace-body">
+        <aside id="note-outline-sidebar" class="note-outline-sidebar" aria-label="Sumário da nota">
+          <div class="note-outline-header">
+            <div class="note-outline-title-wrap">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
+              <span class="note-outline-title">Sumário</span>
+              <span id="note-outline-desktop-count" class="outline-count-badge">0</span>
+            </div>
+            <button id="btn-toggle-outline-sidebar" class="icon-btn outline-toggle-btn" type="button" title="Ocultar estrutura de tópicos" aria-label="Ocultar estrutura de tópicos">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">chevron_left</span>
+            </button>
+          </div>
+          <div id="note-desktop-outline-list" class="note-outline-list"></div>
+        </aside>
+        <button id="btn-outline-floating-toggle" class="note-outline-floating-toggle" type="button" title="Mostrar estrutura de tópicos" aria-label="Mostrar estrutura de tópicos">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
+          <span>Sumário</span>
+          <span id="note-outline-floating-badge" class="outline-count-badge" hidden>0</span>
+        </button>
         <div class="note-editor">
           <div id="note-folder-bar" class="note-folder-bar">
             <button id="btn-note-folder" class="note-folder-btn" title="Pasta da nota (clique para mover)" aria-label="Pasta da nota">
@@ -132,24 +150,6 @@
             </div>
           </div>
         </div>
-        <aside id="note-outline-sidebar" class="note-outline-sidebar" aria-label="Sumário da nota">
-          <div class="note-outline-header">
-            <div class="note-outline-title-wrap">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
-              <span class="note-outline-title">Sumário</span>
-              <span id="note-outline-desktop-count" class="outline-count-badge">0</span>
-            </div>
-            <button id="btn-toggle-outline-sidebar" class="icon-btn outline-toggle-btn" type="button" title="Recolher sumário" aria-label="Recolher sumário">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>
-            </button>
-          </div>
-          <div id="note-desktop-outline-list" class="note-outline-list"></div>
-        </aside>
-        <button id="btn-outline-floating-toggle" class="note-outline-floating-toggle" type="button" title="Abrir sumário da nota" aria-label="Abrir sumário da nota">
-          <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
-          <span>Sumário</span>
-          <span id="note-outline-floating-badge" class="outline-count-badge" hidden>0</span>
-        </button>
       </div>
       <span id="save-indicator" class="save-indicator">
         salvo <span class="qd-icon material-symbols-rounded" aria-hidden="true">check</span>

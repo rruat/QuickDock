@@ -2951,6 +2951,7 @@ export function renderOutline() {
       const item = document.createElement('button');
       item.type = 'button';
       item.className = `outline-item outline-level-${h.nivel}`;
+      item.dataset.slug = h.slug;
       item.style.paddingLeft = `${Math.max(8, (h.nivel - 1) * 12 + 8)}px`;
       item.innerHTML = `
         <span class="outline-badge">H${h.nivel}</span>
@@ -2965,6 +2966,55 @@ export function renderOutline() {
 
   populateList(desktopOutlineListEl);
   populateList(mobileOutlineListEl);
+  updateActiveOutlineHeading();
+}
+
+let scrollSpyRaf = null;
+export function updateActiveOutlineHeading() {
+  if (typeof document === 'undefined' || !noteEditorEl || !root || !root.children) return;
+  const titulos = [...root.children].filter(b => b && b.dataset && HEADING_TAGS[b.dataset.type]);
+  if (titulos.length === 0) return;
+
+  const editorRect = noteEditorEl.getBoundingClientRect ? noteEditorEl.getBoundingClientRect() : { top: 0 };
+  const targetTop = (editorRect.top || 0) + 90;
+  let activeIndex = -1;
+
+  for (let i = 0; i < titulos.length; i++) {
+    const el = titulos[i];
+    if (el.getBoundingClientRect) {
+      const rect = el.getBoundingClientRect();
+      if (rect.top <= targetTop) {
+        activeIndex = i;
+      } else {
+        break;
+      }
+    }
+  }
+
+  if (activeIndex === -1 && titulos.length > 0) {
+    activeIndex = 0;
+  }
+
+  const markList = (listEl) => {
+    if (!listEl) return;
+    const items = listEl.querySelectorAll('.outline-item');
+    items.forEach((item, idx) => {
+      item.classList.toggle('active', idx === activeIndex);
+    });
+  };
+
+  markList(desktopOutlineListEl);
+  markList(mobileOutlineListEl);
+}
+
+if (noteEditorEl) {
+  noteEditorEl.addEventListener('scroll', () => {
+    if (scrollSpyRaf) return;
+    scrollSpyRaf = requestAnimationFrame(() => {
+      scrollSpyRaf = null;
+      updateActiveOutlineHeading();
+    });
+  }, { passive: true });
 }
 
 let outlineTimer = null;

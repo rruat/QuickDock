@@ -4576,15 +4576,21 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     indexHtmlSource.includes('id="note-mobile-outline-list"') &&
     sidepanelHtmlSource.includes('id="note-mobile-outline-list"'));
 
-  ok('note.js · exporta funções do sumário (extrairSumarioDaNota, renderOutline, irParaTitulo)',
+  ok('note.js · exporta funções do sumário (extrairSumarioDaNota, renderOutline, irParaTitulo, updateActiveOutlineHeading)',
     noteJsSource.includes('export function extrairSumarioDaNota') &&
     noteJsSource.includes('export function renderOutline') &&
-    noteJsSource.includes('export function irParaTitulo'));
+    noteJsSource.includes('export function irParaTitulo') &&
+    noteJsSource.includes('export function updateActiveOutlineHeading'));
 
   ok('note.js · exporta funções de alternância de abas e controle de sidebar (setBottomTab, setOutlineSidebarOpen)',
     noteJsSource.includes('export function setBottomTab') &&
     noteJsSource.includes('export function setOutlineSidebarOpen') &&
     noteJsSource.includes('btn-outline-floating-toggle'));
+
+  ok('html · botão de recolher do sumário utiliza chevron_left estilo Google Docs',
+    indexHtmlSource.includes('chevron_left') &&
+    sidepanelHtmlSource.includes('chevron_left') &&
+    notFoundHtmlSource.includes('chevron_left'));
 
   ok('note.js · updateMobileToolbarState oculta a barra móvel/inteligente quando em tela cheia ou painel maximizado',
     noteJsSource.includes('isFullscreenView') &&
@@ -4595,12 +4601,13 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('html.has-maximized-panel .mobile-notion-toolbar') &&
     styleCssSource.includes('html.view-fullscreen .mobile-notion-toolbar'));
 
-  ok('style.css · CSS define sumário flutuante (position: absolute) e botão flutuante no desktop',
+  ok('style.css · CSS define sumário acoplado estilo Google Docs e botão de margem no desktop',
     styleCssSource.includes('.note-workspace-body') &&
     styleCssSource.includes('.note-outline-sidebar') &&
     styleCssSource.includes('.note-outline-floating-toggle') &&
     styleCssSource.includes('.outline-item') &&
-    styleCssSource.includes('.outline-badge'));
+    styleCssSource.includes('.outline-badge') &&
+    styleCssSource.includes('.outline-item.active'));
 
   ok('style.css · CSS define alternador de abas no rodapé e espaçamentos equilibrados nos backlinks',
     styleCssSource.includes('.note-bottom-tabs') &&
