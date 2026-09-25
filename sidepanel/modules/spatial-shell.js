@@ -110,6 +110,7 @@ export function initSpatialShell() {
   document.addEventListener('quickdock:notes-open-tabs-changed', e => syncNoteViews(e.detail || {}));
   syncNoteViews(getOpenTabsSnapshot());
 
+  setAsideMode('notes');
   renderAsideViewList();
   applyViewVisibility();
   setupSectionDividers();
@@ -153,6 +154,13 @@ function setupActivityBar() {
       if (!viewId) return;
 
       navEl.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('is-active', i === item));
+      if (viewId === 'notes') {
+        setAsideMode('notes');
+        const asideEl = document.getElementById('mAside');
+        if (asideEl && window.innerWidth <= 768) {
+          asideEl.classList.toggle('is-open-mobile');
+        }
+      }
       openOrFocusView(viewId);
     });
   });
@@ -277,7 +285,7 @@ export function renderAsideViewList() {
 // Explorador de Notas real do QuickDock (pastas/abas, montado por
 // initDesktopNotesAsideDrawer em notes-tabs.js); qualquer outra view mostra a
 // lista genérica de views abertas/disponíveis (#asideSectionList).
-function setAsideMode(mode) {
+export function setAsideMode(mode) {
   const asideEl = document.getElementById('mAside');
   if (!asideEl) return;
   const isNotes = mode === 'notes';
@@ -391,6 +399,7 @@ function syncNoteViews(snapshot) {
     // A nota ativa mudou (ou é a primeira sincronização) — o foco visual
     // acompanha, igual a clicar em qualquer outra view pra focá-la.
     focusedViewId = activeViewId;
+    setAsideMode('notes');
   } else if (focusedViewId && !openViewIds.includes(focusedViewId)) {
     focusedViewId = openViewIds[openViewIds.length - 1] || null;
   }
@@ -414,6 +423,7 @@ function syncNoteViews(snapshot) {
 // editor pra esperar (o round-trip por quickdock:activate-note não dispara
 // nada nesse caso, já que activeId não muda).
 function focusNoteViewId(viewId) {
+  setAsideMode('notes');
   focusedViewId = viewId;
   applyViewVisibility();
   updateSectionMoveButtons();
@@ -429,6 +439,7 @@ function focusNoteViewId(viewId) {
 // ── Gestão de Views Abertas e Foco ────────────────────────────────────────────
 export function openOrFocusView(viewId) {
   if (viewId.startsWith('note-')) {
+    setAsideMode('notes');
     // Notas são views dinâmicas (uma por nota aberta) — focar uma delas
     // significa ativá-la de verdade (troca o editor singleton), então o
     // caminho correto é pedir a ativação e deixar quickdock:notes-open-tabs-
@@ -445,14 +456,13 @@ export function openOrFocusView(viewId) {
   }
 
   if (viewId === 'notes') {
+    setAsideMode('notes');
     // "Notas" no #mNav/#mMenu não é uma view fixa própria: foca a nota ativa
-    // (ou a última aberta), ou cria uma nova se nenhuma estiver aberta.
+    // (ou a última aberta), garantindo que a aside mostre o explorador de notas.
     if (activeNoteId != null) {
       openOrFocusView('note-' + activeNoteId);
     } else if (openNoteIds.length > 0) {
       openOrFocusView('note-' + openNoteIds[openNoteIds.length - 1]);
-    } else {
-      document.getElementById('btn-new-note')?.click();
     }
     return;
   }
@@ -464,7 +474,6 @@ export function openOrFocusView(viewId) {
     try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
   }
   focusedViewId = viewId;
-  setAsideMode('views');
 
   const navEl = document.getElementById('mNav');
   if (navEl) {

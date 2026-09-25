@@ -4749,6 +4749,26 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('html[data-platform="desktop"] .note-section {\n    order: 0;\n  }'));
 }
 
+// ── 38. Spatial Shell: Explorador de Notas ativa a aside de notas e não abre menu ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const rawSpatial = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
+  const spatialShellSource = rawSpatial.replace(/\r\n/g, '\n');
+
+  ok('spatial-shell.js · setupActivityBar garante setAsideMode("notes") ao clicar no Explorador de Notas',
+    spatialShellSource.includes("viewId === 'notes'") &&
+    spatialShellSource.includes("setAsideMode('notes')"));
+
+  ok('spatial-shell.js · openOrFocusView("notes") e foco de notas ativam setAsideMode("notes")',
+    spatialShellSource.includes("openOrFocusView(viewId)") &&
+    spatialShellSource.includes("focusNoteViewId(viewId)") &&
+    spatialShellSource.includes("setAsideMode('notes')"));
+
+  ok('spatial-shell.js · focusNoteViewId garante setAsideMode("notes")',
+    spatialShellSource.includes("function focusNoteViewId(viewId)") &&
+    spatialShellSource.includes("setAsideMode('notes')"));
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);
