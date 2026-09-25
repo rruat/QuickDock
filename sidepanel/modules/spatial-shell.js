@@ -498,6 +498,10 @@ export function closeView(viewId) {
   openViewIds = openViewIds.filter(id => id !== viewId);
   try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
 
+  // Avisa os módulos de desligamento de recursos (ex: parar simulação física do grafo)
+  const normPanel = (viewId === 'graph') ? 'grafo' : viewId;
+  document.dispatchEvent(new CustomEvent('quickdock:panel-closed', { detail: { panel: normPanel } }));
+
   if (focusedViewId === viewId) {
     focusedViewId = openViewIds[openViewIds.length - 1] || null;
   }
@@ -706,13 +710,54 @@ function applyViewVisibility() {
     });
   }
 
-  // Notifica os módulos correspondentes via evento de atualização nativo
-  if (focusedViewId === 'board') window.dispatchEvent(new CustomEvent('quickdock:refresh-board-view'));
-  if (focusedViewId === 'graph') window.dispatchEvent(new CustomEvent('quickdock:refresh-graph-view'));
-  if (focusedViewId === 'calendar') window.dispatchEvent(new CustomEvent('quickdock:refresh-calendar-view'));
-  if (focusedViewId === 'bases') window.dispatchEvent(new CustomEvent('quickdock:refresh-bases-view'));
+  // Notifica os módulos correspondentes via evento de atualização nativo em document
+  triggerOpenViewsRefresh();
 
   updateEmptyState();
+}
+
+export function triggerOpenViewsRefresh() {
+  const notify = () => {
+    if (openViewIds.includes('board')) {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-board-view'));
+    }
+    if (openViewIds.includes('graph')) {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-graph-view'));
+    }
+    if (openViewIds.includes('calendar')) {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-calendar-view'));
+    }
+    if (openViewIds.includes('bases')) {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-bases-view'));
+    }
+    if (openViewIds.includes('templates')) {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-templates-gallery'));
+    }
+    if (openViewIds.includes('docs')) {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-documents'));
+    }
+    window.dispatchEvent(new CustomEvent('resize'));
+  };
+
+  notify();
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => {
+      notify();
+    });
+  }
+}
+
+export function toggleView(viewId) {
+  if (openViewIds.includes(viewId)) {
+    closeView(viewId);
+  } else {
+    openOrFocusView(viewId);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.quickdockToggleView = toggleView;
+  window.quickdockOpenView = openOrFocusView;
 }
 
 // ── Estado Vazio (nenhuma view aberta) — igual ao design-pattern original ────
@@ -790,8 +835,8 @@ function setupSectionDividers() {
       const newFlexA = Math.max(0.2, startFlexA + delta);
       const newFlexB = Math.max(0.2, startFlexB - delta);
 
-      secA.style.flexGrow = newFlexA;
-      secB.style.flexGrow = newFlexB;
+      secA.style.setProperty('flex-grow', String(newFlexA), 'important');
+      secB.style.setProperty('flex-grow', String(newFlexB), 'important');
     });
 
     window.addEventListener('mouseup', () => {
@@ -799,6 +844,7 @@ function setupSectionDividers() {
       isDragging = false;
       document.body.classList.remove('is-resizing-col', 'is-resizing-row');
       window.dispatchEvent(new CustomEvent('resize'));
+      triggerOpenViewsRefresh();
     });
 
     secA.after(divider);

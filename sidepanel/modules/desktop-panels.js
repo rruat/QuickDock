@@ -311,10 +311,18 @@ function refreshPanelContent(name) {
 }
 
 export function isDesktopPanelOpen(name) {
+  const norm = (name === 'grafo') ? 'graph' : name;
+  const el = document.querySelector(`.main-section[data-id="${norm}"]`) || document.getElementById(norm === 'graph' ? 'graph-view' : `${norm}-view`);
+  if (el && !el.hidden && el.style.display !== 'none') return true;
   return openPanels.has(name);
 }
 
 export function toggleDesktopPanel(name) {
+  const norm = (name === 'grafo') ? 'graph' : name;
+  if (typeof window !== 'undefined' && typeof window.quickdockToggleView === 'function') {
+    window.quickdockToggleView(norm);
+    return;
+  }
   if (!PANEL_ORDER[name]) return;
   const abrindo = !openPanels.has(name);
   if (abrindo) {

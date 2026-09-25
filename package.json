@@ -4,6 +4,8 @@
   "type": "module",
   "description": "Só para rodar os testes com `node test/run.mjs`. A extensão não usa npm — este arquivo fica fora do .zip.",
   "scripts": {
-    "test": "node test/run.mjs"
+    "test": "node test/run.mjs",
+    "start": "node server.mjs",
+    "serve": "node server.mjs"
   }
 }
