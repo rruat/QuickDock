@@ -1274,6 +1274,17 @@ function convertBlockType(blockEl, newType, checked = false) {
   }
 
   const oldContent = getContentEl(blockEl);
+  oldContent.querySelectorAll(':scope > .md-syntax-prefix').forEach(el => {
+    const text = el.textContent;
+    let extra = '';
+    const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
+    const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
+    const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
+    if (mCall && mCall[2]) extra = mCall[2];
+    else if (mHead && mHead[2]) extra = mHead[2];
+    else if (mQuote && mQuote[2]) extra = mQuote[2];
+    if (extra) el.after(document.createTextNode(extra));
+  });
   oldContent.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
   const newBlock = createBlockEl(newType, oldContent.innerHTML, checked);
   setBlockDepth(newBlock, blockDepth(blockEl));
@@ -1534,6 +1545,17 @@ function sanitizeForSave(html, keepBreaks = false) {
   const div = document.createElement('div');
   div.innerHTML = html;
   div.querySelectorAll('mark').forEach(m => m.replaceWith(...m.childNodes));
+  div.querySelectorAll('.md-syntax-prefix').forEach(el => {
+    const text = el.textContent;
+    let extra = '';
+    const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
+    const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
+    const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
+    if (mCall && mCall[2]) extra = mCall[2];
+    else if (mHead && mHead[2]) extra = mHead[2];
+    else if (mQuote && mQuote[2]) extra = mQuote[2];
+    if (extra) el.after(document.createTextNode(extra));
+  });
   div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());
   div.querySelectorAll('.md-token-open, .is-active, .md-inline-active').forEach(el => {
     el.classList.remove('md-token-open', 'is-active', 'md-inline-active');
@@ -3814,13 +3836,27 @@ export function revealBlockSyntax(block) {
   }
 
   contentEl.prepend(prefixSpan);
+  if (!prefixSpan.nextSibling) {
+    prefixSpan.after(document.createTextNode(ANCORA));
+  }
 }
 
 export function collapseBlockSyntax(block) {
   if (!block) return;
   const contentEl = getContentEl(block);
   if (!contentEl) return;
-  contentEl.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
+  contentEl.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => {
+    const text = p.textContent;
+    let extra = '';
+    const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
+    const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
+    const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
+    if (mCall && mCall[2]) extra = mCall[2];
+    else if (mHead && mHead[2]) extra = mHead[2];
+    else if (mQuote && mQuote[2]) extra = mQuote[2];
+    if (extra) p.after(document.createTextNode(extra));
+    p.remove();
+  });
 }
 
 const INLINE_SYNTAX_MAP = {
@@ -4383,8 +4419,30 @@ root.addEventListener('input', () => {
     
     let hashCount = 0;
     if (prefixSpan) {
-      const match = /^(#{1,6})/.exec(prefixSpan.textContent);
-      if (match) hashCount = match[1].length;
+      const match = /^(#{1,6})(?:[ \t](.*)|([^#\s].*))?$/s.exec(prefixSpan.textContent);
+      if (match) {
+        hashCount = match[1].length;
+        const extraText = match[2] ?? match[3] ?? '';
+        if (extraText) {
+          prefixSpan.textContent = '#'.repeat(hashCount) + ' ';
+          let nextNode = prefixSpan.nextSibling;
+          if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
+            nextNode.data = extraText + nextNode.data;
+          } else {
+            const tn = document.createTextNode(extraText);
+            prefixSpan.after(tn);
+            nextNode = tn;
+          }
+          const sel = document.getSelection();
+          if (sel && nextNode) {
+            const range = document.createRange();
+            range.setStart(nextNode, extraText.length);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        }
+      }
     } else {
       const match = /^(#{1,6})/.exec(contentEl.textContent);
       if (match) hashCount = match[1].length;
@@ -4420,6 +4478,29 @@ root.addEventListener('input', () => {
   if (block.dataset.callout) {
     const contentEl = getContentEl(block);
     const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    if (prefixSpan) {
+      const mCallText = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(prefixSpan.textContent);
+      if (mCallText && mCallText[2]) {
+        const extraText = mCallText[2];
+        prefixSpan.textContent = `> [!${block.dataset.callout.toUpperCase()}] `;
+        let nextNode = prefixSpan.nextSibling;
+        if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
+          nextNode.data = extraText + nextNode.data;
+        } else {
+          const tn = document.createTextNode(extraText);
+          prefixSpan.after(tn);
+          nextNode = tn;
+        }
+        const sel = document.getSelection();
+        if (sel && nextNode) {
+          const range = document.createRange();
+          range.setStart(nextNode, extraText.length);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+    }
     const textToCheck = prefixSpan ? prefixSpan.textContent : contentEl.textContent;
     const m = />\s*\[!(note|tip|important|warning|caution)\]/i.exec(textToCheck);
     if (m) {
@@ -4450,6 +4531,29 @@ root.addEventListener('input', () => {
   if (isBlockQuoted(block) && !block.dataset.callout) {
     const contentEl = getContentEl(block);
     const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    if (prefixSpan) {
+      const mQuoteText = /^(>[ \t]?)(.*)$/s.exec(prefixSpan.textContent);
+      if (mQuoteText && mQuoteText[2]) {
+        const extraText = mQuoteText[2];
+        prefixSpan.textContent = '> ';
+        let nextNode = prefixSpan.nextSibling;
+        if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
+          nextNode.data = extraText + nextNode.data;
+        } else {
+          const tn = document.createTextNode(extraText);
+          prefixSpan.after(tn);
+          nextNode = tn;
+        }
+        const sel = document.getSelection();
+        if (sel && nextNode) {
+          const range = document.createRange();
+          range.setStart(nextNode, extraText.length);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+    }
     let hasQuote = false;
     if (prefixSpan) {
       hasQuote = prefixSpan.textContent.includes('>');
@@ -4970,7 +5074,9 @@ root.addEventListener('keydown', e => {
     const block = currentBlock();
     if (!block) return;
     const content = getContentEl(block);
-    if (getCaretOffset(content) !== 0) return;
+    const prefixSpan = content.querySelector(':scope > .md-syntax-prefix');
+    const prefixLen = prefixSpan ? prefixSpan.textContent.length : 0;
+    if (getCaretOffset(content) > prefixLen) return;
     e.preventDefault();
     handleBackspaceAtStart(block);
     scheduleSave();

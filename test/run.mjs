@@ -3860,6 +3860,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('font-family: var(--font-mono, monospace);') &&
     styleCssSource.includes('color: var(--text-muted);'));
 
+  ok('live-preview · Protege texto digitado no prefixSpan para não ser engolido nem deletado no collapse',
+    noteJsSource.includes('extraText') &&
+    noteJsSource.includes("prefixSpan.textContent = '#'.repeat(hashCount) + ' ';") &&
+    noteJsSource.includes('p.after(document.createTextNode(extra));'));
+
   // 28.3: Formatação inline com delimitadores reais no cursor e unwrap
   ok('live-preview · Motor de Live Preview revela delimitadores inline reais',
     noteJsSource.includes('function revealInlineSyntax(') &&
