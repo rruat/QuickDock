@@ -4622,6 +4622,36 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   igual('blocks.js · slug gerado para título com caracteres especiais', headingSlug('Ação & Efeito (100%)'), 'acao-efeito-100');
 }
 
+// ── 34. Spatial Shell: Explorador de Notas como submenu do #mAside ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const spatialShellSource = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
+  const notesTabsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const indexHtmlSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  const notFoundHtmlSource = await readFile(new URL('../404.html', import.meta.url), 'utf8');
+
+  ok('spatial-shell.js · exporta/usa setAsideMode para alternar Explorador de Notas vs lista de Views',
+    spatialShellSource.includes('function setAsideMode') &&
+    spatialShellSource.includes("classList.toggle('mode-notes'") &&
+    spatialShellSource.includes('setAsideMode('));
+
+  ok('notes-tabs.js · monta o drawer permanente dentro de #mAside, não mais como coluna própria de #app',
+    notesTabsSource.includes("document.getElementById('mAside')") &&
+    notesTabsSource.includes('mAsideEl.appendChild(drawer)'));
+
+  ok('style.css · #mAside alterna Explorador de Notas e lista de Views por classe de modo',
+    styleCssSource.includes('#mAside:not(.mode-notes) .notes-aside-drawer') &&
+    styleCssSource.includes('#mAside.mode-notes .notes-aside-drawer') &&
+    styleCssSource.includes('#mAside:not(.mode-views) #asideSectionList'));
+
+  ok('html · index.html, sidepanel/index.html e 404.html começam com #mAside em modo notas (Explorador é o item padrão do #mNav)',
+    indexHtmlSource.includes('id="mAside" class="mode-notes"') &&
+    sidepanelHtmlSource.includes('id="mAside" class="mode-notes"') &&
+    notFoundHtmlSource.includes('id="mAside" class="mode-notes"'));
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

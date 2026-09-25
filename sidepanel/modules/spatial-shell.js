@@ -96,6 +96,7 @@ export function initSpatialShell() {
   setupOmnibar();
   setupKeyboardShortcuts();
   setupSectionInteractions();
+  setAsideMode(focusedViewId === 'notes' ? 'notes' : 'views');
   renderAsideViewList();
   applyViewVisibility();
   setupSectionDividers();
@@ -249,6 +250,19 @@ export function renderAsideViewList() {
   }
 }
 
+// ── Sub-painel do #mAside (Explorador de Notas vs Lista de Views) ────────────
+// O #mAside funciona como um submenu dos itens do #mNav: "Notas" mostra o
+// Explorador de Notas real do QuickDock (pastas/abas, montado por
+// initDesktopNotesAsideDrawer em notes-tabs.js); qualquer outra view mostra a
+// lista genérica de views abertas/disponíveis (#asideSectionList).
+function setAsideMode(mode) {
+  const asideEl = document.getElementById('mAside');
+  if (!asideEl) return;
+  const isNotes = mode === 'notes';
+  asideEl.classList.toggle('mode-notes', isNotes);
+  asideEl.classList.toggle('mode-views', !isNotes);
+}
+
 // ── Gestão de Views Abertas e Foco ────────────────────────────────────────────
 export function openOrFocusView(viewId) {
   if (!SHELL_VIEWS.some(v => v.id === viewId)) return;
@@ -258,6 +272,15 @@ export function openOrFocusView(viewId) {
     try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
   }
   focusedViewId = viewId;
+  setAsideMode(viewId === 'notes' ? 'notes' : 'views');
+
+  const navEl = document.getElementById('mNav');
+  if (navEl) {
+    navEl.querySelectorAll('.nav-item').forEach(item => {
+      item.classList.toggle('is-active', item.dataset.navView === viewId);
+    });
+  }
+
   applyViewVisibility();
   renderAsideViewList();
   setupSectionDividers();

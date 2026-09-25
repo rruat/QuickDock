@@ -2765,9 +2765,11 @@ function ligarCliqueEDuploCliqueNaLinha(row, label, meta, aoAtivar) {
 }
 
 // ── Drawer permanente para Desktop ──────────────────────────────────────────
-// No modo desktop o drawer fica fixo como Coluna 1 (NAV) dentro de #app,
-// sem backdrop nem botão de fechar. Usa a mesma estrutura DOM do drawer
-// overlay mas montado estaticamente.
+// No modo desktop o drawer fica fixo dentro do #mAside do Spatial Shell, como
+// o conteúdo do item "Explorador" da Activity Bar (#mNav) — ver setAsideMode
+// em spatial-shell.js, que alterna este drawer com #asideSectionList (lista
+// de views). Sem backdrop nem botão de fechar. Usa a mesma estrutura DOM do
+// drawer overlay (mobile/extensão) mas montado estaticamente.
 function initDesktopNotesAsideDrawer() {
   if (notesAsideDrawer) return; // Já montado
 
@@ -3024,10 +3026,11 @@ function initDesktopNotesAsideDrawer() {
 
   renderNotesListRows(scrollArea, '', countEl, clearBtn);
 
-  // Monta no #app como primeiro filho (order: 1 via CSS)
-  const appEl = document.getElementById('app');
-  if (appEl) {
-    appEl.prepend(drawer);
+  // Monta dentro do #mAside (Spatial Shell) — #mAside.mode-notes/.mode-views
+  // decide se este drawer ou a lista de views fica visível (spatial-shell.js).
+  const mAsideEl = document.getElementById('mAside');
+  if (mAsideEl) {
+    mAsideEl.appendChild(drawer);
   } else {
     document.body.prepend(drawer);
   }
