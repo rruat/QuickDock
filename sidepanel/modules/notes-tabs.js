@@ -3028,14 +3028,14 @@ function initDesktopNotesAsideDrawer() {
   notesAsideDrawer = drawer;
   notesListPopover = drawer;
 
-  // A barra de abas (#notes-tabs) nasce dentro do .app-aside antigo, que o
-  // desktop esconde inteiro (display:none!important) em favor deste drawer.
-  // Sem isto, as notas abertas ficavam sem nenhuma aba visível no desktop —
-  // move o mesmo elemento (mesma referência, renderTabs() continua achando
-  // ele) pro topo do editor, onde vira uma tira horizontal (ver style.css).
-  if (tabsEl && noteSection) {
-    noteSection.prepend(tabsEl);
-  }
+  // #notes-tabs (a tira horizontal de abas abertas) NÃO é movida pra dentro
+  // de .note-section no desktop — cada nota aberta já é sua própria view no
+  // mosaico do Spatial Shell, com cabeçalho independente (ícone, título,
+  // fechar, mover — ver syncNoteSectionDOM em spatial-shell.js). Uma tira de
+  // abas por cima disso duplicaria essa navegação e tirava espaço da view,
+  // que deve preencher tudo que tem disponível como no design-pattern. O
+  // elemento fica onde nasceu (.app-aside, escondido no desktop) — inerte,
+  // sem afetar o mobile/extensão, que ainda usa a tira de verdade.
 }
 
 btnNotesList.addEventListener('click', e => {

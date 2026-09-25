@@ -5828,49 +5828,6 @@ html[data-platform="mobile"] #btn-nav-board {
     box-sizing: border-box;
   }
 
-  /* Barra de abas das notas abertas: nasce dentro do .app-aside antigo, que o
-     desktop esconde inteiro em favor do drawer permanente — reaproveitada aqui
-     como tira horizontal no topo do editor (ver initDesktopNotesAsideDrawer,
-     que já move o mesmo elemento #notes-tabs pra dentro de .note-section). */
-  html[data-platform="desktop"] .note-section #notes-tabs {
-    order: 0;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 6px;
-    /* flex:0 0 auto (não só flex-shrink) porque a regra antiga da lista vertical
-       (".notes-tabs { flex:1 1 auto; max-height:calc(100vh - 380px) }" mais
-       abaixo) também bate no MESMO elemento pela classe .notes-tabs — como
-       especificidade é por propriedade, não por regra inteira, seu flex-grow
-       sobrevivia mesmo com a nossa altura fixa, esticando a barra bem além dos
-       44px. */
-    flex: 0 0 auto;
-    width: 100%;
-    height: 52px;
-    max-height: 52px;
-    padding: 0 14px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
-    box-sizing: border-box;
-  }
-
-  html[data-platform="desktop"] .note-section #notes-tabs:empty {
-    display: none;
-  }
-
-  html[data-platform="desktop"] .note-section #notes-tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  html[data-platform="desktop"] .note-section #notes-tabs .note-tab {
-    width: auto;
-    max-width: 200px;
-    flex-shrink: 0;
-  }
-
   /* Barra de abas / cabeçalho da sidebar no desktop */
   html[data-platform="desktop"] .notes-tabbar {
     order: 1;
