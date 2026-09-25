@@ -2017,6 +2017,9 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
       ligarCliqueEDuploCliqueNaLinha(row, label, meta, async () => {
         closeNotesAsideDrawer();
         if (meta.id !== activeId) { await activateNote(meta.id); renderTabs(); }
+        if (typeof window !== 'undefined' && typeof window.quickdockOpenView === 'function') {
+          window.quickdockOpenView('notes');
+        }
         scrollTabIntoView(meta.id);
       });
 
@@ -2058,6 +2061,9 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
     ligarCliqueEDuploCliqueNaLinha(row, label, meta, async () => {
       closeNotesAsideDrawer();
       if (meta.id !== activeId) { await activateNote(meta.id); renderTabs(); }
+      if (typeof window !== 'undefined' && typeof window.quickdockOpenView === 'function') {
+        window.quickdockOpenView('notes');
+      }
       scrollTabIntoView(meta.id);
     });
 
@@ -3448,6 +3454,9 @@ document.addEventListener('quickdock:activate-note', async e => {
     await activateNote(target.id);
     renderTabs();
     scrollTabIntoView(target.id);
+    if (typeof window !== 'undefined' && typeof window.quickdockOpenView === 'function') {
+      window.quickdockOpenView('notes');
+    }
     return;
   }
 
@@ -3465,6 +3474,9 @@ document.addEventListener('quickdock:activate-note', async e => {
     await activateNote(novoId);
     renderTabs();
     scrollTabIntoView(novoId);
+    if (typeof window !== 'undefined' && typeof window.quickdockOpenView === 'function') {
+      window.quickdockOpenView('notes');
+    }
   }
 });
 

@@ -11079,7 +11079,7 @@ html[data-platform="desktop"] #mMain .bases-view,
 html[data-platform="desktop"] #mMain .docs-section,
 html[data-platform="desktop"] #mMain .note-section,
 html[data-platform="desktop"] #mMain .templates-gallery-view {
-  flex: 1 1 0px !important;
+  flex: 1 1 0px;
   width: auto !important;
   max-width: none !important;
   height: 100% !important;
@@ -11088,9 +11088,26 @@ html[data-platform="desktop"] #mMain .templates-gallery-view {
   box-sizing: border-box !important;
 }
 
+/* Seções ocultadas no #mMain nunca devem ser renderizadas nem ocupar espaço */
+#mMain > [hidden],
+#mMain > .main-section[hidden],
+html[data-platform="desktop"] #mMain > [hidden],
+html[data-platform="desktop"] #mMain > .main-section[hidden],
+html[data-platform="desktop"] #mMain > section[hidden] {
+  display: none !important;
+  flex: 0 0 0px !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 html[data-platform="desktop"] #mMain.is-side-by-side > .main-section,
 html[data-platform="desktop"] #mMain.is-side-by-side > section {
-  min-width: 220px !important;
+  min-width: 120px !important;
   width: auto !important;
   height: 100% !important;
 }
@@ -11098,7 +11115,7 @@ html[data-platform="desktop"] #mMain.is-side-by-side > section {
 html[data-platform="desktop"] #mMain:not(.is-side-by-side) > .main-section,
 html[data-platform="desktop"] #mMain:not(.is-side-by-side) > section {
   width: 100% !important;
-  min-height: 220px !important;
+  min-height: 120px !important;
   height: auto !important;
 }
 

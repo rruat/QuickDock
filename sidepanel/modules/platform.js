@@ -42,12 +42,12 @@ export function detectPlatform() {
     }
   }
   if (typeof window !== 'undefined') {
-    const isTouch = window.matchMedia?.('(pointer: coarse)').matches ||
-      (typeof navigator !== 'undefined' && (
-        navigator.maxTouchPoints > 0 ||
-        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
-      ));
-    if (isTouch) return 'mobile';
+    const isMobileUA = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    const isSmallTouch = (typeof window.innerWidth === 'number' ? window.innerWidth <= 768 : true) && (
+      window.matchMedia?.('(pointer: coarse)').matches ||
+      (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
+    );
+    if (isMobileUA || isSmallTouch) return 'mobile';
   }
   return 'desktop';
 }

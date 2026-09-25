@@ -9,7 +9,7 @@
 
 import { isDesktopMode } from './platform.js';
 import { loadAllNotesMeta } from './storage.js';
-import { closeTab, getOpenTabsSnapshot } from './notes-tabs.js';
+import { getOpenTabsSnapshot, closeTab } from './notes-tabs.js';
 
 const STOPWORDS = new Set(['de', 'do', 'da', 'dos', 'das', 'e', 'em', 'no', 'na', 'nos', 'nas', 'com', 'por', 'para', 'pra', 'x', 'vs']);
 
@@ -30,11 +30,6 @@ let layoutMode = 'side-by-side'; // 'side-by-side' ou 'stacked'
 let searchActiveIdx = -1;
 let searchCandidates = [];
 let draggedViewId = null; // reordenação de views por arrastar o .section-header
-
-// Cada nota aberta é sua própria view no mosaico (data-id="note-<id>"), em vez
-// de uma única view "notes" genérica — espelha openTabIds/activeId de
-// notes-tabs.js (ver quickdock:notes-open-tabs-changed e getOpenTabsSnapshot).
-let openNoteIds = [];
 let activeNoteId = null;
 
 // Utilitários de texto e regex
@@ -74,8 +69,7 @@ function highlightTokens(text, tokens) {
 export function initSpatialShell() {
   if (typeof document === 'undefined') return;
 
-  // Carrega preferências salvas (ids de notas são resolvidos à parte, a
-  // partir do estado real de abas abertas em notes-tabs.js — ver abaixo).
+  // Carrega preferências salvas
   try {
     const savedLayout = localStorage.getItem('quickdock:spatial:layout-mode');
     if (savedLayout === 'stacked' || savedLayout === 'side-by-side') {
@@ -85,15 +79,22 @@ export function initSpatialShell() {
     if (savedOpenViews) {
       const parsed = JSON.parse(savedOpenViews);
       if (Array.isArray(parsed)) {
-        openViewIds = parsed.filter(id => SHELL_VIEWS.some(v => v.id === id && v.id !== 'notes') || id.startsWith('note-'));
+        openViewIds = parsed
+          .map(id => (typeof id === 'string' && id.startsWith('note-')) ? 'notes' : id)
+          .filter(id => SHELL_VIEWS.some(v => v.id === id));
+        openViewIds = [...new Set(openViewIds)];
       }
     }
   } catch {}
 
-  // Garante que todas as seções de view no mMain tenham a classe main-section
+  if (openViewIds.length === 0) {
+    openViewIds = ['notes'];
+  }
+
+  // Garante que todas as seções de view de primeiro nível no mMain tenham a classe main-section
   const mainEl = document.getElementById('mMain');
   if (mainEl) {
-    mainEl.querySelectorAll('[data-id]').forEach(sec => sec.classList.add('main-section'));
+    mainEl.querySelectorAll(':scope > [data-id]').forEach(sec => sec.classList.add('main-section'));
   }
 
   setupLayoutMode();
@@ -104,15 +105,21 @@ export function initSpatialShell() {
   setupKeyboardShortcuts();
   setupSectionInteractions();
 
-  // initSpatialShell() roda DEPOIS de initNotesTabs() (app.js) — o primeiro
-  // quickdock:notes-open-tabs-changed já disparou e passou batido, então lê
-  // o estado atual direto em vez de esperar o próximo evento.
-  document.addEventListener('quickdock:notes-open-tabs-changed', e => syncNoteViews(e.detail || {}));
-  syncNoteViews(getOpenTabsSnapshot());
+  document.addEventListener('quickdock:active-note-changed', e => {
+    activeNoteId = e.detail?.id;
+    updateNoteSectionHeader();
+  });
+  document.addEventListener('quickdock:notes-open-tabs-changed', e => {
+    activeNoteId = e.detail?.activeId;
+    updateNoteSectionHeader();
+    syncNoteViews(e.detail || {});
+  });
+  syncNoteViews(typeof getOpenTabsSnapshot === 'function' ? getOpenTabsSnapshot() : {});
 
   setAsideMode('notes');
-  renderAsideViewList();
+  updateNoteSectionHeader();
   applyViewVisibility();
+  renderAsideViewList();
   setupSectionDividers();
 }
 
@@ -257,10 +264,8 @@ export function renderAsideViewList() {
   listEl.innerHTML = '';
 
   for (const v of SHELL_VIEWS) {
-    // "Notas" não é uma view fixa própria — reflete o estado real de notas
-    // abertas (cada uma é sua própria view, ver syncNoteViews).
-    const isOpen = v.id === 'notes' ? openNoteIds.length > 0 : openViewIds.includes(v.id);
-    const isFocused = v.id === 'notes' ? (activeNoteId != null && focusedViewId === `note-${activeNoteId}`) : focusedViewId === v.id;
+    const isOpen = openViewIds.includes(v.id);
+    const isFocused = focusedViewId === v.id;
 
     const item = document.createElement('div');
     item.className = `aside-section-item ${isOpen ? 'is-open' : ''} ${isFocused ? 'is-focused' : ''}`;
@@ -281,10 +286,6 @@ export function renderAsideViewList() {
 }
 
 // ── Sub-painel do #mAside (Explorador de Notas vs Lista de Views) ────────────
-// O #mAside funciona como um submenu dos itens do #mNav: "Notas" mostra o
-// Explorador de Notas real do QuickDock (pastas/abas, montado por
-// initDesktopNotesAsideDrawer em notes-tabs.js); qualquer outra view mostra a
-// lista genérica de views abertas/disponíveis (#asideSectionList).
 export function setAsideMode(mode) {
   const asideEl = document.getElementById('mAside');
   if (!asideEl) return;
@@ -293,195 +294,66 @@ export function setAsideMode(mode) {
   asideEl.classList.toggle('mode-views', !isNotes);
 }
 
-// ── Notas como Views Dinâmicas do Mosaico ─────────────────────────────────────
-// Cada nota aberta (openTabIds em notes-tabs.js) é sua própria view no
-// mosaico, fechável/focável/reordenável como Bases/Espaço/etc — não uma view
-// "notes" única genérica. O editor de blocos (note.js) é um singleton: só a
-// nota ATIVA (activeId) realmente carrega o editor dentro de .note-section;
-// as demais aparecem como tiles placeholder leves (buildNotePlaceholderSection)
-// até serem clicadas, quando então viram a nota ativa de verdade.
-function updateNoteSectionHeader(sectionEl, meta) {
-  const title = (meta?.title || '').trim() || 'Sem título';
-  const icon = meta?.icon || 'description';
-  const iconEl = sectionEl.querySelector(':scope > .section-header .section-icon .material-symbols-rounded');
-  const titleEl = sectionEl.querySelector(':scope > .section-header .section-title');
-  const closeBtn = sectionEl.querySelector(':scope > .section-header .section-close');
-  if (iconEl) iconEl.textContent = icon;
-  if (titleEl) titleEl.textContent = title;
-  if (closeBtn) closeBtn.setAttribute('aria-label', `Fechar ${title}`);
+// ── Atualização do cabeçalho da seção de Notas ──────────────────────────────
+export function updateNoteSectionHeader() {
+  const noteSectionEl = document.getElementById('section-note') || document.querySelector('.note-section');
+  if (!noteSectionEl) return;
+  noteSectionEl.dataset.id = 'notes';
+
+  const titleEl = document.getElementById('note-header-title');
+  const noteTitle = (titleEl?.textContent || '').trim() || 'Notas';
+  const secTitleEl = noteSectionEl.querySelector(':scope > .section-header .section-title');
+  if (secTitleEl) secTitleEl.textContent = noteTitle;
 }
 
-function buildNotePlaceholderSection(id, meta) {
-  const title = (meta?.title || '').trim() || 'Sem título';
-  const icon = meta?.icon || 'description';
-  const sec = document.createElement('section');
-  sec.className = 'main-section note-placeholder-section';
-  sec.dataset.id = `note-${id}`;
-  sec.tabIndex = 0;
-  sec.innerHTML = `
-    <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
-      <div class="section-header-left">
-        <span class="section-icon"><span class="material-symbols-rounded">${escapeHtml(icon)}</span></span>
-        <span class="section-title">${escapeHtml(title)}</span>
-        <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
-      </div>
-      <div class="section-header-actions">
-        <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
-        <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
-        <button class="section-close" type="button" aria-label="Fechar ${escapeHtml(title)}" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
-      </div>
-    </header>
-    <div class="note-placeholder-body">
-      <span class="material-symbols-rounded note-placeholder-icon">${escapeHtml(icon)}</span>
-      <p>${escapeHtml(title)}</p>
-      <button type="button" class="note-placeholder-focus-btn">Clique para focar e editar</button>
-    </div>
-  `;
-  sec.querySelector('.note-placeholder-body').addEventListener('click', () => {
-    document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id } }));
-  });
-  bindSectionInteractions(sec);
-  return sec;
-}
-
-function syncNoteSectionDOM(noteIds, activeId, notesById) {
-  const mainEl = document.getElementById('mMain');
-  const noteSectionEl = document.querySelector('.note-section');
-  if (!mainEl || !noteSectionEl) return;
-
-  // Remove placeholders de notas que fecharam de vez
-  mainEl.querySelectorAll('.note-placeholder-section').forEach(sec => {
-    const id = Number((sec.dataset.id || '').slice(5));
-    if (!noteIds.includes(id)) sec.remove();
-  });
-
-  if (activeId != null) {
-    noteSectionEl.dataset.id = `note-${activeId}`;
-    noteSectionEl.hidden = false;
-    updateNoteSectionHeader(noteSectionEl, notesById.get(activeId));
-    // Se a nota ativa tinha um placeholder (era uma view em 2º plano até
-    // agora), remove — .note-section passa a representá-la de verdade.
-    mainEl.querySelector(`.note-placeholder-section[data-id="note-${activeId}"]`)?.remove();
-  } else {
-    noteSectionEl.dataset.id = 'notes';
-  }
-
-  // Garante uma tile placeholder pra cada nota aberta que não é a ativa
-  for (const id of noteIds) {
-    if (id === activeId) continue;
-    if (mainEl.querySelector(`.note-placeholder-section[data-id="note-${id}"]`)) continue;
-    mainEl.appendChild(buildNotePlaceholderSection(id, notesById.get(id)));
-  }
-}
-
-function syncNoteViews(snapshot) {
-  const { openIds = [], activeId = null, notes = [] } = snapshot || {};
-  const wasActiveViewId = activeNoteId != null ? `note-${activeNoteId}` : null;
-  openNoteIds = openIds;
-  activeNoteId = activeId;
-
-  const notesById = new Map(notes.map(n => [n.id, n]));
-  const desiredNoteViewIds = openIds.map(id => `note-${id}`);
-
-  // openViewIds guarda tanto ids fixos (bases/board/...) quanto note-<id>;
-  // reconcilia só a parte de notas, preservando a ordem/posição das demais.
-  openViewIds = openViewIds.filter(id => id !== 'notes' && (!id.startsWith('note-') || desiredNoteViewIds.includes(id)));
-  for (const vid of desiredNoteViewIds) {
-    if (!openViewIds.includes(vid)) openViewIds.push(vid);
-  }
-  try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
-
-  syncNoteSectionDOM(openIds, activeId, notesById);
-  reorderMainSections();
-
-  const activeViewId = activeId != null ? `note-${activeId}` : null;
-  if (activeViewId && activeViewId !== wasActiveViewId) {
-    // A nota ativa mudou (ou é a primeira sincronização) — o foco visual
-    // acompanha, igual a clicar em qualquer outra view pra focá-la.
-    focusedViewId = activeViewId;
-    setAsideMode('notes');
-  } else if (focusedViewId && !openViewIds.includes(focusedViewId)) {
-    focusedViewId = openViewIds[openViewIds.length - 1] || null;
-  }
-
-  const navEl = document.getElementById('mNav');
-  if (navEl) {
-    const notesNavActive = focusedViewId === activeViewId || (focusedViewId || '').startsWith('note-');
-    navEl.querySelectorAll('.nav-item').forEach(item => {
-      item.classList.toggle('is-active', item.dataset.navView === 'notes' ? notesNavActive : item.dataset.navView === focusedViewId);
-    });
-  }
-
-  applyViewVisibility();
-  renderAsideViewList();
-  setupSectionDividers();
-  updateSectionMoveButtons();
-}
-
-// Só atualiza o foco visual (tile "Em foco") de uma view de nota já ativa —
-// usado quando a nota pedida já é a activeNoteId, então não há troca de
-// editor pra esperar (o round-trip por quickdock:activate-note não dispara
-// nada nesse caso, já que activeId não muda).
-function focusNoteViewId(viewId) {
+export function focusNoteViewId(viewId) {
   setAsideMode('notes');
-  focusedViewId = viewId;
-  applyViewVisibility();
-  updateSectionMoveButtons();
-  renderAsideViewList();
-  const navEl = document.getElementById('mNav');
-  if (navEl) {
-    navEl.querySelectorAll('.nav-item').forEach(item => {
-      item.classList.toggle('is-active', item.dataset.navView === 'notes');
-    });
-  }
+  openOrFocusView(viewId);
 }
+
+export function syncNoteViews(snapshot = {}) {
+  updateNoteSectionHeader();
+}
+
+export function syncNoteSectionDOM() {}
+
+export function buildNotePlaceholderSection() {}
 
 // ── Gestão de Views Abertas e Foco ────────────────────────────────────────────
 export function openOrFocusView(viewId) {
-  if (viewId.startsWith('note-')) {
+  let targetViewId = viewId;
+  let targetNoteId = null;
+
+  if (viewId && viewId.startsWith('note-')) {
     setAsideMode('notes');
-    // Notas são views dinâmicas (uma por nota aberta) — focar uma delas
-    // significa ativá-la de verdade (troca o editor singleton), então o
-    // caminho correto é pedir a ativação e deixar quickdock:notes-open-tabs-
-    // changed (via syncNoteViews) terminar o trabalho de foco/visibilidade.
-    // Exceção: se já é a nota ativa, só falta focar a tile visualmente — a
-    // ativação não dispararia nada porque activeId não muda.
-    const id = Number(viewId.slice(5));
-    if (id === activeNoteId) {
-      focusNoteViewId(viewId);
-      return;
-    }
-    document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id } }));
-    return;
+    targetViewId = 'notes';
+    targetNoteId = Number(viewId.slice(5));
+    document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: targetNoteId } }));
   }
 
-  if (viewId === 'notes') {
+  if (targetViewId === 'notes') {
     setAsideMode('notes');
-    // "Notas" no #mNav/#mMenu não é uma view fixa própria: foca a nota ativa
-    // (ou a última aberta), garantindo que a aside mostre o explorador de notas.
-    if (activeNoteId != null) {
-      openOrFocusView('note-' + activeNoteId);
-    } else if (openNoteIds.length > 0) {
-      openOrFocusView('note-' + openNoteIds[openNoteIds.length - 1]);
+    if (targetNoteId != null) {
+      document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: targetNoteId } }));
     }
-    return;
   }
 
-  if (!SHELL_VIEWS.some(v => v.id === viewId)) return;
+  if (!SHELL_VIEWS.some(v => v.id === targetViewId)) return;
 
-  if (!openViewIds.includes(viewId)) {
-    openViewIds.push(viewId);
+  if (!openViewIds.includes(targetViewId)) {
+    openViewIds.push(targetViewId);
     try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
   }
-  focusedViewId = viewId;
+  focusedViewId = targetViewId;
 
   const navEl = document.getElementById('mNav');
   if (navEl) {
     navEl.querySelectorAll('.nav-item').forEach(item => {
-      item.classList.toggle('is-active', item.dataset.navView === viewId);
+      item.classList.toggle('is-active', item.dataset.navView === targetViewId);
     });
   }
 
+  reorderMainSections();
   applyViewVisibility();
   renderAsideViewList();
   setupSectionDividers();
@@ -490,28 +362,25 @@ export function openOrFocusView(viewId) {
   // Atualiza rodapé
   const footerLabel = document.getElementById('footer-active-view-name');
   if (footerLabel) {
-    const viewMeta = SHELL_VIEWS.find(v => v.id === viewId);
-    footerLabel.textContent = viewMeta ? viewMeta.title : viewId;
+    const viewMeta = SHELL_VIEWS.find(v => v.id === targetViewId);
+    footerLabel.textContent = viewMeta ? viewMeta.title : targetViewId;
   }
 }
 
 export function closeView(viewId) {
-  if (viewId.startsWith('note-')) {
-    // Fechar a view de uma nota é fechar a aba de verdade em notes-tabs.js —
-    // closeTab() decide o que ativar em seguida (ou nada) e dispara
-    // quickdock:notes-open-tabs-changed, que resincroniza as tiles.
-    closeTab(Number(viewId.slice(5)));
-    return;
+  let targetId = viewId;
+  if (viewId && viewId.startsWith('note-')) {
+    if (typeof closeTab === 'function') closeTab(Number(viewId.slice(5)));
+    targetId = 'notes';
   }
 
-  openViewIds = openViewIds.filter(id => id !== viewId);
+  openViewIds = openViewIds.filter(id => id !== targetId);
   try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
 
-  // Avisa os módulos de desligamento de recursos (ex: parar simulação física do grafo)
-  const normPanel = (viewId === 'graph') ? 'grafo' : viewId;
+  const normPanel = (targetId === 'graph') ? 'grafo' : targetId;
   document.dispatchEvent(new CustomEvent('quickdock:panel-closed', { detail: { panel: normPanel } }));
 
-  if (focusedViewId === viewId) {
+  if (focusedViewId === targetId) {
     focusedViewId = openViewIds[openViewIds.length - 1] || null;
   }
   applyViewVisibility();
@@ -520,20 +389,21 @@ export function closeView(viewId) {
   updateSectionMoveButtons();
 }
 
-// Reordena os elementos .main-section dentro de #mMain pra bater com a ordem
-// atual de openViewIds — compartilhado por moveView() e por syncNoteViews()
-// (quando uma tile de nota some/aparece, as demais precisam se reacomodar).
 function reorderMainSections() {
   const mainEl = document.getElementById('mMain');
   if (!mainEl) return;
   for (const id of openViewIds) {
-    const sec = mainEl.querySelector(`.main-section[data-id="${id}"]`);
+    const sec = mainEl.querySelector(`:scope > [data-id="${id}"]`);
     if (sec) mainEl.appendChild(sec);
   }
 }
 
 export function moveView(viewId, direction) {
-  const curIdx = openViewIds.indexOf(viewId);
+  let targetId = viewId;
+  if (viewId && viewId.startsWith('note-')) {
+    targetId = 'notes';
+  }
+  const curIdx = openViewIds.indexOf(targetId);
   if (curIdx === -1) return;
   const newIdx = curIdx + direction;
   if (newIdx < 0 || newIdx >= openViewIds.length) return;
@@ -554,7 +424,7 @@ function updateSectionMoveButtons() {
   if (!mainEl) return;
 
   openViewIds.forEach((id, index) => {
-    const sec = mainEl.querySelector(`.main-section[data-id="${id}"]`);
+    const sec = mainEl.querySelector(`:scope > [data-id="${id}"]`);
     if (!sec) return;
 
     const isFirst = index === 0;
@@ -677,6 +547,7 @@ function setupSectionInteractions() {
 
 function applyViewVisibility() {
   const viewMap = {
+    notes: document.getElementById('section-note') || document.querySelector('.note-section'),
     bases: document.querySelector('.bases-view') || document.getElementById('section-bases'),
     board: document.querySelector('.board-view') || document.getElementById('section-board'),
     graph: document.querySelector('.graph-view') || document.getElementById('section-graph'),
@@ -689,39 +560,20 @@ function applyViewVisibility() {
     if (!el) continue;
     const isSectionOpen = openViewIds.includes(id);
 
-    if (isDesktopMode()) {
-      el.hidden = !isSectionOpen;
-      if (id === 'docs') el.classList.toggle('is-collapsed', !isSectionOpen);
+    el.hidden = !isSectionOpen;
+    if (id === 'docs') el.classList.toggle('is-collapsed', !isSectionOpen);
 
-      const sectionWrap = el.closest('.main-section') || el;
-      if (sectionWrap && sectionWrap.classList.contains('main-section')) {
-        sectionWrap.style.display = isSectionOpen ? 'flex' : 'none';
-        sectionWrap.classList.toggle('is-focused', focusedViewId === id);
-      }
-    }
+    el.style.display = isSectionOpen ? 'flex' : 'none';
+    el.classList.toggle('is-focused', focusedViewId === id);
   }
 
-  // Tiles de nota (a .note-section ativa + placeholders das demais abertas)
-  // só existem no DOM enquanto abertas — sempre visíveis quando presentes,
-  // só o foco visual varia.
-  if (isDesktopMode()) {
-    const noteSectionEl = document.querySelector('.note-section');
-    if (noteSectionEl) {
-      const hasActiveNote = activeNoteId != null;
-      noteSectionEl.hidden = !hasActiveNote;
-      noteSectionEl.style.display = hasActiveNote ? 'flex' : 'none';
-      noteSectionEl.classList.toggle('is-focused', hasActiveNote && focusedViewId === noteSectionEl.dataset.id);
-    }
-    document.querySelectorAll('.note-placeholder-section').forEach(sec => {
-      sec.hidden = false;
-      sec.style.display = 'flex';
-      sec.classList.toggle('is-focused', focusedViewId === sec.dataset.id);
-    });
+  // Remove qualquer placeholder residual de nota caso exista
+  const mainEl = document.getElementById('mMain');
+  if (mainEl) {
+    mainEl.querySelectorAll('.note-placeholder-section').forEach(sec => sec.remove());
   }
 
-  // Notifica os módulos correspondentes via evento de atualização nativo em document
   triggerOpenViewsRefresh();
-
   updateEmptyState();
 }
 
@@ -772,9 +624,9 @@ if (typeof window !== 'undefined') {
 // ── Estado Vazio (nenhuma view aberta) — igual ao design-pattern original ────
 function updateEmptyState() {
   const mainEl = document.getElementById('mMain');
-  if (!mainEl || !isDesktopMode()) return;
+  if (!mainEl) return;
 
-  const hasAnythingOpen = openViewIds.length > 0 || activeNoteId != null;
+  const hasAnythingOpen = openViewIds.length > 0;
   let emptyEl = mainEl.querySelector('.empty-state');
 
   if (hasAnythingOpen) {
@@ -795,6 +647,7 @@ function updateEmptyState() {
   `;
   emptyEl.querySelector('#btnOpenDefault')?.addEventListener('click', () => {
     document.getElementById('btn-new-note')?.click();
+    openOrFocusView('notes');
   });
   mainEl.appendChild(emptyEl);
 }
@@ -807,7 +660,12 @@ function setupSectionDividers() {
   // Remove divisórias anteriores
   mainEl.querySelectorAll('.section-divider').forEach(d => d.remove());
 
-  const visibleSections = [...mainEl.querySelectorAll('.main-section')].filter(s => s.style.display !== 'none' && !s.hidden);
+  // Apenas as seções que estão REALMENTE abertas em openViewIds
+  // e presentes como filhas diretas visíveis de #mMain
+  const visibleSections = openViewIds
+    .map(id => mainEl.querySelector(`:scope > [data-id="${id}"]`))
+    .filter(sec => sec && !sec.hidden && sec.style.display !== 'none' && !sec.classList.contains('is-collapsed'));
+
   if (visibleSections.length <= 1) return;
 
   for (let i = 0; i < visibleSections.length - 1; i++) {
@@ -819,41 +677,39 @@ function setupSectionDividers() {
     divider.title = 'Arraste para redimensionar';
     divider.innerHTML = `<span class="indicator-dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span>`;
 
-    let isDragging = false;
-    let startPos = 0;
-    let startFlexA = 1;
-    let startFlexB = 1;
-
     divider.addEventListener('mousedown', (e) => {
-      isDragging = true;
       const isSide = layoutMode === 'side-by-side';
-      startPos = isSide ? e.clientX : e.clientY;
-      startFlexA = parseFloat(secA.style.flexGrow) || 1;
-      startFlexB = parseFloat(secB.style.flexGrow) || 1;
+      const startPos = isSide ? e.clientX : e.clientY;
+      const rectA = secA.getBoundingClientRect();
+      const rectB = secB.getBoundingClientRect();
+      const startDimA = isSide ? rectA.width : rectA.height;
+      const startDimB = isSide ? rectB.width : rectB.height;
+      const totalDim = startDimA + startDimB;
 
       document.body.classList.add(isSide ? 'is-resizing-col' : 'is-resizing-row');
       e.preventDefault();
-    });
 
-    window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const isSide = layoutMode === 'side-by-side';
-      const currentPos = isSide ? e.clientX : e.clientY;
-      const delta = (currentPos - startPos) * 0.005;
+      const onMouseMove = (ev) => {
+        const currentPos = isSide ? ev.clientX : ev.clientY;
+        const delta = currentPos - startPos;
+        const minDim = 120;
+        const newDimA = Math.max(minDim, Math.min(totalDim - minDim, startDimA + delta));
+        const newDimB = totalDim - newDimA;
 
-      const newFlexA = Math.max(0.2, startFlexA + delta);
-      const newFlexB = Math.max(0.2, startFlexB - delta);
+        secA.style.setProperty('flex', `${newDimA} ${newDimA} 0px`, 'important');
+        secB.style.setProperty('flex', `${newDimB} ${newDimB} 0px`, 'important');
+      };
 
-      secA.style.setProperty('flex-grow', String(newFlexA), 'important');
-      secB.style.setProperty('flex-grow', String(newFlexB), 'important');
-    });
+      const onMouseUp = () => {
+        document.body.classList.remove('is-resizing-col', 'is-resizing-row');
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        window.dispatchEvent(new CustomEvent('resize'));
+        triggerOpenViewsRefresh();
+      };
 
-    window.addEventListener('mouseup', () => {
-      if (!isDragging) return;
-      isDragging = false;
-      document.body.classList.remove('is-resizing-col', 'is-resizing-row');
-      window.dispatchEvent(new CustomEvent('resize'));
-      triggerOpenViewsRefresh();
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
     });
 
     secA.after(divider);
@@ -970,15 +826,13 @@ async function renderOmnibarResults(query) {
     { title: 'Alternar Layout (Lado a Lado / Empilhado)', desc: 'Alt + L', action: () => toggleLayout() },
     { title: 'Nova Nota', desc: 'Criar uma nova página de notas', action: () => document.getElementById('btn-new-note')?.click() },
     { title: 'Abrir Todas as Views', desc: 'Espalhar todas as views no workspace', action: () => {
-        const noteIds = openViewIds.filter(id => id.startsWith('note-'));
-        openViewIds = [...noteIds, ...SHELL_VIEWS.filter(v => v.id !== 'notes').map(v => v.id)];
+        openViewIds = SHELL_VIEWS.map(v => v.id);
         applyViewVisibility();
         renderAsideViewList();
         setupSectionDividers();
         updateSectionMoveButtons();
       } },
     { title: 'Fechar Todas as Views', desc: 'Mostrar o estado vazio (nenhuma view aberta)', action: async () => {
-        for (const id of [...openNoteIds]) await closeTab(id);
         openViewIds = [];
         focusedViewId = null;
         applyViewVisibility();
@@ -1078,6 +932,7 @@ async function renderOmnibarResults(query) {
               title: note.title || 'Sem título',
               desc: note.pasta ? `Pasta: ${note.pasta}` : 'Nota',
               action: () => {
+                openOrFocusView('notes');
                 document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
               }
             };
