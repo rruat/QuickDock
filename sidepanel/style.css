@@ -9904,43 +9904,43 @@ html.no-note-open .note-section {
   justify-self: start;
 }
 
-#mLogo {
-  display: grid;
-  place-items: center;
-  background-color: var(--color-text-primary);
-  color: #ffffff;
-  width: 24px;
-  height: 24px;
-  border-radius: 0.5rem;
+#mLogo,
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: transparent;
+  color: var(--color-cyan, var(--accent, #3b82f6));
   cursor: pointer;
+  user-select: none;
+  padding: 4px 6px;
+  border-radius: 0.5rem;
+  transition: opacity 120ms ease;
+}
+
+#mLogo:hover,
+.header-brand:hover {
+  opacity: 0.85;
+}
+
+.header-brand-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+.header-brand-title {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+  color: var(--color-text-primary, var(--text, #0f172a));
+  line-height: 1;
 }
 
 #mMenu {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-#mMenu li {
-  list-style: none;
-  padding-inline: 0.5rem;
-  background-color: transparent;
-  color: var(--color-text-secondary);
-  height: 24px;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-size: 0.82rem;
-  transition: background-color 120ms ease, color 120ms ease;
-}
-
-#mMenu li:hover {
-  background-color: var(--color-outline);
-  color: var(--color-text-primary);
+  display: none;
 }
 
 .header-center {
