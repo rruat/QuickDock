@@ -571,6 +571,13 @@ function applyViewVisibility() {
   const mainEl = document.getElementById('mMain');
   if (mainEl) {
     mainEl.querySelectorAll('.note-placeholder-section').forEach(sec => sec.remove());
+    if (openViewIds.length <= 1) {
+      mainEl.querySelectorAll('.main-section').forEach(s => {
+        s.style.removeProperty('flex');
+        s.style.removeProperty('flex-grow');
+        s.style.removeProperty('width');
+      });
+    }
   }
 
   triggerOpenViewsRefresh();
@@ -666,7 +673,14 @@ function setupSectionDividers() {
     .map(id => mainEl.querySelector(`:scope > [data-id="${id}"]`))
     .filter(sec => sec && !sec.hidden && sec.style.display !== 'none' && !sec.classList.contains('is-collapsed'));
 
-  if (visibleSections.length <= 1) return;
+  if (visibleSections.length <= 1) {
+    visibleSections.forEach(s => {
+      s.style.removeProperty('flex');
+      s.style.removeProperty('flex-grow');
+      s.style.removeProperty('width');
+    });
+    return;
+  }
 
   for (let i = 0; i < visibleSections.length - 1; i++) {
     const secA = visibleSections[i];

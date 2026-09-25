@@ -5450,11 +5450,11 @@ html[data-platform="mobile"] #btn-nav-board {
      existe uma classe view-<nome> em <html> pra visão que deve aparecer — o
      sistema de painéis novo nunca mais adiciona essas classes, então sem o
      !important aqui essa regra antiga vencia e escondia tudo de novo. */
-  html[data-platform="desktop"] .board-view:not([hidden]),
-  html[data-platform="desktop"] .graph-view:not([hidden]),
-  html[data-platform="desktop"] .calendar-view:not([hidden]),
-  html[data-platform="desktop"] .docs-section:not([hidden]):not(.is-collapsed),
-  html[data-platform="desktop"] .bases-view:not([hidden]) {
+  html[data-platform="desktop"] #app > .board-view:not([hidden]),
+  html[data-platform="desktop"] #app > .graph-view:not([hidden]),
+  html[data-platform="desktop"] #app > .calendar-view:not([hidden]),
+  html[data-platform="desktop"] #app > .docs-section:not([hidden]):not(.is-collapsed),
+  html[data-platform="desktop"] #app > .bases-view:not([hidden]) {
     flex: 0 1 var(--panel-width, 380px) !important;
     width: var(--panel-width, 380px) !important;
     min-width: 260px;
@@ -11079,12 +11079,12 @@ html[data-platform="desktop"] #mMain .bases-view,
 html[data-platform="desktop"] #mMain .docs-section,
 html[data-platform="desktop"] #mMain .note-section,
 html[data-platform="desktop"] #mMain .templates-gallery-view {
-  flex: 1 1 0px;
+  flex: 1 1 0px !important;
   width: auto !important;
   max-width: none !important;
   height: 100% !important;
   max-height: 100% !important;
-  border-left: 1px solid var(--color-cyan) !important;
+  border-left: none !important;
   box-sizing: border-box !important;
 }
 
