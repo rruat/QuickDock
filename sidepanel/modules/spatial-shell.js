@@ -29,6 +29,7 @@ let focusedViewId = null;
 let layoutMode = 'side-by-side'; // 'side-by-side' ou 'stacked'
 let searchActiveIdx = -1;
 let searchCandidates = [];
+let draggedViewId = null; // reordenação de views por arrastar o .section-header
 
 // Cada nota aberta é sua própria view no mosaico (data-id="note-<id>"), em vez
 // de uma única view "notes" genérica — espelha openTabIds/activeId de
@@ -584,6 +585,55 @@ function bindSectionInteractions(sec) {
     focusedViewId = id;
     updateSectionMoveButtons();
     renderAsideViewList();
+  });
+
+  // Arrastar o cabeçalho reordena as views no mosaico (o próprio HTML já
+  // avisa "Arraste para reordenar esta view" — faltava a implementação).
+  const headerEl = sec.querySelector(':scope > .section-header');
+  headerEl?.addEventListener('dragstart', (e) => {
+    const id = sec.dataset.id;
+    if (!id) return;
+    draggedViewId = id;
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    sec.style.opacity = '0.5';
+  });
+
+  headerEl?.addEventListener('dragend', () => {
+    draggedViewId = null;
+    sec.style.opacity = '';
+    document.querySelectorAll('.main-section.is-drag-over').forEach(el => el.classList.remove('is-drag-over'));
+  });
+
+  sec.addEventListener('dragover', (e) => {
+    const id = sec.dataset.id;
+    if (!draggedViewId || !id || draggedViewId === id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    sec.classList.add('is-drag-over');
+  });
+
+  sec.addEventListener('dragleave', () => {
+    sec.classList.remove('is-drag-over');
+  });
+
+  sec.addEventListener('drop', (e) => {
+    e.preventDefault();
+    sec.classList.remove('is-drag-over');
+    const targetId = sec.dataset.id;
+    if (!draggedViewId || !targetId || draggedViewId === targetId) return;
+
+    const fromIndex = openViewIds.indexOf(draggedViewId);
+    const toIndex = openViewIds.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    openViewIds.splice(fromIndex, 1);
+    openViewIds.splice(toIndex, 0, draggedViewId);
+    try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
+
+    reorderMainSections();
+    setupSectionDividers();
+    updateSectionMoveButtons();
   });
 
   sec.querySelector('.section-close')?.addEventListener('click', (e) => {

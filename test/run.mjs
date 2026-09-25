@@ -4502,8 +4502,10 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes("view-bases:not(.view-fullscreen) .bases-view:not([hidden])") &&
     styleCssSource.includes('html:not(.view-bases) .bases-view') &&
     styleCssSource.includes('body.no-note-open .bases-view') &&
-    styleCssSource.includes('html[data-platform="desktop"] .bases-view { order: 60; }') &&
     styleCssSource.includes('#btn-bases-toggle-height'));
+  ok('style.css · NÃO fixa mais order (20/30/40/50/60) pras views do mosaico — quebrava a reordenação por arrastar/mover, que segue o DOM',
+    !styleCssSource.includes('html[data-platform="desktop"] .board-view { order: 20; }') &&
+    !styleCssSource.includes('html[data-platform="desktop"] .bases-view { order: 60; }'));
 
   // 31.9: sw.js — módulo novo no pré-cache e versão do cache trocada
   ok('sw.js · lista bases-view.js e os módulos de sidepanel/modules/bases/ no pré-cache, com CACHE_NAME trocado',
@@ -4725,6 +4727,26 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     spatialShellSource.includes("title: 'Fechar Todas as Views'") &&
     spatialShellSource.includes('openViewIds = [];') &&
     spatialShellSource.includes('focusedViewId = null;'));
+}
+
+// ── 37. Spatial Shell: drag-and-drop de verdade para reordenar views ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const spatialShellSource = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+
+  ok('spatial-shell.js · implementa dragstart/dragover/drop de verdade no .section-header (o HTML já dizia "Arraste para reordenar" sem nenhum código por trás)',
+    spatialShellSource.includes("headerEl?.addEventListener('dragstart'") &&
+    spatialShellSource.includes("sec.addEventListener('dragover'") &&
+    spatialShellSource.includes("sec.addEventListener('drop'") &&
+    spatialShellSource.includes('draggedViewId'));
+
+  ok('style.css · define destaque visual .is-drag-over pra tile alvo durante o arraste',
+    styleCssSource.includes('.main-section.is-drag-over'));
+
+  ok('style.css · .note-section não tem mais order fixo no desktop (nem via !important na regra "Palco central", nem via override solto) — travava a reordenação por arrastar/mover pra qualquer view ao lado de uma nota',
+    !styleCssSource.includes('order: 2 !important;\n    flex: 1 1 auto;\n    width: 0;') &&
+    styleCssSource.includes('html[data-platform="desktop"] .note-section {\n    order: 0;\n  }'));
 }
 
 if (falhas.length) {

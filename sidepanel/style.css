@@ -5369,10 +5369,16 @@ html[data-platform="mobile"] #btn-nav-board {
      html[data-platform="extension"] .view-height-btn,
   */
 
-  /* 2. Palco central (Editor e Telas completas: Galeria, Grafo e Quadro) à DIREITA */
+  /* 2. Palco central (Editor e Telas completas: Galeria, Grafo e Quadro) à DIREITA
+     `order: 2 !important` pertencia ao layout antigo de 3 colunas fixas
+     (aside/nota/visão auxiliar) — com !important, vencia até regra MAIS
+     específica (html[data-platform="desktop"] .note-section sozinho) e
+     travava a nota sempre na mesma posição visual, ignorando a ordem real
+     no DOM que o mosaico (spatial-shell.js) usa pra abrir/arrastar/mover
+     views. Sem order fixo aqui, .note-section volta a ser só mais uma tile
+     do mosaico, na posição que a ordem de abertura/arraste decidir. */
   html[data-platform="desktop"] .note-section,
   html[data-platform="desktop"] .templates-gallery-view {
-    order: 2 !important;
     flex: 1 1 auto;
     width: 0;
     min-width: 320px;
@@ -5416,19 +5422,27 @@ html[data-platform="mobile"] #btn-nav-board {
     border-left: none !important;
   }
 
-  /* ===== PAINÉIS SIMULTÂNEOS E REDIMENSIONÁVEIS =====
-     Quadro/Grafo/Calendário/Documentos deixaram de ser "a única visão
-     auxiliar" (que substituía qualquer outra) e viraram colunas
-     independentes, cada uma ligada/desligada e redimensionada por conta
-     própria (ver sidepanel/modules/desktop-panels.js). A ordem entre elas é
-     fixa via `order` (não depende de qual foi aberta primeiro); a largura de
-     cada uma vem de --panel-width, uma custom property setada em JS e
-     arrastável pela alça .desktop-panel-handle correspondente. */
-  html[data-platform="desktop"] .board-view { order: 20; }
-  html[data-platform="desktop"] .graph-view { order: 30; }
-  html[data-platform="desktop"] .calendar-view { order: 40; }
-  html[data-platform="desktop"] .docs-section { order: 50; }
-  html[data-platform="desktop"] .bases-view { order: 60; }
+  /* A ordem fixa de Quadro/Grafo/Calendário/Documentos/Base por `order`
+     (20/30/40/50/60) pertencia ao sistema antigo de painéis simultâneos
+     (desktop-panels.js, já desativado no desktop). `order` em CSS sempre
+     vence a posição real no DOM num flex container — deixava a
+     reordenação por arrastar (spatial-shell.js, bindSectionInteractions) e
+     os botões mover-antes/mover-depois sem efeito visual nenhum pra
+     qualquer combinação de views fixas, mesmo movendo o elemento certo no
+     DOM. Sem `order` fixo, a visibilidade abaixo continua igual — só a
+     posição volta a seguir o DOM, que é quem o mosaico já controla. */
+
+  /* `.note-section { order: 2; }` (regra base, sem platform, perto do topo
+     do arquivo — "ESTRUTURA BASE PARA ASIDE E FLUXO") ainda é necessária no
+     mobile/extensão (onde #app continua flex de verdade). No desktop, a
+     regra "Palco central" (acima) não define mais `order` nenhum — mas sem
+     um override aqui, a regra base (sem platform, sempre carregada) volta a
+     valer e trava .note-section na posição 2 de novo. Maior especificidade
+     (atributo + classe) que a regra base (só classe) garante que esta
+     vença mesmo sem !important. */
+  html[data-platform="desktop"] .note-section {
+    order: 0;
+  }
 
   /* !important necessário: uma regra global antiga (~linha 3933,
      "html:not(.view-board) .board-view{display:none!important}" e as
@@ -10575,6 +10589,11 @@ html.no-note-open .note-section {
 .main-section.is-focused {
   border-color: #94a3b8;
   box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.45), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.main-section.is-drag-over {
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 12px var(--color-cyan);
 }
 
 .main-section.is-focused .section-header {
