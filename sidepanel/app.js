@@ -16,6 +16,7 @@ import { initCalendarView } from './modules/calendar-view.js';
 import { initBasesView } from './modules/bases-view.js';
 import { initDesktopPanels } from './modules/desktop-panels.js';
 import { initResponsiveHeaders } from './modules/responsive-header.js';
+import { initSpatialShell } from './modules/spatial-shell.js';
 
 // Aplica a identificação de plataforma (extension, mobile, desktop) imediatamente
 applyPlatform();
@@ -232,6 +233,17 @@ async function init() {
     // o conteúdo dos painéis que já estavam abertos numa sessão anterior.
     initDesktopPanels();
     initResponsiveHeaders();
+    initSpatialShell();
+
+    const btnHeaderTheme = document.getElementById('btn-header-theme');
+    if (btnHeaderTheme) {
+      btnHeaderTheme.addEventListener('click', () => toggleTheme());
+    }
+
+    const btnHeaderSync = document.getElementById('btn-header-sync');
+    if (btnHeaderSync) {
+      btnHeaderSync.addEventListener('click', () => syncController?.abrirPopover(btnHeaderSync));
+    }
 
     const btnNavTemplates = document.getElementById('btn-nav-templates');
     if (btnNavTemplates) {

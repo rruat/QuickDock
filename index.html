@@ -18,7 +18,7 @@
        então funciona offline depois disso (ver nota em sw.js). -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
   <link rel="stylesheet" href="sidepanel/style.css" />
   <!-- Motor do Quadro Infinito: mesma folha de estilo da aba dedicada
        (board/style.css) — tudo dela vive dentro de `.board-theme-scope`
@@ -33,7 +33,203 @@
 
   <div id="app">
 
-    <section class="note-section">
+    <header id="mHeader">
+      <div class="header-left">
+        <div id="mLogo" title="QuickDock"><span class="material-symbols-rounded">terminal</span></div>
+        <ul id="mMenu">
+          <li id="menu-notes" data-view="notes">Notas</li>
+          <li id="menu-bases" data-view="bases">Bases</li>
+          <li id="menu-board" data-view="board">Espaço</li>
+          <li id="menu-graph" data-view="graph">Constelações</li>
+          <li id="menu-calendar" data-view="calendar">Calendário</li>
+        </ul>
+      </div>
+
+      <div class="header-center">
+        <div id="smartSearchBar" class="smart-search-bar" role="search">
+          <span class="material-symbols-rounded search-icon">search</span>
+          <input type="text" id="smartSearchInput" class="smart-search-input" placeholder="Buscar notas, tags, comandos... (Ctrl + K)" autocomplete="off" spellcheck="false" />
+          <kbd class="search-shortcut-badge">Ctrl K</kbd>
+        </div>
+        <div id="searchDropdown" class="search-dropdown" style="display: none;">
+          <div id="searchResults" class="search-results"></div>
+          <div class="search-footer">
+            <span><kbd>Tab</kbd> Completar</span>
+            <span><kbd>↑</kbd><kbd>↓</kbd> Navegar</span>
+            <span><kbd>↵</kbd> Selecionar</span>
+            <span><kbd>Alt</kbd>+<kbd>L</kbd> Layout</span>
+            <span><kbd>Esc</kbd> Fechar</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button id="btn-header-theme" class="aside-btn" title="Alternar tema claro/escuro" type="button">
+          <span class="material-symbols-rounded">dark_mode</span>
+        </button>
+        <button id="btn-header-sync" class="aside-btn" title="Sincronização" type="button">
+          <span class="material-symbols-rounded">sync</span>
+        </button>
+      </div>
+    </header>
+
+    <nav id="mNav" aria-label="Barra de Atividades">
+      <div class="nav-logo" title="QuickDock"><span class="material-symbols-rounded">code_blocks</span></div>
+      <div class="nav-divider" aria-hidden="true"></div>
+      <ul>
+        <li id="navItemExplorer" class="nav-item is-active" data-nav-view="notes" title="Explorador de Notas">
+          <span class="material-symbols-rounded">folder_open</span>
+        </li>
+        <li class="nav-item" data-nav-view="bases" title="Bases de Dados">
+          <span class="material-symbols-rounded">table_rows</span>
+        </li>
+        <li class="nav-item" data-nav-view="board" title="Espaço Infinito (Quadro)">
+          <span class="material-symbols-rounded">space_dashboard</span>
+        </li>
+        <li class="nav-item" data-nav-view="graph" title="Constelações (Grafo)">
+          <span class="material-symbols-rounded">hub</span>
+        </li>
+        <li class="nav-item" data-nav-view="calendar" title="Calendário">
+          <span class="material-symbols-rounded">calendar_today</span>
+        </li>
+        <li class="nav-item" data-nav-view="templates" title="Galeria de Modelos">
+          <span class="material-symbols-rounded">auto_stories</span>
+        </li>
+      </ul>
+    </nav>
+
+    <div id="mNavDivider" aria-hidden="true"></div>
+
+    <aside id="mAside" aria-label="Painel Lateral de Visões e Notas">
+      <header class="aside-header">
+        <span class="aside-title">VIEWS</span>
+        <div class="aside-actions">
+          <button id="btnToggleLayout" class="aside-btn" title="Alternar layout (Empilhado / Lado a Lado)" type="button">
+            <span class="material-symbols-rounded">view_agenda</span>
+          </button>
+          <div class="aside-add-wrapper">
+            <button id="btnAddSection" class="aside-btn" title="Adicionar nova view" type="button">
+              <span class="material-symbols-rounded">add</span>
+            </button>
+            <div id="addViewMenu" class="add-view-dropdown" style="display: none;">
+              <div class="dropdown-header">Tipo de View</div>
+              <button class="add-view-opt" data-type="notes" type="button">
+                <span class="material-symbols-rounded opt-icon">description</span>
+                <div class="opt-info">
+                  <span class="opt-title">Notas</span>
+                  <span class="opt-desc">Editor de texto e sumário</span>
+                </div>
+              </button>
+              <button class="add-view-opt" data-type="bases" type="button">
+                <span class="material-symbols-rounded opt-icon">table_rows</span>
+                <div class="opt-info">
+                  <span class="opt-title">Bases</span>
+                  <span class="opt-desc">Tabela, Kanban, Galeria e Lista</span>
+                </div>
+              </button>
+              <button class="add-view-opt" data-type="board" type="button">
+                <span class="material-symbols-rounded opt-icon">space_dashboard</span>
+                <div class="opt-info">
+                  <span class="opt-title">Espaço Infinito</span>
+                  <span class="opt-desc">Quadro espacial com conexões</span>
+                </div>
+              </button>
+              <button class="add-view-opt" data-type="graph" type="button">
+                <span class="material-symbols-rounded opt-icon">hub</span>
+                <div class="opt-info">
+                  <span class="opt-title">Constelações</span>
+                  <span class="opt-desc">Grafo de notas e backlinks</span>
+                </div>
+              </button>
+              <button class="add-view-opt" data-type="calendar" type="button">
+                <span class="material-symbols-rounded opt-icon">calendar_today</span>
+                <div class="opt-info">
+                  <span class="opt-title">Calendário</span>
+                  <span class="opt-desc">Visão temporal e diários</span>
+                </div>
+              </button>
+              <button class="add-view-opt" data-type="docs" type="button">
+                <span class="material-symbols-rounded opt-icon">attach_file</span>
+                <div class="opt-info">
+                  <span class="opt-title">Documentos</span>
+                  <span class="opt-desc">Anexos e arquivos da nota</span>
+                </div>
+              </button>
+              <button class="add-view-opt" data-type="templates" type="button">
+                <span class="material-symbols-rounded opt-icon">auto_stories</span>
+                <div class="opt-info">
+                  <span class="opt-title">Modelos</span>
+                  <span class="opt-desc">Galeria de modelos prontos</span>
+                </div>
+              </button>
+            </div>
+          </div>
+          <button id="btnCloseAsideMobile" class="aside-btn aside-close-mobile" title="Recolher painel" type="button">
+            <span class="material-symbols-rounded">expand_more</span>
+          </button>
+        </div>
+      </header>
+      <div id="asideSectionList" class="aside-section-list"></div>
+
+      <aside class="app-aside" id="app-aside">
+        <div class="notes-tabbar">
+          <div class="aside-brand" id="aside-brand">
+            <div class="aside-brand-lockup">
+              <svg class="aside-brand-icon" viewBox="0 0 512 512" width="20" height="20" aria-hidden="true">
+                <path d="M153.03 153.03 A150 150 0 1 1 358.97 358.97 A150 150 0 0 0 153.03 153.03 Z" fill="currentColor"/>
+                <path d="M153.03 153.03 A150 150 0 1 0 358.97 358.97 A150 150 0 0 1 153.03 153.03 Z" fill="currentColor"/>
+                <path d="M241.59 241.59 L476.35 431.09 L386.18 431.44 Z" fill="currentColor"/>
+              </svg>
+              <span class="aside-brand-title">QuickDock</span>
+            </div>
+          </div>
+          <button id="btn-notes-list" class="icon-btn aside-nav-btn" title="Todas as notas" aria-label="Todas as notas">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">menu</span>
+            <span class="aside-search-label">Todas as notas</span>
+          </button>
+          <button id="btn-nav-templates" class="icon-btn aside-nav-btn" title="Galeria de Modelos" aria-label="Galeria de Modelos">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">auto_stories</span>
+            <span class="aside-nav-label">Modelos</span>
+            <span id="nav-templates-count" class="aside-nav-badge">0</span>
+          </button>
+          <button id="btn-nav-graph" class="icon-btn aside-nav-btn" title="Constelações" aria-label="Constelações">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">hub</span>
+            <span class="aside-nav-label">Constelações</span>
+          </button>
+          <button id="btn-nav-board" class="icon-btn aside-nav-btn" title="Espaço Infinito (Aba dedicada)" aria-label="Espaço Infinito">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span>
+            <span class="aside-nav-label">Espaço</span>
+          </button>
+          <div id="notes-tabs" class="notes-tabs"></div>
+          <input type="file" id="note-import-input" accept=".md,.txt,text/markdown,text/plain" hidden />
+          <div class="aside-actions">
+            <button id="btn-new-note" class="icon-btn" title="Nova nota / Importar" aria-label="Nova nota ou importar">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+            </button>
+            <button id="btn-sync" class="icon-btn" title="Sincronização" aria-label="Sincronização">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">sync</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <span class="aside-indicator" title="Arraste para redimensionar"><span class="indicator-dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span></span>
+    </aside>
+
+    <main id="mMain">
+      <section class="note-section main-section is-focused" id="section-note" data-id="notes" tabindex="0">
+        <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+          <div class="section-header-left">
+            <span class="section-icon"><span class="material-symbols-rounded">description</span></span>
+            <span class="section-title">Notas</span>
+            <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+          </div>
+          <div class="section-header-actions">
+            <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+            <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+            <button class="section-close" type="button" aria-label="Fechar Notas" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+          </div>
+        </header>
       <!-- Barra de modo modelo: design refinado unificado ao cabeçalho moderno -->
       <div id="template-bar" class="template-bar" hidden>
         <div class="template-bar-left">
@@ -157,7 +353,19 @@
     </section>
 
     <!-- Galeria de Modelos (Visão em tela completa / cards) -->
-    <section class="templates-gallery-view" id="templates-gallery-view" hidden>
+    <section class="templates-gallery-view main-section" id="templates-gallery-view" data-id="templates" tabindex="0" hidden>
+      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+        <div class="section-header-left">
+          <span class="section-icon"><span class="material-symbols-rounded">auto_stories</span></span>
+          <span class="section-title">Modelos</span>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+        </div>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar Modelos" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+        </div>
+      </header>
       <header class="gallery-header">
         <div class="gallery-header-left">
           <button id="btn-gallery-back" class="icon-btn gallery-back-btn" title="Voltar para as notas" aria-label="Voltar para as notas">
@@ -227,7 +435,19 @@
     </section>
 
     <!-- Visão em Constelações (Grafo de Conexões) -->
-    <section class="graph-view" id="graph-view" hidden>
+    <section class="graph-view main-section" id="graph-view" data-id="graph" tabindex="0" hidden>
+      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+        <div class="section-header-left">
+          <span class="section-icon"><span class="material-symbols-rounded">hub</span></span>
+          <span class="section-title">Constelações</span>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+        </div>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar Constelações" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+        </div>
+      </header>
       <header class="graph-header">
         <div class="graph-header-left">
           <button id="btn-graph-back" class="icon-btn graph-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
@@ -359,7 +579,19 @@
     </section>
 
     <!-- Visão do Espaço Infinito (Canvas Espacial) -->
-    <section class="board-view board-theme-scope" id="board-view" hidden>
+    <section class="board-view board-theme-scope" id="board-view" data-id="board" tabindex="0" hidden>
+      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+        <div class="section-header-left">
+          <span class="section-icon"><span class="material-symbols-rounded">space_dashboard</span></span>
+          <span class="section-title">Espaço</span>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+        </div>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar Espaço" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+        </div>
+      </header>
       <header class="board-header">
         <div class="board-header-left">
           <button id="btn-board-back" class="icon-btn board-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
@@ -467,7 +699,19 @@
     </section>
 
     <!-- Visão do Calendário de Notas -->
-    <section class="calendar-view" id="calendar-view" hidden>
+    <section class="calendar-view main-section" id="calendar-view" data-id="calendar" tabindex="0" hidden>
+      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+        <div class="section-header-left">
+          <span class="section-icon"><span class="material-symbols-rounded">calendar_today</span></span>
+          <span class="section-title">Calendário</span>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+        </div>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar Calendário" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+        </div>
+      </header>
       <header class="calendar-header">
         <div class="calendar-header-left">
           <button id="btn-calendar-back" class="icon-btn calendar-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
@@ -529,7 +773,19 @@
     </section>
 
     <!-- Visão dedicada de Base (a mesma Base do bloco embutido, num painel/tela própria) -->
-    <section class="bases-view" id="bases-view" hidden>
+    <section class="bases-view main-section" id="bases-view" data-id="bases" tabindex="0" hidden>
+      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+        <div class="section-header-left">
+          <span class="section-icon"><span class="material-symbols-rounded">table_rows</span></span>
+          <span class="section-title">Bases</span>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+        </div>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar Bases" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+        </div>
+      </header>
       <header class="bases-header">
         <div class="bases-header-left">
           <button id="btn-bases-back" class="icon-btn bases-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
@@ -554,51 +810,19 @@
       <div class="bases-body" id="bases-body"></div>
     </section>
 
-    <div id="resize-handle" class="resize-handle" title="Arraste para redimensionar"></div>
-
-    <aside class="app-aside" id="app-aside">
-      <div class="notes-tabbar">
-        <div class="aside-brand" id="aside-brand">
-          <div class="aside-brand-lockup">
-            <svg class="aside-brand-icon" viewBox="0 0 512 512" width="20" height="20" aria-hidden="true">
-              <path d="M153.03 153.03 A150 150 0 1 1 358.97 358.97 A150 150 0 0 0 153.03 153.03 Z" fill="currentColor"/>
-              <path d="M153.03 153.03 A150 150 0 1 0 358.97 358.97 A150 150 0 0 1 153.03 153.03 Z" fill="currentColor"/>
-              <path d="M241.59 241.59 L476.35 431.09 L386.18 431.44 Z" fill="currentColor"/>
-            </svg>
-            <span class="aside-brand-title">QuickDock</span>
-          </div>
+    <section class="docs-section main-section" id="docs-section" data-id="docs" tabindex="0">
+      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+        <div class="section-header-left">
+          <span class="section-icon"><span class="material-symbols-rounded">attach_file</span></span>
+          <span class="section-title">Documentos</span>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
         </div>
-        <button id="btn-notes-list" class="icon-btn aside-nav-btn" title="Todas as notas" aria-label="Todas as notas">
-          <span class="qd-icon material-symbols-rounded" aria-hidden="true">menu</span>
-          <span class="aside-search-label">Todas as notas</span>
-        </button>
-        <button id="btn-nav-templates" class="icon-btn aside-nav-btn" title="Galeria de Modelos" aria-label="Galeria de Modelos">
-          <span class="qd-icon material-symbols-rounded" aria-hidden="true">auto_stories</span>
-          <span class="aside-nav-label">Modelos</span>
-          <span id="nav-templates-count" class="aside-nav-badge">0</span>
-        </button>
-        <button id="btn-nav-graph" class="icon-btn aside-nav-btn" title="Constelações" aria-label="Constelações">
-          <span class="qd-icon material-symbols-rounded" aria-hidden="true">hub</span>
-          <span class="aside-nav-label">Constelações</span>
-        </button>
-        <button id="btn-nav-board" class="icon-btn aside-nav-btn" title="Espaço Infinito (Aba dedicada)" aria-label="Espaço Infinito">
-          <span class="qd-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span>
-          <span class="aside-nav-label">Espaço</span>
-        </button>
-        <div id="notes-tabs" class="notes-tabs"></div>
-        <input type="file" id="note-import-input" accept=".md,.txt,text/markdown,text/plain" hidden />
-        <div class="aside-actions">
-          <button id="btn-new-note" class="icon-btn" title="Nova nota / Importar" aria-label="Nova nota ou importar">
-            <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
-          </button>
-          <button id="btn-sync" class="icon-btn" title="Sincronização" aria-label="Sincronização">
-            <span class="qd-icon material-symbols-rounded" aria-hidden="true">sync</span>
-          </button>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar Documentos" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
         </div>
-      </div>
-    </aside>
-
-    <section class="docs-section" id="docs-section">
+      </header>
       <div class="docs-header" id="docs-header">
         <div class="docs-header-left">
           <button id="btn-docs-toggle" class="icon-btn docs-toggle-btn" title="Recolher / expandir documentos" aria-label="Recolher ou expandir documentos">
@@ -649,6 +873,25 @@
         <div id="drop-hint" class="drop-hint">Arraste arquivos aqui, clique no botão de adicionar<br>ou cole uma imagem com Ctrl+V</div>
       </div>
     </section>
+
+    </main>
+
+    <footer id="mFooter">
+      <div class="footer-left">
+        <span class="footer-status-dot"></span>
+        <span id="footer-status-text" class="footer-status-text">QuickDock Spatial Shell</span>
+        <span class="footer-divider">|</span>
+        <span id="footer-active-view-name" class="footer-view-badge">Notas</span>
+      </div>
+      <div class="footer-right">
+        <span class="footer-shortcut"><kbd>Ctrl K</kbd> Omnibar</span>
+        <span class="footer-shortcut"><kbd>Alt L</kbd> Layout</span>
+        <span class="footer-shortcut"><kbd>Alt [ ]</kbd> Focar View</span>
+        <span class="footer-shortcut"><kbd>Alt W</kbd> Fechar View</span>
+      </div>
+    </footer>
+
+    <div id="resize-handle" class="resize-handle" title="Arraste para redimensionar"></div>
 
     <div id="inject-toast" class="inject-toast hidden">
       <span id="inject-toast-msg"></span>

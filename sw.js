@@ -72,6 +72,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/bases-list-view.js',
   'sidepanel/modules/bases/bases-calendar-view.js',
   'sidepanel/modules/bases/bases-cell-editors.js',
+  'sidepanel/modules/spatial-shell.js',
   'board/index.html',
   'board/style.css',
   'board/board.js',
