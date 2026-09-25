@@ -790,6 +790,26 @@ function renderTabs() {
     const badge = notesAsideDrawer.querySelector('.notes-aside-badge');
     if (badge) badge.textContent = String(notesMeta.length);
   }
+
+  // Notifica o Spatial Shell (spatial-shell.js) pra sincronizar uma tile por
+  // nota aberta no mosaico — cada nota vira sua própria view (design-pattern),
+  // não só uma aba. Ver também getOpenTabsSnapshot() pro estado inicial.
+  document.dispatchEvent(new CustomEvent('quickdock:notes-open-tabs-changed', {
+    detail: getOpenTabsSnapshot()
+  }));
+}
+
+// Estado atual de abas abertas, pro Spatial Shell montar as tiles de notas no
+// mosaico sem precisar duplicar o acesso a notesMeta/openTabIds (privados
+// deste módulo). Usado tanto no listener do evento acima quanto na leitura
+// inicial de spatial-shell.js (initSpatialShell roda depois de initNotesTabs,
+// então o primeiro evento já teria disparado antes do listener existir).
+export function getOpenTabsSnapshot() {
+  return {
+    openIds: [...openTabIds],
+    activeId,
+    notes: openTabIds.map(id => notesMeta.find(n => n.id === id)).filter(Boolean)
+  };
 }
 
 // A tira de abas rola só na horizontal — trocar de nota por um caminho que

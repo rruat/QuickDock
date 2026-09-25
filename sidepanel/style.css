@@ -10762,6 +10762,67 @@ html.no-note-open .note-section {
   color: var(--color-text-primary);
 }
 
+/* ── Tile de nota em segundo plano (não é a nota focada no momento) ───────
+   Cada nota aberta é uma view própria no mosaico (ver spatial-shell.js,
+   syncNoteSectionDOM) — só a nota focada carrega o editor de verdade (é um
+   singleton), as demais mostram este estado leve até serem clicadas. */
+.note-placeholder-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.note-placeholder-body:hover {
+  color: var(--color-text-primary);
+}
+
+.note-placeholder-icon {
+  font-size: 32px;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 0.75rem;
+  background-color: var(--color-outline);
+  color: inherit;
+}
+
+.note-placeholder-body p {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-placeholder-focus-btn {
+  border: 1px solid var(--color-outline);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.note-placeholder-body:hover .note-placeholder-focus-btn {
+  background-color: var(--color-outline);
+  border-color: var(--color-outline-focus);
+  color: var(--color-text-primary);
+}
+
 /* Divisórias dinâmicas entre seções (.section-divider com 3 pontos) */
 .section-divider {
   position: relative;

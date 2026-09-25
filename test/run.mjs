@@ -4652,6 +4652,41 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     notFoundHtmlSource.includes('id="mAside" class="mode-notes"'));
 }
 
+// ── 35. Spatial Shell: cada nota aberta é sua própria view no mosaico ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const spatialShellSource = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
+  const notesTabsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+
+  ok('notes-tabs.js · exporta getOpenTabsSnapshot e dispara quickdock:notes-open-tabs-changed ao renderizar as abas',
+    notesTabsSource.includes('export function getOpenTabsSnapshot') &&
+    notesTabsSource.includes("dispatchEvent(new CustomEvent('quickdock:notes-open-tabs-changed'"));
+
+  ok('spatial-shell.js · escuta quickdock:notes-open-tabs-changed e lê o snapshot inicial de getOpenTabsSnapshot',
+    spatialShellSource.includes("addEventListener('quickdock:notes-open-tabs-changed'") &&
+    spatialShellSource.includes('getOpenTabsSnapshot()'));
+
+  ok('spatial-shell.js · syncNoteViews sincroniza tiles de notas e syncNoteSectionDOM monta placeholders',
+    spatialShellSource.includes('function syncNoteViews') &&
+    spatialShellSource.includes('function syncNoteSectionDOM') &&
+    spatialShellSource.includes('function buildNotePlaceholderSection'));
+
+  ok('spatial-shell.js · openOrFocusView e closeView tratam ids dinâmicos note-<id> delegando pra notes-tabs.js',
+    spatialShellSource.includes("viewId.startsWith('note-')") &&
+    spatialShellSource.includes("dispatchEvent(new CustomEvent('quickdock:activate-note'") &&
+    spatialShellSource.includes('closeTab(Number(viewId.slice(5)))'));
+
+  ok('spatial-shell.js · bindSectionInteractions lê data-id na hora do evento (não captura em closure)',
+    spatialShellSource.includes('function bindSectionInteractions(sec)') &&
+    spatialShellSource.includes('const id = sec.dataset.id;'));
+
+  ok('style.css · define tile placeholder de nota em segundo plano (note-placeholder-section/body/focus-btn)',
+    styleCssSource.includes('.note-placeholder-body') &&
+    styleCssSource.includes('.note-placeholder-icon') &&
+    styleCssSource.includes('.note-placeholder-focus-btn'));
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);
