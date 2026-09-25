@@ -59,6 +59,8 @@ const ASSET_PATHS = [
   'sidepanel/modules/board-engine.js',
   'sidepanel/modules/calendar-view.js',
   'sidepanel/modules/bases-view.js',
+  'sidepanel/modules/desktop-panels.js',
+  'sidepanel/modules/responsive-header.js',
   'sidepanel/modules/bases/bases-schema.js',
   'sidepanel/modules/bases/bases-engine.js',
   'sidepanel/modules/bases/bases-yaml.js',

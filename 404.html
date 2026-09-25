@@ -11,6 +11,7 @@
   <link rel="apple-touch-icon" href="icons/128.png" />
   <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <script src="sidepanel/boot-platform.js"></script>
   <!-- Ícones da interface: fonte variável Material Symbols Rounded do Google,
        carregada abaixo. Cobre o catálogo inteiro — não tem mais SVG local pra
        manter em dia. sw.js cacheia a resposta no primeiro carregamento online,
@@ -18,16 +19,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" />
-  <script>
-    (function() {
-      var isExt = (typeof chrome !== 'undefined' && !!chrome?.storage?.local) || (typeof location !== 'undefined' && location.protocol === 'chrome-extension:');
-      var q = typeof location !== 'undefined' && location.search ? new URLSearchParams(location.search).get('platform') : null;
-      var p = (q === 'extension' || q === 'mobile' || q === 'desktop') ? q : (isExt ? 'extension' : (window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'mobile' : 'desktop'));
-      document.documentElement.dataset.platform = p;
-      document.documentElement.classList.add('platform-' + p);
-    })();
-  </script>
   <link rel="stylesheet" href="sidepanel/style.css" />
+  <!-- Motor do Quadro Infinito: mesma folha de estilo da aba dedicada
+       (board/style.css) — tudo dela vive dentro de `.board-theme-scope`
+       (aplicada só em #board-view logo abaixo), então nada daqui vaza pro
+       resto do painel. -->
+  <link rel="stylesheet" href="board/style.css" />
 </head>
 <body class="booting">
   <!-- Véu de carregamento: cobre o painel inteiro e dissolve quando o app fica
@@ -74,7 +71,47 @@
         </svg>
       </div>
       <div class="note-editor">
+        <div id="note-folder-bar" class="note-folder-bar">
+          <button id="btn-note-folder" class="note-folder-btn" title="Pasta da nota (clique para mover)" aria-label="Pasta da nota">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">folder</span>
+            <span id="note-folder-name" class="note-folder-name">Sem pasta</span>
+          </button>
+        </div>
+        <div id="note-header-bar" class="note-header-bar">
+          <button id="btn-note-header-icon" class="note-header-icon-btn" type="button" title="Ícone e cor da nota" aria-label="Ícone e cor da nota">
+            <span id="note-header-icon" class="qd-icon material-symbols-rounded" aria-hidden="true"></span>
+          </button>
+          <div id="note-header-title" class="note-header-title" contenteditable="true" role="heading" aria-level="1" spellcheck="false" data-placeholder="Sem título"></div>
+          <button id="btn-note-header-color" class="note-header-color-btn" type="button" title="Cor da nota" aria-label="Cor da nota">
+            <span id="note-header-color-dot" class="note-header-color-dot"></span>
+          </button>
+        </div>
+        <div id="note-properties-bar" class="note-properties-bar">
+          <div class="note-properties-header">
+            <button id="btn-properties-toggle" class="note-properties-toggle-btn" type="button" aria-expanded="false" title="Alternar propriedades da nota">
+              <span class="qd-icon material-symbols-rounded properties-chevron" aria-hidden="true">chevron_right</span>
+              <span class="qd-icon material-symbols-rounded properties-icon" aria-hidden="true">tune</span>
+              <span class="properties-title">Propriedades</span>
+              <span id="note-properties-count" class="properties-count-badge" hidden>0</span>
+            </button>
+            <div class="note-properties-header-actions">
+              <button id="btn-add-property" class="note-properties-add-btn" type="button" title="Adicionar propriedade">
+                <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+                <span>Propriedade</span>
+              </button>
+            </div>
+          </div>
+          <div id="note-properties-list" class="note-properties-list" hidden></div>
+        </div>
         <div id="note-editor-blocks" class="note-editor-blocks" contenteditable="true" spellcheck="false"></div>
+        <div id="note-backlinks-section" class="note-backlinks-section" hidden>
+          <button id="note-backlinks-toggle" class="note-backlinks-toggle" type="button" aria-expanded="false">
+            <span class="qd-icon material-symbols-rounded backlinks-chevron" aria-hidden="true">expand_more</span>
+            <span class="backlinks-title">Backlinks</span>
+            <span id="note-backlinks-count" class="backlinks-count">0</span>
+          </button>
+          <div id="note-backlinks-list" class="note-backlinks-list"></div>
+        </div>
       </div>
       <span id="save-indicator" class="save-indicator">
         salvo <span class="qd-icon material-symbols-rounded" aria-hidden="true">check</span>
@@ -151,6 +188,334 @@
       </div>
     </section>
 
+    <!-- Visão em Constelações (Grafo de Conexões) -->
+    <section class="graph-view" id="graph-view" hidden>
+      <header class="graph-header">
+        <div class="graph-header-left">
+          <button id="btn-graph-back" class="icon-btn graph-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="graph-title-group" id="graph-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
+            <h1 class="graph-title">Constelações</h1>
+            <button id="btn-graph-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Espaço, Constelações, Calendário, Base)" aria-label="Alternar visão">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
+            </button>
+            <span id="graph-stats-badge" class="graph-stats-badge">0 notas · 0 conexões</span>
+          </div>
+        </div>
+        <div class="graph-header-right">
+          <button id="btn-graph-zoom-in" class="icon-btn" title="Aumentar zoom" aria-label="Aumentar zoom">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+          </button>
+          <button id="btn-graph-zoom-out" class="icon-btn" title="Diminuir zoom" aria-label="Diminuir zoom">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">remove</span>
+          </button>
+          <button id="btn-graph-zoom-reset" class="icon-btn" title="Centralizar visualização" aria-label="Centralizar visualização">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">filter_center_focus</span>
+          </button>
+          <button id="btn-graph-toggle-height" class="icon-btn graph-height-btn view-height-btn" title="Alternar altura (Altura total / Metade da altura)" aria-label="Alternar altura">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_less</span>
+          </button>
+          <button id="btn-graph-toggle-fullscreen" class="icon-btn graph-fullscreen-btn" title="Expandir para tela cheia (100%)" aria-label="Alternar tela cheia">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">fullscreen</span>
+          </button>
+          <button id="btn-graph-settings" class="icon-btn" title="Configurações das Constelações" aria-label="Configurações das Constelações">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">tune</span>
+          </button>
+        </div>
+      </header>
+      <div class="graph-canvas-container" id="graph-canvas-container">
+        <canvas id="graph-canvas" class="graph-canvas"></canvas>
+        <div id="graph-empty-state" class="graph-empty-state" hidden>
+          <span class="qd-icon material-symbols-rounded graph-empty-icon" aria-hidden="true">hub</span>
+          <h2>Nenhuma conexão encontrada</h2>
+          <p>Conecte suas notas no editor digitando <code>[[Nome da Nota]]</code> para vê-las interligadas no grafo.</p>
+        </div>
+        <div id="graph-tooltip" class="graph-tooltip" hidden></div>
+
+        <!-- Painel de Configurações das Constelações -->
+        <div id="graph-settings-panel" class="graph-settings-panel" hidden>
+          <div class="graph-settings-header">
+            <span class="graph-settings-title">Configurações das Constelações</span>
+            <button id="btn-graph-settings-close" class="icon-btn graph-settings-close" title="Fechar" aria-label="Fechar">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>
+            </button>
+          </div>
+          <div class="graph-settings-body">
+            <div class="graph-settings-section">
+              <div class="graph-settings-subtitle">Filtros e Exibição</div>
+              <div class="graph-setting-row">
+                <label for="graph-setting-folder" class="graph-setting-label">Pasta</label>
+                <select id="graph-setting-folder" class="graph-setting-select">
+                  <option value="">Todas as pastas</option>
+                </select>
+              </div>
+              <div class="graph-setting-row graph-setting-toggle-row">
+                <span class="graph-setting-label">Notas isoladas</span>
+                <label class="graph-switch">
+                  <input type="checkbox" id="graph-setting-orphans" checked>
+                  <span class="graph-switch-slider"></span>
+                </label>
+              </div>
+              <div class="graph-setting-row graph-setting-toggle-row">
+                <span class="graph-setting-label">Sempre mostrar títulos</span>
+                <label class="graph-switch">
+                  <input type="checkbox" id="graph-setting-labels">
+                  <span class="graph-switch-slider"></span>
+                </label>
+              </div>
+              <div class="graph-setting-row">
+                <label for="graph-setting-shape" class="graph-setting-label">Formato dos nós</label>
+                <select id="graph-setting-shape" class="graph-setting-select">
+                  <option value="star">Estrela de 4 pontas (Logo)</option>
+                  <option value="circle">Círculo clássico</option>
+                  <option value="icon">Ícone da nota (estrela se não houver)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="graph-settings-section">
+              <div class="graph-settings-subtitle">Física e Forças</div>
+              <div class="graph-setting-row graph-setting-range-row">
+                <div class="graph-range-labels">
+                  <label for="graph-setting-repulsion" class="graph-setting-label">Repulsão</label>
+                  <span id="graph-val-repulsion" class="graph-range-val">150</span>
+                </div>
+                <input type="range" id="graph-setting-repulsion" min="30" max="400" step="10" value="150" class="graph-range">
+              </div>
+              <div class="graph-setting-row graph-setting-range-row">
+                <div class="graph-range-labels">
+                  <label for="graph-setting-link-distance" class="graph-setting-label">Distância dos links</label>
+                  <span id="graph-val-link-distance" class="graph-range-val">90</span>
+                </div>
+                <input type="range" id="graph-setting-link-distance" min="30" max="250" step="5" value="90" class="graph-range">
+              </div>
+              <div class="graph-setting-row graph-setting-range-row">
+                <div class="graph-range-labels">
+                  <label for="graph-setting-link-strength" class="graph-setting-label">Rigidez dos links</label>
+                  <span id="graph-val-link-strength" class="graph-range-val">0.35</span>
+                </div>
+                <input type="range" id="graph-setting-link-strength" min="0.05" max="1.0" step="0.05" value="0.35" class="graph-range">
+              </div>
+              <div class="graph-setting-row graph-setting-range-row">
+                <div class="graph-range-labels">
+                  <label for="graph-setting-gravity" class="graph-setting-label">Gravidade central</label>
+                  <span id="graph-val-gravity" class="graph-range-val">0.03</span>
+                </div>
+                <input type="range" id="graph-setting-gravity" min="0.005" max="0.10" step="0.005" value="0.03" class="graph-range">
+              </div>
+            </div>
+
+            <div class="graph-settings-actions">
+              <button id="btn-graph-reheat" class="graph-btn-secondary" title="Reorganizar nós">
+                <span class="qd-icon material-symbols-rounded" aria-hidden="true">refresh</span>
+                <span>Reorganizar</span>
+              </button>
+              <button id="btn-graph-reset-defaults" class="graph-btn-text" title="Restaurar valores padrão">
+                Restaurar padrões
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visão do Espaço Infinito (Canvas Espacial) -->
+    <section class="board-view board-theme-scope" id="board-view" hidden>
+      <header class="board-header">
+        <div class="board-header-left">
+          <button id="btn-board-back" class="icon-btn board-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="board-title-group">
+            <button id="btn-board-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Espaço, Constelações, Calendário, Base)" aria-label="Alternar visão">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
+            </button>
+            <input type="text" id="board-title-input" class="board-title-input" value="Espaço de Ideias" placeholder="Nome do espaço..." aria-label="Nome do espaço" />
+            <span id="board-save-status" class="board-save-status">
+              <span class="qd-icon material-symbols-rounded status-icon" aria-hidden="true">check</span> salvo
+            </span>
+          </div>
+        </div>
+
+        <div class="board-header-center">
+          <div class="board-tools-group">
+            <button id="tool-select" class="board-tool-btn active" title="Selecionar e mover (V)" aria-label="Mover e selecionar">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">pan_tool</span>
+            </button>
+            <button id="tool-card" class="board-tool-btn" title="Adicionar cartão (C)" aria-label="Adicionar cartão">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">note_add</span>
+              <span class="tool-btn-label">Cartão</span>
+            </button>
+            <button id="tool-arrow" class="board-tool-btn" title="Conectar com seta (A)" aria-label="Conectar com seta">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">trending_flat</span>
+              <span class="tool-btn-label">Seta</span>
+            </button>
+            <button id="tool-image" class="board-tool-btn" title="Adicionar imagem" aria-label="Adicionar imagem">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">image</span>
+              <span class="tool-btn-label">Imagem</span>
+            </button>
+            <button id="tool-group" class="board-tool-btn" title="Adicionar grupo (G)" aria-label="Adicionar grupo">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">crop_square</span>
+              <span class="tool-btn-label">Grupo</span>
+            </button>
+            <button id="tool-note-link" class="board-tool-btn" title="Vincular nota existente" aria-label="Vincular nota existente">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">link</span>
+              <span class="tool-btn-label">Vincular nota</span>
+            </button>
+            <button id="tool-note-create" class="board-tool-btn" title="Criar nota e adicionar ao espaço" aria-label="Criar nota e adicionar ao espaço">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">note_add</span>
+              <span class="tool-btn-label">Nova nota</span>
+            </button>
+            <input type="file" id="board-image-upload-input" accept="image/*" style="display:none;" />
+          </div>
+        </div>
+
+        <div class="board-header-right">
+          <div class="board-zoom-group">
+            <button id="btn-zoom-out" class="icon-btn board-btn" title="Diminuir zoom (-)" aria-label="Diminuir zoom">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">remove</span>
+            </button>
+            <span id="zoom-level-text" class="zoom-level-text">100%</span>
+            <button id="btn-zoom-in" class="icon-btn board-btn" title="Aumentar zoom (+)" aria-label="Aumentar zoom">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+            </button>
+            <button id="btn-zoom-reset" class="icon-btn board-btn" title="Centralizar conteúdo (0)" aria-label="Centralizar conteúdo">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">filter_center_focus</span>
+            </button>
+          </div>
+          <button id="btn-board-toggle-bg" class="icon-btn board-btn" title="Fundo: Modo Estrelas (clique para alternar)" aria-label="Alternar modo do fundo">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">auto_awesome</span>
+          </button>
+          <button id="btn-export-json" class="icon-btn board-btn" title="Exportar espaço (.json)" aria-label="Exportar espaço">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">download</span>
+          </button>
+          <button id="btn-board-toggle-height" class="icon-btn board-btn board-height-btn view-height-btn" title="Alternar altura (Altura total / Metade da altura)" aria-label="Alternar altura">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_less</span>
+          </button>
+          <button id="btn-board-toggle-fullscreen" class="icon-btn board-btn board-fullscreen-btn" title="Expandir para tela cheia (100%)" aria-label="Alternar tela cheia">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">fullscreen</span>
+          </button>
+          <button id="btn-board-open-tab" class="icon-btn board-btn board-open-tab-btn" title="Abrir em aba inteira" aria-label="Abrir em aba inteira">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">open_in_new</span>
+            <span class="open-tab-btn-label">Nova aba</span>
+          </button>
+        </div>
+      </header>
+
+      <main id="board-container" class="board-container">
+        <div id="board-world" class="board-world">
+          <svg id="board-svg" class="board-svg">
+            <defs>
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M 0 0 L 8 3 L 0 6 z" fill="currentColor" />
+              </marker>
+              <marker id="arrowhead-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M 8 0 L 0 3 L 8 6 z" fill="currentColor" />
+              </marker>
+              <marker id="arrowhead-selected" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M 0 0 L 8 3 L 0 6 z" fill="var(--accent, #3b82f6)" />
+              </marker>
+            </defs>
+            <g id="board-svg-guides"></g>
+            <g id="board-svg-arrows"></g>
+            <path id="board-draft-arrow" class="draft-arrow" d="" marker-end="url(#arrowhead)" hidden />
+          </svg>
+          <div id="board-cards-layer" class="board-cards-layer"></div>
+          <div id="board-selection-box" class="board-selection-box" hidden></div>
+        </div>
+        <div id="board-selection-toolbar" class="board-selection-toolbar" hidden></div>
+      </main>
+    </section>
+
+    <!-- Visão do Calendário de Notas -->
+    <section class="calendar-view" id="calendar-view" hidden>
+      <header class="calendar-header">
+        <div class="calendar-header-left">
+          <button id="btn-calendar-back" class="icon-btn calendar-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="calendar-title-group" id="calendar-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
+            <h1 id="calendar-month-year" class="calendar-month-title">Setembro de 2026</h1>
+            <button id="btn-calendar-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Espaço, Constelações, Calendário, Base)" aria-label="Alternar visão">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
+            </button>
+            <span id="calendar-note-count" class="calendar-count-badge">0 notas</span>
+          </div>
+        </div>
+
+        <div class="calendar-header-center">
+          <div class="calendar-nav-group">
+            <button id="btn-calendar-prev" class="icon-btn calendar-nav-btn" title="Mês anterior" aria-label="Mês anterior">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">chevron_left</span>
+            </button>
+            <button id="btn-calendar-today" class="calendar-today-btn" title="Ir para o mês atual">Hoje</button>
+            <button id="btn-calendar-next" class="icon-btn calendar-nav-btn" title="Próximo mês" aria-label="Próximo mês">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="calendar-header-right">
+          <div class="calendar-filter-group">
+            <span class="qd-icon material-symbols-rounded filter-icon" aria-hidden="true">filter_alt</span>
+            <select id="calendar-filter-category" class="calendar-select" title="Filtrar por categoria">
+              <option value="">Todas as categorias</option>
+            </select>
+          </div>
+          <button id="btn-calendar-toggle-height" class="icon-btn calendar-height-btn view-height-btn" title="Alternar altura (Altura total / Metade da altura)" aria-label="Alternar altura">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_less</span>
+          </button>
+          <button id="btn-calendar-toggle-fullscreen" class="icon-btn calendar-fullscreen-btn" title="Expandir para tela cheia (100%)" aria-label="Alternar tela cheia">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">fullscreen</span>
+          </button>
+          <button id="btn-calendar-new-note" class="calendar-action-btn primary" title="Criar nova nota para o dia de hoje">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+            <span class="cal-btn-label">Nova nota</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="calendar-body">
+        <div class="calendar-weekdays">
+          <span>Dom</span>
+          <span>Seg</span>
+          <span>Ter</span>
+          <span>Qua</span>
+          <span>Qui</span>
+          <span>Sex</span>
+          <span>Sáb</span>
+        </div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+      </main>
+    </section>
+
+    <!-- Visão dedicada de Base (a mesma Base do bloco embutido, num painel/tela própria) -->
+    <section class="bases-view" id="bases-view" hidden>
+      <header class="bases-header">
+        <div class="bases-header-left">
+          <button id="btn-bases-back" class="icon-btn bases-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="bases-title-group" id="bases-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
+            <h1 class="bases-title">Base</h1>
+            <button id="btn-bases-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Espaço, Constelações, Calendário, Base)" aria-label="Alternar visão">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
+            </button>
+          </div>
+        </div>
+        <div class="bases-header-right">
+          <button id="btn-bases-toggle-height" class="icon-btn bases-height-btn view-height-btn" title="Alternar altura (Altura total / Metade da altura)" aria-label="Alternar altura">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_less</span>
+          </button>
+          <button id="btn-bases-toggle-fullscreen" class="icon-btn bases-fullscreen-btn" title="Expandir para tela cheia (100%)" aria-label="Alternar tela cheia">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">fullscreen</span>
+          </button>
+        </div>
+      </header>
+      <div class="bases-body" id="bases-body"></div>
+    </section>
+
     <div id="resize-handle" class="resize-handle" title="Arraste para redimensionar"></div>
 
     <aside class="app-aside" id="app-aside">
@@ -174,6 +539,14 @@
           <span class="aside-nav-label">Modelos</span>
           <span id="nav-templates-count" class="aside-nav-badge">0</span>
         </button>
+        <button id="btn-nav-graph" class="icon-btn aside-nav-btn" title="Constelações" aria-label="Constelações">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">hub</span>
+          <span class="aside-nav-label">Constelações</span>
+        </button>
+        <button id="btn-nav-board" class="icon-btn aside-nav-btn" title="Espaço Infinito (Aba dedicada)" aria-label="Espaço Infinito">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span>
+          <span class="aside-nav-label">Espaço</span>
+        </button>
         <div id="notes-tabs" class="notes-tabs"></div>
         <input type="file" id="note-import-input" accept=".md,.txt,text/markdown,text/plain" hidden />
         <div class="aside-actions">
@@ -183,52 +556,61 @@
           <button id="btn-sync" class="icon-btn" title="Sincronização" aria-label="Sincronização">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">sync</span>
           </button>
-          <button id="btn-app-menu" class="icon-btn" title="Mais opções" aria-label="Mais opções">
-            <span class="qd-icon material-symbols-rounded" aria-hidden="true">more_vert</span>
-          </button>
         </div>
       </div>
+    </aside>
 
-      <section class="docs-section">
-        <div class="docs-header" id="docs-header">
+    <section class="docs-section" id="docs-section">
+      <div class="docs-header" id="docs-header">
+        <div class="docs-header-left">
           <button id="btn-docs-toggle" class="icon-btn docs-toggle-btn" title="Recolher / expandir documentos" aria-label="Recolher ou expandir documentos">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">expand_more</span>
           </button>
-          <span class="docs-title" id="docs-title">Documentos</span>
-          <div class="docs-view-switch">
-            <button id="btn-view-note" class="docs-view-opt" title="Só os desta nota (mais os gerais)">Nesta nota</button>
-            <button id="btn-view-all" class="docs-view-opt" title="Todos os documentos, de todas as notas">Todos</button>
+          <div class="docs-title-wrap" id="docs-title-wrap" title="Clique para alternar a visão auxiliar">
+            <span class="docs-title" id="docs-title">Documentos</span>
+            <button id="btn-aux-view-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Espaço, Constelações, Calendário, Base)" aria-label="Alternar visão">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
+            </button>
           </div>
+        </div>
+        <div class="docs-view-switch">
+          <button id="btn-view-note" class="docs-view-opt" title="Só os desta nota (mais os gerais)">Nesta nota</button>
+          <button id="btn-view-all" class="docs-view-opt" title="Todos os documentos, de todas as notas">Todos</button>
+        </div>
+        <div class="docs-header-right">
+          <button id="btn-docs-toggle-height" class="icon-btn docs-height-btn view-height-btn" title="Alternar altura (Altura total / Metade da altura)" aria-label="Alternar altura">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_less</span>
+          </button>
           <button id="btn-upload" class="icon-btn" title="Adicionar arquivo" aria-label="Adicionar arquivo">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
           </button>
           <input type="file" id="file-input" accept="image/*,.pdf,.txt" multiple hidden />
         </div>
-        <div id="group-bar" class="group-bar hidden">
-          <span id="group-count"></span>
-          <button id="btn-inject-selected" class="group-action-btn" title="Injetar selecionados na página">
-            <span class="qd-icon material-symbols-rounded" aria-hidden="true">open_in_new</span>
-            Injetar
-          </button>
-          <button id="btn-scope-selected" class="group-action-btn" title="Vincular à nota aberta">
-            <span class="qd-icon material-symbols-rounded" aria-hidden="true">push_pin</span>
-            Vincular
-          </button>
-          <button id="btn-delete-selected" class="group-action-btn group-action-danger" title="Remover selecionados" aria-label="Remover selecionados">
-            <span class="qd-icon material-symbols-rounded" aria-hidden="true">delete</span>
-          </button>
-          <button id="btn-clear-selection" class="group-action-close" title="Cancelar seleção" aria-label="Cancelar seleção">
-            <span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>
-          </button>
-        </div>
+      </div>
+      <div id="group-bar" class="group-bar hidden">
+        <span id="group-count"></span>
+        <button id="btn-inject-selected" class="group-action-btn" title="Injetar selecionados na página">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">open_in_new</span>
+          Injetar
+        </button>
+        <button id="btn-scope-selected" class="group-action-btn" title="Vincular à nota aberta">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">push_pin</span>
+          Vincular
+        </button>
+        <button id="btn-delete-selected" class="group-action-btn group-action-danger" title="Remover selecionados" aria-label="Remover selecionados">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">delete</span>
+        </button>
+        <button id="btn-clear-selection" class="group-action-close" title="Cancelar seleção" aria-label="Cancelar seleção">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>
+        </button>
+      </div>
 
-        <div id="drop-zone" class="drop-zone">
-          <div id="doc-grid" class="doc-grid"></div>
-          <button id="docs-hidden-hint" class="docs-hidden-hint" hidden></button>
-          <div id="drop-hint" class="drop-hint">Arraste arquivos aqui, clique no botão de adicionar<br>ou cole uma imagem com Ctrl+V</div>
-        </div>
-      </section>
-    </aside>
+      <div id="drop-zone" class="drop-zone">
+        <div id="doc-grid" class="doc-grid"></div>
+        <button id="docs-hidden-hint" class="docs-hidden-hint" hidden></button>
+        <div id="drop-hint" class="drop-hint">Arraste arquivos aqui, clique no botão de adicionar<br>ou cole uma imagem com Ctrl+V</div>
+      </div>
+    </section>
 
     <div id="inject-toast" class="inject-toast hidden">
       <span id="inject-toast-msg"></span>

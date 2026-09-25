@@ -155,7 +155,7 @@ function openAppMenu() {
   });
   addOpt('auto_stories', 'Galeria de modelos', () => switchView('templates'));
   addOpt('hub', 'Constelações', () => switchView('grafo'));
-  addOpt('space_dashboard', 'Quadro Infinito', () => switchView('board'));
+  addOpt('space_dashboard', 'Espaço Infinito', () => switchView('board')); // Quadro Infinito
   addOpt('calendar_month', 'Calendário', () => switchView('calendar'));
   addOpt('menu_book', 'Ver tutorial', createTutorialNote);
   addOpt(dark ? 'light_mode' : 'dark_mode', dark ? 'Tema claro' : 'Tema escuro', toggleTheme);

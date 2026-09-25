@@ -75,7 +75,7 @@ export function openAuxViewMenu(anchorEl) {
         if (isDocsCollapsed) toggleDocsCollapsed();
       }
     });
-    addOpt('space_dashboard', 'Quadro Infinito', 'Dividir tela com a nota', () => switchView('board', { split: true }));
+    addOpt('space_dashboard', 'Espaço Infinito', 'Dividir tela com a nota', () => switchView('board', { split: true }));
     addOpt('hub', 'Constelações', 'Dividir tela com a nota', () => switchView('grafo', { split: true }));
     addOpt('calendar_month', 'Calendário', 'Dividir tela com a nota', () => switchView('calendar', { split: true }));
     addOpt('view_kanban', 'Base', 'Dividir tela com a nota', () => switchView('bases', { split: true }));

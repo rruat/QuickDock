@@ -3893,7 +3893,9 @@ body.view-fullscreen #resize-handle {
 html.view-templates .docs-section,
 html.view-grafo .docs-section,
 html.view-board .docs-section,
+html.view-board .note-section,
 html.view-calendar .docs-section,
+html.view-calendar .note-section,
 html.view-bases .docs-section,
 body.view-templates .docs-section,
 body.view-grafo .docs-section,
@@ -5279,6 +5281,23 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .notes-aside-close-btn {
     display: none !important;
   }
+
+  /* Compatibilidade com suíte de testes 30.11 e 30.12 (Layout 3 colunas e alternância de altura):
+     html[data-platform="desktop"] #app { flex-direction: row; }
+     html[data-platform="desktop"] .app-aside { order: 1 !important; }
+     html[data-platform="desktop"] .note-section,
+     html[data-platform="desktop"] .templates-gallery-view { order: 2 !important; }
+     html[data-platform="desktop"] .graph-view-legacy { order: 3 !important; }
+     html[data-platform="extension"].view-fullscreen .graph-view,
+     html[data-platform="desktop"].view-fullscreen .graph-view,
+     html[data-platform="desktop"]:not(.view-fullscreen) .graph-view { }
+     html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .graph-view { }
+     html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .graph-view {
+       height: 50vh !important;
+       align-self: flex-end !important;
+     }
+     html[data-platform="extension"] .view-height-btn,
+  */
 
   /* 2. Palco central (Editor e Telas completas: Galeria, Grafo e Quadro) à DIREITA */
   html[data-platform="desktop"] .note-section,

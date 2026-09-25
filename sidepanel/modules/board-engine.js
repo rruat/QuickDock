@@ -23,8 +23,9 @@ import { escHtml } from './blocks.js';
 let currentBoard = {
   id: null,
   uid: null,
-  title: 'Quadro de Ideias',
+  title: 'Espaço Infinito',
   viewport: { x: 0, y: 0, zoom: 1 },
+  bgMode: 'stars',
   cards: [],
   arrows: []
 };
@@ -194,6 +195,7 @@ export async function initBoardEngine(scope = document, options = {}) {
 
   await Promise.all([loadBoardFromUrlOrStorage(), refreshNotesCache()]);
   applyViewport();
+  updateBgToggleButtons();
   renderCards();
   renderArrows();
 
@@ -204,6 +206,7 @@ export async function initBoardEngine(scope = document, options = {}) {
       if (e.detail?.view === 'board') {
         loadBoardFromUrlOrStorage().then(() => {
           applyViewport();
+          updateBgToggleButtons();
           renderCards();
           renderArrows();
         });
@@ -212,6 +215,7 @@ export async function initBoardEngine(scope = document, options = {}) {
     document.addEventListener('quickdock:refresh-board-view', () => {
       loadBoardFromUrlOrStorage().then(() => {
         applyViewport();
+        updateBgToggleButtons();
         renderCards();
         renderArrows();
       });
@@ -238,6 +242,24 @@ function toggleTheme() {
   updateThemeIcon(current);
 }
 
+function updateBgToggleButtons() {
+  const mode = currentBoard?.bgMode || 'stars';
+  const info = {
+    stars: { icon: 'auto_awesome', title: 'Fundo: Modo Estrelas (clique para alternar)' },
+    dots:  { icon: 'grain',        title: 'Fundo: Modo Pontos (clique para alternar)' },
+    none:  { icon: 'grid_off',     title: 'Fundo: Sem Grade (clique para alternar)' }
+  }[mode] || { icon: 'auto_awesome', title: 'Fundo: Modo Estrelas (clique para alternar)' };
+
+  const btns = [document.getElementById('btn-toggle-bg'), document.getElementById('btn-board-toggle-bg')];
+  for (const btn of btns) {
+    if (!btn) continue;
+    btn.title = info.title;
+    btn.setAttribute('aria-label', info.title);
+    const icon = btn.querySelector('.material-symbols-rounded') || btn;
+    if (icon) icon.textContent = info.icon;
+  }
+}
+
 // ── Carregamento e Salvamento ─────────────────────────────────────────────────
 async function loadBoardFromUrlOrStorage() {
   const params = new URLSearchParams(window.location.search);
@@ -262,13 +284,14 @@ async function loadBoardFromUrlOrStorage() {
     currentBoard = {
       id: board.id,
       uid: board.uid,
-      title: board.title || 'Quadro Sem Título',
+      title: board.title || 'Espaço Sem Título',
       viewport: board.viewport || { x: 0, y: 0, zoom: 1 },
+      bgMode: board.bgMode || 'stars',
       cards: board.cards || [],
-      arrows: board.arrows || []
+      arrows: (board.arrows || []).map(a => ({ ...a, lineStyle: a.lineStyle || 'straight' }))
     };
   } else {
-    // Cria quadro padrão inicial com 2 cartões demonstrativos conectados
+    // Cria espaço padrão inicial com 2 cartões demonstrativos conectados
     const cw = container.clientWidth || window.innerWidth;
     const ch = container.clientHeight || window.innerHeight;
     const cx = Math.max(150, cw / 2);
@@ -279,12 +302,13 @@ async function loadBoardFromUrlOrStorage() {
       uid: `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
       title: 'Brainstorming Inicial',
       viewport: { x: cx - 200, y: cy - 100, zoom: 1 },
+      bgMode: 'stars',
       cards: [
         { id: 'c1', x: 0, y: 0, w: 220, h: 120, text: '💡 Primeira Grande Ideia\nExplore livremente este espaço infinito.', color: 'yellow' },
         { id: 'c2', x: 300, y: 60, w: 220, h: 120, text: '🎯 Próximos Passos\nConecte cartões usando as alças de seta.', color: 'blue' }
       ],
       arrows: [
-        { id: 'a1', from: 'c1', to: 'c2', style: 'solid' }
+        { id: 'a1', from: 'c1', to: 'c2', style: 'solid', lineStyle: 'straight' }
       ]
     };
     await persistBoard();
@@ -323,10 +347,27 @@ function applyViewport() {
   const { x, y, zoom } = currentBoard.viewport;
   worldEl.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
 
-  // Atualiza escala do fundo pontilhado
+  // Atualiza escala e posição do fundo espacial
   const bgSize = Math.max(12, Math.round(24 * zoom));
-  container.style.backgroundSize = `${bgSize}px ${bgSize}px`;
-  container.style.backgroundPosition = `${x % bgSize}px ${y % bgSize}px`;
+  const bgMode = currentBoard.bgMode || 'stars';
+
+  if (bgMode === 'stars') {
+    container.classList.remove('mode-dots', 'mode-none');
+    container.classList.add('mode-stars');
+    const s1 = bgSize;
+    const s2 = bgSize * 2;
+    const s3 = bgSize * 3;
+    container.style.backgroundSize = `${s1}px ${s1}px, ${s2}px ${s2}px, ${s3}px ${s3}px`;
+    container.style.backgroundPosition = `${x % s1}px ${y % s1}px, ${(x + s2 * 0.4) % s2}px ${(y + s2 * 0.6) % s2}px, ${(x + s3 * 0.7) % s3}px ${(y + s3 * 0.3) % s3}px`;
+  } else if (bgMode === 'dots') {
+    container.classList.remove('mode-stars', 'mode-none');
+    container.classList.add('mode-dots');
+    container.style.backgroundSize = `${bgSize}px ${bgSize}px`;
+    container.style.backgroundPosition = `${x % bgSize}px ${y % bgSize}px`;
+  } else {
+    container.classList.remove('mode-stars', 'mode-dots');
+    container.classList.add('mode-none');
+  }
 
   if (zoomText) zoomText.textContent = `${Math.round(zoom * 100)}%`;
   renderArrows();
@@ -1013,7 +1054,7 @@ function showArrowPopover(e, arrow) {
   pop.className = 'board-arrow-popover';
 
   const dir = arrow.direction || (arrow.bidirectional ? 'bidirectional' : (arrow.style === 'none' ? 'none' : 'forward'));
-  const lineStyle = arrow.lineStyle || 'curved';
+  const lineStyle = arrow.lineStyle || 'straight';
   const strokeStyle = arrow.style || 'solid';
 
   pop.innerHTML = `
@@ -1023,7 +1064,7 @@ function showArrowPopover(e, arrow) {
     <div class="board-popover-row">
       <span style="font-size:11px;color:var(--text-muted);min-width:50px;">Direção:</span>
       <div class="board-popover-btn-group">
-        <button type="button" class="board-popover-btn ${dir === 'forward' ? 'is-active' : ''}" data-dir="forward" title="Unidirecional">">→</button>
+        <button type="button" class="board-popover-btn ${dir === 'forward' ? 'is-active' : ''}" data-dir="forward" title="Unidirecional">→</button>
         <button type="button" class="board-popover-btn ${dir === 'bidirectional' ? 'is-active' : ''}" data-dir="bidirectional" title="Bidirecional">↔</button>
         <button type="button" class="board-popover-btn ${dir === 'none' ? 'is-active' : ''}" data-dir="none" title="Sem ponta">—</button>
       </div>
@@ -1032,8 +1073,8 @@ function showArrowPopover(e, arrow) {
     <div class="board-popover-row">
       <span style="font-size:11px;color:var(--text-muted);min-width:50px;">Formato:</span>
       <div class="board-popover-btn-group">
-        <button type="button" class="board-popover-btn ${lineStyle === 'curved' ? 'is-active' : ''}" data-line="curved">Curva</button>
         <button type="button" class="board-popover-btn ${lineStyle === 'straight' ? 'is-active' : ''}" data-line="straight">Reta</button>
+        <button type="button" class="board-popover-btn ${lineStyle === 'curved' ? 'is-active' : ''}" data-line="curved">Curva</button>
       </div>
     </div>
 
@@ -1042,6 +1083,20 @@ function showArrowPopover(e, arrow) {
       <div class="board-popover-btn-group">
         <button type="button" class="board-popover-btn ${strokeStyle !== 'dashed' ? 'is-active' : ''}" data-stroke="solid">Sólida</button>
         <button type="button" class="board-popover-btn ${strokeStyle === 'dashed' ? 'is-active' : ''}" data-stroke="dashed">Tracejada</button>
+      </div>
+    </div>
+
+    <div class="board-popover-row">
+      <span style="font-size:11px;color:var(--text-muted);min-width:50px;">Cor:</span>
+      <div class="board-popover-colors">
+        <button type="button" class="board-color-swatch is-default ${!arrow.color ? 'is-active' : ''}" data-color="default" title="Padrão"></button>
+        <button type="button" class="board-color-swatch ${arrow.color === '#ef4444' ? 'is-active' : ''}" data-color="#ef4444" style="background:#ef4444" title="Vermelho"></button>
+        <button type="button" class="board-color-swatch ${arrow.color === '#f97316' ? 'is-active' : ''}" data-color="#f97316" style="background:#f97316" title="Laranja"></button>
+        <button type="button" class="board-color-swatch ${arrow.color === '#eab308' ? 'is-active' : ''}" data-color="#eab308" style="background:#eab308" title="Amarelo"></button>
+        <button type="button" class="board-color-swatch ${arrow.color === '#22c55e' ? 'is-active' : ''}" data-color="#22c55e" style="background:#22c55e" title="Verde"></button>
+        <button type="button" class="board-color-swatch ${arrow.color === '#3b82f6' ? 'is-active' : ''}" data-color="#3b82f6" style="background:#3b82f6" title="Azul"></button>
+        <button type="button" class="board-color-swatch ${arrow.color === '#6366f1' ? 'is-active' : ''}" data-color="#6366f1" style="background:#6366f1" title="Índigo"></button>
+        <button type="button" class="board-color-swatch ${arrow.color === '#a855f7' ? 'is-active' : ''}" data-color="#a855f7" style="background:#a855f7" title="Violeta"></button>
       </div>
     </div>
 
@@ -1091,6 +1146,15 @@ function showArrowPopover(e, arrow) {
     });
   });
 
+  pop.querySelectorAll('[data-color]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      arrow.color = btn.dataset.color === 'default' ? null : btn.dataset.color;
+      renderArrows();
+      scheduleSave();
+      showArrowPopover(e, arrow);
+    });
+  });
+
   pop.querySelector('.pop-delete-arrow').addEventListener('click', () => {
     currentBoard.arrows = currentBoard.arrows.filter(a => a.id !== arrow.id);
     renderArrows();
@@ -1107,7 +1171,7 @@ function showArrowPopover(e, arrow) {
 
   document.body.appendChild(pop);
 
-  const popW = 250, popH = 220;
+  const popW = 260, popH = 260;
   let left = e.clientX + 10;
   let top = e.clientY + 10;
   if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
@@ -1441,7 +1505,7 @@ function addArrow(fromId, toId, style = 'solid', fromSide = null, toSide = null)
     fromSide: fromSide || null,
     toSide: toSide || null,
     direction: options.direction || 'forward',
-    lineStyle: options.lineStyle || 'curved',
+    lineStyle: options.lineStyle || 'straight',
     color: options.color || null,
     label: options.label || null
   });
@@ -1814,6 +1878,7 @@ function renderArrows() {
     const cx2 = p2.x + o2.dx;
     const cy2 = p2.y + o2.dy;
 
+    if (!arrow.lineStyle) arrow.lineStyle = 'straight';
     const isStraight = arrow.lineStyle === 'straight';
     let pathD = '';
     let mid = null;
@@ -1828,111 +1893,124 @@ function renderArrows() {
       mid = bezierPointAt(p1, { x: cx1, y: cy1 }, { x: cx2, y: cy2 }, p2, 0.5);
     }
 
-    const dom = arrowDomMap.get(arrow.id);
-    if (dom && arrowsGroup.contains(dom.path)) {
-      // Atualização em tempo real ultra-rápida (Zero Delay / 60-120fps)
-      dom.hitArea.setAttribute('d', pathD);
-      dom.path.setAttribute('d', pathD);
-      if (arrow.label && dom.text && dom.bg) {
-        dom.text.setAttribute('x', String(mid.x));
-        dom.text.setAttribute('y', String(mid.y));
-        const cachedDim = labelBBoxCache.get(arrow.label) || { width: 40, height: 16 };
-        const padX = 6, padY = 3;
-        const w = cachedDim.width + padX * 2;
-        const h = cachedDim.height + padY * 2;
-        dom.bg.setAttribute('x', String(mid.x - w / 2));
-        dom.bg.setAttribute('y', String(mid.y - h / 2));
-      }
-      continue;
-    }
-
-    // Hit area transparente de 16px para facilitar o toque e clique
-    const hitArea = document.createElementNS(svgNS, 'path');
-    hitArea.setAttribute('d', pathD);
-    hitArea.setAttribute('class', 'board-arrow-hit-area');
-
-    const path = document.createElementNS(svgNS, 'path');
-    path.setAttribute('d', pathD);
-    path.setAttribute('class', 'board-arrow-path');
-
-    const dir = arrow.direction || (arrow.bidirectional ? 'bidirectional' : (arrow.style === 'none' ? 'none' : 'forward'));
-    if (dir === 'bidirectional') {
-      path.setAttribute('marker-start', 'url(#arrowhead-start)');
-      path.setAttribute('marker-end', 'url(#arrowhead)');
-    } else if (dir === 'forward') {
-      path.setAttribute('marker-end', 'url(#arrowhead)');
-    } else if (dir === 'backward') {
-      path.setAttribute('marker-start', 'url(#arrowhead-start)');
-    }
-
-    if (arrow.style === 'dashed') path.setAttribute('stroke-dasharray', '6 6');
-    if (arrow.color) {
-      path.style.stroke = arrow.color;
-      path.style.color = arrow.color;
-    }
-
     const onArrowAction = e => {
       e.stopPropagation();
       e.preventDefault();
       showArrowPopover(e, arrow);
     };
 
+    function syncArrowStyles(dom) {
+      dom.hitArea.setAttribute('d', pathD);
+      dom.path.setAttribute('d', pathD);
+
+      const dir = arrow.direction || (arrow.bidirectional ? 'bidirectional' : (arrow.style === 'none' ? 'none' : 'forward'));
+      if (dir === 'bidirectional') {
+        dom.path.setAttribute('marker-start', 'url(#arrowhead-start)');
+        dom.path.setAttribute('marker-end', 'url(#arrowhead)');
+      } else if (dir === 'forward') {
+        dom.path.removeAttribute('marker-start');
+        dom.path.setAttribute('marker-end', 'url(#arrowhead)');
+      } else if (dir === 'backward') {
+        dom.path.setAttribute('marker-start', 'url(#arrowhead-start)');
+        dom.path.removeAttribute('marker-end');
+      } else {
+        dom.path.removeAttribute('marker-start');
+        dom.path.removeAttribute('marker-end');
+      }
+
+      if (arrow.style === 'dashed') {
+        dom.path.setAttribute('stroke-dasharray', '6 6');
+      } else {
+        dom.path.removeAttribute('stroke-dasharray');
+      }
+
+      if (arrow.color) {
+        dom.path.style.stroke = arrow.color;
+        dom.path.style.color = arrow.color;
+      } else {
+        dom.path.style.removeProperty('stroke');
+        dom.path.style.removeProperty('color');
+      }
+
+      if (arrow.label) {
+        if (!dom.text || !dom.bg) {
+          const textEl = document.createElementNS(svgNS, 'text');
+          textEl.setAttribute('class', 'board-arrow-label-text');
+          textEl.addEventListener('click', onArrowAction);
+          textEl.addEventListener('contextmenu', onArrowAction);
+          arrowsGroup.appendChild(textEl);
+
+          const bgEl = document.createElementNS(svgNS, 'rect');
+          bgEl.setAttribute('class', 'board-arrow-label-bg');
+          bgEl.setAttribute('rx', '4');
+          bgEl.addEventListener('click', onArrowAction);
+          bgEl.addEventListener('contextmenu', onArrowAction);
+          arrowsGroup.insertBefore(bgEl, textEl);
+
+          dom.text = textEl;
+          dom.bg = bgEl;
+        }
+
+        dom.text.textContent = arrow.label;
+        dom.text.setAttribute('x', String(mid.x));
+        dom.text.setAttribute('y', String(mid.y));
+
+        let dim = labelBBoxCache.get(arrow.label);
+        if (!dim) {
+          try {
+            const bbox = dom.text.getBBox();
+            if (bbox.width > 0) {
+              dim = { width: bbox.width, height: bbox.height };
+              labelBBoxCache.set(arrow.label, dim);
+            }
+          } catch {}
+          if (!dim) dim = { width: arrow.label.length * 7.5, height: 16 };
+        }
+
+        const padX = 6, padY = 3;
+        const w = dim.width + padX * 2;
+        const h = dim.height + padY * 2;
+        dom.bg.setAttribute('x', String(mid.x - w / 2));
+        dom.bg.setAttribute('y', String(mid.y - h / 2));
+        dom.bg.setAttribute('width', String(w));
+        dom.bg.setAttribute('height', String(h));
+      } else {
+        if (dom.text) { dom.text.remove(); dom.text = null; }
+        if (dom.bg) { dom.bg.remove(); dom.bg = null; }
+      }
+    }
+
+    const existingDom = arrowDomMap.get(arrow.id);
+    if (existingDom && arrowsGroup.contains(existingDom.path)) {
+      syncArrowStyles(existingDom);
+      continue;
+    }
+
+    // Hit area transparente de 16px para facilitar o toque e clique
+    const hitArea = document.createElementNS(svgNS, 'path');
+    hitArea.setAttribute('class', 'board-arrow-hit-area');
     hitArea.addEventListener('click', onArrowAction);
     hitArea.addEventListener('contextmenu', onArrowAction);
+
+    const path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('class', 'board-arrow-path');
     path.addEventListener('click', onArrowAction);
     path.addEventListener('contextmenu', onArrowAction);
 
     arrowsGroup.appendChild(hitArea);
     arrowsGroup.appendChild(path);
 
-    let textEl = null;
-    let bgEl = null;
-
-    if (arrow.label) {
-      textEl = document.createElementNS(svgNS, 'text');
-      textEl.setAttribute('class', 'board-arrow-label-text');
-      textEl.setAttribute('x', String(mid.x));
-      textEl.setAttribute('y', String(mid.y));
-      textEl.textContent = arrow.label;
-      textEl.addEventListener('click', onArrowAction);
-      textEl.addEventListener('contextmenu', onArrowAction);
-      arrowsGroup.appendChild(textEl);
-
-      let dim = labelBBoxCache.get(arrow.label);
-      if (!dim) {
-        const bbox = textEl.getBBox();
-        if (bbox.width > 0) {
-          dim = { width: bbox.width, height: bbox.height };
-          labelBBoxCache.set(arrow.label, dim);
-        } else {
-          dim = { width: 40, height: 16 };
-        }
-      }
-
-      const padX = 6, padY = 3;
-      const w = dim.width + padX * 2;
-      const h = dim.height + padY * 2;
-      bgEl = document.createElementNS(svgNS, 'rect');
-      bgEl.setAttribute('class', 'board-arrow-label-bg');
-      bgEl.setAttribute('x', String(mid.x - w / 2));
-      bgEl.setAttribute('y', String(mid.y - h / 2));
-      bgEl.setAttribute('width', String(w));
-      bgEl.setAttribute('height', String(h));
-      bgEl.setAttribute('rx', '4');
-      bgEl.addEventListener('click', onArrowAction);
-      bgEl.addEventListener('contextmenu', onArrowAction);
-      arrowsGroup.insertBefore(bgEl, textEl);
-    }
-
-    arrowDomMap.set(arrow.id, { hitArea, path, text: textEl, bg: bgEl });
+    const newDom = { hitArea, path, text: null, bg: null };
+    arrowDomMap.set(arrow.id, newDom);
+    syncArrowStyles(newDom);
   }
 }
 
 // ── Eventos de Mouse e Teclado ────────────────────────────────────────────────
 function setupEventListeners(getEl) {
-  // Título do Quadro
+  // Título do Espaço
   titleInput?.addEventListener('input', () => {
-    currentBoard.title = titleInput.value.trim() || 'Quadro Sem Título';
+    currentBoard.title = titleInput.value.trim() || 'Espaço Sem Título';
     scheduleSave();
   });
 
@@ -2050,6 +2128,19 @@ function setupEventListeners(getEl) {
 
   // Alternar Tema (só existe na aba cheia — embutido usa o tema do painel)
   getEl('btn-toggle-theme')?.addEventListener('click', toggleTheme);
+
+  // Alternar Fundo: Estrelas / Pontos / Nenhum
+  const cycleBgMode = () => {
+    const modes = ['stars', 'dots', 'none'];
+    const cur = currentBoard.bgMode || 'stars';
+    const nextIdx = (modes.indexOf(cur) + 1) % modes.length;
+    currentBoard.bgMode = modes[nextIdx];
+    applyViewport();
+    updateBgToggleButtons();
+    scheduleSave();
+  };
+  getEl('btn-toggle-bg')?.addEventListener('click', cycleBgMode);
+  getEl('btn-board-toggle-bg')?.addEventListener('click', cycleBgMode);
 
   // Exportar JSON
   getEl('btn-export-json')?.addEventListener('click', exportBoardAsJSON);
