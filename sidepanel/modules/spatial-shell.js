@@ -7,7 +7,7 @@
 // 4. Seções (.main-section) com cabeçalho, indicador 'Em Foco', reordenação e divisórias
 // 5. Atalhos globais de teclado ('Mãos no Teclado': Ctrl+K, Alt+L, Alt+[], Alt+1..9)
 
-import { isDesktopMode } from './platform.js';
+import { isDesktopMode, isMobileMode } from './platform.js';
 import { loadAllNotesMeta } from './storage.js';
 import { getOpenTabsSnapshot, closeTab } from './notes-tabs.js';
 
@@ -115,6 +115,7 @@ export function initSpatialShell() {
   setupKeyboardShortcuts();
   setupSectionInteractions();
   setupSettingsView();
+  setupMobileTouchGestures();
 
   document.addEventListener('quickdock:active-note-changed', e => {
     activeNoteId = e.detail?.id;
@@ -126,9 +127,19 @@ export function initSpatialShell() {
     syncNoteViews(e.detail || {});
   });
   document.addEventListener('quickdock:activate-note', () => {
+    const asideEl = document.getElementById('mAside');
+    if (asideEl && (window.innerWidth <= 768 || isMobileMode())) {
+      asideEl.classList.remove('is-open-mobile');
+    }
     if (!openViewIds.includes('notes')) {
       openOrFocusView('notes');
     }
+  });
+  document.addEventListener('click', (e) => {
+    const asideEl = document.getElementById('mAside');
+    if (!asideEl || !asideEl.classList.contains('is-open-mobile')) return;
+    if (asideEl.contains(e.target) || e.target.closest('#mNav') || e.target.closest('#navItemExplorer')) return;
+    asideEl.classList.remove('is-open-mobile');
   });
   syncNoteViews(typeof getOpenTabsSnapshot === 'function' ? getOpenTabsSnapshot() : {});
 
@@ -177,11 +188,15 @@ function setupActivityBar() {
       if (!viewId) return;
 
       navEl.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('is-active', i === item));
+      const asideEl = document.getElementById('mAside');
       if (viewId === 'notes') {
         setAsideMode('notes');
-        const asideEl = document.getElementById('mAside');
-        if (asideEl && window.innerWidth <= 768) {
+        if (asideEl && (window.innerWidth <= 768 || isMobileMode())) {
           asideEl.classList.toggle('is-open-mobile');
+        }
+      } else {
+        if (asideEl && (window.innerWidth <= 768 || isMobileMode())) {
+          asideEl.classList.remove('is-open-mobile');
         }
       }
       openOrFocusView(viewId, { invertMode: e.shiftKey });
@@ -405,6 +420,20 @@ export function openOrFocusView(viewId, { invertMode = false } = {}) {
   renderAsideViewList();
   setupSectionDividers();
   updateSectionMoveButtons();
+
+  // No mobile, rola a esteira horizontal (#mMain) até a view em foco
+  if (window.innerWidth <= 768 || isMobileMode()) {
+    const mainEl = document.getElementById('mMain');
+    const targetSection = document.querySelector(`.main-section[data-id="${targetViewId}"]`);
+    if (mainEl && targetSection) {
+      setTimeout(() => {
+        mainEl.scrollTo({
+          left: Math.max(0, targetSection.offsetLeft - 16),
+          behavior: 'smooth'
+        });
+      }, 50);
+    }
+  }
 
   // Atualiza rodapé
   const footerLabel = document.getElementById('footer-active-view-name');
@@ -1095,3 +1124,81 @@ function setupKeyboardShortcuts() {
     }
   });
 }
+
+// ── Controle de Gesto (Swipe entre as Views no Mobile) ────────────────────────
+function setupMobileTouchGestures() {
+  const mainEl = document.getElementById('mMain');
+  if (!mainEl) return;
+
+  let startX = 0;
+  let startScroll = 0;
+
+  mainEl.addEventListener(
+    'touchstart',
+    (event) => {
+      if (window.innerWidth > 768 && !isMobileMode()) return;
+      if (event.target.closest('.kanban-board, .table-container, .bases-body, #board-container, #graph-canvas-container, input, textarea, [contenteditable="true"]')) return;
+      if (!event.touches || event.touches.length === 0) return;
+      startX = event.touches[0].clientX;
+      startScroll = mainEl.scrollLeft;
+    },
+    { passive: true }
+  );
+
+  mainEl.addEventListener(
+    'touchend',
+    (event) => {
+      if (window.innerWidth > 768 && !isMobileMode()) return;
+      if (event.target.closest('.kanban-board, .table-container, .bases-body, #board-container, #graph-canvas-container, input, textarea, [contenteditable="true"]')) return;
+      if (!event.changedTouches || event.changedTouches.length === 0) return;
+
+      const endX = event.changedTouches[0].clientX;
+      const distance = endX - startX;
+
+      if (Math.abs(distance) < 30) return;
+
+      const views = Array.from(mainEl.querySelectorAll(':scope > .main-section:not([hidden])'));
+      if (views.length === 0) return;
+
+      const viewWidth = views[0].offsetWidth || (window.innerWidth - 32);
+      const gap = 8;
+      const currentIndex = Math.round(
+        (startScroll + 16) / (viewWidth + gap)
+      );
+
+      let nextIndex = currentIndex;
+      if (distance < 0) {
+        nextIndex = Math.min(currentIndex + 1, views.length - 1);
+      } else {
+        nextIndex = Math.max(currentIndex - 1, 0);
+      }
+
+      const targetView = views[nextIndex];
+      if (!targetView) return;
+
+      mainEl.scrollTo({
+        left: Math.max(0, targetView.offsetLeft - 16),
+        behavior: 'smooth'
+      });
+
+      const nextId = targetView.dataset.id;
+      if (nextId) {
+        focusedViewId = nextId;
+        views.forEach(v => v.classList.toggle('is-focused', v === targetView));
+        const navEl = document.getElementById('mNav');
+        if (navEl) {
+          navEl.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.toggle('is-active', item.dataset.navView === nextId);
+          });
+        }
+        const footerLabel = document.getElementById('footer-active-view-name');
+        if (footerLabel) {
+          const viewMeta = SHELL_VIEWS.find(v => v.id === nextId);
+          footerLabel.textContent = viewMeta ? viewMeta.title : nextId;
+        }
+      }
+    },
+    { passive: true }
+  );
+}
+

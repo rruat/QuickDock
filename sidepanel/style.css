@@ -11090,11 +11090,9 @@ html[data-platform="extension"] .section-header {
   display: none !important;
 }
 
-html[data-platform="mobile"] #mHeader,
 html[data-platform="mobile"] #mNavDivider,
 html[data-platform="mobile"] #mFooter,
-html[data-platform="mobile"] .aside-indicator,
-html[data-platform="mobile"] .section-header {
+html[data-platform="mobile"] .aside-indicator {
   display: none !important;
 }
 
@@ -11266,4 +11264,347 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
   height: auto !important;
   position: relative !important;
 }
+
+/* ========================================================
+   MODO MOBILE: VIEWS HORIZONTAIS, BOTTOM BAR & ASIDE PUSH
+   (Baseado no design-pattern adaptado ao QuickDock)
+   ======================================================== */
+@media (max-width: 768px), html[data-platform="mobile"] {
+  /* 1. App flex column em tela cheia */
+  #app,
+  html[data-platform="mobile"] #app {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100dvh !important;
+    width: 100vw !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+    background-color: var(--color-black, #141414) !important;
+  }
+
+  /* Oculta aside legada em favor do drawer do Spatial Shell */
+  .app-aside,
+  html[data-platform="mobile"] .app-aside {
+    display: none !important;
+  }
+
+  /* 2. Header compacto e responsivo */
+  #mHeader,
+  html[data-platform="mobile"] #mHeader {
+    order: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0.5rem 0.75rem !important;
+    height: auto !important;
+    min-height: 48px !important;
+    border-bottom: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
+    background-color: var(--color-black, #141414) !important;
+    flex-shrink: 0 !important;
+    gap: 0.5rem !important;
+  }
+
+  .header-left #mMenu,
+  .search-shortcut-badge {
+    display: none !important;
+  }
+
+  .header-left #mLogo {
+    margin: 0 !important;
+  }
+
+  .header-center {
+    flex: 1 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .smart-search-bar {
+    height: 32px !important;
+    padding: 0 0.6rem !important;
+  }
+
+  .smart-search-input {
+    font-size: 0.78rem !important;
+  }
+
+  .search-dropdown {
+    position: fixed !important;
+    top: 50px !important;
+    left: 12px !important;
+    right: 12px !important;
+    max-height: 70vh !important;
+    z-index: 999 !important;
+  }
+
+  /* 3. Main como esteira horizontal de Views (Scroll-Snap) */
+  #mMain,
+  html[data-platform="mobile"] #mMain {
+    order: 2 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex: 1 1 0px !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory !important;
+    scroll-behavior: smooth !important;
+    padding: 12px 16px !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-width: none !important;
+    gap: 8px !important;
+  }
+
+  #mMain::-webkit-scrollbar,
+  html[data-platform="mobile"] #mMain::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* 4. Cada Seção como uma View horizontal */
+  .main-section,
+  #mMain > .main-section,
+  html[data-platform="mobile"] .main-section,
+  html[data-platform="mobile"] #mMain > .main-section {
+    flex: 0 0 calc(100vw - 32px) !important;
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    height: 100% !important;
+    scroll-snap-align: center !important;
+    border: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
+    border-radius: 0.75rem !important;
+    background-color: var(--color-bg-card, var(--color-black, #141414)) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+  }
+
+  .section-header,
+  html[data-platform="mobile"] .section-header {
+    height: 44px !important;
+    padding-inline: 0.65rem !important;
+    border-radius: 0.75rem 0.75rem 0 0 !important;
+    background-color: var(--color-bg-card, var(--color-black, #141414)) !important;
+    display: flex !important;
+  }
+
+  .section-body {
+    padding: 0 !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  .view-toolbar {
+    padding: 0.35rem 0.5rem !important;
+    gap: 0.35rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .view-toolbar-left {
+    max-width: none !important;
+    flex: 1 1 100% !important;
+  }
+
+  .view-toolbar-right {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .kanban-board {
+    scroll-snap-type: x mandatory !important;
+    padding-bottom: 8px !important;
+  }
+
+  .kanban-column {
+    flex: 0 0 80vw !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    scroll-snap-align: start !important;
+  }
+
+  .gallery-grid {
+    grid-template-columns: 1fr !important;
+    align-content: start !important;
+    align-items: start !important;
+  }
+
+  .list-detail-container {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    overflow-y: auto !important;
+  }
+
+  .list-detail-master {
+    flex: 0 0 auto !important;
+    max-height: 220px !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .list-detail-pane {
+    flex: 1 0 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    overflow-y: visible !important;
+    padding: 0.75rem !important;
+  }
+
+  /* Oculta divisórias de drag e footer no mobile */
+  .section-divider,
+  .aside-indicator,
+  #mNavDivider,
+  #mFooter,
+  html[data-platform="mobile"] .section-divider,
+  html[data-platform="mobile"] .aside-indicator,
+  html[data-platform="mobile"] #mNavDivider,
+  html[data-platform="mobile"] #mFooter {
+    display: none !important;
+  }
+
+  /* 5. Aside como container em fluxo (Push Sheet sem scrim) */
+  #mAside,
+  html[data-platform="mobile"] #mAside {
+    order: 3 !important;
+    width: 100% !important;
+    max-height: 0 !important;
+    opacity: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    background-color: var(--color-black, #141414) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-shrink: 0 !important;
+    transition: max-height 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease, padding 240ms ease !important;
+  }
+
+  #mAside.is-open-mobile,
+  html[data-platform="mobile"] #mAside.is-open-mobile {
+    max-height: 50vh !important;
+    opacity: 1 !important;
+    padding: 0.6rem 0.75rem !important;
+    border-top: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
+    pointer-events: auto !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .aside-header {
+    height: 40px !important;
+    padding-inline: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .aside-close-mobile {
+    display: grid !important;
+  }
+
+  .aside-section-list {
+    padding: 0.25rem 0 !important;
+    max-height: calc(50vh - 50px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  #mAside.mode-notes .notes-aside-drawer,
+  html[data-platform="mobile"] #mAside.mode-notes .notes-aside-drawer {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-height: calc(50vh - 40px) !important;
+    overflow-y: auto !important;
+  }
+
+  #mAside:not(.mode-notes) .notes-aside-drawer,
+  html[data-platform="mobile"] #mAside:not(.mode-notes) .notes-aside-drawer {
+    display: none !important;
+  }
+
+  #mAside.mode-notes #asideSectionList,
+  #mAside.mode-notes > .aside-header,
+  html[data-platform="mobile"] #mAside.mode-notes #asideSectionList,
+  html[data-platform="mobile"] #mAside.mode-notes > .aside-header {
+    display: none !important;
+  }
+
+  #mAside.mode-views #asideSectionList,
+  html[data-platform="mobile"] #mAside.mode-views #asideSectionList {
+    max-height: calc(50vh - 50px) !important;
+    overflow-y: auto !important;
+  }
+
+  /* 6. Nav como Bottom Bar */
+  #mNav,
+  html[data-platform="mobile"] #mNav {
+    order: 4 !important;
+    width: 100% !important;
+    height: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    border: 0 !important;
+    border-top: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
+    border-radius: 0 !important;
+    background-color: var(--color-black, #141414) !important;
+    flex-shrink: 0 !important;
+  }
+
+  #mNav > .nav-logo,
+  #mNav > .nav-divider {
+    display: none !important;
+  }
+
+  #mNav ul {
+    flex-direction: row !important;
+    width: 100% !important;
+    height: 100% !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #mNav ul li {
+    width: 44px !important;
+    height: 40px !important;
+    border-radius: 0.5rem !important;
+    display: grid !important;
+    place-items: center !important;
+  }
+
+  .nav-item-settings {
+    margin-top: 0 !important;
+  }
+
+  /* Ajuste para estado vazio no mobile */
+  .empty-state {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 1.5rem 1rem !important;
+  }
+
+  /* Botões antigos de navegação substituídos pelo Spatial Shell */
+  .aux-view-switcher-btn,
+  .graph-back-btn,
+  .board-back-btn,
+  .calendar-back-btn,
+  .bases-back-btn,
+  .gallery-back-btn {
+    display: none !important;
+  }
+}
+
 

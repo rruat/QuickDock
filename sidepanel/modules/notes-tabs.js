@@ -1888,6 +1888,12 @@ export function closeNotesAsideDrawer() {
   // No desktop o drawer é permanente — nunca fechar nem remover.
   if (isDesktopMode()) return;
 
+  const mAside = document.getElementById('mAside');
+  if (mAside) {
+    mAside.classList.remove('is-open-mobile');
+    return;
+  }
+
   if (notesAsideDrawer) {
     notesAsideDrawer.classList.remove('open');
     notesAsideDrawer.classList.add('closing');
@@ -2453,6 +2459,12 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
 export function openNotesAsideDrawer() {
   // No desktop o drawer já está permanentemente montado em #app
   if (isDesktopMode()) return;
+
+  const mAside = document.getElementById('mAside');
+  if (mAside) {
+    mAside.classList.add('is-open-mobile');
+    return;
+  }
 
   closeNotesAsideDrawer();
 
@@ -3484,8 +3496,8 @@ export async function initNotesTabs() {
     });
   });
 
-  // No desktop, monta o drawer permanente como NAV (Coluna 1) em #app
-  if (isDesktopMode()) {
+  // No desktop e mobile com spatial shell, monta o drawer permanente em #mAside
+  if (isDesktopMode() || document.getElementById('mAside')) {
     initDesktopNotesAsideDrawer();
   }
 

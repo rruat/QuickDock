@@ -71,6 +71,16 @@ export function isDesktopMode() {
 }
 
 /**
+ * Fonte única de verdade pra "estamos no modo mobile?"
+ */
+export function isMobileMode() {
+  return typeof document !== 'undefined' && (
+    document.documentElement.dataset.platform === 'mobile' ||
+    (typeof window !== 'undefined' && window.innerWidth <= 768)
+  );
+}
+
+/**
  * Armazenamento assíncrono de chave-valor para preferências (tema, layout, notas ativas, histórico).
  */
 export const platformStorage = {
