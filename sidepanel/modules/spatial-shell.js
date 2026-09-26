@@ -1125,22 +1125,68 @@ function setupKeyboardShortcuts() {
   });
 }
 
-// ── Controle de Gesto (Swipe entre as Views no Mobile) ────────────────────────
+// ── Controle de Gesto (Swipe entre as Views no Mobile com Haptic Feedback) ───
 function setupMobileTouchGestures() {
   const mainEl = document.getElementById('mMain');
   if (!mainEl) return;
 
+  const SWIPE_THRESHOLD = 45; // Distância mínima necessária em px para acionar a troca de view
   let startX = 0;
+  let startY = 0;
   let startScroll = 0;
+  let hasVibrated = false;
+  let isSwiping = false;
 
   mainEl.addEventListener(
     'touchstart',
     (event) => {
       if (window.innerWidth > 768 && !isMobileMode()) return;
-      if (event.target.closest('.kanban-board, .table-container, .bases-body, #board-container, #graph-canvas-container, input, textarea, [contenteditable="true"]')) return;
+      if (event.target.closest('.kanban-board, .table-container, .bases-body, #board-container, #graph-canvas-container, input, textarea, [contenteditable="true"]')) {
+        isSwiping = false;
+        return;
+      }
       if (!event.touches || event.touches.length === 0) return;
       startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
       startScroll = mainEl.scrollLeft;
+      hasVibrated = false;
+      isSwiping = true;
+    },
+    { passive: true }
+  );
+
+  mainEl.addEventListener(
+    'touchmove',
+    (event) => {
+      if (!isSwiping) return;
+      if (window.innerWidth > 768 && !isMobileMode()) return;
+      if (!event.touches || event.touches.length === 0) return;
+
+      const currentX = event.touches[0].clientX;
+      const currentY = event.touches[0].clientY;
+      const diffX = currentX - startX;
+      const diffY = currentY - startY;
+
+      // Se o movimento for predominantemente vertical, não processa o swipe
+      if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffX) < 15) {
+        return;
+      }
+
+      // Ao ultrapassar a distância mínima necessária para abrir a próxima view:
+      // aciona uma leve vibração (haptic feedback) indicando que o ponto de troca foi atingido
+      if (Math.abs(diffX) >= SWIPE_THRESHOLD) {
+        if (!hasVibrated) {
+          if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            try {
+              navigator.vibrate(15);
+            } catch (_) {}
+          }
+          hasVibrated = true;
+        }
+      } else {
+        // Se o usuário recuar o dedo antes de soltar, permite vibrar novamente se cruzar de novo
+        hasVibrated = false;
+      }
     },
     { passive: true }
   );
@@ -1148,23 +1194,32 @@ function setupMobileTouchGestures() {
   mainEl.addEventListener(
     'touchend',
     (event) => {
+      if (!isSwiping) return;
+      isSwiping = false;
       if (window.innerWidth > 768 && !isMobileMode()) return;
-      if (event.target.closest('.kanban-board, .table-container, .bases-body, #board-container, #graph-canvas-container, input, textarea, [contenteditable="true"]')) return;
       if (!event.changedTouches || event.changedTouches.length === 0) return;
 
       const endX = event.changedTouches[0].clientX;
       const distance = endX - startX;
 
-      if (Math.abs(distance) < 30) return;
-
       const views = Array.from(mainEl.querySelectorAll(':scope > .main-section:not([hidden])'));
       if (views.length === 0) return;
 
-      const viewWidth = views[0].offsetWidth || (window.innerWidth - 32);
-      const gap = 8;
-      const currentIndex = Math.round(
-        (startScroll + 16) / (viewWidth + gap)
-      );
+      const currentView = views.find(v => v.dataset.id === focusedViewId) || views[0];
+      let currentIndex = views.indexOf(currentView);
+      if (currentIndex === -1) {
+        const viewWidth = views[0].offsetWidth || (window.innerWidth - 32);
+        currentIndex = Math.min(views.length - 1, Math.max(0, Math.round(startScroll / (viewWidth + 8))));
+      }
+
+      // Se a distância mínima não foi atingida, realinha suavemente à view atual
+      if (Math.abs(distance) < SWIPE_THRESHOLD) {
+        mainEl.scrollTo({
+          left: Math.max(0, (views[currentIndex]?.offsetLeft || 0) - 16),
+          behavior: 'smooth'
+        });
+        return;
+      }
 
       let nextIndex = currentIndex;
       if (distance < 0) {
@@ -1176,26 +1231,14 @@ function setupMobileTouchGestures() {
       const targetView = views[nextIndex];
       if (!targetView) return;
 
-      mainEl.scrollTo({
-        left: Math.max(0, targetView.offsetLeft - 16),
-        behavior: 'smooth'
-      });
-
       const nextId = targetView.dataset.id;
-      if (nextId) {
-        focusedViewId = nextId;
-        views.forEach(v => v.classList.toggle('is-focused', v === targetView));
-        const navEl = document.getElementById('mNav');
-        if (navEl) {
-          navEl.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.toggle('is-active', item.dataset.navView === nextId);
-          });
-        }
-        const footerLabel = document.getElementById('footer-active-view-name');
-        if (footerLabel) {
-          const viewMeta = SHELL_VIEWS.find(v => v.id === nextId);
-          footerLabel.textContent = viewMeta ? viewMeta.title : nextId;
-        }
+      if (nextId && nextId !== focusedViewId) {
+        openOrFocusView(nextId);
+      } else {
+        mainEl.scrollTo({
+          left: Math.max(0, targetView.offsetLeft - 16),
+          behavior: 'smooth'
+        });
       }
     },
     { passive: true }

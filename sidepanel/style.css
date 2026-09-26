@@ -1,5 +1,7 @@
 /* ===== VARIÁVEIS DE TEMA ===== */
-:root {
+:root,
+[data-theme="light"],
+html:not([data-theme="dark"]) {
   /* Dimensões base consistentes (design-pattern) */
   --nav-item-size: 40px;
   --nav-padding: 4px;
@@ -7,14 +9,14 @@
   --header-height: 49px;
   --gap-size: 4px;
 
-  /* Cores do design-pattern */
+  /* Cores do design-pattern (Tema Claro: textos pretos explícitos #000000) */
   --color-black: #fafafa;
-  --color-white: #1d2124;
+  --color-white: #000000;
   --color-cyan: #ebebeb;
   --color-transparent: transparent;
-  --color-text-primary: #1d2124;
-  --color-text-secondary: #6d6d6f;
-  --color-text-muted: #8b8b8d;
+  --color-text-primary: #000000;
+  --color-text-secondary: #555555;
+  --color-text-muted: #777777;
   --color-outline: #ebebeb;
   --color-outline-focus: #d7d7d9;
   --color-bg-card: #ffffff;
@@ -24,10 +26,10 @@
   --bg-secondary: #f9f9fa;
   --bg-hover: #ebebeb;
   --border: #ebebeb;
-  --text: #1d2124;
-  --text-muted: #8b8b8d;
-  --accent: #1d2124;
-  --tab-active-border-default: #1d2124;
+  --text: #000000;
+  --text-muted: #777777;
+  --accent: #000000;
+  --tab-active-border-default: #000000;
   --radius: 12px;
   --radius-sm: 6px;
   --font: 'Google Sans Flex', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -35,13 +37,14 @@
 }
 
 [data-theme="dark"] {
+  /* Cores do design-pattern (Tema Escuro: textos brancos automáticos #ffffff) */
   --color-black: #121212;
-  --color-white: #e5e5e5;
+  --color-white: #ffffff;
   --color-cyan: #262626;
   --color-transparent: transparent;
-  --color-text-primary: #f0f0f0;
+  --color-text-primary: #ffffff;
   --color-text-secondary: #a3a3a3;
-  --color-text-muted: #737373;
+  --color-text-muted: #8b8b8d;
   --color-outline: #2a2a2a;
   --color-outline-focus: #404040;
   --color-bg-card: #1c1c1c;
@@ -51,18 +54,55 @@
   --bg-secondary: #181818;
   --bg-hover: #262626;
   --border: #2a2a2a;
-  --text: #f0f0f0;
-  --text-muted: #737373;
+  --text: #ffffff;
+  --text-muted: #8b8b8d;
+  --accent: #ffffff;
   --tab-active-border-default: #808080;
 }
 
-/* ===== RESET ===== */
+/* ===== RESET E HERANÇA GLOBAL DE TIPOGRAFIA ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Tira o flash cinza/azul de toque do WebKit mobile em tudo — botão, bloco,
-   link. As regras pontuais mais abaixo continuam existindo, mas isso cobre
-   qualquer coisa que ainda escapasse. */
+/* Tira o flash cinza/azul de toque do WebKit mobile em tudo */
 * { -webkit-tap-highlight-color: transparent; }
+
+/* Controles de formulário e botões devem herdar a cor do tema e fonte */
+button, input, textarea, select {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Garante que qualquer texto sem cor específica no tema claro assuma preto (#000000),
+   e ao alternar para o tema escuro mude automaticamente para branco (#ffffff) */
+html,
+body,
+#app,
+#mHeader,
+#mMain,
+#mAside,
+#mNav,
+#mFooter,
+.main-section,
+.section-body,
+.note-section,
+.note-editor,
+.note-editor-blocks,
+.block,
+.block-content,
+[contenteditable="true"],
+h1, h2, h3, h4, h5, h6,
+p,
+li,
+td,
+th,
+label,
+summary,
+blockquote,
+.search-dropdown,
+.add-view-dropdown,
+.empty-state {
+  color: var(--color-text-primary, var(--text));
+}
 
 /* ===== ÍCONES (fonte Material Symbols Rounded, via icons.js) ===== */
 .qd-icon {
@@ -11339,7 +11379,7 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
     z-index: 999 !important;
   }
 
-  /* 3. Main como esteira horizontal de Views (Scroll-Snap) */
+  /* 3. Main como esteira horizontal de Views (navegação controlada via JS) */
   #mMain,
   html[data-platform="mobile"] #mMain {
     order: 2 !important;
@@ -11350,12 +11390,13 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
     min-height: 0 !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
-    scroll-snap-type: x mandatory !important;
+    scroll-snap-type: none !important; /* Desativa scroll snap nativo para controle 100% suave e confiável via JS */
     scroll-behavior: smooth !important;
     padding: 12px 16px !important;
     overscroll-behavior-x: contain !important;
     scrollbar-width: none !important;
     gap: 8px !important;
+    color: var(--color-text-primary, var(--text)) !important;
   }
 
   #mMain::-webkit-scrollbar,
@@ -11372,10 +11413,11 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
     width: calc(100vw - 32px) !important;
     max-width: calc(100vw - 32px) !important;
     height: 100% !important;
-    scroll-snap-align: center !important;
+    scroll-snap-align: none !important;
     border: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
     border-radius: 0.75rem !important;
     background-color: var(--color-bg-card, var(--color-black, #141414)) !important;
+    color: var(--color-text-primary, var(--text)) !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;

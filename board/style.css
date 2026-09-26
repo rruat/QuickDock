@@ -20,7 +20,7 @@
   --bg-hover: #f1f5f9;
   --border: #e2e8f0;
   --border-card: #cbd5e1;
-  --text: #0f172a;
+  --text: #000000;
   --text-muted: #64748b;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
@@ -40,6 +40,14 @@
   -webkit-user-select: none;
 }
 
+.board-theme-scope button,
+.board-theme-scope input,
+.board-theme-scope textarea,
+.board-theme-scope select {
+  font-family: inherit;
+  color: inherit;
+}
+
 [data-theme="dark"] .board-theme-scope {
   --bg: #0f172a;
   --bg-subtle: #1e293b;
@@ -47,7 +55,7 @@
   --bg-hover: #334155;
   --border: #334155;
   --border-card: #475569;
-  --text: #f8fafc;
+  --text: #ffffff;
   --text-muted: #94a3b8;
   --accent: #3b82f6;
   --accent-hover: #60a5fa;
