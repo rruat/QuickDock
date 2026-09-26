@@ -131,9 +131,7 @@ export function initSpatialShell() {
     if (asideEl && (window.innerWidth <= 768 || isMobileMode())) {
       asideEl.classList.remove('is-open-mobile');
     }
-    if (!openViewIds.includes('notes')) {
-      openOrFocusView('notes');
-    }
+    openOrFocusView('notes');
   });
   document.addEventListener('click', (e) => {
     const asideEl = document.getElementById('mAside');

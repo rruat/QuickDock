@@ -72,6 +72,10 @@ let startPointerY = 0;
 let draggedNode = null;
 let hoveredNode = null;
 let pointerMoved = false;
+const activePointers = new Map();
+let pinchStartDistance = null;
+let pinchStartZoom = 1;
+let pinchCenter = null;
 
 export function initGraphView() {
   container = document.getElementById('graph-canvas-container');
@@ -109,6 +113,7 @@ export function initGraphView() {
   canvas.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', onPointerUp);
   canvas.addEventListener('wheel', onWheel, { passive: false });
 
   // Fecha o painel de configurações ao clicar fora
@@ -900,12 +905,14 @@ function worldCoordinates(clientX, clientY) {
   };
 }
 
-function findNodeAt(worldX, worldY) {
+function findNodeAt(worldX, worldY, isTouch = false) {
+  // Em telas touch, adiciona tolerância maior para facilitar o toque com o dedo (mínimo de 24px em tela)
+  const touchTolerance = isTouch ? Math.max(16, 24 / Math.max(0.1, zoom)) : 6;
   for (let i = nodes.length - 1; i >= 0; i--) {
     const node = nodes[i];
     const baseRadius = node.radius || 6;
     const isStar = formaEfetivaDoNo(node) === 'star';
-    const hitRadius = (isStar ? baseRadius * 1.35 : baseRadius) + 6;
+    const hitRadius = (isStar ? baseRadius * 1.35 : baseRadius) + touchTolerance;
     const dist = Math.hypot(worldX - node.x, worldY - node.y);
     if (dist <= hitRadius) {
       return node;
@@ -915,29 +922,80 @@ function findNodeAt(worldX, worldY) {
 }
 
 function onPointerDown(e) {
-  if (e.button !== 0) return;
-  startPointerX = e.clientX;
-  startPointerY = e.clientY;
-  pointerMoved = false;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-  const world = worldCoordinates(e.clientX, e.clientY);
-  const clickedNode = findNodeAt(world.x, world.y);
+  const isTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
 
-  if (clickedNode) {
-    isDragging = true;
-    draggedNode = clickedNode;
-    draggedNode.isPinned = true;
-    reheatSimulation(0.35);
-  } else {
-    isPanning = true;
-    canvas.style.cursor = 'grabbing';
+  if (activePointers.size === 1) {
+    startPointerX = e.clientX;
+    startPointerY = e.clientY;
+    pointerMoved = false;
+
+    const world = worldCoordinates(e.clientX, e.clientY);
+    const clickedNode = findNodeAt(world.x, world.y, isTouch);
+
+    if (clickedNode) {
+      isDragging = true;
+      draggedNode = clickedNode;
+      hoveredNode = clickedNode; // Armazena explicitamente o nó tocado
+      draggedNode.isPinned = true;
+      reheatSimulation(0.35);
+    } else {
+      isPanning = true;
+      canvas.style.cursor = 'grabbing';
+    }
+  } else if (activePointers.size === 2) {
+    // Modo Pinch-to-zoom com 2 dedos
+    if (isDragging && draggedNode) {
+      draggedNode.isPinned = false;
+      draggedNode = null;
+      isDragging = false;
+    }
+    isPanning = false;
+    const pts = Array.from(activePointers.values());
+    pinchStartDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    pinchStartZoom = zoom;
+    pinchCenter = {
+      x: (pts[0].x + pts[1].x) / 2,
+      y: (pts[0].y + pts[1].y) / 2
+    };
   }
 }
 
 function onPointerMove(e) {
+  if (activePointers.has(e.pointerId)) {
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  }
+
+  // Gesto natural de pinch-to-zoom com dois dedos
+  if (activePointers.size === 2 && pinchStartDistance) {
+    const pts = Array.from(activePointers.values());
+    const currentDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    if (pinchStartDistance > 0 && currentDistance > 0) {
+      const scale = currentDistance / pinchStartDistance;
+      const targetZoom = Math.max(0.2, Math.min(3.5, pinchStartZoom * scale));
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = pinchCenter.x - rect.left;
+      const mouseY = pinchCenter.y - rect.top;
+
+      const worldX = (mouseX - panX) / zoom;
+      const worldY = (mouseY - panY) / zoom;
+
+      zoom = targetZoom;
+      panX = mouseX - worldX * zoom;
+      panY = mouseY - worldY * zoom;
+
+      render();
+    }
+    return;
+  }
+
+  const isTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
   const dx = e.clientX - startPointerX;
   const dy = e.clientY - startPointerY;
-  if (Math.hypot(dx, dy) > 4) {
+  const moveThreshold = isTouch ? 12 : 4; // Toque tem micro-deslocamento natural dos dedos
+  if (Math.hypot(dx, dy) > moveThreshold) {
     pointerMoved = true;
   }
 
@@ -959,9 +1017,12 @@ function onPointerMove(e) {
     return;
   }
 
-  // Hover detection
+  // Em toque, não faz hover contínuo
+  if (isTouch) return;
+
+  // Hover detection para mouse no desktop
   const world = worldCoordinates(e.clientX, e.clientY);
-  const targetNode = findNodeAt(world.x, world.y);
+  const targetNode = findNodeAt(world.x, world.y, false);
 
   if (targetNode !== hoveredNode) {
     hoveredNode = targetNode;
@@ -974,6 +1035,16 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
+  activePointers.delete(e.pointerId);
+  if (activePointers.size < 2) {
+    pinchStartDistance = null;
+  }
+
+  const isTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
+  const world = worldCoordinates(e.clientX, e.clientY);
+  // Identifica o nó tocado ou clicado antes de limpar os estados de arrasto
+  const tappedNode = !pointerMoved ? (draggedNode || hoveredNode || findNodeAt(world.x, world.y, isTouch)) : null;
+
   if (isDragging && draggedNode) {
     draggedNode.isPinned = false;
     draggedNode = null;
@@ -985,14 +1056,12 @@ function onPointerUp(e) {
     canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
   }
 
-  // Clique em nó sem arrastar abre a nota diretamente sem fechar o grafo
-  if (!pointerMoved && hoveredNode) {
-    const target = hoveredNode;
+  // Clique ou toque em nó sem arrastar abre a nota diretamente
+  if (!pointerMoved && tappedNode) {
+    const target = tappedNode;
     hideTooltip();
-    // No desktop currentView nunca chega a ser 'grafo' (o painel não passa
-    // mais por switchView), então isViewFullscreen() já dá sempre falso ali —
-    // este guard só é necessário mesmo fora do desktop.
-    if (!isDesktopMode() && isViewFullscreen()) {
+    hoveredNode = null;
+    if (!isDesktopMode() && !document.getElementById('mMain') && isViewFullscreen()) {
       switchView('grafo', { split: true });
     }
     document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
