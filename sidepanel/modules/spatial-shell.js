@@ -21,7 +21,8 @@ export const SHELL_VIEWS = [
   { id: 'graph', title: 'Constelações', icon: 'hub', desc: 'Grafo de conexões entre notas' },
   { id: 'calendar', title: 'Calendário', icon: 'calendar_today', desc: 'Visão temporal de eventos e notas' },
   { id: 'docs', title: 'Documentos', icon: 'attach_file', desc: 'Anexos e arquivos da nota' },
-  { id: 'templates', title: 'Modelos', icon: 'auto_stories', desc: 'Galeria de modelos prontos' }
+  { id: 'templates', title: 'Modelos', icon: 'auto_stories', desc: 'Galeria de modelos prontos' },
+  { id: 'settings', title: 'Configurações', icon: 'settings', desc: 'Preferências do Spatial Shell' }
 ];
 
 let openViewIds = [];
@@ -31,6 +32,11 @@ let searchActiveIdx = -1;
 let searchCandidates = [];
 let draggedViewId = null; // reordenação de views por arrastar o .section-header
 let activeNoteId = null;
+
+// 'add' (padrão): clicar numa view fechada ACRESCENTA às já abertas; segurar
+// Shift inverte pra substituir. 'replace': clicar SUBSTITUI; Shift acrescenta.
+// Configurável na view "Configurações" (id 'settings').
+let openViewsMode = 'add';
 
 // Utilitários de texto e regex
 function normalizeStr(str) {
@@ -85,6 +91,10 @@ export function initSpatialShell() {
         openViewIds = [...new Set(openViewIds)];
       }
     }
+    const savedOpenMode = localStorage.getItem('quickdock:spatial:open-view-mode');
+    if (savedOpenMode === 'add' || savedOpenMode === 'replace') {
+      openViewsMode = savedOpenMode;
+    }
   } catch {}
 
   if (openViewIds.length === 0) {
@@ -104,6 +114,7 @@ export function initSpatialShell() {
   setupOmnibar();
   setupKeyboardShortcuts();
   setupSectionInteractions();
+  setupSettingsView();
 
   document.addEventListener('quickdock:active-note-changed', e => {
     activeNoteId = e.detail?.id;
@@ -173,7 +184,7 @@ function setupActivityBar() {
           asideEl.classList.toggle('is-open-mobile');
         }
       }
-      openOrFocusView(viewId, { add: e.shiftKey });
+      openOrFocusView(viewId, { invertMode: e.shiftKey });
     });
   });
 }
@@ -217,9 +228,9 @@ function setupAside() {
           // contrário do clique em "Notas" no #mNav/#mMenu, que só foca a
           // que já estiver ativa.
           document.getElementById('btn-new-note')?.click();
-          openOrFocusView('notes', { add: true });
+          openOrFocusView('notes');
         } else if (type) {
-          openOrFocusView(type, { add: true });
+          openOrFocusView(type);
         }
         addMenu.style.display = 'none';
       });
@@ -264,6 +275,24 @@ function setupAside() {
   }
 }
 
+// ── View "Configurações" (Mosaico de Views: acrescentar vs substituir) ──────
+function setupSettingsView() {
+  const addRadio = document.getElementById('settings-open-mode-add');
+  const replaceRadio = document.getElementById('settings-open-mode-replace');
+  if (!addRadio || !replaceRadio) return;
+
+  addRadio.checked = openViewsMode === 'add';
+  replaceRadio.checked = openViewsMode === 'replace';
+
+  const applyMode = (mode) => {
+    openViewsMode = mode;
+    try { localStorage.setItem('quickdock:spatial:open-view-mode', mode); } catch {}
+  };
+
+  addRadio.addEventListener('change', () => { if (addRadio.checked) applyMode('add'); });
+  replaceRadio.addEventListener('change', () => { if (replaceRadio.checked) applyMode('replace'); });
+}
+
 export function renderAsideViewList() {
   const listEl = document.getElementById('asideSectionList');
   if (!listEl) return;
@@ -283,8 +312,8 @@ export function renderAsideViewList() {
       <span class="aside-item-badge">${isOpen ? 'Aberta' : 'Abrir'}</span>
     `;
 
-    item.addEventListener('click', () => {
-      openOrFocusView(v.id);
+    item.addEventListener('click', (e) => {
+      openOrFocusView(v.id, { invertMode: e.shiftKey });
     });
 
     listEl.appendChild(item);
@@ -326,7 +355,7 @@ export function syncNoteSectionDOM() {}
 export function buildNotePlaceholderSection() {}
 
 // ── Gestão de Views Abertas e Foco ────────────────────────────────────────────
-export function openOrFocusView(viewId, options = {}) {
+export function openOrFocusView(viewId, { invertMode = false } = {}) {
   let targetViewId = viewId;
   let targetNoteId = null;
 
@@ -346,14 +375,18 @@ export function openOrFocusView(viewId, options = {}) {
 
   if (!SHELL_VIEWS.some(v => v.id === targetViewId)) return;
 
-  if (options.add) {
-    if (!openViewIds.includes(targetViewId)) {
+  // Mosaico multi-view: por padrão ('add'), abrir uma view ACRESCENTA às já
+  // abertas; segurar Shift (invertMode) troca pra substituir só desta vez.
+  // Com o modo 'replace' escolhido em Configurações, a lógica se inverte:
+  // clique normal substitui, Shift acrescenta. Uma versão anterior sempre
+  // substituía no clique normal (só acrescentava com Shift) sem nenhuma
+  // forma de mudar isso — um atalho invisível que na prática deixava só uma
+  // view abrir por vez.
+  if (!openViewIds.includes(targetViewId)) {
+    const wantsAdd = invertMode ? openViewsMode === 'replace' : openViewsMode === 'add';
+    if (wantsAdd) {
       openViewIds.push(targetViewId);
-    }
-  } else {
-    // Navegação principal: se a view não está aberta, substitui a atual
-    // para uma navegação limpa em tela cheia (sem views ocultas ocupando metade da tela)
-    if (!openViewIds.includes(targetViewId)) {
+    } else {
       openViewIds = [targetViewId];
     }
   }
@@ -574,7 +607,8 @@ function applyViewVisibility() {
     graph: document.querySelector('.graph-view') || document.getElementById('section-graph'),
     calendar: document.querySelector('.calendar-view') || document.getElementById('section-calendar'),
     docs: document.querySelector('.docs-section') || document.getElementById('section-docs'),
-    templates: document.querySelector('.templates-gallery-view') || document.getElementById('section-templates')
+    templates: document.querySelector('.templates-gallery-view') || document.getElementById('section-templates'),
+    settings: document.querySelector('.settings-view') || document.getElementById('settings-view')
   };
 
   for (const [id, el] of Object.entries(viewMap)) {

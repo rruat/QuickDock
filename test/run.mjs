@@ -4769,6 +4769,43 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     spatialShellSource.includes("setAsideMode('notes')"));
 }
 
+// ── 39. Spatial Shell: view "Configurações" controla acrescentar vs substituir ao abrir views ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const spatialShellSource = (await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const indexHtmlSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  const notFoundHtmlSource = await readFile(new URL('../404.html', import.meta.url), 'utf8');
+
+  ok('spatial-shell.js · SHELL_VIEWS inclui "settings" e openOrFocusView decide acrescentar/substituir via wantsAdd (não substitui incondicionalmente no clique normal)',
+    spatialShellSource.includes("{ id: 'settings', title: 'Configurações'") &&
+    spatialShellSource.includes('openViewIds.push(targetViewId)') &&
+    spatialShellSource.includes('const wantsAdd ='));
+
+  ok('spatial-shell.js · openOrFocusView aceita invertMode (Shift inverte acrescentar/substituir) e respeita openViewsMode configurável',
+    spatialShellSource.includes('{ invertMode = false } = {}') &&
+    spatialShellSource.includes("let openViewsMode = 'add'") &&
+    spatialShellSource.includes("openViewsMode === 'replace'") &&
+    spatialShellSource.includes("e.shiftKey"));
+
+  ok('spatial-shell.js · setupSettingsView lê/salva o modo em localStorage e sincroniza os rádios da view Configurações',
+    spatialShellSource.includes('function setupSettingsView') &&
+    spatialShellSource.includes("'quickdock:spatial:open-view-mode'") &&
+    spatialShellSource.includes('settings-open-mode-add') &&
+    spatialShellSource.includes('settings-open-mode-replace'));
+
+  ok('html · index.html, sidepanel/index.html e 404.html têm o item "Configurações" no #mNav e a view #settings-view com os dois rádios',
+    indexHtmlSource.includes('data-nav-view="settings"') && sidepanelHtmlSource.includes('data-nav-view="settings"') && notFoundHtmlSource.includes('data-nav-view="settings"') &&
+    indexHtmlSource.includes('id="settings-view"') && sidepanelHtmlSource.includes('id="settings-view"') && notFoundHtmlSource.includes('id="settings-view"') &&
+    indexHtmlSource.includes('id="settings-open-mode-add"') && indexHtmlSource.includes('id="settings-open-mode-replace"'));
+
+  ok('style.css · define o visual da view Configurações (.settings-body/.settings-option) e fixa "Configurações" no rodapé do #mNav',
+    styleCssSource.includes('.settings-option') &&
+    styleCssSource.includes('.settings-option-title') &&
+    styleCssSource.includes('.nav-item-settings'));
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

@@ -84,6 +84,9 @@
         <li class="nav-item" data-nav-view="templates" title="Galeria de Modelos">
           <span class="material-symbols-rounded">auto_stories</span>
         </li>
+        <li class="nav-item nav-item-settings" data-nav-view="settings" title="Configurações">
+          <span class="material-symbols-rounded">settings</span>
+        </li>
       </ul>
     </nav>
 
@@ -860,6 +863,41 @@
         <div id="doc-grid" class="doc-grid"></div>
         <button id="docs-hidden-hint" class="docs-hidden-hint" hidden></button>
         <div id="drop-hint" class="drop-hint">Arraste arquivos aqui, clique no botão de adicionar<br>ou cole uma imagem com Ctrl+V</div>
+      </div>
+    </section>
+
+    <section class="settings-view main-section" id="settings-view" data-id="settings" tabindex="0" hidden>
+      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+        <div class="section-header-left">
+          <span class="section-icon"><span class="material-symbols-rounded">settings</span></span>
+          <span class="section-title">Configurações</span>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+        </div>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar Configurações" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+        </div>
+      </header>
+      <div class="settings-body">
+        <div class="settings-section">
+          <h3 class="settings-section-title">Mosaico de Views</h3>
+          <p class="settings-section-desc">Controla o que acontece ao clicar numa view (barra de atividades, menu ou "+") que ainda não está aberta.</p>
+          <label class="settings-option">
+            <input type="radio" name="quickdock-open-view-mode" value="add" id="settings-open-mode-add">
+            <div class="settings-option-text">
+              <span class="settings-option-title">Acrescentar por padrão</span>
+              <span class="settings-option-desc">O clique abre a view ao lado das que já estão abertas. Segure Shift para substituir.</span>
+            </div>
+          </label>
+          <label class="settings-option">
+            <input type="radio" name="quickdock-open-view-mode" value="replace" id="settings-open-mode-replace">
+            <div class="settings-option-text">
+              <span class="settings-option-title">Substituir por padrão</span>
+              <span class="settings-option-desc">O clique fecha as outras views e abre só essa. Segure Shift para acrescentar.</span>
+            </div>
+          </label>
+        </div>
       </div>
     </section>
 
