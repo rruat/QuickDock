@@ -105,6 +105,11 @@ export function toggleViewFullscreen() {
 export function switchView(viewName, params = {}) {
   if (!viewName) return;
 
+  if (typeof window !== 'undefined' && typeof window.quickdockOpenView === 'function' && document.documentElement.dataset.platform === 'desktop') {
+    const shellMap = { grafo: 'graph', editor: 'notes' };
+    window.quickdockOpenView(shellMap[viewName] || viewName);
+  }
+
   // Determina se a visão alvo deve ser em modo tela cheia (100%) ou dividida (split)
   let targetSplit = isSplitMode;
   if (params.split !== undefined) {
@@ -192,6 +197,7 @@ export function switchView(viewName, params = {}) {
   if (jsonView) {
     jsonView.hidden = true;
     jsonView.classList.remove('active');
+    jsonView.style.removeProperty('display');
   }
 
   document.documentElement.classList.remove(
@@ -336,6 +342,7 @@ export function switchView(viewName, params = {}) {
     if (jsonView) {
       jsonView.hidden = false;
       jsonView.classList.add('active');
+      jsonView.style.setProperty('display', 'flex', 'important');
     }
     document.documentElement.classList.add('view-json');
     document.body.classList.add('view-json');

@@ -5511,7 +5511,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] #app > .graph-view:not([hidden]),
   html[data-platform="desktop"] #app > .calendar-view:not([hidden]),
   html[data-platform="desktop"] #app > .docs-section:not([hidden]):not(.is-collapsed),
-  html[data-platform="desktop"] #app > .bases-view:not([hidden]) {
+  html[data-platform="desktop"] #app > .bases-view:not([hidden]),
+  html[data-platform="desktop"] #app > .json-view:not([hidden]) {
     flex: 0 1 var(--panel-width, 380px) !important;
     width: var(--panel-width, 380px) !important;
     min-width: 260px;
@@ -5580,7 +5581,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .desktop-panel-column > .graph-view:not([hidden]),
   html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not([hidden]),
   html[data-platform="desktop"] .desktop-panel-column > .docs-section:not([hidden]):not(.is-collapsed),
-  html[data-platform="desktop"] .desktop-panel-column > .bases-view:not([hidden]) {
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view:not([hidden]),
+  html[data-platform="desktop"] .desktop-panel-column > .json-view:not([hidden]) {
     width: 100% !important;
     min-width: 0;
     max-width: none;
@@ -5603,7 +5605,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .desktop-panel-column > .graph-view:not(.desktop-panel-stack-last),
   html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not(.desktop-panel-stack-last),
   html[data-platform="desktop"] .desktop-panel-column > .docs-section:not(.desktop-panel-stack-last),
-  html[data-platform="desktop"] .desktop-panel-column > .bases-view:not(.desktop-panel-stack-last) {
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .json-view:not(.desktop-panel-stack-last) {
     flex: 0 0 var(--panel-height, 240px) !important;
     border-bottom: 1px solid var(--border);
   }
@@ -5612,7 +5615,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .desktop-panel-column > .graph-view.desktop-panel-stack-last,
   html[data-platform="desktop"] .desktop-panel-column > .calendar-view.desktop-panel-stack-last,
   html[data-platform="desktop"] .desktop-panel-column > .docs-section.desktop-panel-stack-last,
-  html[data-platform="desktop"] .desktop-panel-column > .bases-view.desktop-panel-stack-last {
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .json-view.desktop-panel-stack-last {
     flex: 1 1 auto !important;
   }
 
@@ -5679,7 +5683,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] body.no-note-open .graph-view:not([hidden]),
   html[data-platform="desktop"] body.no-note-open .calendar-view:not([hidden]),
   html[data-platform="desktop"] body.no-note-open .docs-section:not([hidden]):not(.is-collapsed),
-  html[data-platform="desktop"] body.no-note-open .bases-view:not([hidden]) {
+  html[data-platform="desktop"] body.no-note-open .bases-view:not([hidden]),
+  html[data-platform="desktop"] body.no-note-open .json-view:not([hidden]) {
     display: flex !important;
   }
 
@@ -5692,7 +5697,8 @@ html[data-platform="mobile"] #btn-nav-board {
     .graph-view:not([hidden]),
     .calendar-view:not([hidden]),
     .docs-section:not([hidden]):not(.is-collapsed),
-    .bases-view:not([hidden])
+    .bases-view:not([hidden]),
+    .json-view:not([hidden])
   ) .note-section {
     display: none !important;
   }
@@ -5706,7 +5712,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] #btn-board-toggle-height,
   html[data-platform="desktop"] #btn-calendar-toggle-height,
   html[data-platform="desktop"] #btn-docs-toggle-height,
-  html[data-platform="desktop"] #btn-bases-toggle-height {
+  html[data-platform="desktop"] #btn-bases-toggle-height,
+  html[data-platform="desktop"] #btn-json-toggle-height {
     display: none !important;
   }
 
@@ -5720,7 +5727,8 @@ html[data-platform="mobile"] #btn-nav-board {
   html[data-platform="desktop"] .graph-view[hidden],
   html[data-platform="desktop"] .board-view[hidden],
   html[data-platform="desktop"] .calendar-view[hidden],
-  html[data-platform="desktop"] .bases-view[hidden] {
+  html[data-platform="desktop"] .bases-view[hidden],
+  html[data-platform="desktop"] .json-view[hidden] {
     display: none !important;
   }
 

@@ -65,7 +65,7 @@ export function openAuxViewMenu(anchorEl) {
     addOpt('view_kanban', 'Base', 'Abrir/fechar como painel',
       () => toggleDesktopPanel('bases'), isDesktopPanelOpen('bases'));
     addOpt('data_object', 'JSON Studio', 'Abrir/fechar como painel',
-      () => switchView('json'));
+      () => toggleDesktopPanel('json'), isDesktopPanelOpen('json'));
   } else {
     addOpt('description', 'Documentos', 'Anexos e arquivos da nota', async () => {
       switchView('editor');

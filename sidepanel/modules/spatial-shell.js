@@ -636,6 +636,7 @@ function applyViewVisibility() {
     calendar: document.querySelector('.calendar-view') || document.getElementById('section-calendar'),
     docs: document.querySelector('.docs-section') || document.getElementById('section-docs'),
     templates: document.querySelector('.templates-gallery-view') || document.getElementById('section-templates'),
+    json: document.querySelector('.json-view') || document.getElementById('json-view'),
     settings: document.querySelector('.settings-view') || document.getElementById('settings-view')
   };
 
@@ -705,6 +706,9 @@ export function triggerOpenViewsRefresh() {
     }
     if (openViewIds.includes('docs')) {
       document.dispatchEvent(new CustomEvent('quickdock:refresh-documents'));
+    }
+    if (openViewIds.includes('json')) {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-json-view'));
     }
     window.dispatchEvent(new CustomEvent('resize'));
   };

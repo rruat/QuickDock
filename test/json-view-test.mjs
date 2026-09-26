@@ -118,6 +118,49 @@ for (const [key, tpl] of Object.entries(JSON_TEMPLATES)) {
   ok(`Template "${key}" é JSON serializável válido`, parsed !== null);
 }
 
+// 6. Testes de Integração com Shell, Views e Estilos
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(__dirname, '..');
+
+const spatialShellSrc = fs.readFileSync(path.join(rootDir, 'sidepanel/modules/spatial-shell.js'), 'utf-8');
+const viewsSrc = fs.readFileSync(path.join(rootDir, 'sidepanel/modules/views.js'), 'utf-8');
+const desktopPanelsSrc = fs.readFileSync(path.join(rootDir, 'sidepanel/modules/desktop-panels.js'), 'utf-8');
+const documentsSrc = fs.readFileSync(path.join(rootDir, 'sidepanel/modules/documents.js'), 'utf-8');
+const styleCssSrc = fs.readFileSync(path.join(rootDir, 'sidepanel/style.css'), 'utf-8');
+const indexHtmlSrc = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf-8');
+const errorHtmlSrc = fs.readFileSync(path.join(rootDir, '404.html'), 'utf-8');
+
+ok('spatial-shell: SHELL_VIEWS contém view json', spatialShellSrc.includes("id: 'json'"));
+ok('spatial-shell: applyViewVisibility mapeia viewMap.json', spatialShellSrc.includes("json: document.querySelector('.json-view')"));
+ok('spatial-shell: triggerOpenViewsRefresh emite refresh-json-view', spatialShellSrc.includes("quickdock:refresh-json-view"));
+
+ok('desktop-panels: PANEL_ORDER contém json', desktopPanelsSrc.includes("json: 70"));
+ok('desktop-panels: MAXIMIZE_BTN_ID contém btn-json-toggle-fullscreen', desktopPanelsSrc.includes("json: 'btn-json-toggle-fullscreen'"));
+ok('desktop-panels: REFRESH_EVENT_NAME contém json', desktopPanelsSrc.includes("json: 'json'"));
+ok('desktop-panels: panelElement trata caso json', desktopPanelsSrc.includes("case 'json': return document.querySelector('.json-view');"));
+
+ok('views.js: switchView delega para window.quickdockOpenView no desktop', viewsSrc.includes("window.quickdockOpenView(shellMap[viewName] || viewName);"));
+ok('views.js: switchView ativa jsonView com display flex !important', viewsSrc.includes("jsonView.style.setProperty('display', 'flex', 'important');"));
+ok('views.js: switchView remove display ao ocultar jsonView', viewsSrc.includes("jsonView.style.removeProperty('display');"));
+
+ok('documents.js: menu aux em desktop usa toggleDesktopPanel e isDesktopPanelOpen para json',
+  documentsSrc.includes("() => toggleDesktopPanel('json'), isDesktopPanelOpen('json')"));
+
+ok('style.css: desktop #app possui regra para .json-view:not([hidden])', styleCssSrc.includes('.json-view:not([hidden])'));
+ok('style.css: desktop body.no-note-open possui regra para .json-view:not([hidden])', styleCssSrc.includes('html[data-platform="desktop"] body.no-note-open .json-view:not([hidden])'));
+ok('style.css: desktop #btn-json-toggle-height é ocultado', styleCssSrc.includes('#btn-json-toggle-height'));
+ok('style.css: desktop .json-view[hidden] é display none', styleCssSrc.includes('html[data-platform="desktop"] .json-view[hidden]'));
+
+const indexHash = crypto.createHash('sha256').update(indexHtmlSrc).digest('hex');
+const errorHash = crypto.createHash('sha256').update(errorHtmlSrc).digest('hex');
+ok('HTML Parity: index.html e 404.html são 100% idênticos', indexHash === errorHash);
+ok('index.html contém seção #json-view', indexHtmlSrc.includes('id="json-view"'));
+
 if (failed.length > 0) {
   console.error(`\n❌ ${failed.length} testes falharam:`);
   failed.forEach(f => console.error(`  - ${f}`));

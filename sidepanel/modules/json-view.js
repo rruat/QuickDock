@@ -10,6 +10,7 @@
 // 7. Validação de sintaxe em tempo real com indicador de linha e coluna exata.
 
 import { isDesktopMode } from './platform.js';
+import { toggleDesktopPanel } from './desktop-panels.js';
 import { switchView, goBack } from './views.js';
 import { escHtml } from './blocks.js';
 
@@ -1228,7 +1229,8 @@ export function initJsonView() {
 
   // Voltar
   document.getElementById('btn-json-back')?.addEventListener('click', () => {
-    if (!isDesktopMode()) switchView('editor');
+    if (isDesktopMode()) toggleDesktopPanel('json');
+    else switchView('editor');
   });
 
   // Ações de cabeçalho
