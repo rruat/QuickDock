@@ -712,6 +712,32 @@
 .board-card-connect-handle.left   { left: -6px; top: calc(50% - 6px); }
 .board-card-connect-handle.right  { right: -6px; top: calc(50% - 6px); }
 
+/* Feedback visual ao conectar uma seta (Target Card & Snap Magnético) */
+.board-card.is-connect-target {
+  outline: 2.5px solid var(--accent, #3b82f6) !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25), 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+  transform: scale(1.015);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  z-index: 25;
+}
+
+.board-card.is-connect-target .board-card-connect-handle {
+  opacity: 0.8 !important;
+}
+
+.board-card-connect-handle.is-target-port {
+  opacity: 1 !important;
+  transform: scale(1.7) !important;
+  background: var(--accent, #3b82f6) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4) !important;
+  z-index: 35 !important;
+}
+
+.draft-arrow.is-snapped {
+  stroke-width: 2.5px;
+  stroke: var(--accent, #3b82f6);
+}
+
 /* Cores de Cartões — as 7 do arco-íris, mesma ordem da paleta de nota */
 .board-card[data-color="red"]    { background: #fee2e2; border-color: #fca5a5; }
 .board-card[data-color="red"]    .board-card-header { background: #fecaca; }
@@ -746,13 +772,20 @@
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.22), var(--shadow-md);
 }
 
-/* Linha guia de auto-alinhamento inteligente (Smart Snapping) */
+/* Linha guia de auto-alinhamento inteligente (Smart Snapping estilo Canva) */
 .board-guide-line {
   stroke: var(--accent, #3b82f6);
-  stroke-width: 1.2px;
+  stroke-width: 1.5px;
   stroke-dasharray: 4 3;
   pointer-events: none;
   opacity: 0.95;
+}
+
+.board-guide-dot {
+  fill: var(--accent, #3b82f6);
+  stroke: var(--bg, #ffffff);
+  stroke-width: 1.5px;
+  pointer-events: none;
 }
 
 /* Retângulo de seleção múltipla (Marquee Selection) */
@@ -1050,3 +1083,179 @@
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent, #3b82f6);
   transform: scale(1.15);
 }
+
+.board-popover-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 50px;
+}
+
+.board-popover-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.board-chip-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--bg-hover, #f1f5f9);
+  color: var(--text, #000000);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.board-chip-btn:hover {
+  background: var(--accent, #2563eb);
+  color: #ffffff;
+  border-color: var(--accent, #2563eb);
+}
+
+/* ── Elementos e Formas de Fluxogramas (Flowcharts) ────────────────────────── */
+.board-card[data-shape]:not([data-shape="process"]):not([data-shape="rectangle"]) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.board-card-shape-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.08));
+}
+
+.board-card-shape-path {
+  fill: var(--card-bg-fill, var(--bg-card, #ffffff));
+  stroke: var(--card-stroke, var(--border-card, #cbd5e1));
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.board-card-shape-line {
+  stroke: var(--card-stroke, var(--border-card, #cbd5e1));
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+
+.board-card[data-shape]:not([data-shape="process"]):not([data-shape="rectangle"]) .board-card-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: transparent !important;
+  border-bottom: none !important;
+  z-index: 2;
+  opacity: 0.15;
+  transition: opacity 0.15s ease;
+}
+
+.board-card[data-shape]:not([data-shape="process"]):not([data-shape="rectangle"]):hover .board-card-header {
+  opacity: 1;
+}
+
+.board-card[data-shape]:not([data-shape="process"]):not([data-shape="rectangle"]) .board-card-body {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px 20px;
+  box-sizing: border-box;
+}
+
+.board-card[data-shape="decision"] .board-card-body {
+  padding: 22px 28px;
+}
+
+/* Popover de Seleção de Formas */
+.board-shape-popover {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 230px;
+  padding: 12px;
+  background: var(--bg, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  font-family: inherit;
+  color: var(--text, #000000);
+}
+
+.board-shape-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.board-shape-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  text-align: left;
+}
+
+.board-shape-item:hover {
+  background: var(--bg-hover, #f1f5f9);
+  border-color: var(--border, #e2e8f0);
+}
+
+.board-shape-item.is-active {
+  background: var(--accent-subtle, rgba(37, 99, 235, 0.1));
+  border-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+  font-weight: 500;
+}
+
+.board-shape-item .qd-icon {
+  font-size: 18px;
+}
+
+/* Suporte a cores de tema nas formas */
+.board-card[data-color="red"] { --card-bg-fill: #fee2e2; --card-stroke: #fca5a5; }
+.board-card[data-color="orange"] { --card-bg-fill: #ffedd5; --card-stroke: #fdba74; }
+.board-card[data-color="yellow"] { --card-bg-fill: #fef9c3; --card-stroke: #fde047; }
+.board-card[data-color="green"] { --card-bg-fill: #dcfce7; --card-stroke: #86efac; }
+.board-card[data-color="blue"] { --card-bg-fill: #dbeafe; --card-stroke: #93c5fd; }
+.board-card[data-color="indigo"] { --card-bg-fill: #e0e7ff; --card-stroke: #a5b4fc; }
+.board-card[data-color="violet"] { --card-bg-fill: #ede9fe; --card-stroke: #c4b5fd; }
+.board-card[data-custom-color] {
+  --card-bg-fill: color-mix(in srgb, var(--card-custom-color) 20%, var(--bg-card, #ffffff));
+  --card-stroke: var(--card-custom-color);
+}
+
+[data-theme="dark"] .board-card[data-color="red"],
+.dark-theme .board-card[data-color="red"] { --card-bg-fill: #450a0a; --card-stroke: #991b1b; }
+[data-theme="dark"] .board-card[data-color="orange"],
+.dark-theme .board-card[data-color="orange"] { --card-bg-fill: #431407; --card-stroke: #9a3412; }
+[data-theme="dark"] .board-card[data-color="yellow"],
+.dark-theme .board-card[data-color="yellow"] { --card-bg-fill: #422006; --card-stroke: #854d0e; }
+[data-theme="dark"] .board-card[data-color="green"],
+.dark-theme .board-card[data-color="green"] { --card-bg-fill: #052e16; --card-stroke: #166534; }
+[data-theme="dark"] .board-card[data-color="blue"],
+.dark-theme .board-card[data-color="blue"] { --card-bg-fill: #172554; --card-stroke: #1e40af; }
+[data-theme="dark"] .board-card[data-color="indigo"],
+.dark-theme .board-card[data-color="indigo"] { --card-bg-fill: #1e1b4b; --card-stroke: #3730a3; }
+[data-theme="dark"] .board-card[data-color="violet"],
+.dark-theme .board-card[data-color="violet"] { --card-bg-fill: #2e1065; --card-stroke: #5b21b6; }

@@ -19,6 +19,19 @@ import {
 } from './storage.js';
 import { escHtml } from './blocks.js';
 
+export const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Tipos e Elementos de Fluxogramas
+export const FLOWCHART_SHAPES = [
+  { id: 'process', label: 'Processo', icon: 'crop_square', desc: 'Ação ou etapa do processo' },
+  { id: 'decision', label: 'Decisão', icon: 'diamond', desc: 'Desvio condicional (Sim / Não)' },
+  { id: 'terminal', label: 'Início / Fim', icon: 'stadium', desc: 'Ponto de início ou término' },
+  { id: 'data', label: 'Entrada / Saída', icon: 'input', desc: 'Entrada ou saída de dados' },
+  { id: 'document', label: 'Documento', icon: 'description', desc: 'Documento ou relatório' },
+  { id: 'subprocess', label: 'Subprocesso', icon: 'view_agenda', desc: 'Processo pré-definido' },
+  { id: 'database', label: 'Banco de Dados', icon: 'database', desc: 'Armazenamento de dados' }
+];
+
 // ── Estado do Quadro ──────────────────────────────────────────────────────────
 let currentBoard = {
   id: null,
@@ -44,10 +57,15 @@ let dragCardOffset = { x: 0, y: 0 };
 let resizingCard = null;
 let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
 
-// Rastreamento de Seta
+// Rastreamento e Preview de Seta Magnética
 let connectingFrom = null;
 let connectingFromSide = null;
 let connectingHandlePos = null;
+let hoveredConnectTargetCard = null;
+let hoveredConnectTargetSide = null;
+let openShapePopover = null;
+let openFlowchartToolbarPopover = null;
+let openArrowPopover = null;
 
 // Elementos do DOM — atribuídos em `initBoardEngine`, nunca em `const` de
 // topo de módulo: a visão embutida pode reinicializar contra o mesmo
@@ -56,13 +74,14 @@ let container, worldEl, cardsLayer, svgLayer, arrowsGroup, draftArrow;
 let guidesGroup, selectionBoxEl, selectionToolbarEl;
 let titleInput, saveStatus, zoomText, rootSectionEl;
 
-// Seleção múltipla e auto-alinhamento inteligente (Obsidian Canvas)
+// Seleção múltipla e auto-alinhamento inteligente estilo Canva
 let selectedCardIds = new Set();
 let isBoxSelecting = false;
 let boxStartWorld = { x: 0, y: 0 };
 let longPressTimer = null;
 let isMobileSelectionMode = false;
-const SNAP_THRESHOLD = 6; // pixels em coordenadas do mundo para atração magnética
+const SNAP_THRESHOLD = 8; // pixels em coordenadas do mundo para atração magnética
+let hasSnappedHaptic = false;
 
 // Cache de notas (cartões do tipo "note" mostram título/ícone/cor de uma nota
 // de verdade — carregado uma vez e reaproveitado nos re-renders, evitando ir
@@ -122,18 +141,141 @@ async function abrirNotaDoQuadro(uid) {
   window.open(`../index.html?abrirNota=${encodeURIComponent(uid)}`, '_blank');
 }
 
-// Ponto único de saída do "modo conectando" — usado pelo handle que soltou a
-// conexão (com sucesso ou não) E pelas redes de segurança (pointerup/
-// pointercancel na janela inteira, e o auto-cura no início de `renderArrows`
-// mais abaixo).
+// Ponto único de saída do "modo conectando" e feedback visual magnético
+function clearConnectTargetHighlights() {
+  if (hoveredConnectTargetCard) {
+    const el = document.querySelector(`.board-card[data-card-id="${hoveredConnectTargetCard}"]`);
+    if (el) {
+      el.classList.remove('is-connect-target');
+      el.querySelectorAll('.board-card-connect-handle.is-target-port').forEach(h => h.classList.remove('is-target-port'));
+    }
+    hoveredConnectTargetCard = null;
+    hoveredConnectTargetSide = null;
+  }
+  document.querySelectorAll('.is-connect-target').forEach(el => el.classList.remove('is-connect-target'));
+  document.querySelectorAll('.is-target-port').forEach(el => el.classList.remove('is-target-port'));
+}
+
+function updateConnectingArrow(clientX, clientY) {
+  if (!connectingFrom || !connectingHandlePos || !draftArrow) return;
+  const currentWorld = screenToWorld(clientX, clientY);
+  const start = connectingHandlePos;
+  let end = currentWorld;
+
+  let candidateCard = null;
+  let candidateCardEl = null;
+  let candidateSide = null;
+  let candidatePortWorld = null;
+  let minPortDist = Infinity;
+
+  const hoveredEl = document.elementFromPoint(clientX, clientY);
+  const targetCardEl = hoveredEl?.closest('.board-card');
+  const targetId = targetCardEl?.dataset.cardId;
+
+  for (const c of currentBoard.cards) {
+    if (c.id === connectingFrom.id) continue;
+    const cEl = document.querySelector(`.board-card[data-card-id="${c.id}"]`);
+    if (!cEl) continue;
+
+    const r = worldRectOf(c);
+    const ports = [
+      { side: 'top', pt: { x: (r.left + r.right) / 2, y: r.top } },
+      { side: 'bottom', pt: { x: (r.left + r.right) / 2, y: r.bottom } },
+      { side: 'left', pt: { x: r.left, y: (r.top + r.bottom) / 2 } },
+      { side: 'right', pt: { x: r.right, y: (r.top + r.bottom) / 2 } }
+    ];
+
+    const pad = 45;
+    const isInsideOrNear = (
+      currentWorld.x >= r.left - pad &&
+      currentWorld.x <= r.right + pad &&
+      currentWorld.y >= r.top - pad &&
+      currentWorld.y <= r.bottom + pad
+    );
+
+    if (isInsideOrNear || c.id === targetId) {
+      for (const p of ports) {
+        const d = Math.hypot(p.pt.x - currentWorld.x, p.pt.y - currentWorld.y);
+        if (d < minPortDist) {
+          minPortDist = d;
+          candidateCard = c;
+          candidateCardEl = cEl;
+          candidateSide = p.side;
+          candidatePortWorld = p.pt;
+        }
+      }
+    }
+  }
+
+  const SNAP_CONNECT_RADIUS = 75;
+  if (candidateCard && candidatePortWorld && minPortDist < SNAP_CONNECT_RADIUS) {
+    end = candidatePortWorld;
+
+    if (hoveredConnectTargetCard !== candidateCard.id || hoveredConnectTargetSide !== candidateSide) {
+      clearConnectTargetHighlights();
+      hoveredConnectTargetCard = candidateCard.id;
+      hoveredConnectTargetSide = candidateSide;
+
+      candidateCardEl.classList.add('is-connect-target');
+      const handleEl = candidateCardEl.querySelector(`.board-card-connect-handle[data-handle="${candidateSide}"]`);
+      if (handleEl) handleEl.classList.add('is-target-port');
+
+      draftArrow.classList.add('is-snapped');
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(18);
+    }
+  } else {
+    if (hoveredConnectTargetCard) {
+      clearConnectTargetHighlights();
+    }
+    draftArrow.classList.remove('is-snapped');
+  }
+
+  const bulge = Math.max(24, Math.min(100, Math.hypot(end.x - start.x, end.y - start.y) * 0.4));
+  const off = controlOffset(connectingFromSide, bulge);
+  const cx = start.x + off.dx;
+  const cy = start.y + off.dy;
+  draftArrow.setAttribute('d', `M ${start.x} ${start.y} Q ${cx} ${cy}, ${end.x} ${end.y}`);
+  draftArrow.removeAttribute('hidden');
+  draftArrow.setAttribute('marker-end', 'url(#arrowhead)');
+}
+
+function finishConnectingArrow(clientX, clientY) {
+  cachedContainerRect = null;
+  if (!connectingFrom) return;
+  const origem = connectingFrom;
+  const origemLado = connectingFromSide;
+
+  let targetId = hoveredConnectTargetCard;
+  let toSide = hoveredConnectTargetSide;
+
+  if (!targetId) {
+    const targetCardEl = document.elementFromPoint(clientX, clientY)?.closest('.board-card');
+    const tid = targetCardEl?.dataset.cardId;
+    if (tid && tid !== origem.id) {
+      targetId = tid;
+      toSide = sideTowards(targetCardEl.getBoundingClientRect(), { x: clientX, y: clientY });
+    }
+  }
+
+  if (targetId && targetId !== origem.id) {
+    addArrow(origem.id, targetId, 'solid', origemLado, toSide || 'left');
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25);
+  }
+
+  clearConnectTargetHighlights();
+  ocultarRastroDeConexao();
+}
+
 function ocultarRastroDeConexao() {
   connectingFrom = null;
   connectingFromSide = null;
   connectingHandlePos = null;
   draftArrow.hidden = true;
+  clearConnectTargetHighlights();
   if (draftArrow) {
     draftArrow.setAttribute('hidden', '');
     draftArrow.setAttribute('d', '');
+    draftArrow.classList.remove('is-snapped');
   }
 }
 
@@ -502,7 +644,7 @@ function renderCards() {
   }
 }
 
-// ── Auto-Alinhamento Inteligente (Smart Snapping & Guide Lines) ───────────────
+// ── Auto-Alinhamento Inteligente (Smart Snapping & Guide Lines estilo Canva) ──
 function computeSnapping(card, rawX, rawY) {
   let snappedX = rawX;
   let snappedY = rawY;
@@ -519,10 +661,12 @@ function computeSnapping(card, rawX, rawY) {
   let minDiffX = Infinity;
   let targetX = null;
   let lineX = null;
+  let refCardX = null;
 
   let minDiffY = Infinity;
   let targetY = null;
   let lineY = null;
+  let refCardY = null;
 
   for (const other of currentBoard.cards) {
     if (other.id === card.id || selectedCardIds.has(other.id)) continue;
@@ -547,6 +691,7 @@ function computeSnapping(card, rawX, rawY) {
         minDiffX = diff;
         targetX = c.pos;
         lineX = c.line;
+        refCardX = other;
       }
     }
 
@@ -564,17 +709,31 @@ function computeSnapping(card, rawX, rawY) {
         minDiffY = diff;
         targetY = c.pos;
         lineY = c.line;
+        refCardY = other;
       }
     }
   }
 
   if (targetX !== null) {
     snappedX = targetX;
-    guideLines.push({ type: 'v', val: lineX });
+    const startY = Math.min(snappedY, refCardX ? refCardX.y : snappedY) - 24;
+    const endY = Math.max(snappedY + card.h, refCardX ? refCardX.y + refCardX.h : snappedY + card.h) + 24;
+    guideLines.push({ type: 'v', val: lineX, start: startY, end: endY });
   }
   if (targetY !== null) {
     snappedY = targetY;
-    guideLines.push({ type: 'h', val: lineY });
+    const startX = Math.min(snappedX, refCardY ? refCardY.x : snappedX) - 24;
+    const endX = Math.max(snappedX + card.w, refCardY ? refCardY.x + refCardY.w : snappedX + card.w) + 24;
+    guideLines.push({ type: 'h', val: lineY, start: startX, end: endX });
+  }
+
+  if (targetX !== null || targetY !== null) {
+    if (!hasSnappedHaptic) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(8);
+      hasSnappedHaptic = true;
+    }
+  } else {
+    hasSnappedHaptic = false;
   }
 
   return { x: Math.round(snappedX), y: Math.round(snappedY), guideLines };
@@ -584,27 +743,42 @@ function renderGuideLines(guideLines) {
   if (!guidesGroup) return;
   guidesGroup.innerHTML = '';
   if (!guideLines || guideLines.length === 0) return;
-  const bound = 20000;
   for (const g of guideLines) {
-    const line = document.createElementNS(svgNS, 'line');
+    const line = document.createElementNS(SVG_NS, 'line');
     line.setAttribute('class', 'board-guide-line');
-    if (g.type === 'v') {
-      line.setAttribute('x1', String(g.val));
-      line.setAttribute('y1', String(-bound));
-      line.setAttribute('x2', String(g.val));
-      line.setAttribute('y2', String(bound));
-    } else {
-      line.setAttribute('x1', String(-bound));
-      line.setAttribute('y1', String(g.val));
-      line.setAttribute('x2', String(bound));
-      line.setAttribute('y2', String(g.val));
-    }
+    const x1 = g.type === 'v' ? g.val : (g.start ?? -20000);
+    const y1 = g.type === 'v' ? (g.start ?? -20000) : g.val;
+    const x2 = g.type === 'v' ? g.val : (g.end ?? 20000);
+    const y2 = g.type === 'v' ? (g.end ?? 20000) : g.val;
+
+    line.setAttribute('x1', String(x1));
+    line.setAttribute('y1', String(y1));
+    line.setAttribute('x2', String(x2));
+    line.setAttribute('y2', String(y2));
     guidesGroup.appendChild(line);
+
+    // Pontos visuais de precisão nos extremos estilo Canva
+    if (g.start != null && g.end != null) {
+      const d1 = document.createElementNS(SVG_NS, 'circle');
+      d1.setAttribute('class', 'board-guide-dot');
+      d1.setAttribute('cx', String(x1));
+      d1.setAttribute('cy', String(y1));
+      d1.setAttribute('r', '3');
+      guidesGroup.appendChild(d1);
+
+      const d2 = document.createElementNS(SVG_NS, 'circle');
+      d2.setAttribute('class', 'board-guide-dot');
+      d2.setAttribute('cx', String(x2));
+      d2.setAttribute('cy', String(y2));
+      d2.setAttribute('r', '3');
+      guidesGroup.appendChild(d2);
+    }
   }
 }
 
 function clearGuideLines() {
   if (guidesGroup) guidesGroup.innerHTML = '';
+  hasSnappedHaptic = false;
 }
 
 // ── Gestão de Seleção Múltipla (Obsidian Canvas Marquee Selection) ────────────
@@ -1039,30 +1213,105 @@ async function criarNotaEAdicionar() {
 }
 
 // ── Menu Contextual da Conexão / Seta (Sem alert nem prompt) ───────────────────
-let openArrowPopover = null;
 function closeArrowPopover() {
   openArrowPopover?.remove();
   openArrowPopover = null;
 }
 
+// Marcadores dinâmicos SVG com cor correspondente (corrige SVG marker fill no Chromium)
+function getMarkerUrl(color, position = 'end') {
+  if (!color || color === 'default') {
+    return position === 'start' ? 'url(#arrowhead-start)' : 'url(#arrowhead)';
+  }
+  const cleanColor = color.replace(/[^a-zA-Z0-9]/g, '');
+  const markerId = `arrowhead-${position}-${cleanColor}`;
+  const defs = svgLayer?.querySelector('defs') || document.querySelector('#board-svg defs');
+  if (defs && !document.getElementById(markerId)) {
+    const marker = document.createElementNS(SVG_NS, 'marker');
+    marker.setAttribute('id', markerId);
+    marker.setAttribute('markerWidth', '8');
+    marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+    marker.setAttribute('markerUnits', 'strokeWidth');
+    const path = document.createElementNS(SVG_NS, 'path');
+    if (position === 'start') {
+      marker.setAttribute('refX', '1');
+      path.setAttribute('d', 'M 8 0 L 0 3 L 8 6 z');
+    } else {
+      marker.setAttribute('refX', '7');
+      path.setAttribute('d', 'M 0 0 L 8 3 L 0 6 z');
+    }
+    path.setAttribute('fill', color);
+    marker.appendChild(path);
+    defs.appendChild(marker);
+  }
+  return `url(#${markerId})`;
+}
+
+// Fundo vetorial SVG para formas geométricas de fluxogramas
+function getShapeSvgBackgroundHtml(shape) {
+  if (!shape || shape === 'process' || shape === 'rectangle') return '';
+  switch (shape) {
+    case 'decision':
+      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polygon class="board-card-shape-path" points="50,2 98,50 50,98 2,50" />
+      </svg>`;
+    case 'terminal':
+      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect class="board-card-shape-path" x="2" y="2" width="96" height="96" rx="48" ry="48" />
+      </svg>`;
+    case 'data':
+      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polygon class="board-card-shape-path" points="18,2 98,2 82,98 2,98" />
+      </svg>`;
+    case 'document':
+      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path class="board-card-shape-path" d="M 2,2 L 98,2 L 98,82 C 74,96 50,72 26,86 C 14,92 2,86 2,86 Z" />
+      </svg>`;
+    case 'subprocess':
+      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect class="board-card-shape-path" x="2" y="2" width="96" height="96" rx="4" />
+        <line class="board-card-shape-line" x1="14" y1="2" x2="14" y2="98" />
+        <line class="board-card-shape-line" x1="86" y1="2" x2="86" y2="98" />
+      </svg>`;
+    case 'database':
+      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path class="board-card-shape-path" d="M 2,16 A 48 14 0 0 0 98,16 V 84 A 48 14 0 0 1 2,84 Z" />
+        <ellipse class="board-card-shape-line" cx="50" cy="16" rx="48" ry="14" />
+      </svg>`;
+    default:
+      return '';
+  }
+}
+
 function showArrowPopover(e, arrow) {
   closeArrowPopover();
   closeColorPopover();
+  closeShapePopover();
   closeInlineInputPopover();
 
   const pop = document.createElement('div');
   pop.className = 'board-arrow-popover';
+  pop.classList.add('board-theme-scope');
 
-  const dir = arrow.direction || (arrow.bidirectional ? 'bidirectional' : (arrow.style === 'none' ? 'none' : 'forward'));
+  const dir = arrow.direction || (arrow.bidirectional ? 'bidirectional' : ((arrow.style === 'none' || arrow.strokeStyle === 'none') ? 'none' : 'forward'));
   const lineStyle = arrow.lineStyle || 'straight';
-  const strokeStyle = arrow.style || 'solid';
+  const strokeStyle = arrow.strokeStyle || (arrow.style !== 'none' && arrow.style ? arrow.style : 'solid');
 
   pop.innerHTML = `
     <div class="board-popover-title">Conexão</div>
     <input type="text" class="board-popover-input pop-arrow-label" placeholder="Rótulo da conexão..." value="${escHtml(arrow.label || '')}" />
     
+    <div class="board-popover-chips">
+      <button type="button" class="board-chip-btn" data-chip="Sim">Sim</button>
+      <button type="button" class="board-chip-btn" data-chip="Não">Não</button>
+      <button type="button" class="board-chip-btn" data-chip="OK">OK</button>
+      <button type="button" class="board-chip-btn" data-chip="Erro">Erro</button>
+    </div>
+
     <div class="board-popover-row">
-      <span style="font-size:11px;color:var(--text-muted);min-width:50px;">Direção:</span>
+      <span class="board-popover-label">Direção:</span>
       <div class="board-popover-btn-group">
         <button type="button" class="board-popover-btn ${dir === 'forward' ? 'is-active' : ''}" data-dir="forward" title="Unidirecional">→</button>
         <button type="button" class="board-popover-btn ${dir === 'bidirectional' ? 'is-active' : ''}" data-dir="bidirectional" title="Bidirecional">↔</button>
@@ -1071,7 +1320,7 @@ function showArrowPopover(e, arrow) {
     </div>
 
     <div class="board-popover-row">
-      <span style="font-size:11px;color:var(--text-muted);min-width:50px;">Formato:</span>
+      <span class="board-popover-label">Formato:</span>
       <div class="board-popover-btn-group">
         <button type="button" class="board-popover-btn ${lineStyle === 'straight' ? 'is-active' : ''}" data-line="straight">Reta</button>
         <button type="button" class="board-popover-btn ${lineStyle === 'curved' ? 'is-active' : ''}" data-line="curved">Curva</button>
@@ -1079,15 +1328,16 @@ function showArrowPopover(e, arrow) {
     </div>
 
     <div class="board-popover-row">
-      <span style="font-size:11px;color:var(--text-muted);min-width:50px;">Estilo:</span>
+      <span class="board-popover-label">Traço:</span>
       <div class="board-popover-btn-group">
-        <button type="button" class="board-popover-btn ${strokeStyle !== 'dashed' ? 'is-active' : ''}" data-stroke="solid">Sólida</button>
-        <button type="button" class="board-popover-btn ${strokeStyle === 'dashed' ? 'is-active' : ''}" data-stroke="dashed">Tracejada</button>
+        <button type="button" class="board-popover-btn ${strokeStyle === 'solid' ? 'is-active' : ''}" data-stroke="solid">Sólido</button>
+        <button type="button" class="board-popover-btn ${strokeStyle === 'dashed' ? 'is-active' : ''}" data-stroke="dashed">Tracejado</button>
+        <button type="button" class="board-popover-btn ${strokeStyle === 'dotted' ? 'is-active' : ''}" data-stroke="dotted">Pontilhado</button>
       </div>
     </div>
 
     <div class="board-popover-row">
-      <span style="font-size:11px;color:var(--text-muted);min-width:50px;">Cor:</span>
+      <span class="board-popover-label">Cor:</span>
       <div class="board-popover-colors">
         <button type="button" class="board-color-swatch is-default ${!arrow.color ? 'is-active' : ''}" data-color="default" title="Padrão"></button>
         <button type="button" class="board-color-swatch ${arrow.color === '#ef4444' ? 'is-active' : ''}" data-color="#ef4444" style="background:#ef4444" title="Vermelho"></button>
@@ -1116,12 +1366,19 @@ function showArrowPopover(e, arrow) {
     scheduleSave();
   });
 
+  pop.querySelectorAll('.board-chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      arrow.label = btn.dataset.chip;
+      inputLabel.value = arrow.label;
+      renderArrows();
+      scheduleSave();
+    });
+  });
+
   pop.querySelectorAll('[data-dir]').forEach(btn => {
     btn.addEventListener('click', () => {
       arrow.direction = btn.dataset.dir;
       arrow.bidirectional = arrow.direction === 'bidirectional';
-      if (arrow.direction === 'none') arrow.style = 'none';
-      else if (arrow.style === 'none') arrow.style = 'solid';
       renderArrows();
       scheduleSave();
       showArrowPopover(e, arrow);
@@ -1139,6 +1396,7 @@ function showArrowPopover(e, arrow) {
 
   pop.querySelectorAll('[data-stroke]').forEach(btn => {
     btn.addEventListener('click', () => {
+      arrow.strokeStyle = btn.dataset.stroke;
       arrow.style = btn.dataset.stroke;
       renderArrows();
       scheduleSave();
@@ -1171,7 +1429,7 @@ function showArrowPopover(e, arrow) {
 
   document.body.appendChild(pop);
 
-  const popW = 260, popH = 260;
+  const popW = 270, popH = 290;
   let left = e.clientX + 10;
   let top = e.clientY + 10;
   if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
@@ -1183,6 +1441,194 @@ function showArrowPopover(e, arrow) {
   setTimeout(() => inputLabel.focus(), 30);
 }
 
+// ── Popovers e Funções para Formas de Fluxograma ──────────────────────────────
+function closeShapePopover() {
+  openShapePopover?.remove();
+  openShapePopover = null;
+}
+
+function toggleShapePopover(buttonEl, card, cardEl) {
+  if (openShapePopover) {
+    closeShapePopover();
+    return;
+  }
+  closeColorPopover();
+  closeArrowPopover();
+  closeInlineInputPopover();
+
+  const pop = document.createElement('div');
+  pop.className = 'board-shape-popover board-theme-scope';
+  pop.innerHTML = `
+    <div class="board-popover-title">Formato da Forma</div>
+    <div class="board-shape-grid">
+      ${FLOWCHART_SHAPES.map(s => `
+        <button type="button" class="board-shape-item ${(card.shape || 'process') === s.id ? 'is-active' : ''}" data-shape="${s.id}" title="${s.desc}">
+          <span class="qd-icon material-symbols-rounded">${s.icon}</span>
+          <span class="board-shape-item-label">${s.label}</span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  pop.querySelectorAll('[data-shape]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const newShape = btn.dataset.shape;
+      card.shape = newShape;
+      cardEl.dataset.shape = newShape;
+
+      const existingSvg = cardEl.querySelector('.board-card-shape-svg');
+      if (existingSvg) existingSvg.remove();
+      const svgHtml = getShapeSvgBackgroundHtml(newShape);
+      if (svgHtml) {
+        cardEl.insertAdjacentHTML('afterbegin', svgHtml);
+      }
+
+      const handleEl = cardEl.querySelector('.board-card-handle');
+      if (handleEl) handleEl.textContent = cardHandleLabel(card);
+
+      if (newShape === 'decision' && card.w < 150) {
+        card.w = 160; card.h = 120;
+        cardEl.style.width = `${card.w}px`; cardEl.style.height = `${card.h}px`;
+      } else if (newShape === 'terminal' && card.h > 90) {
+        card.w = 160; card.h = 80;
+        cardEl.style.width = `${card.w}px`; cardEl.style.height = `${card.h}px`;
+      }
+
+      renderArrows();
+      scheduleSave();
+      closeShapePopover();
+    });
+  });
+
+  pop.addEventListener('pointerdown', ev => ev.stopPropagation());
+  document.body.appendChild(pop);
+
+  const rect = buttonEl.getBoundingClientRect();
+  let left = rect.left - 40;
+  let top = rect.bottom + 8;
+  const popW = 230;
+  if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
+  if (left < 12) left = 12;
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+
+  openShapePopover = pop;
+}
+
+function closeFlowchartToolbarPopover() {
+  openFlowchartToolbarPopover?.remove();
+  openFlowchartToolbarPopover = null;
+}
+
+function toggleFlowchartToolbarPopover(buttonEl) {
+  if (openFlowchartToolbarPopover) {
+    closeFlowchartToolbarPopover();
+    return;
+  }
+  closeColorPopover();
+  closeArrowPopover();
+  closeShapePopover();
+  closeNoteSearchPopover();
+  closeInlineInputPopover();
+
+  const pop = document.createElement('div');
+  pop.className = 'board-shape-popover board-theme-scope';
+  pop.innerHTML = `
+    <div class="board-popover-title">Adicionar Elemento de Fluxo</div>
+    <div class="board-shape-grid">
+      ${FLOWCHART_SHAPES.map(s => `
+        <button type="button" class="board-shape-item" data-shape="${s.id}" title="${s.desc}">
+          <span class="qd-icon material-symbols-rounded">${s.icon}</span>
+          <span class="board-shape-item-label">${s.label}</span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  pop.querySelectorAll('[data-shape]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const shapeId = btn.dataset.shape;
+      addFlowchartCard(shapeId);
+      closeFlowchartToolbarPopover();
+    });
+  });
+
+  pop.addEventListener('pointerdown', ev => ev.stopPropagation());
+  document.body.appendChild(pop);
+
+  const rect = buttonEl.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + 8;
+  const popW = 230;
+  if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
+  if (left < 12) left = 12;
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+
+  openFlowchartToolbarPopover = pop;
+}
+
+function addFlowchartCard(shapeId) {
+  const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
+  const shapeDef = FLOWCHART_SHAPES.find(s => s.id === shapeId) || FLOWCHART_SHAPES[0];
+
+  let w = 160, h = 90;
+  let defaultText = shapeDef.label;
+  if (shapeId === 'decision') {
+    w = 160; h = 120;
+    defaultText = 'Decisão?';
+  } else if (shapeId === 'terminal') {
+    w = 160; h = 80;
+    defaultText = 'Início / Fim';
+  } else if (shapeId === 'data') {
+    w = 170; h = 90;
+    defaultText = 'Entrada / Saída';
+  } else if (shapeId === 'document') {
+    w = 160; h = 110;
+    defaultText = 'Documento';
+  } else if (shapeId === 'subprocess') {
+    w = 160; h = 90;
+    defaultText = 'Subprocesso';
+  } else if (shapeId === 'database') {
+    w = 150; h = 110;
+    defaultText = 'Dados';
+  }
+
+  const newCard = {
+    id: `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    type: 'text',
+    shape: shapeId,
+    x: Math.round(center.x - w / 2),
+    y: Math.round(center.y - h / 2),
+    w,
+    h,
+    text: defaultText,
+    color: null
+  };
+
+  currentBoard.cards.push(newCard);
+  renderCards();
+  renderArrows();
+  scheduleSave();
+
+  clearSelection();
+  selectCard(newCard.id);
+
+  const el = document.querySelector(`.board-card[data-card-id="${newCard.id}"] .board-card-body`);
+  if (el) {
+    el.focus();
+    if (typeof window.getSelection !== 'undefined' && typeof document.createRange !== 'undefined') {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
+}
+
 if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', e => {
     if (openNoteSearchPopover && !openNoteSearchPopover.contains(e.target) && !e.target.closest('#tool-note-link')) {
@@ -1190,6 +1636,12 @@ if (typeof document !== 'undefined') {
     }
     if (openArrowPopover && !openArrowPopover.contains(e.target) && !e.target.closest('.board-arrow-path') && !e.target.closest('.board-arrow-hit-area')) {
       closeArrowPopover();
+    }
+    if (openShapePopover && !openShapePopover.contains(e.target) && !e.target.closest('.btn-shape')) {
+      closeShapePopover();
+    }
+    if (openFlowchartToolbarPopover && !openFlowchartToolbarPopover.contains(e.target) && !e.target.closest('#tool-flowchart')) {
+      closeFlowchartToolbarPopover();
     }
     if (openInlineInputPopover && !openInlineInputPopover.contains(e.target) && !e.target.closest('#tool-note-create')) {
       closeInlineInputPopover();
@@ -1205,6 +1657,10 @@ function cardHandleLabel(card) {
   if (tipo === 'group') return card.label || 'Grupo';
   if (tipo === 'image') return '⠿ Imagem';
   if (tipo === 'note') return '⠿ Nota';
+  if (card.shape && card.shape !== 'rectangle' && card.shape !== 'process') {
+    const s = FLOWCHART_SHAPES.find(it => it.id === card.shape);
+    if (s) return `⠿ ${s.label}`;
+  }
   return '⠿ Cartão';
 }
 
@@ -1231,6 +1687,9 @@ function createCardElement(card) {
   el.dataset.cardId = card.id;
   el.dataset.cardType = tipo;
 
+  const shape = card.shape || (tipo === 'text' ? 'process' : null);
+  if (shape) el.dataset.shape = shape;
+
   const nota = tipo === 'note' ? allNotesCache.find(n => n.uid === card.noteUid) : null;
   applyCardColor(el, tipo === 'note' ? (nota?.color || null) : card.color);
   el.style.transform = `translate(${card.x}px, ${card.y}px)`;
@@ -1245,30 +1704,35 @@ function createCardElement(card) {
         ? '<div class="board-card-body board-card-group-body" style="display:none;"></div>'
         : `<div class="board-card-body" contenteditable="true" spellcheck="false">${escHtml(card.text || '')}</div>`;
 
-  // Nota já mostra a cor dela mesma (herdada, não escolhida aqui) — o botão
-  // de paleta some pra não sugerir que dá pra repintar o cartão com uma cor
-  // diferente da nota de verdade.
   const colorBtnHtml = tipo === 'note' ? '' :
     '<button class="card-action-btn btn-color" title="Alternar cor" aria-label="Alternar cor">🎨</button>';
+
+  const shapeBtnHtml = (tipo === 'text' || !tipo)
+    ? '<button class="card-action-btn btn-shape" title="Alterar formato da forma" aria-label="Alterar formato">❖</button>'
+    : '';
 
   const handleHtml = tipo === 'group'
     ? `<span class="board-card-handle board-group-handle" contenteditable="true" spellcheck="false">${escHtml(card.label || 'Grupo')}</span>`
     : `<span class="board-card-handle">${cardHandleLabel(card)}</span>`;
 
+  const shapeSvgHtml = getShapeSvgBackgroundHtml(shape);
+
   el.innerHTML = `
+    ${shapeSvgHtml}
     <div class="board-card-header">
       ${handleHtml}
       <div class="board-card-actions">
+        ${shapeBtnHtml}
         ${colorBtnHtml}
         <button class="card-action-btn btn-delete" title="Excluir cartão" aria-label="Excluir cartão">✕</button>
       </div>
     </div>
     ${bodyHtml}
     <div class="board-card-resizer" title="Redimensionar"></div>
-    <div class="board-card-connect-handle top" data-handle="top" title="Puxar conexão"></div>
-    <div class="board-card-connect-handle right" data-handle="right" title="Puxar conexão"></div>
-    <div class="board-card-connect-handle bottom" data-handle="bottom" title="Puxar conexão"></div>
-    <div class="board-card-connect-handle left" data-handle="left" title="Puxar conexão"></div>
+    <div class="board-card-connect-handle top" data-handle="top" title="Puxar conexão (Norte)"></div>
+    <div class="board-card-connect-handle right" data-handle="right" title="Puxar conexão (Leste)"></div>
+    <div class="board-card-connect-handle bottom" data-handle="bottom" title="Puxar conexão (Sul)"></div>
+    <div class="board-card-connect-handle left" data-handle="left" title="Puxar conexão (Oeste)"></div>
   `;
 
   const bodyEl = el.querySelector('.board-card-body');
@@ -1302,6 +1766,13 @@ function createCardElement(card) {
       if (nota) abrirNotaDoQuadro(nota.uid);
     });
   }
+
+  // Alterar Formato de Forma de Fluxograma
+  const btnShape = el.querySelector('.btn-shape');
+  btnShape?.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleShapePopover(btnShape, card, el);
+  });
 
   // Escolher Cor (não existe em cartão de nota — ver colorBtnHtml acima)
   const btnColor = el.querySelector('.btn-color');
@@ -1421,7 +1892,7 @@ function createCardElement(card) {
     }
   });
 
-  // Puxar Conexão / Seta (Obsidian Canvas Arrow Dragging)
+  // Puxar Conexão / Seta (Obsidian Canvas Arrow Dragging com Snap Magnético)
   el.querySelectorAll('.board-card-connect-handle').forEach(handle => {
     handle.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
@@ -1440,31 +1911,12 @@ function createCardElement(card) {
 
     handle.addEventListener('pointermove', e => {
       if (!connectingFrom) return;
-      const currentWorld = screenToWorld(e.clientX, e.clientY);
-      const start = connectingHandlePos;
-      const end = currentWorld;
-      const bulge = Math.max(24, Math.min(100, Math.hypot(end.x - start.x, end.y - start.y) * 0.4));
-      const off = controlOffset(connectingFromSide, bulge);
-      const cx = start.x + off.dx;
-      const cy = start.y + off.dy;
-      draftArrow.setAttribute('d', `M ${start.x} ${start.y} Q ${cx} ${cy}, ${end.x} ${end.y}`);
-      draftArrow.removeAttribute('hidden');
-      draftArrow.setAttribute('marker-end', 'url(#arrowhead)');
+      updateConnectingArrow(e.clientX, e.clientY);
     });
 
     handle.addEventListener('pointerup', e => {
-      cachedContainerRect = null;
       if (!connectingFrom) return;
-      const origem = connectingFrom;
-      const origemLado = connectingFromSide;
-
-      const targetCardEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('.board-card');
-      const targetId = targetCardEl?.dataset.cardId;
-      if (targetId && targetId !== origem.id) {
-        const toSide = sideTowards(targetCardEl.getBoundingClientRect(), { x: e.clientX, y: e.clientY });
-        addArrow(origem.id, targetId, 'solid', origemLado, toSide);
-      }
-      ocultarRastroDeConexao();
+      finishConnectingArrow(e.clientX, e.clientY);
     });
   });
 
@@ -1502,6 +1954,7 @@ function addArrow(fromId, toId, style = 'solid', fromSide = null, toSide = null)
     from: fromId,
     to: toId,
     style: options.style || style || 'solid',
+    strokeStyle: options.strokeStyle || options.style || style || 'solid',
     fromSide: fromSide || null,
     toSide: toSide || null,
     direction: options.direction || 'forward',
@@ -1513,16 +1966,14 @@ function addArrow(fromId, toId, style = 'solid', fromSide = null, toSide = null)
   scheduleSave();
 }
 
-// Ponto ao longo de um dos 4 lados do retângulo, numa fração de 0 a 1 (0.5
-// é o meio). Várias setas no mesmo lado do mesmo cartão usam frações
-// diferentes pra não nascer todas empilhadas no mesmo pixel — ver o passo 2
-// de `renderArrows`.
+// Ponto ao longo de um dos 4 lados do retângulo nos pontos cardeais estritos
+// (Norte, Sul, Leste, Oeste). frac é fixado em 0.5 para conexões perfeitamente retas.
 function sidePointAt(rect, side, frac = 0.5) {
   switch (side) {
-    case 'top':    return { x: rect.left + (rect.right - rect.left) * frac, y: rect.top };
-    case 'bottom': return { x: rect.left + (rect.right - rect.left) * frac, y: rect.bottom };
-    case 'left':   return { x: rect.left, y: rect.top + (rect.bottom - rect.top) * frac };
-    case 'right':  return { x: rect.right, y: rect.top + (rect.bottom - rect.top) * frac };
+    case 'top':    return { x: (rect.left + rect.right) / 2, y: rect.top };
+    case 'bottom': return { x: (rect.left + rect.right) / 2, y: rect.bottom };
+    case 'left':   return { x: rect.left, y: (rect.top + rect.bottom) / 2 };
+    case 'right':  return { x: rect.right, y: (rect.top + rect.bottom) / 2 };
     default:       return null;
   }
 }
@@ -1844,29 +2295,16 @@ function renderArrows() {
     }
   }
 
-  // Passo 2: agrupa por (cartão, lado) para distribuir setas no mesmo lado
-  const grupos = new Map();
-  const chaveDe = (cardId, side) => `${cardId}:${side}`;
+  // Passo 2: Todos os pontos de conexão saem e entram estritamente nos pontos cardeais (N/S/L/O)
   for (const item of resolved) {
-    const kFrom = chaveDe(item.c1.id, item.fromSide);
-    const kTo = chaveDe(item.arrow.to, item.toSide);
-    if (!grupos.has(kFrom)) grupos.set(kFrom, []);
-    grupos.get(kFrom).push({ item, ponta: 'from' });
-    if (!grupos.has(kTo)) grupos.set(kTo, []);
-    grupos.get(kTo).push({ item, ponta: 'to' });
-  }
-  for (const entradas of grupos.values()) {
-    entradas.forEach((entrada, i) => {
-      const frac = (i + 1) / (entradas.length + 1);
-      if (entrada.ponta === 'from') entrada.item.fracFrom = frac;
-      else entrada.item.fracTo = frac;
-    });
+    item.fracFrom = 0.5;
+    item.fracTo = 0.5;
   }
 
   // Passo 3: desenha no SVG em coordenadas do mundo (Zero Jitter e Zero Delay!)
-  for (const { arrow, r1, r2, fromSide, toSide, fracFrom, fracTo } of resolved) {
-    const p1 = sidePointAt(r1, fromSide, fracFrom);
-    const p2 = sidePointAt(r2, toSide, fracTo);
+  for (const { arrow, r1, r2, fromSide, toSide } of resolved) {
+    const p1 = sidePointAt(r1, fromSide, 0.5);
+    const p2 = sidePointAt(r2, toSide, 0.5);
 
     const bulge1 = Math.max(28, Math.min(120, axisDistance(fromSide, p1, p2) * 0.5));
     const bulge2 = Math.max(28, Math.min(120, axisDistance(toSide, p1, p2) * 0.5));
@@ -1903,25 +2341,31 @@ function renderArrows() {
       dom.hitArea.setAttribute('d', pathD);
       dom.path.setAttribute('d', pathD);
 
-      const dir = arrow.direction || (arrow.bidirectional ? 'bidirectional' : (arrow.style === 'none' ? 'none' : 'forward'));
+      const dir = arrow.direction || (arrow.bidirectional ? 'bidirectional' : ((arrow.style === 'none' || arrow.strokeStyle === 'none') ? 'none' : 'forward'));
       if (dir === 'bidirectional') {
-        dom.path.setAttribute('marker-start', 'url(#arrowhead-start)');
-        dom.path.setAttribute('marker-end', 'url(#arrowhead)');
+        dom.path.setAttribute('marker-start', getMarkerUrl(arrow.color, 'start'));
+        dom.path.setAttribute('marker-end', getMarkerUrl(arrow.color, 'end'));
       } else if (dir === 'forward') {
         dom.path.removeAttribute('marker-start');
-        dom.path.setAttribute('marker-end', 'url(#arrowhead)');
+        dom.path.setAttribute('marker-end', getMarkerUrl(arrow.color, 'end'));
       } else if (dir === 'backward') {
-        dom.path.setAttribute('marker-start', 'url(#arrowhead-start)');
+        dom.path.setAttribute('marker-start', getMarkerUrl(arrow.color, 'start'));
         dom.path.removeAttribute('marker-end');
       } else {
         dom.path.removeAttribute('marker-start');
         dom.path.removeAttribute('marker-end');
       }
 
-      if (arrow.style === 'dashed') {
-        dom.path.setAttribute('stroke-dasharray', '6 6');
+      const strokeStyle = arrow.strokeStyle || (arrow.style !== 'none' && arrow.style ? arrow.style : 'solid');
+      if (strokeStyle === 'dashed') {
+        dom.path.setAttribute('stroke-dasharray', '8 6');
+        dom.path.style.strokeLinecap = 'butt';
+      } else if (strokeStyle === 'dotted') {
+        dom.path.setAttribute('stroke-dasharray', '2 6');
+        dom.path.style.strokeLinecap = 'round';
       } else {
         dom.path.removeAttribute('stroke-dasharray');
+        dom.path.style.strokeLinecap = 'round';
       }
 
       if (arrow.color) {
@@ -2021,7 +2465,12 @@ function setupEventListeners(getEl) {
     addCard(center.x - 110, center.y - 65);
     setTool('select');
   });
-  getEl('tool-arrow')?.addEventListener('click', () => setTool('arrow'));
+
+  // Ferramenta de Fluxograma (Abre popover de formas de fluxo)
+  getEl('tool-flowchart')?.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleFlowchartToolbarPopover(e.currentTarget);
+  });
 
   // Ferramenta de Imagem (clique abre seletor de arquivo)
   const imageInput = getEl('board-image-upload-input');
@@ -2150,10 +2599,12 @@ function setupEventListeners(getEl) {
   window.addEventListener('pointermove', onContainerPointerMove);
   window.addEventListener('pointerup', onContainerPointerUp);
 
-  // Rede de segurança: se soltar fora do handle (ex.: fora da janela), o
-  // 'pointerup' dele nunca dispara e o rastro tracejado fica preso na tela.
-  window.addEventListener('pointerup', () => {
-    if (connectingFrom) ocultarRastroDeConexao();
+  // Rede de segurança: se soltar fora do handle (ex.: fora da janela), finaliza a conexão
+  window.addEventListener('pointerup', e => {
+    if (connectingFrom) {
+      finishConnectingArrow(e.clientX, e.clientY);
+      ocultarRastroDeConexao();
+    }
   });
   window.addEventListener('pointercancel', () => {
     if (connectingFrom) ocultarRastroDeConexao();
@@ -2272,18 +2723,9 @@ function onContainerPointerDown(e) {
 }
 
 function onContainerPointerMove(e) {
-  // Live Draft Arrow: rastro tracejado ao vivo apontando para a posição do cursor
+  // Live Draft Arrow: rastro tracejado ao vivo apontando para a posição do cursor com snap magnético
   if (connectingFrom && connectingHandlePos && draftArrow) {
-    const currentWorld = screenToWorld(e.clientX, e.clientY);
-    const start = connectingHandlePos;
-    const end = currentWorld;
-    const bulge = Math.max(24, Math.min(100, Math.hypot(end.x - start.x, end.y - start.y) * 0.4));
-    const off = controlOffset(connectingFromSide, bulge);
-    const cx = start.x + off.dx;
-    const cy = start.y + off.dy;
-    draftArrow.setAttribute('d', `M ${start.x} ${start.y} Q ${cx} ${cy}, ${end.x} ${end.y}`);
-    draftArrow.removeAttribute('hidden');
-    draftArrow.setAttribute('marker-end', 'url(#arrowhead)');
+    updateConnectingArrow(e.clientX, e.clientY);
   }
 
   // Cancela o timer de toque longo se o dedo se mexer antes dos 400ms

@@ -11703,4 +11703,45 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
   }
 }
 
+/* ── Canvas Espacial: Guias Inteligentes & Destaque de Conexão ── */
+.board-guide-line {
+  stroke: var(--accent, #3b82f6) !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 4 3 !important;
+  pointer-events: none !important;
+  opacity: 0.95 !important;
+}
+
+.board-guide-dot {
+  fill: var(--accent, #3b82f6) !important;
+  stroke: var(--bg, #ffffff) !important;
+  stroke-width: 1.5px !important;
+  pointer-events: none !important;
+}
+
+.board-card.is-connect-target {
+  outline: 2.5px solid var(--accent, #3b82f6) !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25), 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+  transform: scale(1.015) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  z-index: 25 !important;
+}
+
+.board-card.is-connect-target .board-card-connect-handle {
+  opacity: 0.8 !important;
+}
+
+.board-card-connect-handle.is-target-port {
+  opacity: 1 !important;
+  transform: scale(1.7) !important;
+  background: var(--accent, #3b82f6) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4) !important;
+  z-index: 35 !important;
+}
+
+.draft-arrow.is-snapped {
+  stroke-width: 2.5px !important;
+  stroke: var(--accent, #3b82f6) !important;
+}
+
 

@@ -3852,6 +3852,49 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     boardJsSource.includes('cachedContainerRect') &&
     boardJsSource.includes('dom.hitArea.setAttribute(\'d\', pathD);'));
 
+  // 27.13: Guias visuais de auto-alinhamento estilo Canva
+  ok('canvas obsidian 2.0 · guias visuais inteligentes de alinhamento estilo Canva com pontos de precisão',
+    boardJsSource.includes('board-guide-dot') &&
+    boardStyleSource.includes('.board-guide-dot') &&
+    boardJsSource.includes('start: startY, end: endY') &&
+    boardJsSource.includes('start: startX, end: endX'));
+
+  // 27.14: Pontos de conexão de setas estritamente cardeais (N/S/L/O)
+  ok('canvas obsidian 2.0 · pontos de conexão saem estritamente dos centros cardeais N/S/L/O',
+    boardJsSource.includes('item.fracFrom = 0.5;') &&
+    boardJsSource.includes('item.fracTo = 0.5;') &&
+    boardJsSource.includes('data-handle="top" title="Puxar conexão (Norte)"') &&
+    boardJsSource.includes('data-handle="right" title="Puxar conexão (Leste)"'));
+
+  // 27.15: Feedback visual e atração magnética ao conectar setas
+  ok('canvas obsidian 2.0 · feedback visual claro e atração magnética ao conectar seta a outro card',
+    boardJsSource.includes('function updateConnectingArrow(') &&
+    boardJsSource.includes('function finishConnectingArrow(') &&
+    boardJsSource.includes('is-connect-target') &&
+    boardJsSource.includes('is-target-port') &&
+    boardStyleSource.includes('.board-card.is-connect-target') &&
+    boardStyleSource.includes('.board-card-connect-handle.is-target-port'));
+
+  // 27.16: Suporte completo a elementos e formas de fluxogramas
+  ok('canvas obsidian 2.0 · suporte completo para fluxogramas (decisão, terminal, dados, documento)',
+    boardJsSource.includes('FLOWCHART_SHAPES') &&
+    boardJsSource.includes('function toggleShapePopover(') &&
+    boardJsSource.includes('function toggleFlowchartToolbarPopover(') &&
+    boardJsSource.includes('function addFlowchartCard(') &&
+    boardHtmlSource.includes('id="tool-flowchart"') &&
+    sidepanelHtmlSource.includes('id="tool-flowchart"') &&
+    boardStyleSource.includes('.board-card-shape-svg') &&
+    boardStyleSource.includes('.board-shape-popover'));
+
+  // 27.17: Configurações persistentes de setas (sólido, tracejado, pontilhado, direção e cores)
+  ok('canvas obsidian 2.0 · personalização estável de setas com cores dinâmicas e traço pontilhado',
+    boardJsSource.includes('function getMarkerUrl(') &&
+    boardJsSource.includes('data-stroke="solid"') &&
+    boardJsSource.includes('data-stroke="dashed"') &&
+    boardJsSource.includes('data-stroke="dotted"') &&
+    boardJsSource.includes("strokeStyle === 'dotted'") &&
+    boardStyleSource.includes('.board-chip-btn'));
+
   // 28: Obsidian Live Preview & Source-on-Cursor Parity
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
