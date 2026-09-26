@@ -11382,23 +11382,19 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
     z-index: 999 !important;
   }
 
-  /* 3. Main como esteira horizontal de Views (navegação controlada via JS) */
+  /* 3. Main como container de Carrossel Infinito de Views */
   #mMain,
   html[data-platform="mobile"] #mMain {
     order: 2 !important;
-    display: flex !important;
-    flex-direction: row !important;
+    position: relative !important;
+    display: block !important;
     flex: 1 1 0px !important;
     width: 100% !important;
     min-height: 0 !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scroll-snap-type: none !important; /* Desativa scroll snap nativo para controle 100% suave e confiável via JS */
-    scroll-behavior: smooth !important;
-    padding: 12px 16px !important;
-    overscroll-behavior-x: contain !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
     scrollbar-width: none !important;
-    gap: 8px !important;
     color: var(--color-text-primary, var(--text)) !important;
   }
 
@@ -11407,16 +11403,19 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
     display: none !important;
   }
 
-  /* 4. Cada Seção como uma View horizontal */
+  /* 4. Cada Seção como um Card do Carrossel Infinito */
   .main-section,
   #mMain > .main-section,
   html[data-platform="mobile"] .main-section,
   html[data-platform="mobile"] #mMain > .main-section {
-    flex: 0 0 calc(100vw - 32px) !important;
-    width: calc(100vw - 32px) !important;
-    max-width: calc(100vw - 32px) !important;
-    height: 100% !important;
-    scroll-snap-align: none !important;
+    position: absolute !important;
+    top: 8px !important;
+    bottom: 8px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
     border: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
     border-radius: 0.75rem !important;
     background-color: var(--color-bg-card, var(--color-black, #141414)) !important;
@@ -11424,8 +11423,10 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
-    flex-shrink: 0 !important;
     margin: 0 !important;
+    box-sizing: border-box !important;
+    will-change: transform;
+    touch-action: pan-y;
   }
 
   .section-header,

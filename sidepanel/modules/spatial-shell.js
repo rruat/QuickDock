@@ -419,15 +419,9 @@ export function openOrFocusView(viewId, { invertMode = false } = {}) {
   setupSectionDividers();
   updateSectionMoveButtons();
 
-  // No mobile, rola a esteira horizontal (#mMain) até a view em foco
+  // No mobile, transiciona suavemente o carrossel de cards até a view em foco
   if (window.innerWidth <= 768 || isMobileMode()) {
-    const mainEl = document.getElementById('mMain');
-    const targetSection = document.querySelector(`.main-section[data-id="${targetViewId}"]`);
-    if (mainEl && targetSection) {
-      setTimeout(() => {
-        scrollToMobileView(mainEl, targetSection);
-      }, 30);
-    }
+    transitionToMobileCard(targetViewId, 'auto');
   }
 
   // Atualiza rodapé
@@ -436,15 +430,6 @@ export function openOrFocusView(viewId, { invertMode = false } = {}) {
     const viewMeta = SHELL_VIEWS.find(v => v.id === targetViewId);
     footerLabel.textContent = viewMeta ? viewMeta.title : targetViewId;
   }
-}
-
-function scrollToMobileView(mainEl, targetSection) {
-  if (!mainEl || !targetSection) return;
-  const targetLeft = Math.max(0, targetSection.offsetLeft - 16);
-  mainEl.scrollTo({
-    left: targetLeft,
-    behavior: 'smooth'
-  });
 }
 
 export function closeView(viewId) {
@@ -683,6 +668,21 @@ function applyViewVisibility() {
 
   triggerOpenViewsRefresh();
   updateEmptyState();
+  if (window.innerWidth <= 768 || isMobileMode()) {
+    updateMobileCarouselPositions(false);
+  } else {
+    const mainEl = document.getElementById('mMain');
+    if (mainEl) {
+      mainEl.querySelectorAll('.main-section').forEach(sec => {
+        sec.style.removeProperty('transform');
+        sec.style.removeProperty('transition');
+        sec.style.removeProperty('visibility');
+        sec.style.removeProperty('opacity');
+        sec.style.removeProperty('z-index');
+        sec.style.removeProperty('pointer-events');
+      });
+    }
+  }
 }
 
 export function triggerOpenViewsRefresh() {
@@ -1138,11 +1138,22 @@ function setupKeyboardShortcuts() {
   });
 }
 
-// ── Feedback Háptico e Navegação por Carrossel Infinito no Mobile ───────────
+// ── Gerenciador de Carrossel Infinito com Transição Unidirecional no Mobile ─
+let mobileActiveIndex = 0;
+let isMobileSwiping = false;
+let isSwipingHorizontal = false;
+let mobileTouchStartX = 0;
+let mobileTouchStartY = 0;
+let mobileCurrentDiffX = 0;
+let mobileHasVibrated = false;
+let mobileCurrentCard = null;
+let mobileTargetCard = null;
+let mobileIsAnimating = false;
+
 function triggerWallHaptic() {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     try {
-      // Impacto duplo firme: simula o impacto seco de uma colisão física ("batendo em uma parede")
+      // Impacto duplo firme: sensação física de colisão ("batendo em uma parede")
       navigator.vibrate([28, 14, 32]);
     } catch (_) {}
   }
@@ -1156,30 +1167,12 @@ function triggerSnapHaptic() {
   }
 }
 
-function getOpenMobileViews(mainEl) {
+function getOpenMobileSections() {
+  const mainEl = document.getElementById('mMain');
   if (!mainEl) return [];
-  return Array.from(mainEl.querySelectorAll(':scope > .main-section')).filter(s => {
-    return !s.hidden && s.style.display !== 'none';
-  });
-}
-
-function getActiveMobileViewIndex(mainEl, views) {
-  if (!views || views.length === 0) return 0;
-  const containerCenter = mainEl.scrollLeft + mainEl.clientWidth / 2;
-
-  let bestIndex = 0;
-  let minDistance = Infinity;
-
-  views.forEach((v, idx) => {
-    const viewCenter = v.offsetLeft + v.offsetWidth / 2;
-    const dist = Math.abs(viewCenter - containerCenter);
-    if (dist < minDistance) {
-      minDistance = dist;
-      bestIndex = idx;
-    }
-  });
-
-  return bestIndex;
+  return openViewIds
+    .map(id => mainEl.querySelector(`:scope > [data-id="${id}"]`))
+    .filter(sec => sec && !sec.hidden && sec.style.display !== 'none');
 }
 
 function syncMobileActiveViewUI(activeId) {
@@ -1206,133 +1199,285 @@ function syncMobileActiveViewUI(activeId) {
   }
 }
 
+export function updateMobileCarouselPositions(animated = false) {
+  if (window.innerWidth > 768 && !isMobileMode()) {
+    const mainEl = document.getElementById('mMain');
+    if (mainEl) {
+      mainEl.querySelectorAll('.main-section').forEach(sec => {
+        sec.style.removeProperty('transform');
+        sec.style.removeProperty('transition');
+        sec.style.removeProperty('visibility');
+        sec.style.removeProperty('opacity');
+        sec.style.removeProperty('z-index');
+        sec.style.removeProperty('pointer-events');
+      });
+    }
+    return;
+  }
+
+  const sections = getOpenMobileSections();
+  if (sections.length === 0) return;
+
+  if (focusedViewId) {
+    const idx = sections.findIndex(s => s.dataset.id === focusedViewId);
+    if (idx !== -1) mobileActiveIndex = idx;
+  }
+  if (mobileActiveIndex < 0 || mobileActiveIndex >= sections.length) {
+    mobileActiveIndex = 0;
+  }
+
+  sections.forEach((sec, idx) => {
+    sec.style.transition = animated ? 'transform 260ms cubic-bezier(0.25, 1, 0.5, 1), opacity 260ms ease' : 'none';
+    if (idx === mobileActiveIndex) {
+      sec.style.transform = 'translate3d(0, 0, 0)';
+      sec.style.opacity = '1';
+      sec.style.pointerEvents = 'auto';
+      sec.style.zIndex = '2';
+      sec.style.visibility = 'visible';
+    } else {
+      sec.style.transform = 'translate3d(100vw, 0, 0)';
+      sec.style.opacity = '0';
+      sec.style.pointerEvents = 'none';
+      sec.style.zIndex = '1';
+      sec.style.visibility = 'hidden';
+    }
+  });
+
+  const activeSec = sections[mobileActiveIndex];
+  if (activeSec && activeSec.dataset.id) {
+    focusedViewId = activeSec.dataset.id;
+    syncMobileActiveViewUI(focusedViewId);
+  }
+}
+
+export function transitionToMobileCard(targetId, preferredDirection = 'auto') {
+  if (window.innerWidth > 768 && !isMobileMode()) return;
+  const sections = getOpenMobileSections();
+  if (sections.length === 0) return;
+
+  const targetIndex = sections.findIndex(s => s.dataset.id === targetId);
+  if (targetIndex === -1) return;
+
+  if (targetIndex === mobileActiveIndex) {
+    updateMobileCarouselPositions(false);
+    return;
+  }
+
+  if (mobileIsAnimating) {
+    mobileActiveIndex = targetIndex;
+    updateMobileCarouselPositions(false);
+    return;
+  }
+
+  const currentCard = sections[mobileActiveIndex] || sections[0];
+  const targetCard = sections[targetIndex];
+
+  let isForward = true;
+  if (preferredDirection === 'forward') {
+    isForward = true;
+  } else if (preferredDirection === 'backward') {
+    isForward = false;
+  } else {
+    isForward = targetIndex > mobileActiveIndex || (mobileActiveIndex === sections.length - 1 && targetIndex === 0);
+  }
+
+  const cardWidth = window.innerWidth;
+  const enterX = isForward ? cardWidth : -cardWidth;
+  const exitX = isForward ? -cardWidth : cardWidth;
+
+  mobileIsAnimating = true;
+
+  targetCard.style.transition = 'none';
+  targetCard.style.transform = `translate3d(${enterX}px, 0, 0)`;
+  targetCard.style.visibility = 'visible';
+  targetCard.style.opacity = '1';
+  targetCard.style.zIndex = '2';
+  targetCard.style.pointerEvents = 'none';
+
+  void targetCard.offsetWidth; // Força reflow
+
+  currentCard.style.transition = 'transform 260ms cubic-bezier(0.25, 1, 0.5, 1), opacity 260ms ease';
+  targetCard.style.transition = 'transform 260ms cubic-bezier(0.25, 1, 0.5, 1), opacity 260ms ease';
+
+  currentCard.style.transform = `translate3d(${exitX}px, 0, 0)`;
+  targetCard.style.transform = 'translate3d(0, 0, 0)';
+
+  setTimeout(() => {
+    mobileActiveIndex = targetIndex;
+    focusedViewId = targetId;
+    mobileIsAnimating = false;
+    updateMobileCarouselPositions(false);
+    window.dispatchEvent(new CustomEvent('resize'));
+  }, 270);
+}
+
+function onMobileTouchStart(e) {
+  if (window.innerWidth > 768 && !isMobileMode()) return;
+  if (mobileIsAnimating) return;
+
+  const sections = getOpenMobileSections();
+  if (sections.length <= 1) return;
+
+  if (e.target.closest('input, textarea, [contenteditable="true"]')) return;
+  if (e.target.closest('#board-container, #graph-canvas-container, .kanban-board, .table-container')) {
+    if (!e.target.closest('.section-header')) return;
+  }
+
+  if (!e.touches || e.touches.length === 0) return;
+
+  mobileTouchStartX = e.touches[0].clientX;
+  mobileTouchStartY = e.touches[0].clientY;
+  mobileCurrentDiffX = 0;
+  mobileHasVibrated = false;
+  isMobileSwiping = true;
+  isSwipingHorizontal = false;
+
+  const activeSec = sections[mobileActiveIndex] || sections[0];
+  mobileCurrentCard = activeSec;
+  mobileTargetCard = null;
+}
+
+function onMobileTouchMove(e) {
+  if (!isMobileSwiping || mobileIsAnimating || !mobileCurrentCard) return;
+  if (!e.touches || e.touches.length === 0) return;
+
+  const currentX = e.touches[0].clientX;
+  const currentY = e.touches[0].clientY;
+  const diffX = currentX - mobileTouchStartX;
+  const diffY = currentY - mobileTouchStartY;
+
+  if (!isSwipingHorizontal) {
+    if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 6) {
+      isMobileSwiping = false;
+      return;
+    }
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+      isSwipingHorizontal = true;
+    } else {
+      return;
+    }
+  }
+
+  mobileCurrentDiffX = diffX;
+  const sections = getOpenMobileSections();
+  const N = sections.length;
+  if (N <= 1) return;
+
+  const cardWidth = window.innerWidth;
+  let targetIndex = -1;
+
+  if (diffX < 0) {
+    // Gesto para a esquerda -> Próximo card no sentido do carrossel (1 → 2 → 1)
+    targetIndex = (mobileActiveIndex + 1) % N;
+  } else if (diffX > 0) {
+    // Gesto para a direita -> Card anterior no sentido reverso do carrossel (1 ← 2 ← 1)
+    targetIndex = (mobileActiveIndex - 1 + N) % N;
+  }
+
+  if (targetIndex !== -1 && targetIndex !== mobileActiveIndex) {
+    const newTarget = sections[targetIndex];
+    if (mobileTargetCard && mobileTargetCard !== newTarget) {
+      mobileTargetCard.style.visibility = 'hidden';
+      mobileTargetCard.style.opacity = '0';
+    }
+    mobileTargetCard = newTarget;
+    mobileTargetCard.style.visibility = 'visible';
+    mobileTargetCard.style.opacity = '1';
+    mobileTargetCard.style.zIndex = '2';
+    mobileTargetCard.style.pointerEvents = 'none';
+    mobileTargetCard.style.transition = 'none';
+
+    // Se o dedo move para a esquerda (diffX < 0), o próximo card SEMPRE entra pela direita (cardWidth + diffX)
+    // Se o dedo move para a direita (diffX > 0), o card anterior SEMPRE entra pela esquerda (-cardWidth + diffX)
+    const offset = diffX < 0 ? (cardWidth + diffX) : (-cardWidth + diffX);
+    mobileTargetCard.style.transform = `translate3d(${offset}px, 0, 0)`;
+  }
+
+  mobileCurrentCard.style.transition = 'none';
+  mobileCurrentCard.style.transform = `translate3d(${diffX}px, 0, 0)`;
+
+  // Haptic feedback de impacto firme ("batendo em uma parede") ao cruzar o limiar de 45px
+  if (Math.abs(diffX) >= 45) {
+    if (!mobileHasVibrated) {
+      triggerWallHaptic();
+      mobileHasVibrated = true;
+    }
+  } else {
+    mobileHasVibrated = false;
+  }
+}
+
+function onMobileTouchEnd() {
+  if (!isMobileSwiping || mobileIsAnimating || !mobileCurrentCard) return;
+  isMobileSwiping = false;
+
+  const sections = getOpenMobileSections();
+  const N = sections.length;
+  const cardWidth = window.innerWidth;
+  const diffX = mobileCurrentDiffX;
+
+  if (N <= 1 || !mobileTargetCard) {
+    if (mobileCurrentCard) {
+      mobileCurrentCard.style.transition = 'transform 240ms cubic-bezier(0.25, 1, 0.5, 1)';
+      mobileCurrentCard.style.transform = 'translate3d(0, 0, 0)';
+    }
+    return;
+  }
+
+  const SWIPE_THRESHOLD = 45;
+
+  if (Math.abs(diffX) >= SWIPE_THRESHOLD) {
+    // Troca de card confirmada respeitando estritamente a direção do movimento!
+    mobileIsAnimating = true;
+    triggerSnapHaptic();
+
+    const isNext = diffX < 0;
+    const finalCurrentX = isNext ? -cardWidth : cardWidth;
+
+    mobileCurrentCard.style.transition = 'transform 260ms cubic-bezier(0.25, 1, 0.5, 1), opacity 260ms ease';
+    mobileTargetCard.style.transition = 'transform 260ms cubic-bezier(0.25, 1, 0.5, 1), opacity 260ms ease';
+
+    mobileCurrentCard.style.transform = `translate3d(${finalCurrentX}px, 0, 0)`;
+    mobileTargetCard.style.transform = 'translate3d(0, 0, 0)';
+
+    const newIndex = isNext ? (mobileActiveIndex + 1) % N : (mobileActiveIndex - 1 + N) % N;
+
+    setTimeout(() => {
+      mobileActiveIndex = newIndex;
+      mobileIsAnimating = false;
+      updateMobileCarouselPositions(false);
+      window.dispatchEvent(new CustomEvent('resize'));
+    }, 270);
+
+  } else {
+    // Não atingiu a distância mínima: cancela e retorna para a posição de repouso
+    mobileIsAnimating = true;
+    const resetTargetX = diffX < 0 ? cardWidth : -cardWidth;
+
+    mobileCurrentCard.style.transition = 'transform 220ms cubic-bezier(0.25, 1, 0.5, 1)';
+    mobileTargetCard.style.transition = 'transform 220ms cubic-bezier(0.25, 1, 0.5, 1)';
+
+    mobileCurrentCard.style.transform = 'translate3d(0, 0, 0)';
+    mobileTargetCard.style.transform = `translate3d(${resetTargetX}px, 0, 0)`;
+
+    setTimeout(() => {
+      mobileIsAnimating = false;
+      updateMobileCarouselPositions(false);
+    }, 230);
+  }
+}
+
 function setupMobileTouchGestures() {
   const mainEl = document.getElementById('mMain');
   if (!mainEl) return;
 
-  const SWIPE_THRESHOLD = 45; // Distância mínima necessária em px para acionar a troca de view
-  let startX = 0;
-  let startY = 0;
-  let startScroll = 0;
-  let hasVibrated = false;
-  let isSwiping = false;
+  window.addEventListener('resize', () => {
+    updateMobileCarouselPositions(false);
+  });
 
-  // Sincroniza em tempo real a view em foco e o #mNav conforme o usuário rola a esteira
-  let scrollSyncRaf = null;
-  mainEl.addEventListener(
-    'scroll',
-    () => {
-      if (window.innerWidth > 768 && !isMobileMode()) return;
-      if (scrollSyncRaf) cancelAnimationFrame(scrollSyncRaf);
-      scrollSyncRaf = requestAnimationFrame(() => {
-        const views = getOpenMobileViews(mainEl);
-        if (views.length === 0) return;
-        const activeIdx = getActiveMobileViewIndex(mainEl, views);
-        const activeView = views[activeIdx];
-        if (activeView && activeView.dataset.id && activeView.dataset.id !== focusedViewId) {
-          focusedViewId = activeView.dataset.id;
-          syncMobileActiveViewUI(focusedViewId);
-        }
-      });
-    },
-    { passive: true }
-  );
-
-  mainEl.addEventListener(
-    'touchstart',
-    (event) => {
-      if (window.innerWidth > 768 && !isMobileMode()) return;
-      if (event.target.closest('.kanban-board, .table-container, .bases-body, #board-container, #graph-canvas-container, input, textarea, [contenteditable="true"]')) {
-        isSwiping = false;
-        return;
-      }
-      if (!event.touches || event.touches.length === 0) return;
-      startX = event.touches[0].clientX;
-      startY = event.touches[0].clientY;
-      startScroll = mainEl.scrollLeft;
-      hasVibrated = false;
-      isSwiping = true;
-    },
-    { passive: true }
-  );
-
-  mainEl.addEventListener(
-    'touchmove',
-    (event) => {
-      if (!isSwiping) return;
-      if (window.innerWidth > 768 && !isMobileMode()) return;
-      if (!event.touches || event.touches.length === 0) return;
-
-      const currentX = event.touches[0].clientX;
-      const currentY = event.touches[0].clientY;
-      const diffX = currentX - startX;
-      const diffY = currentY - startY;
-
-      // Se o movimento for predominantemente vertical, não processa o swipe
-      if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffX) < 15) {
-        return;
-      }
-
-      // Ao ultrapassar o threshold da troca de view, dispara a sensação de impacto físico ("batendo em uma parede")
-      if (Math.abs(diffX) >= SWIPE_THRESHOLD) {
-        if (!hasVibrated) {
-          triggerWallHaptic();
-          hasVibrated = true;
-        }
-      } else {
-        // Se o usuário recuar o dedo antes de soltar, rearma o feedback
-        hasVibrated = false;
-      }
-    },
-    { passive: true }
-  );
-
-  mainEl.addEventListener(
-    'touchend',
-    (event) => {
-      if (!isSwiping) return;
-      isSwiping = false;
-      if (window.innerWidth > 768 && !isMobileMode()) return;
-      if (!event.changedTouches || event.changedTouches.length === 0) return;
-
-      const endX = event.changedTouches[0].clientX;
-      const distance = endX - startX;
-
-      const views = getOpenMobileViews(mainEl);
-      if (views.length === 0) return;
-
-      if (views.length === 1) {
-        scrollToMobileView(mainEl, views[0]);
-        return;
-      }
-
-      const activeIdx = getActiveMobileViewIndex(mainEl, views);
-      let targetIdx = activeIdx;
-
-      if (distance < -SWIPE_THRESHOLD) {
-        // Swipe para a esquerda -> próxima view (com carrossel infinito circular)
-        targetIdx = (activeIdx + 1) % views.length;
-        triggerSnapHaptic();
-      } else if (distance > SWIPE_THRESHOLD) {
-        // Swipe para a direita -> view anterior (com carrossel infinito circular)
-        targetIdx = (activeIdx - 1 + views.length) % views.length;
-        triggerSnapHaptic();
-      } else {
-        // Gesto curto: realinha com firmeza na view ativa atual
-        targetIdx = activeIdx;
-      }
-
-      const targetView = views[targetIdx];
-      if (targetView) {
-        scrollToMobileView(mainEl, targetView);
-        const targetId = targetView.dataset.id;
-        if (targetId) {
-          focusedViewId = targetId;
-          syncMobileActiveViewUI(targetId);
-        }
-      }
-    },
-    { passive: true }
-  );
+  mainEl.addEventListener('touchstart', onMobileTouchStart, { passive: true });
+  mainEl.addEventListener('touchmove', onMobileTouchMove, { passive: true });
+  mainEl.addEventListener('touchend', onMobileTouchEnd, { passive: true });
+  mainEl.addEventListener('touchcancel', onMobileTouchEnd, { passive: true });
 }
 
