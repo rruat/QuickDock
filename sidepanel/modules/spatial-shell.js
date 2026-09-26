@@ -1318,12 +1318,22 @@ function onMobileTouchStart(e) {
   const sections = getOpenMobileSections();
   if (sections.length <= 1) return;
 
-  if (e.target.closest('input, textarea, [contenteditable="true"]')) return;
+  if (e.target.closest('input, textarea')) return;
+  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+  if (document.activeElement && document.activeElement.isContentEditable && e.target.closest('[contenteditable="true"]')) return;
   if (e.target.closest('#board-container, #graph-canvas-container, .kanban-board, .table-container')) {
     if (!e.target.closest('.section-header')) return;
   }
 
   if (!e.touches || e.touches.length === 0) return;
+
+  if (focusedViewId) {
+    const idx = sections.findIndex(s => s.dataset.id === focusedViewId);
+    if (idx !== -1) mobileActiveIndex = idx;
+  }
+  if (mobileActiveIndex < 0 || mobileActiveIndex >= sections.length) {
+    mobileActiveIndex = 0;
+  }
 
   mobileTouchStartX = e.touches[0].clientX;
   mobileTouchStartY = e.touches[0].clientY;
@@ -1421,6 +1431,8 @@ function onMobileTouchEnd() {
       mobileCurrentCard.style.transition = 'transform 240ms cubic-bezier(0.25, 1, 0.5, 1)';
       mobileCurrentCard.style.transform = 'translate3d(0, 0, 0)';
     }
+    mobileCurrentCard = null;
+    mobileTargetCard = null;
     return;
   }
 
@@ -1441,9 +1453,19 @@ function onMobileTouchEnd() {
     mobileTargetCard.style.transform = 'translate3d(0, 0, 0)';
 
     const newIndex = isNext ? (mobileActiveIndex + 1) % N : (mobileActiveIndex - 1 + N) % N;
+    const newTargetId = sections[newIndex]?.dataset?.id;
+    if (newTargetId) {
+      focusedViewId = newTargetId;
+      syncMobileActiveViewUI(focusedViewId);
+    }
 
     setTimeout(() => {
       mobileActiveIndex = newIndex;
+      if (newTargetId) {
+        focusedViewId = newTargetId;
+      }
+      mobileCurrentCard = null;
+      mobileTargetCard = null;
       mobileIsAnimating = false;
       updateMobileCarouselPositions(false);
       window.dispatchEvent(new CustomEvent('resize'));
@@ -1461,6 +1483,8 @@ function onMobileTouchEnd() {
     mobileTargetCard.style.transform = `translate3d(${resetTargetX}px, 0, 0)`;
 
     setTimeout(() => {
+      mobileCurrentCard = null;
+      mobileTargetCard = null;
       mobileIsAnimating = false;
       updateMobileCarouselPositions(false);
     }, 230);
