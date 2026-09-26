@@ -425,11 +425,8 @@ export function openOrFocusView(viewId, { invertMode = false } = {}) {
     const targetSection = document.querySelector(`.main-section[data-id="${targetViewId}"]`);
     if (mainEl && targetSection) {
       setTimeout(() => {
-        mainEl.scrollTo({
-          left: Math.max(0, targetSection.offsetLeft - 16),
-          behavior: 'smooth'
-        });
-      }, 50);
+        scrollToMobileView(mainEl, targetSection);
+      }, 30);
     }
   }
 
@@ -439,6 +436,15 @@ export function openOrFocusView(viewId, { invertMode = false } = {}) {
     const viewMeta = SHELL_VIEWS.find(v => v.id === targetViewId);
     footerLabel.textContent = viewMeta ? viewMeta.title : targetViewId;
   }
+}
+
+function scrollToMobileView(mainEl, targetSection) {
+  if (!mainEl || !targetSection) return;
+  const targetLeft = Math.max(0, targetSection.offsetLeft - 16);
+  mainEl.scrollTo({
+    left: targetLeft,
+    behavior: 'smooth'
+  });
 }
 
 export function closeView(viewId) {
@@ -473,10 +479,17 @@ export function closeView(viewId) {
 function reorderMainSections() {
   const mainEl = document.getElementById('mMain');
   if (!mainEl) return;
+  const currentSections = Array.from(mainEl.querySelectorAll(':scope > [data-id]'));
+  const currentOrder = currentSections.map(s => s.dataset.id).filter(id => openViewIds.includes(id));
+  const isSameOrder = openViewIds.length === currentOrder.length && openViewIds.every((id, idx) => currentOrder[idx] === id);
+  if (isSameOrder) return;
+
+  const savedScroll = mainEl.scrollLeft;
   for (const id of openViewIds) {
     const sec = mainEl.querySelector(`:scope > [data-id="${id}"]`);
     if (sec) mainEl.appendChild(sec);
   }
+  mainEl.scrollLeft = savedScroll;
 }
 
 export function moveView(viewId, direction) {
@@ -536,6 +549,7 @@ function updateSectionMoveButtons() {
 // depois da primeira troca de nota.
 function bindSectionInteractions(sec) {
   sec.addEventListener('pointerdown', () => {
+    if (window.innerWidth <= 768 || isMobileMode()) return;
     const id = sec.dataset.id;
     if (!id) return;
     focusedViewId = id;
@@ -544,6 +558,7 @@ function bindSectionInteractions(sec) {
   });
 
   sec.addEventListener('focusin', () => {
+    if (window.innerWidth <= 768 || isMobileMode()) return;
     const id = sec.dataset.id;
     if (!id) return;
     focusedViewId = id;
@@ -1123,7 +1138,74 @@ function setupKeyboardShortcuts() {
   });
 }
 
-// ── Controle de Gesto (Swipe entre as Views no Mobile com Haptic Feedback) ───
+// ── Feedback Háptico e Navegação por Carrossel Infinito no Mobile ───────────
+function triggerWallHaptic() {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try {
+      // Impacto duplo firme: simula o impacto seco de uma colisão física ("batendo em uma parede")
+      navigator.vibrate([28, 14, 32]);
+    } catch (_) {}
+  }
+}
+
+function triggerSnapHaptic() {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try {
+      navigator.vibrate(20);
+    } catch (_) {}
+  }
+}
+
+function getOpenMobileViews(mainEl) {
+  if (!mainEl) return [];
+  return Array.from(mainEl.querySelectorAll(':scope > .main-section')).filter(s => {
+    return !s.hidden && s.style.display !== 'none';
+  });
+}
+
+function getActiveMobileViewIndex(mainEl, views) {
+  if (!views || views.length === 0) return 0;
+  const containerCenter = mainEl.scrollLeft + mainEl.clientWidth / 2;
+
+  let bestIndex = 0;
+  let minDistance = Infinity;
+
+  views.forEach((v, idx) => {
+    const viewCenter = v.offsetLeft + v.offsetWidth / 2;
+    const dist = Math.abs(viewCenter - containerCenter);
+    if (dist < minDistance) {
+      minDistance = dist;
+      bestIndex = idx;
+    }
+  });
+
+  return bestIndex;
+}
+
+function syncMobileActiveViewUI(activeId) {
+  if (!activeId) return;
+
+  const navEl = document.getElementById('mNav');
+  if (navEl) {
+    navEl.querySelectorAll('.nav-item').forEach(item => {
+      item.classList.toggle('is-active', item.dataset.navView === activeId);
+    });
+  }
+
+  const mainEl = document.getElementById('mMain');
+  if (mainEl) {
+    mainEl.querySelectorAll('.main-section').forEach(sec => {
+      sec.classList.toggle('is-focused', sec.dataset.id === activeId);
+    });
+  }
+
+  const footerLabel = document.getElementById('footer-active-view-name');
+  if (footerLabel) {
+    const viewMeta = SHELL_VIEWS.find(v => v.id === activeId);
+    footerLabel.textContent = viewMeta ? viewMeta.title : activeId;
+  }
+}
+
 function setupMobileTouchGestures() {
   const mainEl = document.getElementById('mMain');
   if (!mainEl) return;
@@ -1134,6 +1216,27 @@ function setupMobileTouchGestures() {
   let startScroll = 0;
   let hasVibrated = false;
   let isSwiping = false;
+
+  // Sincroniza em tempo real a view em foco e o #mNav conforme o usuário rola a esteira
+  let scrollSyncRaf = null;
+  mainEl.addEventListener(
+    'scroll',
+    () => {
+      if (window.innerWidth > 768 && !isMobileMode()) return;
+      if (scrollSyncRaf) cancelAnimationFrame(scrollSyncRaf);
+      scrollSyncRaf = requestAnimationFrame(() => {
+        const views = getOpenMobileViews(mainEl);
+        if (views.length === 0) return;
+        const activeIdx = getActiveMobileViewIndex(mainEl, views);
+        const activeView = views[activeIdx];
+        if (activeView && activeView.dataset.id && activeView.dataset.id !== focusedViewId) {
+          focusedViewId = activeView.dataset.id;
+          syncMobileActiveViewUI(focusedViewId);
+        }
+      });
+    },
+    { passive: true }
+  );
 
   mainEl.addEventListener(
     'touchstart',
@@ -1170,19 +1273,14 @@ function setupMobileTouchGestures() {
         return;
       }
 
-      // Ao ultrapassar a distância mínima necessária para abrir a próxima view:
-      // aciona uma leve vibração (haptic feedback) indicando que o ponto de troca foi atingido
+      // Ao ultrapassar o threshold da troca de view, dispara a sensação de impacto físico ("batendo em uma parede")
       if (Math.abs(diffX) >= SWIPE_THRESHOLD) {
         if (!hasVibrated) {
-          if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-            try {
-              navigator.vibrate(15);
-            } catch (_) {}
-          }
+          triggerWallHaptic();
           hasVibrated = true;
         }
       } else {
-        // Se o usuário recuar o dedo antes de soltar, permite vibrar novamente se cruzar de novo
+        // Se o usuário recuar o dedo antes de soltar, rearma o feedback
         hasVibrated = false;
       }
     },
@@ -1200,43 +1298,38 @@ function setupMobileTouchGestures() {
       const endX = event.changedTouches[0].clientX;
       const distance = endX - startX;
 
-      const views = Array.from(mainEl.querySelectorAll(':scope > .main-section:not([hidden])'));
+      const views = getOpenMobileViews(mainEl);
       if (views.length === 0) return;
 
-      const currentView = views.find(v => v.dataset.id === focusedViewId) || views[0];
-      let currentIndex = views.indexOf(currentView);
-      if (currentIndex === -1) {
-        const viewWidth = views[0].offsetWidth || (window.innerWidth - 32);
-        currentIndex = Math.min(views.length - 1, Math.max(0, Math.round(startScroll / (viewWidth + 8))));
-      }
-
-      // Se a distância mínima não foi atingida, realinha suavemente à view atual
-      if (Math.abs(distance) < SWIPE_THRESHOLD) {
-        mainEl.scrollTo({
-          left: Math.max(0, (views[currentIndex]?.offsetLeft || 0) - 16),
-          behavior: 'smooth'
-        });
+      if (views.length === 1) {
+        scrollToMobileView(mainEl, views[0]);
         return;
       }
 
-      let nextIndex = currentIndex;
-      if (distance < 0) {
-        nextIndex = Math.min(currentIndex + 1, views.length - 1);
+      const activeIdx = getActiveMobileViewIndex(mainEl, views);
+      let targetIdx = activeIdx;
+
+      if (distance < -SWIPE_THRESHOLD) {
+        // Swipe para a esquerda -> próxima view (com carrossel infinito circular)
+        targetIdx = (activeIdx + 1) % views.length;
+        triggerSnapHaptic();
+      } else if (distance > SWIPE_THRESHOLD) {
+        // Swipe para a direita -> view anterior (com carrossel infinito circular)
+        targetIdx = (activeIdx - 1 + views.length) % views.length;
+        triggerSnapHaptic();
       } else {
-        nextIndex = Math.max(currentIndex - 1, 0);
+        // Gesto curto: realinha com firmeza na view ativa atual
+        targetIdx = activeIdx;
       }
 
-      const targetView = views[nextIndex];
-      if (!targetView) return;
-
-      const nextId = targetView.dataset.id;
-      if (nextId && nextId !== focusedViewId) {
-        openOrFocusView(nextId);
-      } else {
-        mainEl.scrollTo({
-          left: Math.max(0, targetView.offsetLeft - 16),
-          behavior: 'smooth'
-        });
+      const targetView = views[targetIdx];
+      if (targetView) {
+        scrollToMobileView(mainEl, targetView);
+        const targetId = targetView.dataset.id;
+        if (targetId) {
+          focusedViewId = targetId;
+          syncMobileActiveViewUI(targetId);
+        }
       }
     },
     { passive: true }
