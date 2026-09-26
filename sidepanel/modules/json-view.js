@@ -18,6 +18,22 @@ import { escHtml } from './blocks.js';
 export const JSON_TEMPLATES = {
   'empty-object': {},
   'empty-array': [],
+  'records-list': [
+    {
+      nome: "DAYSE ALVES MARQUES",
+      cpf: "07216577450",
+      dataNascimento: "14/03/1993",
+      reducaoCarencia: "",
+      migracao: ""
+    },
+    {
+      nome: "JOSE DANIEL MARQUES DE OLIVEIRA",
+      cpf: "11812001487",
+      dataNascimento: "05/08/2026",
+      reducaoCarencia: "NAO",
+      migracao: "NAO"
+    }
+  ],
   'user-profile': {
     id: 101,
     nome: "Maria Silva",
@@ -306,7 +322,21 @@ export function insertChildNode(root, path, initialType = 'string') {
   else if (initialType === 'array') defaultValue = [];
 
   if (Array.isArray(target)) {
-    target.push(defaultValue);
+    if (target.length > 0 && typeof target[0] === 'object' && target[0] !== null && !Array.isArray(target[0]) && initialType === 'string') {
+      const templateObj = {};
+      for (const [k, v] of Object.entries(target[0])) {
+        const vType = getJsonType(v);
+        templateObj[k] = vType === 'number' ? 0
+          : vType === 'boolean' ? false
+          : vType === 'null' ? null
+          : vType === 'array' ? []
+          : vType === 'object' ? {}
+          : '';
+      }
+      target.push(templateObj);
+    } else {
+      target.push(defaultValue);
+    }
   } else {
     let keyIndex = 1;
     let newKey = `nova_chave_${keyIndex}`;
@@ -385,15 +415,15 @@ export function moveNodeByPath(root, path, direction) {
   return cloned;
 }
 
-// ── Estado do Módulo do Visualizador / Editor JSON ──────────────────────────
-
-let currentJsonData = deepCloneJson(JSON_TEMPLATES['user-profile']);
+let currentJsonData = deepCloneJson(JSON_TEMPLATES['records-list']);
 let rawJsonText = JSON.stringify(currentJsonData, null, 2);
-let currentViewMode = 'tree'; // 'tree' (visual) ou 'code' (texto)
+let currentViewMode = isDesktopMode() ? 'split' : 'tree'; // 'split', 'tree' ou 'code'
 let searchQuery = '';
-const expandedPaths = new Set(['', 'endereco', 'interesses', 'dados', 'servidor', 'recursos']);
+const expandedPaths = new Set(['', '0', '1', 'endereco', 'interesses', 'dados', 'servidor', 'recursos']);
 
 let containerEl = null;
+let panesWrapperEl = null;
+let resizerEl = null;
 let visualContainerEl = null;
 let codeContainerEl = null;
 let codeEditorEl = null;
@@ -410,6 +440,43 @@ let searchClearBtnEl = null;
 let fileInputEl = null;
 let activePopoverEl = null;
 
+export function autoExpandInitialPaths(data) {
+  expandedPaths.add('');
+  if (Array.isArray(data)) {
+    data.forEach((item, idx) => {
+      if (idx < 50) {
+        expandedPaths.add(String(idx));
+      }
+    });
+  } else if (data && typeof data === 'object') {
+    Object.keys(data).forEach(k => {
+      expandedPaths.add(k);
+    });
+  }
+}
+
+export function syncVisualToCode() {
+  rawJsonText = JSON.stringify(currentJsonData, null, 2);
+  if (codeEditorEl) {
+    codeEditorEl.value = rawJsonText;
+    updateLineNumbers();
+    if (validationBarEl) {
+      validationBarEl.classList.remove('is-invalid');
+      validationBarEl.classList.add('is-valid');
+    }
+    if (validationIconEl) validationIconEl.textContent = 'check_circle';
+    if (validationMsgEl) validationMsgEl.textContent = 'JSON Válido e pronto para uso';
+    if (gotoErrorBtnEl) gotoErrorBtnEl.hidden = true;
+    if (charCountEl) {
+      const chars = rawJsonText.length;
+      const lines = (rawJsonText.match(/\n/g) || []).length + 1;
+      charCountEl.textContent = `${lines} linhas · ${chars} caracteres`;
+    }
+  }
+  updateStatsBadge();
+  persistState();
+}
+
 // Carrega dados salvos do localStorage
 function loadSavedState() {
   try {
@@ -422,9 +489,12 @@ function loadSavedState() {
       }
     }
     const savedMode = localStorage.getItem('quickdock:json:mode');
-    if (savedMode === 'code' || savedMode === 'tree') {
+    if (savedMode === 'code' || savedMode === 'tree' || savedMode === 'split') {
       currentViewMode = savedMode;
+    } else if (isDesktopMode()) {
+      currentViewMode = 'split';
     }
+    autoExpandInitialPaths(currentJsonData);
   } catch (_) {}
 }
 
@@ -557,8 +627,10 @@ export function switchJsonMode(targetMode) {
     currentViewMode = 'tree';
     if (visualContainerEl) visualContainerEl.hidden = false;
     if (codeContainerEl) codeContainerEl.hidden = true;
+    if (resizerEl) resizerEl.hidden = true;
+    panesWrapperEl?.classList.remove('is-split');
     renderTreeView();
-  } else {
+  } else if (targetMode === 'code') {
     // Visual -> Código: serializa modelo estrutural em texto formatado
     currentViewMode = 'code';
     rawJsonText = JSON.stringify(currentJsonData, null, 2);
@@ -569,10 +641,29 @@ export function switchJsonMode(targetMode) {
     }
     if (visualContainerEl) visualContainerEl.hidden = true;
     if (codeContainerEl) codeContainerEl.hidden = false;
+    if (resizerEl) resizerEl.hidden = true;
+    panesWrapperEl?.classList.remove('is-split');
+  } else if (targetMode === 'split') {
+    // Modo Dividido (Texto de um lado e Visual do outro)
+    currentViewMode = 'split';
+    rawJsonText = JSON.stringify(currentJsonData, null, 2);
+    if (codeEditorEl) {
+      codeEditorEl.value = rawJsonText;
+      updateLineNumbers();
+      validateAndSyncCodeEditor();
+    }
+    if (visualContainerEl) visualContainerEl.hidden = false;
+    if (codeContainerEl) codeContainerEl.hidden = false;
+    if (resizerEl) resizerEl.hidden = false;
+    panesWrapperEl?.classList.add('is-split');
+    renderTreeView();
   }
 
-  document.getElementById('btn-json-mode-tree')?.classList.toggle('is-active', currentViewMode === 'tree');
-  document.getElementById('btn-json-mode-code')?.classList.toggle('is-active', currentViewMode === 'code');
+  if (typeof document !== 'undefined') {
+    document.getElementById('btn-json-mode-tree')?.classList.toggle('is-active', currentViewMode === 'tree');
+    document.getElementById('btn-json-mode-code')?.classList.toggle('is-active', currentViewMode === 'code');
+    document.getElementById('btn-json-mode-split')?.classList.toggle('is-active', currentViewMode === 'split');
+  }
   persistState();
 }
 
@@ -723,8 +814,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
         const newKey = keyInput.value.trim();
         if (newKey && newKey !== keyName) {
           currentJsonData = renameKeyByPath(currentJsonData, path, newKey);
-          rawJsonText = JSON.stringify(currentJsonData, null, 2);
-          persistState();
+          syncVisualToCode();
           renderTreeView();
         } else {
           keyInput.value = keyName;
@@ -759,8 +849,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     showTypeSelectorPopover(typeBadge, type, newType => {
       const converted = convertJsonType(value, newType);
       currentJsonData = updateValueByPath(currentJsonData, path, converted);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
       renderTreeView();
     });
   });
@@ -776,11 +865,13 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     strInput.className = 'json-val-input json-val-string';
     strInput.value = value;
     strInput.placeholder = 'texto vazio';
+    strInput.addEventListener('input', () => {
+      currentJsonData = updateValueByPath(currentJsonData, path, strInput.value);
+      syncVisualToCode();
+    });
     strInput.addEventListener('change', () => {
       currentJsonData = updateValueByPath(currentJsonData, path, strInput.value);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
-      updateStatsBadge();
+      syncVisualToCode();
     });
     valWrapper.appendChild(strInput);
   } else if (type === 'number') {
@@ -789,12 +880,15 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     numInput.className = 'json-val-input json-val-number';
     numInput.value = value;
     numInput.step = 'any';
+    numInput.addEventListener('input', () => {
+      const num = Number(numInput.value);
+      currentJsonData = updateValueByPath(currentJsonData, path, isNaN(num) ? 0 : num);
+      syncVisualToCode();
+    });
     numInput.addEventListener('change', () => {
       const num = Number(numInput.value);
       currentJsonData = updateValueByPath(currentJsonData, path, isNaN(num) ? 0 : num);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
-      updateStatsBadge();
+      syncVisualToCode();
     });
 
     const stepDown = document.createElement('button');
@@ -806,8 +900,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
       const num = (Number(numInput.value) || 0) - 1;
       numInput.value = num;
       currentJsonData = updateValueByPath(currentJsonData, path, num);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
     });
 
     const stepUp = document.createElement('button');
@@ -819,8 +912,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
       const num = (Number(numInput.value) || 0) + 1;
       numInput.value = num;
       currentJsonData = updateValueByPath(currentJsonData, path, num);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
     });
 
     valWrapper.appendChild(stepDown);
@@ -836,8 +928,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     trueBtn.textContent = 'true';
     trueBtn.addEventListener('click', () => {
       currentJsonData = updateValueByPath(currentJsonData, path, true);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
       renderTreeView();
     });
 
@@ -847,8 +938,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     falseBtn.textContent = 'false';
     falseBtn.addEventListener('click', () => {
       currentJsonData = updateValueByPath(currentJsonData, path, false);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
       renderTreeView();
     });
 
@@ -861,16 +951,31 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     nullTag.textContent = 'null';
     valWrapper.appendChild(nullTag);
   } else if (isObj) {
-    const keysCount = Object.keys(value || {}).length;
+    const entries = Object.entries(value || {});
     const summary = document.createElement('span');
     summary.className = 'json-collapsible-summary';
-    summary.textContent = `{ ${keysCount} ${keysCount === 1 ? 'propriedade' : 'propriedades'} }`;
+    if (entries.length === 0) {
+      summary.textContent = '{ } (vazio)';
+    } else {
+      const preview = entries.slice(0, 3).map(([k, v]) => {
+        const displayV = typeof v === 'object' && v !== null
+          ? (Array.isArray(v) ? '[...]' : '{...}')
+          : JSON.stringify(v);
+        return `${k}: ${displayV}`;
+      }).join(', ');
+      const more = entries.length > 3 ? `, +${entries.length - 3}` : '';
+      summary.textContent = `{ ${preview}${more} }`;
+    }
     valWrapper.appendChild(summary);
   } else if (isArr) {
-    const itemsCount = (value || []).length;
+    const items = value || [];
     const summary = document.createElement('span');
     summary.className = 'json-collapsible-summary';
-    summary.textContent = `[ ${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'} ]`;
+    if (items.length === 0) {
+      summary.textContent = '[ ] (vazio)';
+    } else {
+      summary.textContent = `[ ${items.length} ${items.length === 1 ? 'item' : 'itens'} ]`;
+    }
     valWrapper.appendChild(summary);
   }
 
@@ -891,8 +996,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
       e.stopPropagation();
       expandedPaths.add(pathStr);
       currentJsonData = insertChildNode(currentJsonData, path, 'string');
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
       renderTreeView();
     });
     nodeActions.appendChild(addBtn);
@@ -908,8 +1012,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     dupBtn.addEventListener('click', e => {
       e.stopPropagation();
       currentJsonData = duplicateNodeByPath(currentJsonData, path);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
       renderTreeView();
     });
     nodeActions.appendChild(dupBtn);
@@ -923,8 +1026,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     moveUpBtn.addEventListener('click', e => {
       e.stopPropagation();
       currentJsonData = moveNodeByPath(currentJsonData, path, -1);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
       renderTreeView();
     });
     nodeActions.appendChild(moveUpBtn);
@@ -938,8 +1040,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     moveDownBtn.addEventListener('click', e => {
       e.stopPropagation();
       currentJsonData = moveNodeByPath(currentJsonData, path, 1);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
       renderTreeView();
     });
     nodeActions.appendChild(moveDownBtn);
@@ -953,8 +1054,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
     delBtn.addEventListener('click', e => {
       e.stopPropagation();
       currentJsonData = deleteByPath(currentJsonData, path);
-      rawJsonText = JSON.stringify(currentJsonData, null, 2);
-      persistState();
+      syncVisualToCode();
       renderTreeView();
     });
     nodeActions.appendChild(delBtn);
@@ -976,8 +1076,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
         emptyEl.innerHTML = `<span>Objeto vazio.</span> <button type="button" class="json-link-btn">+ Adicionar propriedade</button>`;
         emptyEl.querySelector('button').addEventListener('click', () => {
           currentJsonData = insertChildNode(currentJsonData, path, 'string');
-          rawJsonText = JSON.stringify(currentJsonData, null, 2);
-          persistState();
+          syncVisualToCode();
           renderTreeView();
         });
         childrenContainer.appendChild(emptyEl);
@@ -997,8 +1096,7 @@ function createTreeNodeElement(path, keyName, value, type, isRoot = false) {
         emptyEl.innerHTML = `<span>Array vazio.</span> <button type="button" class="json-link-btn">+ Adicionar item</button>`;
         emptyEl.querySelector('button').addEventListener('click', () => {
           currentJsonData = insertChildNode(currentJsonData, path, 'string');
-          rawJsonText = JSON.stringify(currentJsonData, null, 2);
-          persistState();
+          syncVisualToCode();
           renderTreeView();
         });
         childrenContainer.appendChild(emptyEl);
@@ -1041,6 +1139,13 @@ function showNewJsonPopover(anchorEl) {
           <span class="json-tpl-desc">[ ]</span>
         </div>
       </button>
+      <button type="button" class="json-template-item" data-template="records-list">
+        <span class="qd-icon material-symbols-rounded">view_list</span>
+        <div class="json-tpl-info">
+          <span class="json-tpl-name">Lista de Registros (Array de Objetos)</span>
+          <span class="json-tpl-desc">Nomes, CPFs, datas e atributos</span>
+        </div>
+      </button>
       <button type="button" class="json-template-item" data-template="user-profile">
         <span class="qd-icon material-symbols-rounded">person</span>
         <div class="json-tpl-info">
@@ -1073,10 +1178,14 @@ function showNewJsonPopover(anchorEl) {
       const tpl = JSON_TEMPLATES[tplKey];
       if (tpl !== undefined) {
         currentJsonData = deepCloneJson(tpl);
+        autoExpandInitialPaths(currentJsonData);
         rawJsonText = JSON.stringify(currentJsonData, null, 2);
         if (codeEditorEl) codeEditorEl.value = rawJsonText;
         persistState();
         if (currentViewMode === 'tree') {
+          renderTreeView();
+        } else if (currentViewMode === 'split') {
+          validateAndSyncCodeEditor();
           renderTreeView();
         } else {
           validateAndSyncCodeEditor();
@@ -1130,7 +1239,7 @@ function exportJsonFile() {
 }
 
 function prettifyJson() {
-  if (currentViewMode === 'code' && codeEditorEl) {
+  if ((currentViewMode === 'code' || currentViewMode === 'split') && codeEditorEl) {
     const val = validateJsonString(codeEditorEl.value);
     if (!val.valid) {
       showJsonToast(`Impossível formatar: erro na linha ${val.line}, coluna ${val.column}`, true);
@@ -1141,6 +1250,7 @@ function prettifyJson() {
     rawJsonText = JSON.stringify(currentJsonData, null, 2);
     codeEditorEl.value = rawJsonText;
     validateAndSyncCodeEditor();
+    if (currentViewMode === 'split') renderTreeView();
   } else {
     rawJsonText = JSON.stringify(currentJsonData, null, 2);
     renderTreeView();
@@ -1150,7 +1260,7 @@ function prettifyJson() {
 }
 
 function minifyJson() {
-  if (currentViewMode === 'code' && codeEditorEl) {
+  if ((currentViewMode === 'code' || currentViewMode === 'split') && codeEditorEl) {
     const val = validateJsonString(codeEditorEl.value);
     if (!val.valid) {
       showJsonToast(`Impossível minificar: erro na linha ${val.line}, coluna ${val.column}`, true);
@@ -1161,6 +1271,7 @@ function minifyJson() {
     rawJsonText = JSON.stringify(currentJsonData);
     codeEditorEl.value = rawJsonText;
     validateAndSyncCodeEditor();
+    if (currentViewMode === 'split') renderTreeView();
   } else {
     rawJsonText = JSON.stringify(currentJsonData);
   }
@@ -1180,10 +1291,14 @@ function importJsonFile(file) {
       return;
     }
     currentJsonData = res.data;
+    autoExpandInitialPaths(currentJsonData);
     rawJsonText = JSON.stringify(currentJsonData, null, 2);
     if (codeEditorEl) codeEditorEl.value = rawJsonText;
     persistState();
     if (currentViewMode === 'tree') {
+      renderTreeView();
+    } else if (currentViewMode === 'split') {
+      validateAndSyncCodeEditor();
       renderTreeView();
     } else {
       validateAndSyncCodeEditor();
@@ -1203,6 +1318,8 @@ export function initJsonView() {
 
   loadSavedState();
 
+  panesWrapperEl = document.getElementById('json-panes-wrapper');
+  resizerEl = document.getElementById('json-panes-resizer');
   visualContainerEl = document.getElementById('json-visual-container');
   codeContainerEl = document.getElementById('json-code-container');
   codeEditorEl = document.getElementById('json-code-editor');
@@ -1226,6 +1343,49 @@ export function initJsonView() {
   // Alternância de modo
   document.getElementById('btn-json-mode-tree')?.addEventListener('click', () => switchJsonMode('tree'));
   document.getElementById('btn-json-mode-code')?.addEventListener('click', () => switchJsonMode('code'));
+  document.getElementById('btn-json-mode-split')?.addEventListener('click', () => switchJsonMode('split'));
+
+  // Resizer interativo entre painéis em modo dividido
+  if (resizerEl && panesWrapperEl) {
+    let isDragging = false;
+    let startX = 0;
+    let startCodeWidth = 0;
+    let wrapperWidth = 0;
+
+    resizerEl.addEventListener('pointerdown', e => {
+      if (currentViewMode !== 'split') return;
+      isDragging = true;
+      startX = e.clientX;
+      startCodeWidth = codeContainerEl.getBoundingClientRect().width;
+      wrapperWidth = panesWrapperEl.getBoundingClientRect().width;
+      resizerEl.setPointerCapture(e.pointerId);
+      resizerEl.classList.add('is-active');
+      document.body.classList.add('is-resizing-panes');
+    });
+
+    resizerEl.addEventListener('pointermove', e => {
+      if (!isDragging) return;
+      const delta = e.clientX - startX;
+      const minW = 200;
+      const maxW = wrapperWidth - 200;
+      const newWidth = Math.max(minW, Math.min(maxW, startCodeWidth + delta));
+      const pct = (newWidth / wrapperWidth) * 100;
+      codeContainerEl.style.flex = `0 0 ${pct}%`;
+      codeContainerEl.style.width = `${pct}%`;
+      visualContainerEl.style.flex = `1 1 auto`;
+    });
+
+    const stopDrag = e => {
+      if (isDragging) {
+        isDragging = false;
+        try { resizerEl.releasePointerCapture(e.pointerId); } catch (_) {}
+        resizerEl.classList.remove('is-active');
+        document.body.classList.remove('is-resizing-panes');
+      }
+    };
+    resizerEl.addEventListener('pointerup', stopDrag);
+    resizerEl.addEventListener('pointercancel', stopDrag);
+  }
 
   // Voltar
   document.getElementById('btn-json-back')?.addEventListener('click', () => {
@@ -1282,8 +1442,7 @@ export function initJsonView() {
 
   document.getElementById('btn-json-add-root-prop')?.addEventListener('click', () => {
     currentJsonData = insertChildNode(currentJsonData, [], 'string');
-    rawJsonText = JSON.stringify(currentJsonData, null, 2);
-    persistState();
+    syncVisualToCode();
     renderTreeView();
   });
 
@@ -1305,9 +1464,20 @@ export function initJsonView() {
   }
 
   // Eventos do editor de código
+  let codeInputDebounce = null;
   if (codeEditorEl) {
     codeEditorEl.addEventListener('input', () => {
       validateAndSyncCodeEditor();
+      if (currentViewMode === 'split') {
+        clearTimeout(codeInputDebounce);
+        codeInputDebounce = setTimeout(() => {
+          const val = validateJsonString(codeEditorEl.value);
+          if (val.valid) {
+            currentJsonData = val.data;
+            renderTreeView();
+          }
+        }, 150);
+      }
     });
 
     // Sincroniza scroll de linhas e textarea
@@ -1365,19 +1535,42 @@ export function initJsonView() {
   document.addEventListener('quickdock:refresh-json-view', () => {
     if (currentViewMode === 'tree') {
       renderTreeView();
+    } else if (currentViewMode === 'split') {
+      validateAndSyncCodeEditor();
+      renderTreeView();
     } else {
       validateAndSyncCodeEditor();
     }
   });
 
   // Inicializa a visualização inicial
-  if (currentViewMode === 'tree') {
+  if (currentViewMode === 'split') {
+    if (visualContainerEl) visualContainerEl.hidden = false;
+    if (codeContainerEl) codeContainerEl.hidden = false;
+    if (resizerEl) resizerEl.hidden = false;
+    panesWrapperEl?.classList.add('is-split');
+    document.getElementById('btn-json-mode-split')?.classList.add('is-active');
+    document.getElementById('btn-json-mode-tree')?.classList.remove('is-active');
+    document.getElementById('btn-json-mode-code')?.classList.remove('is-active');
+    validateAndSyncCodeEditor();
+    renderTreeView();
+  } else if (currentViewMode === 'tree') {
     if (visualContainerEl) visualContainerEl.hidden = false;
     if (codeContainerEl) codeContainerEl.hidden = true;
+    if (resizerEl) resizerEl.hidden = true;
+    panesWrapperEl?.classList.remove('is-split');
+    document.getElementById('btn-json-mode-tree')?.classList.add('is-active');
+    document.getElementById('btn-json-mode-code')?.classList.remove('is-active');
+    document.getElementById('btn-json-mode-split')?.classList.remove('is-active');
     renderTreeView();
   } else {
     if (visualContainerEl) visualContainerEl.hidden = true;
     if (codeContainerEl) codeContainerEl.hidden = false;
+    if (resizerEl) resizerEl.hidden = true;
+    panesWrapperEl?.classList.remove('is-split');
+    document.getElementById('btn-json-mode-code')?.classList.add('is-active');
+    document.getElementById('btn-json-mode-tree')?.classList.remove('is-active');
+    document.getElementById('btn-json-mode-split')?.classList.remove('is-active');
     validateAndSyncCodeEditor();
   }
 }

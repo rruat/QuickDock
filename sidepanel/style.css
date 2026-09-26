@@ -9586,6 +9586,64 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   opacity: 0.9;
 }
 
+/* Layout Dividido (Lado a Lado) e Resizer */
+.json-panes-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.json-panes-wrapper.is-split {
+  flex-direction: row;
+}
+
+.json-panes-wrapper.is-split > .json-code-container {
+  flex: 0 0 50%;
+  width: 50%;
+  min-width: 200px;
+  max-width: 80%;
+  border-right: none;
+}
+
+.json-panes-resizer {
+  width: 5px;
+  background: var(--border);
+  cursor: col-resize;
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.json-panes-resizer:hover,
+.json-panes-resizer.is-active {
+  background: var(--accent);
+}
+
+.json-panes-wrapper.is-split > .json-visual-container {
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+
+@media (max-width: 768px) {
+  .json-panes-wrapper.is-split {
+    flex-direction: column;
+  }
+  .json-panes-wrapper.is-split > .json-code-container,
+  .json-panes-wrapper.is-split > .json-visual-container {
+    flex: 1 1 50%;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  .json-panes-resizer {
+    display: none !important;
+  }
+}
+
 /* Modo Visual (Árvore) */
 .json-visual-container {
   flex: 1;

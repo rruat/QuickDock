@@ -14,7 +14,9 @@ import {
   insertChildNode,
   duplicateNodeByPath,
   moveNodeByPath,
-  JSON_TEMPLATES
+  JSON_TEMPLATES,
+  autoExpandInitialPaths,
+  switchJsonMode
 } from '../sidepanel/modules/json-view.js';
 
 let passed = 0;
@@ -118,6 +120,37 @@ for (const [key, tpl] of Object.entries(JSON_TEMPLATES)) {
   ok(`Template "${key}" é JSON serializável válido`, parsed !== null);
 }
 
+// 5.1 Validação específica do modelo de Lista de Registros (Array de Objetos)
+const recordsTpl = JSON_TEMPLATES['records-list'];
+ok('Template records-list existe', Array.isArray(recordsTpl));
+equal('Template records-list possui 2 registros iniciais', recordsTpl.length, 2);
+equal('Registro 1 possui nome correto', recordsTpl[0].nome, 'DAYSE ALVES MARQUES');
+equal('Registro 1 possui CPF correto', recordsTpl[0].cpf, '07216577450');
+equal('Registro 2 possui nome correto', recordsTpl[1].nome, 'JOSE DANIEL MARQUES DE OLIVEIRA');
+equal('Registro 2 possui CPF correto', recordsTpl[1].cpf, '11812001487');
+
+// 5.2 Inserção inteligente em array de objetos (herda propriedades do primeiro objeto)
+const clonedRecords = deepCloneJson(recordsTpl);
+const withNewRecord = insertChildNode(clonedRecords, [], 'string');
+equal('Array de registros agora tem 3 itens', withNewRecord.length, 3);
+ok('Novo item é um objeto com as chaves replicadas',
+  withNewRecord[2] && typeof withNewRecord[2] === 'object' &&
+  'nome' in withNewRecord[2] &&
+  'cpf' in withNewRecord[2] &&
+  'dataNascimento' in withNewRecord[2] &&
+  'reducaoCarencia' in withNewRecord[2] &&
+  'migracao' in withNewRecord[2]
+);
+equal('Campos do novo item iniciam vazios', withNewRecord[2].nome, '');
+
+// 5.3 autoExpandInitialPaths
+try {
+  autoExpandInitialPaths(recordsTpl);
+  ok('autoExpandInitialPaths executa sem erros em array', true);
+} catch (err) {
+  ok('autoExpandInitialPaths falhou', false, err.message);
+}
+
 // 6. Testes de Integração com Shell, Views e Estilos
 import fs from 'node:fs';
 import path from 'node:path';
@@ -155,11 +188,16 @@ ok('style.css: desktop #app possui regra para .json-view:not([hidden])', styleCs
 ok('style.css: desktop body.no-note-open possui regra para .json-view:not([hidden])', styleCssSrc.includes('html[data-platform="desktop"] body.no-note-open .json-view:not([hidden])'));
 ok('style.css: desktop #btn-json-toggle-height é ocultado', styleCssSrc.includes('#btn-json-toggle-height'));
 ok('style.css: desktop .json-view[hidden] é display none', styleCssSrc.includes('html[data-platform="desktop"] .json-view[hidden]'));
+ok('style.css: split mode .json-panes-wrapper.is-split configurado', styleCssSrc.includes('.json-panes-wrapper.is-split'));
+ok('style.css: resizer .json-panes-resizer presente', styleCssSrc.includes('.json-panes-resizer'));
 
 const indexHash = crypto.createHash('sha256').update(indexHtmlSrc).digest('hex');
 const errorHash = crypto.createHash('sha256').update(errorHtmlSrc).digest('hex');
 ok('HTML Parity: index.html e 404.html são 100% idênticos', indexHash === errorHash);
 ok('index.html contém seção #json-view', indexHtmlSrc.includes('id="json-view"'));
+ok('index.html contém botão #btn-json-mode-split (Lado a Lado)', indexHtmlSrc.includes('id="btn-json-mode-split"'));
+ok('index.html contém container wrapper #json-panes-wrapper', indexHtmlSrc.includes('id="json-panes-wrapper"'));
+ok('index.html contém barra divisória #json-panes-resizer', indexHtmlSrc.includes('id="json-panes-resizer"'));
 
 if (failed.length > 0) {
   console.error(`\n❌ ${failed.length} testes falharam:`);

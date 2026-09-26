@@ -850,13 +850,17 @@
         </div>
         <div class="json-header-center">
           <div class="json-mode-switch" role="tablist" aria-label="Modo de edição">
-            <button id="btn-json-mode-tree" class="json-mode-btn is-active" type="button" role="tab" aria-selected="true" title="Modo Visual (Árvore interativa)">
-              <span class="material-symbols-rounded">account_tree</span>
-              <span>Visual</span>
-            </button>
             <button id="btn-json-mode-code" class="json-mode-btn" type="button" role="tab" aria-selected="false" title="Modo Texto (Editor com sintaxe e validação)">
               <span class="material-symbols-rounded">code</span>
               <span>Texto</span>
+            </button>
+            <button id="btn-json-mode-split" class="json-mode-btn is-active" type="button" role="tab" aria-selected="true" title="Modo Dividido (Texto e Visual lado a lado)">
+              <span class="material-symbols-rounded">vertical_split</span>
+              <span>Lado a Lado</span>
+            </button>
+            <button id="btn-json-mode-tree" class="json-mode-btn" type="button" role="tab" aria-selected="false" title="Modo Visual (Árvore interativa)">
+              <span class="material-symbols-rounded">account_tree</span>
+              <span>Visual</span>
             </button>
           </div>
         </div>
@@ -895,45 +899,49 @@
           <button id="btn-json-goto-error" class="json-val-action" type="button">Ir para erro</button>
         </div>
 
-        <div id="json-visual-container" class="json-visual-container">
-          <div class="json-tree-toolbar">
-            <div class="json-search-wrap">
-              <span class="material-symbols-rounded">search</span>
-              <input type="text" id="json-search-input" placeholder="Filtrar chaves ou valores..." autocomplete="off" spellcheck="false" />
-              <button id="btn-json-search-clear" class="icon-btn" title="Limpar busca" hidden>
-                <span class="material-symbols-rounded">close</span>
-              </button>
+        <div class="json-panes-wrapper is-split" id="json-panes-wrapper">
+          <div id="json-code-container" class="json-code-container">
+            <div class="json-code-toolbar">
+              <div class="json-code-tools-left">
+                <span class="json-code-info-label">Editor Manual</span>
+              </div>
+              <div class="json-code-tools-right">
+                <span id="json-char-count" class="json-char-count">0 caracteres</span>
+              </div>
             </div>
-            <div class="json-tree-actions">
-              <button id="btn-json-expand-all" class="json-action-pill" type="button" title="Expandir todos os nós">
-                <span class="material-symbols-rounded">unfold_more</span>
-                <span>Expandir</span>
-              </button>
-              <button id="btn-json-collapse-all" class="json-action-pill" type="button" title="Recolher todos os nós">
-                <span class="material-symbols-rounded">unfold_less</span>
-                <span>Recolher</span>
-              </button>
-              <button id="btn-json-add-root-prop" class="json-action-pill primary" type="button" title="Adicionar nova propriedade">
-                <span class="material-symbols-rounded">add</span>
-                <span>Adicionar</span>
-              </button>
+            <div class="json-code-wrapper">
+              <div id="json-line-numbers" class="json-line-numbers" aria-hidden="true"></div>
+              <textarea id="json-code-editor" class="json-code-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="// Cole ou digite seu JSON aqui..."></textarea>
             </div>
           </div>
-          <div id="json-tree-content" class="json-tree-content"></div>
-        </div>
 
-        <div id="json-code-container" class="json-code-container" hidden>
-          <div class="json-code-toolbar">
-            <div class="json-code-tools-left">
-              <span class="json-code-info-label">Editor Manual</span>
+          <div class="json-panes-resizer" id="json-panes-resizer" title="Arraste para redimensionar colunas"></div>
+
+          <div id="json-visual-container" class="json-visual-container">
+            <div class="json-tree-toolbar">
+              <div class="json-search-wrap">
+                <span class="material-symbols-rounded">search</span>
+                <input type="text" id="json-search-input" placeholder="Filtrar chaves ou valores..." autocomplete="off" spellcheck="false" />
+                <button id="btn-json-search-clear" class="icon-btn" title="Limpar busca" hidden>
+                  <span class="material-symbols-rounded">close</span>
+                </button>
+              </div>
+              <div class="json-tree-actions">
+                <button id="btn-json-expand-all" class="json-action-pill" type="button" title="Expandir todos os nós">
+                  <span class="material-symbols-rounded">unfold_more</span>
+                  <span>Expandir</span>
+                </button>
+                <button id="btn-json-collapse-all" class="json-action-pill" type="button" title="Recolher todos os nós">
+                  <span class="material-symbols-rounded">unfold_less</span>
+                  <span>Recolher</span>
+                </button>
+                <button id="btn-json-add-root-prop" class="json-action-pill primary" type="button" title="Adicionar nova propriedade ou item">
+                  <span class="material-symbols-rounded">add</span>
+                  <span>Adicionar</span>
+                </button>
+              </div>
             </div>
-            <div class="json-code-tools-right">
-              <span id="json-char-count" class="json-char-count">0 caracteres</span>
-            </div>
-          </div>
-          <div class="json-code-wrapper">
-            <div id="json-line-numbers" class="json-line-numbers" aria-hidden="true"></div>
-            <textarea id="json-code-editor" class="json-code-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="// Cole ou digite seu JSON aqui..."></textarea>
+            <div id="json-tree-content" class="json-tree-content"></div>
           </div>
         </div>
       </div>
