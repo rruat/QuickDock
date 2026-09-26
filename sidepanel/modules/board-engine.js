@@ -1234,17 +1234,12 @@ function getMarkerUrl(color, position = 'end') {
     marker.setAttribute('id', markerId);
     marker.setAttribute('markerWidth', '8');
     marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('refX', '7');
     marker.setAttribute('refY', '3');
-    marker.setAttribute('orient', 'auto');
+    marker.setAttribute('orient', 'auto-start-reverse');
     marker.setAttribute('markerUnits', 'strokeWidth');
     const path = document.createElementNS(SVG_NS, 'path');
-    if (position === 'start') {
-      marker.setAttribute('refX', '1');
-      path.setAttribute('d', 'M 8 0 L 0 3 L 8 6 z');
-    } else {
-      marker.setAttribute('refX', '7');
-      path.setAttribute('d', 'M 0 0 L 8 3 L 0 6 z');
-    }
+    path.setAttribute('d', 'M 0 0 L 8 3 L 0 6 z');
     path.setAttribute('fill', color);
     marker.appendChild(path);
     defs.appendChild(marker);
@@ -1320,9 +1315,24 @@ function showArrowPopover(e, arrow) {
     <div class="board-popover-row">
       <span class="board-popover-label">Direção:</span>
       <div class="board-popover-btn-group">
-        <button type="button" class="board-popover-btn ${dir === 'forward' ? 'is-active' : ''}" data-dir="forward" title="Unidirecional">→</button>
-        <button type="button" class="board-popover-btn ${dir === 'bidirectional' ? 'is-active' : ''}" data-dir="bidirectional" title="Bidirecional">↔</button>
-        <button type="button" class="board-popover-btn ${dir === 'none' ? 'is-active' : ''}" data-dir="none" title="Sem ponta">—</button>
+        <button type="button" class="board-popover-btn ${dir === 'forward' ? 'is-active' : ''}" data-dir="forward" title="Unidirecional">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <polyline points="14 6 20 12 14 18"></polyline>
+          </svg>
+        </button>
+        <button type="button" class="board-popover-btn ${dir === 'bidirectional' ? 'is-active' : ''}" data-dir="bidirectional" title="Bidirecional">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <polyline points="9 7 4 12 9 17"></polyline>
+            <polyline points="15 7 20 12 15 17"></polyline>
+          </svg>
+        </button>
+        <button type="button" class="board-popover-btn ${dir === 'none' ? 'is-active' : ''}" data-dir="none" title="Sem ponta">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -1442,8 +1452,8 @@ function showArrowPopover(e, arrow) {
     pop.style.left = prevLeft;
     pop.style.top = prevTop;
   } else {
-    const popW = pop.offsetWidth || 295;
-    const popH = pop.offsetHeight || 250;
+    const popW = pop.offsetWidth || 320;
+    const popH = pop.offsetHeight || 260;
     let left = (e?.clientX ?? (window.innerWidth / 2 - popW / 2)) + 10;
     let top = (e?.clientY ?? (window.innerHeight / 2 - popH / 2)) + 10;
     if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;

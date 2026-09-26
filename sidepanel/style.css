@@ -11750,9 +11750,11 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
   z-index: 10000;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  width: 295px;
+  gap: 8px;
+  width: 335px;
   max-width: calc(100vw - 24px);
+  height: auto !important;
+  min-height: auto !important;
   max-height: calc(100vh - 24px);
   padding: 10px 12px;
   background: var(--bg);
@@ -11762,6 +11764,8 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
   box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 .board-shape-popover {
@@ -11770,10 +11774,12 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 240px;
+  width: 250px;
   max-width: calc(100vw - 24px);
+  height: auto !important;
+  min-height: auto !important;
   max-height: calc(100vh - 24px);
-  padding: 10px;
+  padding: 10px 12px;
   background: var(--bg, #ffffff);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 10px;
@@ -11783,6 +11789,8 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
   box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 
