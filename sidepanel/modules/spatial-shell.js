@@ -22,6 +22,7 @@ export const SHELL_VIEWS = [
   { id: 'calendar', title: 'Calendário', icon: 'calendar_today', desc: 'Visão temporal de eventos e notas' },
   { id: 'docs', title: 'Documentos', icon: 'attach_file', desc: 'Anexos e arquivos da nota' },
   { id: 'templates', title: 'Modelos', icon: 'auto_stories', desc: 'Galeria de modelos prontos' },
+  { id: 'json', title: 'JSON', icon: 'data_object', desc: 'Visualizador, editor e criador de JSON' },
   { id: 'settings', title: 'Configurações', icon: 'settings', desc: 'Preferências do Spatial Shell' }
 ];
 

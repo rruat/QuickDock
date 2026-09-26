@@ -64,6 +64,8 @@ export function openAuxViewMenu(anchorEl) {
       () => toggleDesktopPanel('calendar'), isDesktopPanelOpen('calendar'));
     addOpt('view_kanban', 'Base', 'Abrir/fechar como painel',
       () => toggleDesktopPanel('bases'), isDesktopPanelOpen('bases'));
+    addOpt('data_object', 'JSON Studio', 'Abrir/fechar como painel',
+      () => switchView('json'));
   } else {
     addOpt('description', 'Documentos', 'Anexos e arquivos da nota', async () => {
       switchView('editor');
@@ -79,6 +81,7 @@ export function openAuxViewMenu(anchorEl) {
     addOpt('hub', 'Constelações', 'Dividir tela com a nota', () => switchView('grafo', { split: true }));
     addOpt('calendar_month', 'Calendário', 'Dividir tela com a nota', () => switchView('calendar', { split: true }));
     addOpt('view_kanban', 'Base', 'Dividir tela com a nota', () => switchView('bases', { split: true }));
+    addOpt('data_object', 'JSON Studio', 'Dividir tela com a nota', () => switchView('json', { split: true }));
 
     const curView = getCurrentView();
     if (curView !== 'editor') {
@@ -521,6 +524,7 @@ export async function initDocuments() {
   attachSwitcher('btn-board-aux-switcher', null);
   attachSwitcher('btn-calendar-aux-switcher', 'calendar-title-wrap');
   attachSwitcher('btn-bases-aux-switcher', 'bases-title-wrap');
+  attachSwitcher('btn-json-aux-switcher', 'json-title-wrap');
 
   if (docsHeader) {
     docsHeader.addEventListener('click', e => {

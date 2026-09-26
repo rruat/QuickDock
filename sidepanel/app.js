@@ -14,6 +14,7 @@ import { initGraphView } from './modules/graph-view.js';
 import { initBoardView, abrirQuadroInfinitoEmAba } from './modules/board-view.js';
 import { initCalendarView } from './modules/calendar-view.js';
 import { initBasesView } from './modules/bases-view.js';
+import { initJsonView } from './modules/json-view.js';
 import { initResponsiveHeaders } from './modules/responsive-header.js';
 import { initSpatialShell } from './modules/spatial-shell.js';
 
@@ -157,6 +158,7 @@ function openAppMenu() {
   addOpt('hub', 'Constelações', () => switchView('grafo'));
   addOpt('space_dashboard', 'Espaço Infinito', () => switchView('board')); // Quadro Infinito
   addOpt('calendar_month', 'Calendário', () => switchView('calendar'));
+  addOpt('data_object', 'JSON Studio', () => switchView('json'));
   addOpt('menu_book', 'Ver tutorial', createTutorialNote);
   addOpt(dark ? 'light_mode' : 'dark_mode', dark ? 'Tema claro' : 'Tema escuro', toggleTheme);
   addOpt('sync', 'Sincronização…', () => syncController?.abrirPopover(btnAppMenu));
@@ -227,6 +229,7 @@ async function init() {
     await initBoardView();
     initCalendarView();
     initBasesView();
+    initJsonView();
     // initDesktopPanels() (sistema antigo de 5 painéis, pré-Spatial Shell)
     // não roda mais no desktop — o mosaico de spatial-shell.js substitui essa
     // função por completo, e os dois brigavam pelo mesmo espaço em #app (o

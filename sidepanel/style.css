@@ -3947,7 +3947,10 @@ html[data-platform="mobile"] .calendar-view[hidden],
 html[data-platform="desktop"] .calendar-view[hidden],
 html[data-platform="extension"] .bases-view[hidden],
 html[data-platform="mobile"] .bases-view[hidden],
-html[data-platform="desktop"] .bases-view[hidden] {
+html[data-platform="desktop"] .bases-view[hidden],
+html[data-platform="extension"] .json-view[hidden],
+html[data-platform="mobile"] .json-view[hidden],
+html[data-platform="desktop"] .json-view[hidden] {
   display: none !important;
 }
 
@@ -3971,7 +3974,9 @@ body.view-board:not(.view-split) .mobile-notion-toolbar,
 html.view-calendar:not(.view-split) .mobile-notion-toolbar,
 body.view-calendar:not(.view-split) .mobile-notion-toolbar,
 html.view-bases:not(.view-split) .mobile-notion-toolbar,
-body.view-bases:not(.view-split) .mobile-notion-toolbar {
+body.view-bases:not(.view-split) .mobile-notion-toolbar,
+html.view-json:not(.view-split) .mobile-notion-toolbar,
+body.view-json:not(.view-split) .mobile-notion-toolbar {
   display: none !important;
 }
 
@@ -3983,11 +3988,13 @@ html.view-board .note-section,
 html.view-calendar .docs-section,
 html.view-calendar .note-section,
 html.view-bases .docs-section,
+html.view-json .docs-section,
 body.view-templates .docs-section,
 body.view-grafo .docs-section,
 body.view-board .docs-section,
 body.view-calendar .docs-section,
-body.view-bases .docs-section {
+body.view-bases .docs-section,
+body.view-json .docs-section {
   display: none !important;
 }
 
@@ -4008,14 +4015,17 @@ html[data-platform="extension"].view-fullscreen.view-grafo .graph-view,
 html[data-platform="extension"].view-fullscreen.view-board .board-view,
 html[data-platform="extension"].view-fullscreen.view-calendar .calendar-view,
 html[data-platform="extension"].view-fullscreen.view-bases .bases-view,
+html[data-platform="extension"].view-fullscreen.view-json .json-view,
 html[data-platform="mobile"].view-fullscreen.view-grafo .graph-view,
 html[data-platform="mobile"].view-fullscreen.view-board .board-view,
 html[data-platform="mobile"].view-fullscreen.view-calendar .calendar-view,
 html[data-platform="mobile"].view-fullscreen.view-bases .bases-view,
+html[data-platform="mobile"].view-fullscreen.view-json .json-view,
 html[data-platform="extension"].view-fullscreen .graph-view,
 html[data-platform="extension"].view-fullscreen .board-view,
 html[data-platform="extension"].view-fullscreen .calendar-view,
-html[data-platform="extension"].view-fullscreen .bases-view {
+html[data-platform="extension"].view-fullscreen .bases-view,
+html[data-platform="extension"].view-fullscreen .json-view {
   order: 1 !important;
   flex: 1 1 100% !important;
   width: 100% !important;
@@ -4034,14 +4044,17 @@ html[data-platform="extension"].view-grafo:not(.view-fullscreen) .graph-view:not
 html[data-platform="extension"].view-board:not(.view-fullscreen) .board-view:not([hidden]),
 html[data-platform="extension"].view-calendar:not(.view-fullscreen) .calendar-view:not([hidden]),
 html[data-platform="extension"].view-bases:not(.view-fullscreen) .bases-view:not([hidden]),
+html[data-platform="extension"].view-json:not(.view-fullscreen) .json-view:not([hidden]),
 html[data-platform="mobile"].view-grafo:not(.view-fullscreen) .graph-view:not([hidden]),
 html[data-platform="mobile"].view-board:not(.view-fullscreen) .board-view:not([hidden]),
 html[data-platform="mobile"].view-calendar:not(.view-fullscreen) .calendar-view:not([hidden]),
 html[data-platform="mobile"].view-bases:not(.view-fullscreen) .bases-view:not([hidden]),
+html[data-platform="mobile"].view-json:not(.view-fullscreen) .json-view:not([hidden]),
 html[data-platform="extension"] .graph-view.split-active:not([hidden]),
 html[data-platform="extension"] .board-view.split-active:not([hidden]),
 html[data-platform="extension"] .calendar-view.split-active:not([hidden]),
-html[data-platform="extension"] .bases-view.split-active:not([hidden]) {
+html[data-platform="extension"] .bases-view.split-active:not([hidden]),
+html[data-platform="extension"] .json-view.split-active:not([hidden]) {
   order: 4 !important;
   flex: 1 1 0px !important;
   min-height: 0 !important;
@@ -4062,24 +4075,28 @@ html[data-platform="extension"] .bases-view.split-active:not([hidden]) {
 .board-view[hidden],
 .calendar-view[hidden],
 .bases-view[hidden],
+.json-view[hidden],
 .templates-gallery-view[hidden],
 .docs-section[hidden],
 html[data-platform="extension"] .graph-view[hidden],
 html[data-platform="extension"] .board-view[hidden],
 html[data-platform="extension"] .calendar-view[hidden],
 html[data-platform="extension"] .bases-view[hidden],
+html[data-platform="extension"] .json-view[hidden],
 html[data-platform="extension"] .templates-gallery-view[hidden],
 html[data-platform="extension"] .docs-section[hidden],
 html[data-platform="mobile"] .graph-view[hidden],
 html[data-platform="mobile"] .board-view[hidden],
 html[data-platform="mobile"] .calendar-view[hidden],
 html[data-platform="mobile"] .bases-view[hidden],
+html[data-platform="mobile"] .json-view[hidden],
 html[data-platform="mobile"] .templates-gallery-view[hidden],
 html[data-platform="mobile"] .docs-section[hidden],
 html:not(.view-grafo) .graph-view,
 html:not(.view-board) .board-view,
 html:not(.view-calendar) .calendar-view,
 html:not(.view-bases) .bases-view,
+html:not(.view-json) .json-view,
 html:not(.view-templates) .templates-gallery-view {
   display: none !important;
 }
@@ -9380,6 +9397,755 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   opacity: 0.9;
 }
 
+/* ===== VISÃO DEDICADA DE JSON STUDIO (Viewer / Editor / Criador) ===== */
+.json-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  position: relative;
+}
+
+.json-view.is-dragging-file {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+}
+
+.json-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+  gap: 12px;
+  height: 52px;
+  min-height: 52px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.json-header::-webkit-scrollbar {
+  display: none;
+}
+
+.json-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.json-header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.json-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.json-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.json-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+
+.json-stats-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.06));
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.json-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.06));
+  border: 1px solid var(--border);
+  gap: 2px;
+}
+
+.json-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.json-mode-btn .material-symbols-rounded {
+  font-size: 16px;
+}
+
+.json-mode-btn:hover:not(.is-active) {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.json-mode-btn.is-active {
+  background: var(--bg);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+.json-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  position: relative;
+}
+
+/* Barra de Validação */
+.json-validation-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  font-size: 12px;
+  flex-shrink: 0;
+  animation: slideDown 0.15s ease-out;
+}
+
+.json-val-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.json-validation-msg {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.json-val-action {
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.12s;
+}
+
+.json-val-action:hover {
+  opacity: 0.9;
+}
+
+/* Modo Visual (Árvore) */
+.json-visual-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.json-tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1, rgba(0, 0, 0, 0.02));
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.json-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  flex: 1;
+  min-width: 140px;
+  max-width: 320px;
+}
+
+.json-search-wrap input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 12px;
+  color: var(--text);
+  width: 100%;
+}
+
+.json-search-wrap .material-symbols-rounded {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.json-tree-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.json-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  user-select: none;
+}
+
+.json-action-pill:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.06));
+}
+
+.json-action-pill.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.json-action-pill.primary:hover {
+  opacity: 0.9;
+}
+
+.json-action-pill .material-symbols-rounded {
+  font-size: 15px;
+}
+
+.json-tree-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 12px 16px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+}
+
+.json-tree-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.json-tree-empty .material-symbols-rounded {
+  font-size: 40px;
+  opacity: 0.4;
+}
+
+.json-tree-node {
+  position: relative;
+  margin: 1px 0;
+}
+
+.json-tree-row {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  gap: 6px;
+  transition: background 0.1s ease;
+}
+
+.json-tree-row:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+}
+
+.json-toggle-caret {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text-muted);
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.json-toggle-caret:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.json-caret-placeholder {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.json-node-key-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.json-key-input {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent, #6366f1);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 1px 5px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.json-key-input:hover,
+.json-key-input:focus {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+.json-key-colon {
+  color: var(--text-muted);
+  margin-right: 2px;
+  font-weight: 500;
+}
+
+.json-type-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  letter-spacing: 0.3px;
+  user-select: none;
+  flex-shrink: 0;
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.json-type-badge:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+.json-type-string {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.json-type-number {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.json-type-boolean {
+  color: #ec4899;
+  background: rgba(236, 72, 153, 0.12);
+}
+
+.json-type-null {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.json-type-object {
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.json-type-array {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.json-node-val-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 60px;
+}
+
+.json-val-input {
+  font-family: inherit;
+  font-size: 12.5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: transparent;
+  outline: none;
+  color: var(--text);
+  flex: 1;
+  max-width: 480px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.json-val-input:hover,
+.json-val-input:focus {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+.json-bool-group {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.json-bool-btn {
+  border: none;
+  background: var(--bg);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.12s;
+}
+
+.json-bool-btn.is-active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.json-val-null {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 1px 4px;
+}
+
+.json-collapsible-summary {
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  padding: 1px 4px;
+}
+
+.json-collapsible-summary:hover {
+  color: var(--text);
+}
+
+.json-node-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  margin-left: auto;
+}
+
+.json-tree-row:hover .json-node-actions {
+  opacity: 1;
+}
+
+.json-node-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.1s, background 0.1s;
+}
+
+.json-node-btn .qd-icon,
+.json-node-btn .material-symbols-rounded {
+  font-size: 16px;
+}
+
+.json-node-btn:hover {
+  color: var(--text);
+  background: var(--surface-2, rgba(0, 0, 0, 0.08));
+}
+
+.json-node-btn.json-btn-danger:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.json-tree-children {
+  position: relative;
+  margin-left: 20px;
+  border-left: 1px dashed var(--border);
+  padding-left: 4px;
+}
+
+/* Modo Texto (Editor Manual) */
+.json-code-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.json-code-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1, rgba(0, 0, 0, 0.02));
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.json-code-info-label {
+  font-weight: 500;
+}
+
+.json-code-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  position: relative;
+  background: var(--bg);
+}
+
+.json-line-numbers {
+  width: 44px;
+  padding: 12px 6px;
+  text-align: right;
+  user-select: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 20px;
+  overflow: hidden;
+  background: var(--surface-1, rgba(0, 0, 0, 0.01));
+}
+
+.json-line-num {
+  height: 20px;
+  display: block;
+}
+
+.json-code-editor {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 12px 14px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 20px;
+  background: transparent;
+  color: var(--text);
+  white-space: pre;
+  tab-size: 2;
+  overflow: auto;
+}
+
+/* Popovers e Toasts */
+.json-type-popover {
+  position: fixed;
+  z-index: 3000;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  animation: popoverIn 0.12s ease-out;
+}
+
+.json-type-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.json-type-opt:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.06));
+}
+
+.json-type-opt.is-current {
+  font-weight: 600;
+  background: var(--surface-2, rgba(0, 0, 0, 0.08));
+}
+
+.json-new-popover {
+  position: fixed;
+  z-index: 3000;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  min-width: 250px;
+  animation: popoverIn 0.12s ease-out;
+}
+
+.json-new-pop-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.5px;
+}
+
+.json-template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.json-template-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+  color: var(--text);
+}
+
+.json-template-item:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.06));
+}
+
+.json-template-item .material-symbols-rounded {
+  font-size: 20px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.json-tpl-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.json-tpl-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.json-tpl-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.json-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeInUp 0.18s ease;
+  pointer-events: none;
+}
+
+.json-toast.is-error {
+  background: #dc2626;
+}
+
 .note-editor[hidden],
 .notes-empty-dashboard[hidden] {
   display: none !important;
@@ -9390,6 +10156,7 @@ body.no-note-open .graph-view,
 body.no-note-open .board-view,
 body.no-note-open .calendar-view,
 body.no-note-open .bases-view,
+body.no-note-open .json-view,
 body.no-note-open #resize-handle,
 body.no-note-open .mobile-notion-toolbar,
 body.no-note-open .note-outline-sidebar,
@@ -9400,6 +10167,7 @@ html.no-note-open .graph-view,
 html.no-note-open .board-view,
 html.no-note-open .calendar-view,
 html.no-note-open .bases-view,
+html.no-note-open .json-view,
 html.no-note-open #resize-handle,
 html.no-note-open .mobile-notion-toolbar,
 html.no-note-open .note-outline-sidebar,
@@ -9413,10 +10181,12 @@ body.view-fullscreen.view-grafo .graph-view,
 body.view-fullscreen.view-board .board-view,
 body.view-fullscreen.view-calendar .calendar-view,
 body.view-fullscreen.view-bases .bases-view,
+body.view-fullscreen.view-json .json-view,
 html.view-fullscreen.view-grafo .graph-view,
 html.view-fullscreen.view-board .board-view,
 html.view-fullscreen.view-calendar .calendar-view,
 html.view-fullscreen.view-bases .bases-view,
+html.view-fullscreen.view-json .json-view,
 body.view-templates .templates-gallery-view,
 html.view-templates .templates-gallery-view {
   display: flex !important;
@@ -11197,6 +11967,7 @@ html[data-platform="desktop"] #mMain .board-view,
 html[data-platform="desktop"] #mMain .graph-view,
 html[data-platform="desktop"] #mMain .calendar-view,
 html[data-platform="desktop"] #mMain .bases-view,
+html[data-platform="desktop"] #mMain .json-view,
 html[data-platform="desktop"] #mMain .docs-section,
 html[data-platform="desktop"] #mMain .note-section,
 html[data-platform="desktop"] #mMain .templates-gallery-view,
@@ -11206,6 +11977,7 @@ html[data-platform="desktop"] #mMain .templates-gallery-view,
 #mMain .graph-view,
 #mMain .calendar-view,
 #mMain .bases-view,
+#mMain .json-view,
 #mMain .docs-section,
 #mMain .note-section,
 #mMain .templates-gallery-view {
@@ -11228,6 +12000,7 @@ html[data-platform="desktop"] #mMain .board-view:not([hidden]),
 html[data-platform="desktop"] #mMain .graph-view:not([hidden]),
 html[data-platform="desktop"] #mMain .calendar-view:not([hidden]),
 html[data-platform="desktop"] #mMain .bases-view:not([hidden]),
+html[data-platform="desktop"] #mMain .json-view:not([hidden]),
 html[data-platform="desktop"] #mMain .templates-gallery-view:not([hidden]),
 html[data-platform="desktop"] #mMain .docs-section:not([hidden]):not(.is-collapsed),
 html[data-platform="desktop"] #mMain .note-section:not([hidden]),
@@ -11235,6 +12008,7 @@ html[data-platform="desktop"] #mMain .note-section:not([hidden]),
 #mMain .graph-view:not([hidden]),
 #mMain .calendar-view:not([hidden]),
 #mMain .bases-view:not([hidden]),
+#mMain .json-view:not([hidden]),
 #mMain .templates-gallery-view:not([hidden]),
 #mMain .docs-section:not([hidden]):not(.is-collapsed),
 #mMain .note-section:not([hidden]) {

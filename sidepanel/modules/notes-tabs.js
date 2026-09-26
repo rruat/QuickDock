@@ -2659,6 +2659,7 @@ export function openNotesAsideDrawer() {
   gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => switchView('calendar', { fullscreen: true })));
   gridViews.appendChild(createFooterBtn('view_kanban', 'Base', () => switchView('bases', { fullscreen: true })));
   gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
+  gridViews.appendChild(createFooterBtn('data_object', 'JSON', () => switchView('json', { fullscreen: true })));
 
   secViews.appendChild(gridViews);
   footer.appendChild(secViews);

@@ -60,6 +60,7 @@ export function updateHeightButtons(isHalf) {
     'btn-calendar-toggle-height',
     'btn-docs-toggle-height',
     'btn-bases-toggle-height',
+    'btn-json-toggle-height',
   ];
 
   for (const id of btnIds) {
@@ -82,6 +83,7 @@ export function updateFullscreenButtons(isFullscreen) {
     'btn-board-toggle-fullscreen',
     'btn-calendar-toggle-fullscreen',
     'btn-bases-toggle-fullscreen',
+    'btn-json-toggle-fullscreen',
   ];
 
   for (const id of btnIds) {
@@ -125,7 +127,7 @@ export function switchView(viewName, params = {}) {
   // não fez nada. O drawer permanente do desktop sempre pede split:true sem
   // saber se há nota aberta — é exatamente esse o caso que isto cobre.
   if (document.documentElement.classList.contains('no-note-open')
-    && (viewName === 'grafo' || viewName === 'board' || viewName === 'calendar' || viewName === 'bases')) {
+    && (viewName === 'grafo' || viewName === 'board' || viewName === 'calendar' || viewName === 'bases' || viewName === 'json')) {
     targetSplit = false;
   }
 
@@ -142,6 +144,8 @@ export function switchView(viewName, params = {}) {
       document.dispatchEvent(new CustomEvent('quickdock:refresh-calendar-view', { detail: params }));
     } else if (viewName === 'bases') {
       document.dispatchEvent(new CustomEvent('quickdock:refresh-bases-view', { detail: params }));
+    } else if (viewName === 'json') {
+      document.dispatchEvent(new CustomEvent('quickdock:refresh-json-view', { detail: params }));
     }
     return;
   }
@@ -158,6 +162,7 @@ export function switchView(viewName, params = {}) {
   const boardView = document.getElementById('board-view');
   const calendarView = document.getElementById('calendar-view');
   const basesView = document.getElementById('bases-view');
+  const jsonView = document.getElementById('json-view');
   const btnNavTemplates = document.getElementById('btn-nav-templates');
   const btnNavGraph = document.getElementById('btn-nav-graph');
   const btnNavBoard = document.getElementById('btn-nav-board');
@@ -184,13 +189,17 @@ export function switchView(viewName, params = {}) {
     basesView.hidden = true;
     basesView.classList.remove('active');
   }
+  if (jsonView) {
+    jsonView.hidden = true;
+    jsonView.classList.remove('active');
+  }
 
   document.documentElement.classList.remove(
-    'view-templates', 'view-grafo', 'view-board', 'view-calendar', 'view-bases',
+    'view-templates', 'view-grafo', 'view-board', 'view-calendar', 'view-bases', 'view-json',
     'view-fullscreen', 'view-split'
   );
   document.body.classList.remove(
-    'view-templates', 'view-grafo', 'view-board', 'view-calendar', 'view-bases',
+    'view-templates', 'view-grafo', 'view-board', 'view-calendar', 'view-bases', 'view-json',
     'view-fullscreen', 'view-split'
   );
 
@@ -323,6 +332,33 @@ export function switchView(viewName, params = {}) {
       updateFullscreenButtons(true);
     }
     document.dispatchEvent(new CustomEvent('quickdock:refresh-bases-view', { detail: params }));
+  } else if (viewName === 'json') {
+    if (jsonView) {
+      jsonView.hidden = false;
+      jsonView.classList.add('active');
+    }
+    document.documentElement.classList.add('view-json');
+    document.body.classList.add('view-json');
+
+    if (isSplitMode) {
+      if (noteSection) noteSection.hidden = false;
+      if (resizeHandle) resizeHandle.hidden = false;
+      if (docsSection) docsSection.hidden = true;
+      if (docsSection?.classList.contains('is-minimized')) {
+        try { expandDocsToHalf(); } catch (_) {}
+      }
+      document.documentElement.classList.add('view-split');
+      document.body.classList.add('view-split');
+      updateFullscreenButtons(false);
+    } else {
+      if (noteSection) noteSection.hidden = true;
+      if (resizeHandle) resizeHandle.hidden = true;
+      if (docsSection) docsSection.hidden = true;
+      document.documentElement.classList.add('view-fullscreen');
+      document.body.classList.add('view-fullscreen');
+      updateFullscreenButtons(true);
+    }
+    document.dispatchEvent(new CustomEvent('quickdock:refresh-json-view', { detail: params }));
   } else {
     // Visão padrão: editor de notas + documentos
     if (noteSection) {
@@ -367,12 +403,14 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
     document.getElementById('btn-board-toggle-fullscreen')?.addEventListener('click', () => toggleViewFullscreen());
     document.getElementById('btn-calendar-toggle-fullscreen')?.addEventListener('click', () => toggleViewFullscreen());
     document.getElementById('btn-bases-toggle-fullscreen')?.addEventListener('click', () => toggleViewFullscreen());
+    document.getElementById('btn-json-toggle-fullscreen')?.addEventListener('click', () => toggleViewFullscreen());
 
     document.getElementById('btn-graph-toggle-height')?.addEventListener('click', () => toggleViewHeight());
     document.getElementById('btn-board-toggle-height')?.addEventListener('click', () => toggleViewHeight());
     document.getElementById('btn-calendar-toggle-height')?.addEventListener('click', () => toggleViewHeight());
     document.getElementById('btn-docs-toggle-height')?.addEventListener('click', () => toggleViewHeight());
     document.getElementById('btn-bases-toggle-height')?.addEventListener('click', () => toggleViewHeight());
+    document.getElementById('btn-json-toggle-height')?.addEventListener('click', () => toggleViewHeight());
   };
 
   if (document.readyState === 'loading' && typeof document.addEventListener === 'function') {

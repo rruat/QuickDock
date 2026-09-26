@@ -84,6 +84,9 @@
         <li class="nav-item" data-nav-view="templates" title="Galeria de Modelos">
           <span class="material-symbols-rounded">auto_stories</span>
         </li>
+        <li class="nav-item" data-nav-view="json" title="JSON Studio (Editor/Criador)">
+          <span class="material-symbols-rounded">data_object</span>
+        </li>
         <li class="nav-item nav-item-settings" data-nav-view="settings" title="Configurações">
           <span class="material-symbols-rounded">settings</span>
         </li>
@@ -152,6 +155,13 @@
                 <div class="opt-info">
                   <span class="opt-title">Modelos</span>
                   <span class="opt-desc">Galeria de modelos prontos</span>
+                </div>
+              </button>
+              <button class="add-view-opt" data-type="json" type="button">
+                <span class="material-symbols-rounded opt-icon">data_object</span>
+                <div class="opt-info">
+                  <span class="opt-title">JSON Studio</span>
+                  <span class="opt-desc">Visualizador, editor e criador de JSON</span>
                 </div>
               </button>
             </div>
@@ -804,6 +814,124 @@
         </div>
       </header>
       <div class="bases-body" id="bases-body"></div>
+    </section>
+
+    <!-- Visão dedicada de JSON Studio (Visualizador, Editor e Criador de JSON) -->
+    <section class="json-view main-section" id="json-view" data-id="json" tabindex="0" hidden>
+      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+        <div class="section-header-left">
+          <span class="section-icon"><span class="material-symbols-rounded">data_object</span></span>
+          <span class="section-title">JSON Studio</span>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+        </div>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar JSON Studio" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+        </div>
+      </header>
+      <header class="json-header">
+        <div class="json-header-left">
+          <button id="btn-json-back" class="icon-btn json-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="json-title-group" id="json-title-wrap" title="Alternar visão auxiliar" style="cursor: pointer;">
+            <h1 class="json-title">JSON Studio</h1>
+            <button id="btn-json-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Espaço, Constelações, Calendário, Base, JSON)" aria-label="Alternar visão">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
+            </button>
+            <span id="json-stats-badge" class="json-stats-badge">0 chaves</span>
+          </div>
+        </div>
+        <div class="json-header-center">
+          <div class="json-mode-switch" role="tablist" aria-label="Modo de edição">
+            <button id="btn-json-mode-tree" class="json-mode-btn is-active" type="button" role="tab" aria-selected="true" title="Modo Visual (Árvore interativa)">
+              <span class="material-symbols-rounded">account_tree</span>
+              <span>Visual</span>
+            </button>
+            <button id="btn-json-mode-code" class="json-mode-btn" type="button" role="tab" aria-selected="false" title="Modo Texto (Editor com sintaxe e validação)">
+              <span class="material-symbols-rounded">code</span>
+              <span>Texto</span>
+            </button>
+          </div>
+        </div>
+        <div class="json-header-right">
+          <button id="btn-json-new" class="icon-btn" title="Novo JSON / Modelos" aria-label="Novo JSON / Modelos">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">add_circle</span>
+          </button>
+          <button id="btn-json-prettify" class="icon-btn" title="Formatar JSON (Prettify)" aria-label="Formatar JSON">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_align_left</span>
+          </button>
+          <button id="btn-json-minify" class="icon-btn" title="Minificar JSON (Compact)" aria-label="Minificar JSON">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">compress</span>
+          </button>
+          <button id="btn-json-copy" class="icon-btn" title="Copiar JSON" aria-label="Copiar JSON">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">content_copy</span>
+          </button>
+          <button id="btn-json-import" class="icon-btn" title="Importar arquivo (.json)" aria-label="Importar JSON">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">file_upload</span>
+          </button>
+          <button id="btn-json-export" class="icon-btn" title="Exportar arquivo (.json)" aria-label="Exportar JSON">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">download</span>
+          </button>
+          <button id="btn-json-toggle-height" class="icon-btn json-height-btn view-height-btn" title="Alternar altura (Altura total / Metade da altura)" aria-label="Alternar altura">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_less</span>
+          </button>
+          <button id="btn-json-toggle-fullscreen" class="icon-btn json-fullscreen-btn" title="Expandir para tela cheia (100%)" aria-label="Alternar tela cheia">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">fullscreen</span>
+          </button>
+          <input type="file" id="json-file-input" accept=".json,application/json,text/plain" hidden />
+        </div>
+      </header>
+      <div class="json-body" id="json-body">
+        <div id="json-validation-bar" class="json-validation-bar" hidden>
+          <span id="json-validation-icon" class="material-symbols-rounded json-val-icon">error</span>
+          <span id="json-validation-msg" class="json-validation-msg"></span>
+          <button id="btn-json-goto-error" class="json-val-action" type="button">Ir para erro</button>
+        </div>
+
+        <div id="json-visual-container" class="json-visual-container">
+          <div class="json-tree-toolbar">
+            <div class="json-search-wrap">
+              <span class="material-symbols-rounded">search</span>
+              <input type="text" id="json-search-input" placeholder="Filtrar chaves ou valores..." autocomplete="off" spellcheck="false" />
+              <button id="btn-json-search-clear" class="icon-btn" title="Limpar busca" hidden>
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+            <div class="json-tree-actions">
+              <button id="btn-json-expand-all" class="json-action-pill" type="button" title="Expandir todos os nós">
+                <span class="material-symbols-rounded">unfold_more</span>
+                <span>Expandir</span>
+              </button>
+              <button id="btn-json-collapse-all" class="json-action-pill" type="button" title="Recolher todos os nós">
+                <span class="material-symbols-rounded">unfold_less</span>
+                <span>Recolher</span>
+              </button>
+              <button id="btn-json-add-root-prop" class="json-action-pill primary" type="button" title="Adicionar nova propriedade">
+                <span class="material-symbols-rounded">add</span>
+                <span>Adicionar</span>
+              </button>
+            </div>
+          </div>
+          <div id="json-tree-content" class="json-tree-content"></div>
+        </div>
+
+        <div id="json-code-container" class="json-code-container" hidden>
+          <div class="json-code-toolbar">
+            <div class="json-code-tools-left">
+              <span class="json-code-info-label">Editor Manual</span>
+            </div>
+            <div class="json-code-tools-right">
+              <span id="json-char-count" class="json-char-count">0 caracteres</span>
+            </div>
+          </div>
+          <div class="json-code-wrapper">
+            <div id="json-line-numbers" class="json-line-numbers" aria-hidden="true"></div>
+            <textarea id="json-code-editor" class="json-code-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="// Cole ou digite seu JSON aqui..."></textarea>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="docs-section main-section" id="docs-section" data-id="docs" tabindex="0" hidden>
