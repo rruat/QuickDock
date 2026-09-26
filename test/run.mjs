@@ -3895,6 +3895,15 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     boardJsSource.includes("strokeStyle === 'dotted'") &&
     boardStyleSource.includes('.board-chip-btn'));
 
+  // 27.18: Prevenção de movimento aleatório de cards ao criar conexões e overflow/dimensionamento do menu de opções
+  ok('canvas obsidian 2.0 · card permanece estático durante conexão e popover possui overflow e dimensionamento adequados',
+    !boardStyleSource.includes('.board-card.is-connect-target {\n  outline: 2.5px solid var(--accent, #3b82f6) !important;\n  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25), 0 8px 24px rgba(0, 0, 0, 0.15) !important;\n  transform:') &&
+    !boardStyleSource.includes('transform: scale(1.015)') &&
+    boardJsSource.includes('if (connectingFrom) return;') &&
+    boardStyleSource.includes('.board-arrow-popover') &&
+    boardStyleSource.includes('box-sizing: border-box;') &&
+    boardStyleSource.includes('overflow-y: auto;'));
+
   // 28: Obsidian Live Preview & Source-on-Cursor Parity
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');

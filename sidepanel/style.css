@@ -11722,8 +11722,7 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
 .board-card.is-connect-target {
   outline: 2.5px solid var(--accent, #3b82f6) !important;
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25), 0 8px 24px rgba(0, 0, 0, 0.15) !important;
-  transform: scale(1.015) !important;
-  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  transition: box-shadow 0.15s ease !important;
   z-index: 25 !important;
 }
 
@@ -11742,6 +11741,48 @@ html[data-platform="desktop"] #mMain .board-view > .board-container,
 .draft-arrow.is-snapped {
   stroke-width: 2.5px !important;
   stroke: var(--accent, #3b82f6) !important;
+}
+
+/* Popover de conexão e formas no sidepanel */
+.board-arrow-popover,
+.board-inline-input-popover {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 295px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.board-shape-popover {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 240px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  padding: 10px;
+  background: var(--bg, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  font-family: inherit;
+  color: var(--text, #000000);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 

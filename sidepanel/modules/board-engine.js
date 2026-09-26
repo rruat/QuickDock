@@ -258,7 +258,7 @@ function finishConnectingArrow(clientX, clientY) {
   }
 
   if (targetId && targetId !== origem.id) {
-    addArrow(origem.id, targetId, 'solid', origemLado, toSide || 'left');
+    addArrow(origem.id, targetId, 'solid', origemLado, toSide);
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25);
   }
 
@@ -272,6 +272,7 @@ function ocultarRastroDeConexao() {
   connectingHandlePos = null;
   draftArrow.hidden = true;
   clearConnectTargetHighlights();
+  container?.classList?.remove('is-connecting-arrow');
   if (draftArrow) {
     draftArrow.setAttribute('hidden', '');
     draftArrow.setAttribute('d', '');
@@ -1137,8 +1138,10 @@ async function toggleNoteSearchPopover(anchorBtn) {
   const popRect = pop.getBoundingClientRect();
   let left = r.left;
   if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
+  let top = r.bottom + 6;
+  if (top + popRect.height > window.innerHeight - 8) top = r.top - popRect.height - 6;
   pop.style.left = `${Math.max(8, left)}px`;
-  pop.style.top = `${r.bottom + 6}px`;
+  pop.style.top = `${Math.max(8, top)}px`;
 
   openNoteSearchPopover = pop;
   input.focus();
@@ -1286,6 +1289,10 @@ function getShapeSvgBackgroundHtml(shape) {
 }
 
 function showArrowPopover(e, arrow) {
+  const preservedPos = arguments[2] || null;
+  const prevLeft = preservedPos?.left ?? openArrowPopover?.style.left;
+  const prevTop = preservedPos?.top ?? openArrowPopover?.style.top;
+
   closeArrowPopover();
   closeColorPopover();
   closeShapePopover();
@@ -1375,13 +1382,15 @@ function showArrowPopover(e, arrow) {
     });
   });
 
+  const getPopPos = () => ({ left: pop.style.left, top: pop.style.top });
+
   pop.querySelectorAll('[data-dir]').forEach(btn => {
     btn.addEventListener('click', () => {
       arrow.direction = btn.dataset.dir;
       arrow.bidirectional = arrow.direction === 'bidirectional';
       renderArrows();
       scheduleSave();
-      showArrowPopover(e, arrow);
+      showArrowPopover(e, arrow, getPopPos());
     });
   });
 
@@ -1390,7 +1399,7 @@ function showArrowPopover(e, arrow) {
       arrow.lineStyle = btn.dataset.line;
       renderArrows();
       scheduleSave();
-      showArrowPopover(e, arrow);
+      showArrowPopover(e, arrow, getPopPos());
     });
   });
 
@@ -1400,7 +1409,7 @@ function showArrowPopover(e, arrow) {
       arrow.style = btn.dataset.stroke;
       renderArrows();
       scheduleSave();
-      showArrowPopover(e, arrow);
+      showArrowPopover(e, arrow, getPopPos());
     });
   });
 
@@ -1409,7 +1418,7 @@ function showArrowPopover(e, arrow) {
       arrow.color = btn.dataset.color === 'default' ? null : btn.dataset.color;
       renderArrows();
       scheduleSave();
-      showArrowPopover(e, arrow);
+      showArrowPopover(e, arrow, getPopPos());
     });
   });
 
@@ -1429,13 +1438,19 @@ function showArrowPopover(e, arrow) {
 
   document.body.appendChild(pop);
 
-  const popW = 270, popH = 290;
-  let left = e.clientX + 10;
-  let top = e.clientY + 10;
-  if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
-  if (top + popH > window.innerHeight - 12) top = window.innerHeight - popH - 12;
-  pop.style.left = `${Math.max(12, left)}px`;
-  pop.style.top = `${Math.max(12, top)}px`;
+  if (prevLeft && prevTop) {
+    pop.style.left = prevLeft;
+    pop.style.top = prevTop;
+  } else {
+    const popW = pop.offsetWidth || 295;
+    const popH = pop.offsetHeight || 250;
+    let left = (e?.clientX ?? (window.innerWidth / 2 - popW / 2)) + 10;
+    let top = (e?.clientY ?? (window.innerHeight / 2 - popH / 2)) + 10;
+    if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
+    if (top + popH > window.innerHeight - 12) top = window.innerHeight - popH - 12;
+    pop.style.left = `${Math.max(12, left)}px`;
+    pop.style.top = `${Math.max(12, top)}px`;
+  }
 
   openArrowPopover = pop;
   setTimeout(() => inputLabel.focus(), 30);
@@ -1505,11 +1520,14 @@ function toggleShapePopover(buttonEl, card, cardEl) {
   document.body.appendChild(pop);
 
   const rect = buttonEl.getBoundingClientRect();
+  const popW = pop.offsetWidth || 240;
+  const popH = pop.offsetHeight || 260;
   let left = rect.left - 40;
   let top = rect.bottom + 8;
-  const popW = 230;
   if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
   if (left < 12) left = 12;
+  if (top + popH > window.innerHeight - 12) top = rect.top - popH - 8;
+  if (top < 12) top = 12;
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 
@@ -1559,11 +1577,14 @@ function toggleFlowchartToolbarPopover(buttonEl) {
   document.body.appendChild(pop);
 
   const rect = buttonEl.getBoundingClientRect();
+  const popW = pop.offsetWidth || 240;
+  const popH = pop.offsetHeight || 260;
   let left = rect.left;
   let top = rect.bottom + 8;
-  const popW = 230;
   if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
   if (left < 12) left = 12;
+  if (top + popH > window.innerHeight - 12) top = rect.top - popH - 8;
+  if (top < 12) top = 12;
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 
@@ -1790,6 +1811,7 @@ function createCardElement(card) {
 
   // Clique no corpo/borda do cartão para seleção
   el.addEventListener('pointerdown', e => {
+    if (connectingFrom) return;
     if (e.target.closest('input, [contenteditable="true"], .card-action-btn, .board-card-resizer, .board-card-connect-handle')) return;
     if (e.ctrlKey || e.metaKey || e.shiftKey) {
       if (selectedCardIds.has(card.id)) selectedCardIds.delete(card.id);
@@ -1805,6 +1827,7 @@ function createCardElement(card) {
   // Arraste de Cartão pelo Cabeçalho com Auto-Alinhamento Inteligente
   const headerEl = el.querySelector('.board-card-header');
   headerEl.addEventListener('pointerdown', e => {
+    if (connectingFrom) return;
     if (e.button !== 0) return;
     // Clique num botão de ação (cor, excluir) não é arrasto — sem isso o
     // header capturava o ponteiro antes do clique chegar ao botão.
@@ -1824,6 +1847,7 @@ function createCardElement(card) {
   });
 
   headerEl.addEventListener('pointermove', e => {
+    if (connectingFrom) return;
     if (!draggedCard || draggedCard.id !== card.id) return;
     const worldPos = screenToWorld(e.clientX, e.clientY);
     const rawX = worldPos.x - dragCardOffset.x;
@@ -1865,6 +1889,7 @@ function createCardElement(card) {
   // Redimensionamento de Cartão
   const resizerEl = el.querySelector('.board-card-resizer');
   resizerEl.addEventListener('pointerdown', e => {
+    if (connectingFrom) return;
     if (e.button !== 0) return;
     e.stopPropagation();
     resizerEl.setPointerCapture(e.pointerId);
@@ -1874,6 +1899,7 @@ function createCardElement(card) {
   });
 
   resizerEl.addEventListener('pointermove', e => {
+    if (connectingFrom) return;
     if (!resizingCard || resizingCard.id !== card.id) return;
     const dw = (e.clientX - resizeStart.x) / currentBoard.viewport.zoom;
     const dh = (e.clientY - resizeStart.y) / currentBoard.viewport.zoom;
@@ -1901,6 +1927,7 @@ function createCardElement(card) {
       cachedContainerRect = container.getBoundingClientRect();
       connectingFrom = card;
       connectingFromSide = handle.dataset.handle;
+      container?.classList?.add('is-connecting-arrow');
       const rect = handle.getBoundingClientRect();
       connectingHandlePos = screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
       if (draftArrow) {
@@ -2791,15 +2818,7 @@ function onContainerPointerUp(e) {
 
   // Soltar conexão de seta (rede de captura garantida)
   if (connectingFrom) {
-    const origem = connectingFrom;
-    const origemLado = connectingFromSide;
-    const targetCardEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('.board-card');
-    const targetId = targetCardEl?.dataset.cardId;
-    if (targetId && targetId !== origem.id) {
-      const toSide = sideTowards(targetCardEl.getBoundingClientRect(), { x: e.clientX, y: e.clientY });
-      addArrow(origem.id, targetId, 'solid', origemLado, toSide);
-    }
-    ocultarRastroDeConexao();
+    finishConnectingArrow(e.clientX, e.clientY);
   }
 
   if (isBoxSelecting) {
