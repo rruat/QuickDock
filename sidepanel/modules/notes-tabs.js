@@ -2,18 +2,16 @@ import {
   loadAllNotesMeta, createNoteRecord, updateNoteMetaById, deleteNoteRecordById,
   reorderNoteRecords, moveNoteRecord, migrateLegacyNoteIfNeeded, loadActiveNoteId, saveActiveNoteId,
   getNoteById, detachFilesFromNote, updateNoteBlocksById,
-  updateTemplateById, gcInlineFiles,
+  gcInlineFiles,
   listarPastas, criarPasta, renomearPasta, excluirPasta, moverNotaParaPasta, normalizarCaminhoPasta,
 } from './storage.js';
 import { setDocumentsNote, refreshDocuments } from './documents.js';
 import { positionPopover } from './popover.js';
 import {
   initTemplates, getTemplates, noteTemplates, openTemplatesManager,
-  refreshTemplates, closeTemplatesManager,
 } from './templates.js';
 import {
   switchToNote, flushSave, getCurrentBlocks, clearCurrentNote,
-  openTemplateInEditor, currentTemplateMarkdown, clearTemplateEditing,
   blocksToExportMarkdown, absorbDataUrls,
 } from './note.js';
 import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks } from './blocks.js';
@@ -26,6 +24,7 @@ import {
   renderAppearanceContent, openAppearancePopover, closeAppearancePopoverIfOutside,
 } from './notes-appearance.js';
 export { renderAppearanceContent, openAppearancePopover };
+import { currentNoteAsMarkdown } from './notes-template-mode.js';
 
 const tabsEl        = document.getElementById('notes-tabs');
 const btnNew        = document.getElementById('btn-new-note');
@@ -583,7 +582,7 @@ function buildTab(meta) {
 // Pega os blocos da nota pedida: se for a nota aberta na tela, lê o DOM ao
 // vivo (depois de garantir que está salvo); se for outra aba, lê do banco —
 // mesma lógica de fallback usada ao trocar de nota.
-async function getBlocksForNote(meta) {
+export async function getBlocksForNote(meta) {
   if (meta.id === activeId) {
     await flushSave();
     return getCurrentBlocks();
@@ -2494,84 +2493,6 @@ async function createNoteFromTemplate(tpl) {
   await activateNote(id);
   renderTabs();
   scrollTabIntoView(id);
-}
-
-// ── Modo modelo ───────────────────────────────────────────────────────────────
-// O editor de blocos é um só, ligado a #note-editor-blocks. Em vez de construir
-// um segundo editor, ele empresta: carrega o modelo, mostra esta barra e o que
-// for digitado volta pro modelo em vez de pra uma nota.
-const templateBar    = document.getElementById('template-bar');
-const templateName   = document.getElementById('template-bar-name');
-const templateKind   = document.getElementById('template-bar-kind');
-const templateCancel = document.getElementById('template-bar-cancel');
-const templateSave   = document.getElementById('template-bar-save');
-
-let editingTpl  = null;   // {id, name, kind} do modelo aberto
-let returnNoteId = null;  // nota pra onde voltar ao sair
-
-export async function editTemplate(tpl) {
-  closeTemplatesManager();
-  returnNoteId = activeId;
-  editingTpl = { id: tpl.id, name: tpl.name, kind: tpl.kind };
-
-  await openTemplateInEditor(tpl);
-
-  templateName.value = tpl.name;
-  templateKind.value = tpl.kind;
-  templateBar.hidden = false;
-  noteSection.classList.add('template-mode');
-  document.documentElement.classList.add('template-mode');
-  document.body.classList.add('template-mode');
-}
-
-async function exitTemplate(salvar) {
-  if (!editingTpl) return;
-
-  if (salvar) {
-    const nome = templateName.value.trim() || editingTpl.name;
-    await updateTemplateById(editingTpl.id, {
-      name: nome,
-      kind: templateKind.value,
-      content: currentTemplateMarkdown(),
-    });
-    await refreshTemplates();
-  }
-
-  editingTpl = null;
-  templateBar.hidden = true;
-  noteSection.classList.remove('template-mode');
-  document.documentElement.classList.remove('template-mode');
-  document.body.classList.remove('template-mode');
-
-  const voltarPara = notesMeta.some(n => n.id === returnNoteId) ? returnNoteId : notesMeta[0]?.id;
-
-  // O modo modelo só é desligado DEPOIS de a nota voltar pra tela.
-  //
-  // Desligar antes era perda de nota: switchToNote começa com um flushSave, e
-  // esse save é justamente o que o modo modelo existe pra bloquear. Com a
-  // marca já limpa, ele serializava o que estava na tela — os blocos do
-  // MODELO — e gravava por cima da nota que estava aberta. Valia pra toda
-  // saída, inclusive pelo "Cancelar".
-  if (voltarPara != null) await activateNote(voltarPara);
-  clearTemplateEditing();
-  renderTabs();
-}
-
-// Evento em vez de import: templates.js e note.js precisam pedir "abre este
-// modelo no editor", e os dois seriam import circular com este módulo.
-document.addEventListener('quickdock:edit-template', e => { editTemplate(e.detail); });
-
-templateSave.addEventListener('click', () => exitTemplate(true));
-templateCancel.addEventListener('click', () => exitTemplate(false));
-templateName.addEventListener('keydown', e => {
-  e.stopPropagation();
-  if (e.key === 'Enter') { e.preventDefault(); exitTemplate(true); }
-});
-
-async function currentNoteAsMarkdown() {
-  const meta = notesMeta.find(n => n.id === activeId);
-  if (!meta) return null;
-  return { title: meta.title, markdown: blocksToMarkdown(await getBlocksForNote(meta)) };
 }
 
 // textContent, não innerHTML: nome de modelo é texto que o usuário escreveu.

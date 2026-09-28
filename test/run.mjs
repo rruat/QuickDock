@@ -1793,7 +1793,7 @@ for (const { nome, blocks } of BLOCOS_V18) {
 // Foi um bug de perda de nota inteira, e de ordem de duas linhas.
 {
   const { readFile } = await import('node:fs/promises');
-  const abas = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  const abas = await readFile(new URL('../sidepanel/modules/notes-template-mode.js', import.meta.url), 'utf8');
   const tpl  = await readFile(new URL('../sidepanel/modules/templates.js', import.meta.url), 'utf8');
 
   // switchToNote começa com um flushSave, e o modo modelo é justamente o que
