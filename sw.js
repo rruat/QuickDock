@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-3';
+const CACHE_NAME = 'quickdock-v3.0.0-4';
 
 const ASSET_PATHS = [
   '',
@@ -30,6 +30,15 @@ const ASSET_PATHS = [
   'sidepanel/modules/storage.js',
   'sidepanel/modules/notes-tabs.js',
   'sidepanel/modules/note.js',
+  'sidepanel/modules/note-state.js',
+  'sidepanel/modules/note-dom-utils.js',
+  'sidepanel/modules/note-viewport.js',
+  'sidepanel/modules/note-text-transforms.js',
+  'sidepanel/modules/note-export-helpers.js',
+  'sidepanel/modules/note-header.js',
+  'sidepanel/modules/note-backlinks.js',
+  'sidepanel/modules/note-outline.js',
+  'sidepanel/modules/note-properties.js',
   'sidepanel/modules/blocks.js',
   'sidepanel/modules/calc.js',
   'sidepanel/modules/math-parser.js',

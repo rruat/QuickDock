@@ -18,34 +18,36 @@ import {
 import { blockTemplates, openSaveBlockTemplate } from './templates.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from './snapshot.js';
 import { iconSvg, createIcon } from './icons.js';
-import { PROPERTY_TYPES, inferirTipoPropriedade, migrarPropriedadeParaTipo } from './property-types.js';
 import { openAppearancePopover } from './notes-tabs.js';
 import { buildEmbeddedBaseBlock } from './bases/bases-embedded.js';
 import { onViewChange } from './views.js';
-
-const noteSection  = document.querySelector('.note-section');
-const noteWorkspaceBodyEl = document.querySelector('.note-workspace-body');
-const noteEditorEl = document.querySelector('.note-editor');
-const root         = document.getElementById('note-editor-blocks');
-const indicator    = document.getElementById('save-indicator');
-const btnTouchSelect = document.getElementById('btn-touch-select');
-
-// Sumário (Outline), Backlinks e Abas
-const outlineSidebarEl = document.getElementById('note-outline-sidebar');
-const toggleOutlineSidebarBtn = document.getElementById('btn-toggle-outline-sidebar');
-const toggleOutlineHeaderBtn = document.getElementById('btn-note-outline-toggle-desktop');
-const desktopOutlineListEl = document.getElementById('note-desktop-outline-list');
-const desktopOutlineCountEl = document.getElementById('note-outline-desktop-count');
-const desktopBacklinksListEl = document.getElementById('note-desktop-backlinks-list');
-const desktopBacklinksCountEl = document.getElementById('note-desktop-backlinks-count');
-const tabSidebarOutline = document.getElementById('tab-sidebar-outline');
-const tabSidebarBacklinks = document.getElementById('tab-sidebar-backlinks');
-const mobileOutlineListEl = document.getElementById('note-mobile-outline-list');
-const mobileOutlineCountEl = document.getElementById('note-outline-count');
-const floatingOutlineToggleBtn = document.getElementById('btn-outline-floating-toggle');
-const floatingOutlineBadge = document.getElementById('note-outline-floating-badge');
-const tabBtnBacklinks = document.getElementById('tab-btn-backlinks');
-const tabBtnOutline = document.getElementById('tab-btn-outline');
+import {
+  noteSection, noteWorkspaceBodyEl, noteEditorEl, root, indicator, btnTouchSelect,
+} from './note-state.js';
+import {
+  pointAtOffset, rangeFromOffsets, getCaretOffset, setCaretOffset, caretViewportRect,
+  getContentEl, getBlockFromNode, currentBlock, focusBlockStart,
+} from './note-dom-utils.js';
+import { syncVisualViewport } from './note-viewport.js';
+import {
+  ttTitleCase, ttSentenceCase, ttParaCase, ttInvertCase, ttNoAccents,
+  ttCleanSpaces, applyTransformToSelection,
+} from './note-text-transforms.js';
+import { downloadTextFile, getSuggestedBlockFilename } from './note-export-helpers.js';
+import { renderNoteHeader, getHeaderNoteRef, flushHeaderTitle, clearNoteHeader } from './note-header.js';
+export { renderNoteHeader };
+import { atualizarLinksInternos, refreshBacklinks } from './note-backlinks.js';
+export { atualizarLinksInternos, refreshBacklinks };
+import {
+  irParaTitulo, extrairSumarioDaNota, renderOutline, updateActiveOutlineHeading,
+  scheduleOutlineUpdate, setSidebarTab, setBottomTab, setOutlineSidebarOpen,
+} from './note-outline.js';
+export {
+  irParaTitulo, extrairSumarioDaNota, renderOutline, updateActiveOutlineHeading,
+  scheduleOutlineUpdate, setSidebarTab, setBottomTab, setOutlineSidebarOpen,
+};
+import { renderPropertiesBar, iniciarNovaPropriedade } from './note-properties.js';
+export { renderPropertiesBar };
 
 let currentNoteId  = null;
 let isCtrlHeld     = false;
@@ -454,68 +456,8 @@ function applyDetectionMarks(el) {
   }
 }
 
-// ── Cursor / offsets de texto dentro de um bloco ──────────────────────────────
-function pointAtOffset(contentEl, offset) {
-  const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
-  let node, acc = 0, last = null;
-  while ((node = walker.nextNode())) {
-    last = node;
-    const len = node.data.length;
-    if (acc + len >= offset) return { node, offset: offset - acc };
-    acc += len;
-  }
-  if (last) return { node: last, offset: last.data.length };
-  return { node: contentEl, offset: 0 };
-}
-
-function rangeFromOffsets(contentEl, start, end) {
-  const a = pointAtOffset(contentEl, start);
-  const b = pointAtOffset(contentEl, end);
-  const range = document.createRange();
-  range.setStart(a.node, a.offset);
-  range.setEnd(b.node, b.offset);
-  return range;
-}
-
-function getCaretOffset(contentEl) {
-  const sel = document.getSelection();
-  if (!sel || sel.rangeCount === 0) return 0;
-  const range = sel.getRangeAt(0);
-  if (!contentEl.contains(range.startContainer)) return 0;
-  const pre = range.cloneRange();
-  pre.selectNodeContents(contentEl);
-  pre.setEnd(range.startContainer, range.startOffset);
-  return pre.toString().length;
-}
-
-function setCaretOffset(contentEl, offset) {
-  const p = pointAtOffset(contentEl, offset);
-  const range = document.createRange();
-  range.setStart(p.node, p.offset);
-  range.collapse(true);
-  const sel = document.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-// Posição do cursor na tela. Um Range colapsado bem na borda de uma linha às
-// vezes devolve um retângulo de tamanho zero — cai pro retângulo do elemento
-// em volta, que ao menos existe de verdade.
-function caretViewportRect(sel) {
-  if (!sel || sel.rangeCount === 0) return null;
-  const range = sel.getRangeAt(0);
-  let rect = range.getBoundingClientRect();
-  if (rect.width === 0 && rect.height === 0) {
-    const el = range.startContainer.nodeType === Node.ELEMENT_NODE
-      ? range.startContainer
-      : range.startContainer.parentElement;
-    if (el) rect = el.getBoundingClientRect();
-  }
-  return rect;
-}
-
 // ── Modelo de blocos ───────────────────────────────────────────────────────────
-const HEADING_TAGS = { heading1: 'h1', heading2: 'h2', heading3: 'h3', heading4: 'h4', heading5: 'h5', heading6: 'h6' };
+export const HEADING_TAGS = { heading1: 'h1', heading2: 'h2', heading3: 'h3', heading4: 'h4', heading5: 'h5', heading6: 'h6' };
 
 // Blocos que não passam pela detecção de CPF/data/cálculo: código é literal,
 // divisor não tem texto e a tabela não tem um conteúdo único — são N células.
@@ -525,7 +467,7 @@ const NO_DETECTION = new Set(['code', 'divider', 'table', 'image', 'calc', 'base
 
 // Blocos sem um conteúdo de texto único: getContentEl devolve o próprio bloco
 // neles, então perguntar pelo texto não faz sentido.
-const NO_TEXT_TYPES = new Set(['divider', 'table', 'image', 'audio', 'video', 'base']);
+export const NO_TEXT_TYPES = new Set(['divider', 'table', 'image', 'audio', 'video', 'base']);
 
 // Âncora invisível do cursor. Fica aqui em cima porque sanitizeForSave a usa
 // muito antes do ponto onde ela é criada — ver replaceRangeWithTag, que é onde
@@ -850,10 +792,6 @@ function blocksForIndent() {
   }
   const block = currentBlock();
   return block ? [block] : [];
-}
-
-function getContentEl(blockEl) {
-  return blockEl.querySelector(':scope > .block-content') || blockEl;
 }
 
 // ── Imagem na nota ────────────────────────────────────────────────────────────
@@ -1316,24 +1254,6 @@ function convertBlockType(blockEl, newType, checked = false) {
   return newBlock;
 }
 
-function getBlockFromNode(node) {
-  let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-  while (el && el !== root && !el.classList?.contains('block')) el = el.parentElement;
-  return el === root ? null : el;
-}
-
-function currentBlock() {
-  const sel = document.getSelection();
-  if (!sel || sel.rangeCount === 0) return null;
-  return getBlockFromNode(sel.anchorNode);
-}
-
-function focusBlockStart(block) {
-  const content = getContentEl(block);
-  content.focus();
-  setCaretOffset(content, 0);
-}
-
 // Marcadores de lista. Roda depois de qualquer mudança estrutural, então é
 // também onde a escada de indentação é fechada — assim a regra vale nos 25
 // pontos que já chamavam esta função, sem precisar lembrar de cada um.
@@ -1458,7 +1378,7 @@ function pushUndoSnapshot(html) {
 // `html` permite capturar um estado colhido antes de saber se a mudança ia
 // mesmo acontecer — é o caso do Tab, que às vezes não tem pra onde indentar e
 // não deve sujar o histórico.
-function captureUndoPoint(html = null) {
+export function captureUndoPoint(html = null) {
   clearTimeout(typingSnapshotTimer);
   pendingTypingSnapshot = null;
   pushUndoSnapshot(html ?? snapshotState());
@@ -1524,7 +1444,7 @@ function performRedo() {
 }
 
 // ── Detecção com debounce (não recalcula a cada tecla, só quando pausa) ──────
-function scheduleRescan(block) {
+export function scheduleRescan(block) {
   rescanBlock = block;
   clearTimeout(rescanTimer);
   rescanTimer = setTimeout(flushRescan, 500);
@@ -1705,7 +1625,7 @@ export async function blocksToExportMarkdown(blocks) {
 
 export function clearTemplateEditing() { editingTemplate = null; }
 
-function scheduleSave() {
+export function scheduleSave() {
   if (editingTemplate) return;
   scheduleOutlineUpdate();
   clearTimeout(saveTimer);
@@ -1832,15 +1752,13 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
   // Título do cabeçalho pendente de gravar (debounce ainda não estourou):
   // grava agora, na nota que estava aberta — sem isso, trocar de nota rápido
   // depois de digitar um título novo perderia a edição em silêncio.
-  if (headerTitleDebounce) commitHeaderTitle();
+  flushHeaderTitle();
   editingTemplate = null;            // trocar de nota abandona o modo modelo
   currentNoteId = id;
   if (id == null) {
     revokeImageURLs();
     root.innerHTML = '';
-    headerNoteRef = null;
-    if (headerTitleEl) headerTitleEl.textContent = '';
-    if (headerIconEl) headerIconEl.textContent = '';
+    clearNoteHeader();
     renderOutline();
     // Fechar a última aba nunca disparava este aviso (só ativar uma nota
     // dispara, em notes-tabs.js) — sem isto, quem escuta pra saber "qual nota
@@ -1867,780 +1785,6 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
   document.dispatchEvent(new CustomEvent('quickdock:active-note-changed', { detail: { id } }));
 }
 
-// ── Cabeçalho da Nota (ícone, título editável, cor) ───────────────────────────
-const headerIconBtn  = document.getElementById('btn-note-header-icon');
-const headerIconEl   = document.getElementById('note-header-icon');
-const headerTitleEl  = document.getElementById('note-header-title');
-const headerColorBtn = document.getElementById('btn-note-header-color');
-const headerColorDot = document.getElementById('note-header-color-dot');
-
-let headerTitleDebounce = null;
-// A nota mostrada agora no cabeçalho — guardada à parte pra comparar o valor
-// no momento de gravar, mesmo se a pessoa já tiver trocado de nota antes do
-// debounce dos 500ms terminar (o timer é sempre cancelado ao trocar, ver
-// switchToNote, mas fica como segunda trava).
-let headerNoteRef = null;
-
-export function renderNoteHeader(note) {
-  headerNoteRef = note;
-  if (!headerIconEl || !headerTitleEl || !headerColorDot) return;
-  if (!note) return;
-
-  headerIconEl.textContent = note.icon || 'description';
-  headerIconEl.classList.toggle('icon-filled', !!note.iconFilled);
-  headerIconEl.style.color = note.color || '';
-
-  // Não sobrescreve o texto se a pessoa estiver com o cursor ali agora —
-  // re-renderizar por baixo da digitação faria o cursor pular de lugar.
-  if (document.activeElement !== headerTitleEl) {
-    headerTitleEl.textContent = note.title || '';
-  }
-
-  headerColorDot.style.background = note.color || 'var(--text-muted)';
-}
-
-function commitHeaderTitle() {
-  clearTimeout(headerTitleDebounce);
-  headerTitleDebounce = null;
-  if (!headerNoteRef) return;
-  const val = (headerTitleEl.textContent || '').trim() || 'Sem título';
-  if (val === headerNoteRef.title) return;
-  updateNoteMetaById(headerNoteRef.id, { title: val });
-  headerNoteRef.title = val;
-  // O título editado aqui nunca passa pelo notesMeta da aside (notes-tabs.js
-  // mantém seu próprio cache) — sem isto, o nome ficava desatualizado ali até
-  // fechar e reabrir a nota.
-  document.dispatchEvent(new CustomEvent('quickdock:note-title-committed', {
-    detail: { noteId: headerNoteRef.id, title: val }
-  }));
-}
-
-if (headerTitleEl) {
-  headerTitleEl.addEventListener('input', () => {
-    if (!headerNoteRef) return;
-    const val = headerTitleEl.textContent || '';
-    // Atualiza a aba na hora, só visualmente — gravar de verdade espera a
-    // pausa de digitação (mesma lógica de debounce da sincronização, só que
-    // bem mais curta: aqui o custo de gravar cedo demais é só desperdiçar
-    // escrita no banco, não travar o editor).
-    document.dispatchEvent(new CustomEvent('quickdock:note-title-preview', {
-      detail: { noteId: headerNoteRef.id, title: val.trim() || 'Sem título' }
-    }));
-    clearTimeout(headerTitleDebounce);
-    headerTitleDebounce = setTimeout(commitHeaderTitle, 500);
-  });
-  headerTitleEl.addEventListener('blur', commitHeaderTitle);
-  headerTitleEl.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); headerTitleEl.blur(); }
-  });
-}
-
-// Ícone e cor do cabeçalho abrem o mesmo popover que o menu "⋯" da aba já
-// usa — mesmo conteúdo, mesmo estado, só um segundo ponto de entrada.
-headerIconBtn?.addEventListener('click', e => {
-  e.stopPropagation();
-  if (headerNoteRef) openAppearancePopover(headerIconBtn, headerNoteRef);
-});
-headerColorBtn?.addEventListener('click', e => {
-  e.stopPropagation();
-  if (headerNoteRef) openAppearancePopover(headerColorBtn, headerNoteRef);
-});
-
-// A aba (ou a aside) pode mudar título/ícone/cor desta mesma nota por fora do
-// cabeçalho (menu "⋯"); precisa refletir isso mesmo quando não foi o
-// cabeçalho quem disparou a troca. `headerNoteRef` é um objeto próprio deste
-// módulo (vem de um getNoteById() separado do notesMeta da aside) — sem
-// buscar de novo, renderNoteHeader(headerNoteRef) só repetiria os dados
-// antigos, sem mudar nada na tela.
-document.addEventListener('quickdock:note-appearance-updated', async e => {
-  if (!headerNoteRef || e.detail?.noteId !== headerNoteRef.id) return;
-  const fresh = await getNoteById(headerNoteRef.id);
-  if (fresh) {
-    headerNoteRef = fresh;
-    renderNoteHeader(headerNoteRef);
-  }
-});
-
-// ── Barra de Propriedades da Nota (Notion / Obsidian style) ───────────────────
-const propertiesBarEl     = document.getElementById('note-properties-bar');
-const propertiesToggleBtn = document.getElementById('btn-properties-toggle');
-const propertiesCountEl   = document.getElementById('note-properties-count');
-const propertiesListEl    = document.getElementById('note-properties-list');
-const btnAddProperty      = document.getElementById('btn-add-property');
-
-let propertiesExpanded = typeof localStorage !== 'undefined'
-  ? localStorage.getItem('quickdock:properties:expanded') === 'true'
-  : false;
-
-// Enquanto não tem nome confirmado (Enter), a propriedade nova é só esse
-// estado — não existe em note.properties. É o que faz a linha de "nome +
-// tipo" aparecer no fim da lista antes de virar propriedade de verdade.
-let pendingNewProperty = null;
-
-let activePropertiesMenu = null;
-
-function closePropertiesMenu() {
-  if (activePropertiesMenu) {
-    activePropertiesMenu.remove();
-    activePropertiesMenu = null;
-  }
-}
-
-document.addEventListener('pointerdown', e => {
-  if (activePropertiesMenu && !activePropertiesMenu.contains(e.target)
-    && !e.target.closest('#btn-add-property') && !e.target.closest('.property-type-btn')) {
-    closePropertiesMenu();
-  }
-});
-
-if (propertiesToggleBtn && propertiesListEl) {
-  propertiesToggleBtn.addEventListener('click', () => {
-    propertiesExpanded = !propertiesExpanded;
-    try { localStorage.setItem('quickdock:properties:expanded', String(propertiesExpanded)); } catch {}
-    atualizarEstadoExpansaoPropriedades();
-  });
-}
-
-function atualizarEstadoExpansaoPropriedades() {
-  if (!propertiesToggleBtn || !propertiesListEl) return;
-  propertiesToggleBtn.setAttribute('aria-expanded', propertiesExpanded ? 'true' : 'false');
-  propertiesBarEl?.classList.toggle('is-expanded', propertiesExpanded);
-  propertiesListEl.hidden = !propertiesExpanded;
-  const chevron = propertiesToggleBtn.querySelector('.properties-chevron');
-  if (chevron) {
-    chevron.textContent = propertiesExpanded ? 'expand_more' : 'chevron_right';
-  }
-}
-
-// Constrói o campo de valor apropriado ao tipo (text/number/checkbox/date/list/select).
-// `salvar(chave, novoValor, extra)` é o único ponto de gravação — cada campo só
-// decide QUAL valor virou, quem persiste/notifica/re-renderiza é sempre o mesmo.
-function renderPropertyValue(tipo, chave, valor, opcoes, salvar) {
-  switch (tipo) {
-    case 'date': {
-      const input = document.createElement('input');
-      input.type = 'date';
-      input.className = 'property-input property-input-date';
-      input.value = typeof valor === 'string' ? valor.slice(0, 10) : '';
-      input.addEventListener('change', e => salvar(chave, e.target.value));
-      return input;
-    }
-    case 'number': {
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.className = 'property-input property-input-number';
-      input.value = typeof valor === 'number' && Number.isFinite(valor) ? valor : '';
-      input.addEventListener('change', e => salvar(chave, e.target.value === '' ? 0 : parseFloat(e.target.value)));
-      return input;
-    }
-    case 'checkbox': {
-      const label = document.createElement('label');
-      label.className = 'property-checkbox-wrap';
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.checked = !!valor;
-      input.addEventListener('change', e => salvar(chave, e.target.checked));
-      label.appendChild(input);
-      return label;
-    }
-    case 'list':
-      return renderPropertyList(chave, Array.isArray(valor) ? valor : [], salvar);
-    case 'select':
-      return renderPropertySelect(chave, valor, Array.isArray(opcoes) && opcoes.length ? opcoes : ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'], salvar);
-    default: {
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'property-input property-input-text';
-      input.value = valor == null ? '' : String(valor);
-      input.placeholder = 'Valor...';
-      input.addEventListener('change', e => salvar(chave, e.target.value.trim()));
-      return input;
-    }
-  }
-}
-
-// Lista de "chips" (tags) com input para adicionar via Enter/vírgula e Backspace
-// no input vazio para remover o último — mesmo padrão de qualquer editor de tags.
-function renderPropertyList(chave, itens, salvar) {
-  const wrap = document.createElement('div');
-  wrap.className = 'property-chip-list';
-  const commit = novosItens => salvar(chave, novosItens);
-
-  itens.forEach((item, i) => {
-    const chip = document.createElement('span');
-    chip.className = 'property-chip';
-    const texto = document.createElement('span');
-    texto.textContent = item;
-    const del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'property-chip-remove';
-    del.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>';
-    del.addEventListener('click', e => {
-      e.stopPropagation();
-      commit(itens.filter((_, idx) => idx !== i));
-    });
-    chip.append(texto, del);
-    wrap.appendChild(chip);
-  });
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'property-chip-input';
-  input.placeholder = itens.length ? '' : 'Adicionar...';
-  input.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const val = input.value.trim();
-      if (val && !itens.includes(val)) commit([...itens, val]);
-      input.value = '';
-    } else if (e.key === 'Backspace' && !input.value && itens.length) {
-      commit(itens.slice(0, -1));
-    }
-  });
-  wrap.appendChild(input);
-  return wrap;
-}
-
-// Select com opção "+ Nova opção..." que pede o nome e grava tanto o valor
-// quanto a lista de opções atualizada (note.propertySelectOptions[chave]).
-function renderPropertySelect(chave, valor, opcoes, salvar) {
-  const select = document.createElement('select');
-  select.className = 'property-select';
-  for (const opt of opcoes) {
-    const optionEl = document.createElement('option');
-    optionEl.value = opt;
-    optionEl.textContent = opt;
-    if (opt === valor) optionEl.selected = true;
-    select.appendChild(optionEl);
-  }
-  if (valor && !opcoes.includes(valor)) {
-    const customOpt = document.createElement('option');
-    customOpt.value = valor;
-    customOpt.textContent = valor;
-    customOpt.selected = true;
-    select.appendChild(customOpt);
-  }
-  const addOpt = document.createElement('option');
-  addOpt.value = '__nova__';
-  addOpt.textContent = '+ Nova opção...';
-  select.appendChild(addOpt);
-
-  select.addEventListener('change', e => {
-    if (e.target.value === '__nova__') {
-      const nome = window.prompt('Nome da nova opção:');
-      select.value = valor || '';
-      if (!nome || !nome.trim()) return;
-      const novoNome = nome.trim();
-      const novasOpcoes = opcoes.includes(novoNome) ? opcoes : [...opcoes, novoNome];
-      salvar(chave, novoNome, { opcoes: novasOpcoes });
-      return;
-    }
-    salvar(chave, e.target.value);
-  });
-  return select;
-}
-
-// Popover de escolha de tipo — aberto pelo ícone à esquerda de cada
-// propriedade (troca o tipo de uma que já existe) e também ao criar uma nova
-// (escolhe o tipo antes de dar nome). `onEscolher(tipoId)` decide o que fazer
-// com a escolha em cada caso.
-function abrirMenuDeTipo(anchorEl, tipoAtual, onEscolher) {
-  closePropertiesMenu();
-  const menu = document.createElement('div');
-  menu.className = 'note-properties-popup-menu popover-menu';
-  // Sem isto, o mousedown num item tira o foco de onde estava antes (ex.: o
-  // input de nome da propriedade nova) e o blur cancela aquele fluxo antes
-  // do click do item chegar a rodar.
-  menu.addEventListener('mousedown', e => e.preventDefault());
-
-  for (const [tipoId, def] of Object.entries(PROPERTY_TYPES)) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'popover-item' + (tipoId === tipoAtual ? ' active' : '');
-    btn.innerHTML = `
-      <span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>
-      <span>${def.label}</span>
-    `;
-    btn.addEventListener('click', () => {
-      closePropertiesMenu();
-      if (tipoId !== tipoAtual) onEscolher(tipoId);
-    });
-    menu.appendChild(btn);
-  }
-
-  document.body.appendChild(menu);
-  activePropertiesMenu = menu;
-  const rect = anchorEl.getBoundingClientRect();
-  menu.style.position = 'fixed';
-  menu.style.top = `${rect.bottom + 4}px`;
-  menu.style.left = `${Math.max(8, rect.left)}px`;
-  menu.style.zIndex = '99999';
-}
-
-export function renderPropertiesBar(note) {
-  if (!propertiesBarEl || !propertiesListEl || !note) {
-    if (propertiesBarEl) propertiesBarEl.hidden = true;
-    return;
-  }
-  propertiesBarEl.hidden = false;
-
-  const props = { ...(note.properties || {}) };
-  const tipos = { ...(note.propertyTypes || {}) };
-  const opcoesSelect = { ...(note.propertySelectOptions || {}) };
-  const chaves = Object.keys(props);
-  const total = chaves.length;
-
-  // Nota sem nenhuma propriedade não carrega a caixa inteira por padrão — só
-  // um link discreto pra criar a primeira. É o mesmo tanto faz de uma nota
-  // nova no Obsidian, que não vem com a seção de Properties até alguém pedir
-  // uma (digitando "---" no início da nota ou clicando aqui).
-  const vazia = total === 0 && !pendingNewProperty;
-  propertiesBarEl.classList.toggle('is-empty-ghost', vazia);
-
-  if (propertiesCountEl) {
-    propertiesCountEl.textContent = String(total);
-    propertiesCountEl.hidden = total === 0;
-  }
-
-  atualizarEstadoExpansaoPropriedades();
-
-  propertiesListEl.innerHTML = '';
-
-  if (vazia) {
-    const ghost = document.createElement('button');
-    ghost.type = 'button';
-    ghost.className = 'note-properties-ghost-add';
-    ghost.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span><span>Adicionar propriedade</span>';
-    ghost.addEventListener('click', () => iniciarNovaPropriedade(note));
-    propertiesListEl.hidden = false;
-    propertiesListEl.appendChild(ghost);
-    return;
-  }
-
-  const salvar = async (chave, novoValor, extra = {}) => {
-    props[chave] = novoValor;
-    note.properties = { ...props };
-    const patch = { properties: note.properties };
-    if (extra.tipo) {
-      tipos[chave] = extra.tipo;
-      note.propertyTypes = { ...tipos };
-      patch.propertyTypes = note.propertyTypes;
-    }
-    if (extra.opcoes) {
-      opcoesSelect[chave] = extra.opcoes;
-      note.propertySelectOptions = { ...opcoesSelect };
-      patch.propertySelectOptions = note.propertySelectOptions;
-    }
-    await updateNoteMetaById(note.id, patch);
-    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-      detail: { noteId: note.id, properties: note.properties }
-    }));
-    renderPropertiesBar(note);
-  };
-
-  // Renomear preserva a posição: reconstrói o objeto na mesma ordem, só
-  // trocando a chave, em vez de apagar e recriar no fim.
-  const renomear = async (chaveAntiga, chaveNova) => {
-    if (!chaveNova || chaveNova === chaveAntiga || chaveNova in props) { renderPropertiesBar(note); return; }
-    const novasProps = {}, novosTipos = {}, novasOpcoes = {};
-    for (const k of chaves) {
-      const kk = k === chaveAntiga ? chaveNova : k;
-      novasProps[kk] = props[k];
-      if (k in tipos) novosTipos[kk] = tipos[k];
-      if (k in opcoesSelect) novasOpcoes[kk] = opcoesSelect[k];
-    }
-    note.properties = novasProps;
-    note.propertyTypes = novosTipos;
-    note.propertySelectOptions = novasOpcoes;
-    await updateNoteMetaById(note.id, {
-      properties: note.properties,
-      propertyTypes: note.propertyTypes,
-      propertySelectOptions: note.propertySelectOptions,
-    });
-    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-      detail: { noteId: note.id, properties: note.properties }
-    }));
-    renderPropertiesBar(note);
-  };
-
-  // Arrastar reordena: tira a chave de origem do lugar antigo e a reinsere
-  // antes/depois da chave alvo, preservando a ordem de todo o resto.
-  const reordenar = async (chaveOrigem, chaveAlvo, antes) => {
-    if (chaveOrigem === chaveAlvo) return;
-    const resto = chaves.filter(k => k !== chaveOrigem);
-    const idxAlvo = resto.indexOf(chaveAlvo);
-    if (idxAlvo === -1) return;
-    resto.splice(antes ? idxAlvo : idxAlvo + 1, 0, chaveOrigem);
-    const novasProps = {};
-    for (const k of resto) novasProps[k] = props[k];
-    note.properties = novasProps;
-    await updateNoteMetaById(note.id, { properties: note.properties });
-    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-      detail: { noteId: note.id, properties: note.properties }
-    }));
-    renderPropertiesBar(note);
-  };
-  let propDragOrigemChave = null;
-  let propDropIndicator = null;
-
-  for (const chave of chaves) {
-    const valor = props[chave];
-    const tipo = inferirTipoPropriedade(chave, tipos);
-    const def = PROPERTY_TYPES[tipo] || PROPERTY_TYPES.text;
-    const row = document.createElement('div');
-    row.className = 'note-property-row';
-    row.dataset.propKey = chave;
-    row.draggable = true;
-
-    const dragHandle = document.createElement('span');
-    dragHandle.className = 'property-drag-handle qd-icon material-symbols-rounded';
-    dragHandle.textContent = 'drag_indicator';
-    dragHandle.setAttribute('aria-hidden', 'true');
-
-    row.addEventListener('dragstart', e => {
-      propDragOrigemChave = chave;
-      e.dataTransfer.effectAllowed = 'move';
-      row.classList.add('is-dragging');
-      propDropIndicator = document.createElement('div');
-      propDropIndicator.className = 'note-property-drop-indicator';
-    });
-    row.addEventListener('dragover', e => {
-      if (propDragOrigemChave == null || propDragOrigemChave === chave || !propDropIndicator) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      const rect = row.getBoundingClientRect();
-      const antes = e.clientY < rect.top + rect.height / 2;
-      row[antes ? 'before' : 'after'](propDropIndicator);
-    });
-    row.addEventListener('drop', e => {
-      e.preventDefault();
-      if (propDragOrigemChave == null) return;
-      const rect = row.getBoundingClientRect();
-      const antes = e.clientY < rect.top + rect.height / 2;
-      const origem = propDragOrigemChave;
-      propDropIndicator?.remove();
-      propDropIndicator = null;
-      reordenar(origem, chave, antes);
-    });
-    row.addEventListener('dragend', () => {
-      row.classList.remove('is-dragging');
-      propDropIndicator?.remove();
-      propDropIndicator = null;
-      propDragOrigemChave = null;
-    });
-
-    const typeBtn = document.createElement('button');
-    typeBtn.type = 'button';
-    typeBtn.className = 'property-type-btn';
-    typeBtn.title = `Tipo: ${def.label}`;
-    typeBtn.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>`;
-    typeBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      abrirMenuDeTipo(typeBtn, tipo, tipoId => {
-        salvar(chave, migrarPropriedadeParaTipo(chave, valor, tipoId), { tipo: tipoId });
-      });
-    });
-
-    const labelWrap = document.createElement('div');
-    labelWrap.className = 'note-property-label-wrap';
-    const nameEl = document.createElement('span');
-    nameEl.className = 'property-name';
-    nameEl.textContent = chave;
-    nameEl.title = 'Clique para renomear';
-    nameEl.addEventListener('click', e => {
-      e.stopPropagation();
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'property-name-input';
-      input.value = chave;
-      let resolvido = false;
-      input.addEventListener('keydown', ev => {
-        ev.stopPropagation();
-        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
-        else if (ev.key === 'Escape') { ev.preventDefault(); resolvido = true; renderPropertiesBar(note); }
-      });
-      input.addEventListener('blur', () => {
-        if (resolvido) return;
-        resolvido = true;
-        renomear(chave, input.value.trim());
-      });
-      nameEl.replaceWith(input);
-      input.focus();
-      input.select();
-    });
-    labelWrap.append(typeBtn, nameEl);
-
-    const valueWrap = document.createElement('div');
-    valueWrap.className = 'note-property-value-wrap';
-    valueWrap.appendChild(renderPropertyValue(tipo, chave, valor, opcoesSelect[chave], salvar));
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'property-delete-btn';
-    deleteBtn.title = `Remover propriedade ${chave}`;
-    deleteBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>';
-    deleteBtn.addEventListener('click', async e => {
-      e.stopPropagation();
-      delete props[chave];
-      delete tipos[chave];
-      delete opcoesSelect[chave];
-      note.properties = { ...props };
-      note.propertyTypes = { ...tipos };
-      note.propertySelectOptions = { ...opcoesSelect };
-      await updateNoteMetaById(note.id, {
-        properties: note.properties,
-        propertyTypes: note.propertyTypes,
-        propertySelectOptions: note.propertySelectOptions,
-      });
-      document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-        detail: { noteId: note.id, properties: note.properties }
-      }));
-      renderPropertiesBar(note);
-    });
-
-    row.appendChild(dragHandle);
-    row.appendChild(labelWrap);
-    row.appendChild(valueWrap);
-    row.appendChild(deleteBtn);
-    propertiesListEl.appendChild(row);
-  }
-
-  if (pendingNewProperty) {
-    propertiesListEl.appendChild(criarLinhaNovaPropriedade(note, props));
-  }
-}
-
-const SELECT_OPCOES_PADRAO = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
-const VALOR_PADRAO_POR_TIPO = { text: '', list: [], number: '', checkbox: false, date: '', select: '' };
-
-// Abre a linha de "nome + tipo" no fim da lista — mesmo ponto de entrada
-// usado pelo botão "+ Propriedade" e pelo atalho de "---" no início da nota.
-function iniciarNovaPropriedade(note) {
-  pendingNewProperty = { tipo: 'text' };
-  propertiesExpanded = true;
-  try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
-  renderPropertiesBar(note);
-}
-
-// Linha transitória: só vira propriedade de verdade ao confirmar (Enter com
-// nome preenchido e ainda não usado). Cancela sozinha ao clicar fora vazia
-// ou com Esc — do jeito que o Obsidian também desiste se você não nomear.
-//
-// Fechar é decidido por CLIQUE FORA (pointerdown em algo que não é a linha
-// nem o popover de tipo aberto), não por blur do input: blur dispara mesmo
-// quando o clique é no próprio seletor de tipo (que fica fora da linha, solto
-// em document.body), e nem sempre dá tempo do preventDefault no mousedown
-// segurar o foco antes do blur dessa troca correr — cancelava a linha antes
-// do popover de tipo terminar de abrir. Mesmo padrão de "clique fora" que
-// closePropertiesMenu já usa pro popover em si.
-function criarLinhaNovaPropriedade(note, props) {
-  const row = document.createElement('div');
-  row.className = 'note-property-row note-property-row-new';
-
-  const def = PROPERTY_TYPES[pendingNewProperty.tipo] || PROPERTY_TYPES.text;
-  const typeBtn = document.createElement('button');
-  typeBtn.type = 'button';
-  typeBtn.className = 'property-type-btn';
-  typeBtn.title = `Tipo: ${def.label}`;
-  typeBtn.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>`;
-  typeBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    abrirMenuDeTipo(typeBtn, pendingNewProperty.tipo, tipoId => {
-      pendingNewProperty.tipo = tipoId;
-      renderPropertiesBar(note);
-    });
-  });
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'property-input property-name-input-new';
-  input.placeholder = 'Nome da propriedade';
-  // Escolher o tipo reconstrói a linha (renderPropertiesBar de novo) — sem
-  // guardar o que já foi digitado em pendingNewProperty, o nome sumia junto.
-  input.value = pendingNewProperty.nome || '';
-  input.addEventListener('input', () => { pendingNewProperty.nome = input.value; });
-
-  let resolvido = false;
-  const desanexar = () => document.removeEventListener('pointerdown', aoClicarFora);
-
-  const confirmar = async () => {
-    if (resolvido) return;
-    resolvido = true;
-    desanexar();
-    const nome = input.value.trim();
-    if (!nome || nome in props) {
-      pendingNewProperty = null;
-      renderPropertiesBar(note);
-      return;
-    }
-    const tipo = pendingNewProperty.tipo;
-    note.properties = { ...props, [nome]: VALOR_PADRAO_POR_TIPO[tipo] ?? '' };
-    note.propertyTypes = { ...(note.propertyTypes || {}), [nome]: tipo };
-    if (tipo === 'select') {
-      note.propertySelectOptions = { ...(note.propertySelectOptions || {}), [nome]: SELECT_OPCOES_PADRAO };
-    }
-    pendingNewProperty = null;
-    await updateNoteMetaById(note.id, {
-      properties: note.properties,
-      propertyTypes: note.propertyTypes,
-      ...(note.propertySelectOptions ? { propertySelectOptions: note.propertySelectOptions } : {}),
-    });
-    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-      detail: { noteId: note.id, properties: note.properties }
-    }));
-    renderPropertiesBar(note);
-  };
-
-  const cancelar = () => {
-    if (resolvido) return;
-    resolvido = true;
-    desanexar();
-    pendingNewProperty = null;
-    renderPropertiesBar(note);
-  };
-
-  const aoClicarFora = e => {
-    // A linha pode ter sumido por outro caminho — outra composição começou
-    // (clicar em "+ Propriedade" de novo antes de resolver esta) ou a nota
-    // trocou — sem isto o listener sobrevive à linha e o próximo clique fora
-    // chama confirmar() com pendingNewProperty já nulo (de quem resolveu a
-    // composição nova), estourando "Cannot read properties of null".
-    if (!document.body.contains(row)) { document.removeEventListener('pointerdown', aoClicarFora); return; }
-    if (row.contains(e.target) || activePropertiesMenu?.contains(e.target)) return;
-    confirmar();
-  };
-  document.addEventListener('pointerdown', aoClicarFora);
-
-  input.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); confirmar(); }
-    else if (e.key === 'Escape') { e.preventDefault(); cancelar(); }
-  });
-
-  row.append(typeBtn, input);
-  queueMicrotask(() => {
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
-  });
-  return row;
-}
-
-// Botão "+ Propriedade"
-if (btnAddProperty) {
-  btnAddProperty.addEventListener('click', async e => {
-    e.stopPropagation();
-    if (!currentNoteId) return;
-    const note = await getNoteById(currentNoteId);
-    if (!note) return;
-    closePropertiesMenu();
-    iniciarNovaPropriedade(note);
-  });
-}
-
-// ── Backlinks ─────────────────────────────────────────────────────────────────
-const backlinksSection = document.getElementById('note-backlinks-section');
-const backlinksToggle  = document.getElementById('note-backlinks-toggle');
-const backlinksCountEl = document.getElementById('note-backlinks-count');
-const backlinksListEl  = document.getElementById('note-backlinks-list');
-
-let backlinksOpen = typeof localStorage !== 'undefined' ? localStorage.getItem('quickdock:backlinks:open') !== 'false' : true;
-
-if (backlinksToggle && backlinksSection) {
-  backlinksSection.classList.toggle('is-collapsed', !backlinksOpen);
-  backlinksToggle.setAttribute('aria-expanded', backlinksOpen ? 'true' : 'false');
-  backlinksToggle.addEventListener('click', () => {
-    backlinksOpen = !backlinksOpen;
-    try { localStorage.setItem('quickdock:backlinks:open', String(backlinksOpen)); } catch {}
-    backlinksSection.classList.toggle('is-collapsed', !backlinksOpen);
-    backlinksToggle.setAttribute('aria-expanded', backlinksOpen ? 'true' : 'false');
-  });
-}
-
-// Marca link interno cujo título não bate com nenhuma nota existente —
-// mesma distinção do Obsidian entre link resolvido e "unresolved" (é só uma
-// menção, a nota referenciada ainda não existe).
-export async function atualizarLinksInternos() {
-  const links = root.querySelectorAll('a.note-internal-link');
-  if (!links.length) return;
-  let todasNotas;
-  try {
-    todasNotas = await loadAllNotesMeta();
-  } catch {
-    return;
-  }
-  const alvosExistentes = new Set();
-  for (const n of todasNotas) {
-    if (n.title) alvosExistentes.add(n.title.trim().toLowerCase());
-    if (n.uid) alvosExistentes.add(n.uid.toLowerCase());
-    const p = (n.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-    const t = (n.title || '').trim();
-    if (p && t) alvosExistentes.add(`${p}/${t}`.toLowerCase());
-  }
-
-  links.forEach(a => {
-    const rawAlvo = (a.dataset.notePath || a.dataset.noteTitle || a.textContent || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
-    a.classList.toggle('is-unresolved', !alvosExistentes.has(rawAlvo));
-  });
-}
-
-export async function refreshBacklinks(noteId = currentNoteId) {
-  if (noteId == null) return;
-  try {
-    const note = await getNoteById(noteId);
-    if (!note) {
-      if (backlinksSection) backlinksSection.hidden = true;
-      if (desktopBacklinksListEl) desktopBacklinksListEl.innerHTML = '';
-      return;
-    }
-
-    const [todasNotas, todosLinks] = await Promise.all([
-      loadAllNotesMeta(),
-      obterTodosLinks()
-    ]);
-
-    const backlinks = calcularBacklinks(note, todasNotas, todosLinks);
-    const countStr = String(backlinks.length);
-    if (backlinksSection) backlinksSection.hidden = false;
-    if (backlinksCountEl) backlinksCountEl.textContent = countStr;
-    if (desktopBacklinksCountEl) desktopBacklinksCountEl.textContent = countStr;
-
-    const populateBacklinks = (containerEl) => {
-      if (!containerEl) return;
-      containerEl.innerHTML = '';
-      if (backlinks.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'backlinks-empty';
-        empty.textContent = 'Nenhuma outra nota menciona esta.';
-        containerEl.appendChild(empty);
-        return;
-      }
-
-      for (const bl of backlinks) {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'backlink-item';
-        item.innerHTML = `
-          <span class="backlink-icon material-symbols-rounded qd-icon">description</span>
-          <span class="backlink-title">${escHtml(bl.title)}</span>
-          ${bl.pasta ? `<span class="backlink-folder">${escHtml(bl.pasta)}</span>` : ''}
-        `;
-        item.addEventListener('click', () => {
-          document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
-            detail: { id: bl.id }
-          }));
-        });
-        containerEl.appendChild(item);
-      }
-    };
-
-    populateBacklinks(backlinksListEl);
-    populateBacklinks(desktopBacklinksListEl);
-  } catch (err) {
-    console.warn('Erro ao carregar backlinks:', err);
-  }
-}
 
 // ── Posicionamento de menus ───────────────────────────────────────────────────
 // Abre pro lado com mais espaço e limita a altura ao que realmente cabe. Sem o
@@ -2728,7 +1872,7 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Feedback visual ───────────────────────────────────────────────────────────
-function showFeedback(msg) {
+export function showFeedback(msg) {
   indicator.textContent = msg;
   indicator.classList.add('visible');
   clearTimeout(indicatorTimer);
@@ -2890,270 +2034,6 @@ root.addEventListener('click', e => {
   scheduleSave();
 });
 
-// ── Âncora: pular pro título da própria nota ──────────────────────────────────
-// Os títulos da nota aberta e o apelido de cada um. É calculado na hora do
-// clique, e não guardado: renomear um título muda o apelido, e um mapa gravado
-// ficaria desatualizado sem ninguém perceber.
-function titulosDaNota() {
-  const titulos = [...root.children].filter(b => HEADING_TAGS[b.dataset.type]);
-  const apelidos = headingSlugs(titulos.map(b => getContentEl(b).textContent));
-  return titulos.map((el, i) => ({ el, slug: apelidos[i] }));
-}
-
-let isProgrammaticScroll = false;
-let programmaticScrollTimer = null;
-
-export function irParaTitulo(alvoBruto) {
-  const alvo = headingSlug(decodeURIComponent(alvoBruto));
-  const titulos = titulosDaNota();
-  const achadoIdx = titulos.findIndex(t => t.slug === alvo || t.slug === alvo.replace(/-\d+$/, ''));
-  const achado = achadoIdx >= 0 ? titulos[achadoIdx] : null;
-
-  if (!achado) { showFeedback('não achei esse título na nota'); return; }
-
-  // Marca imediatamente o item no sumário para resposta instantânea ao clique
-  const markList = (listEl) => {
-    if (!listEl) return;
-    const items = listEl.querySelectorAll('.outline-item');
-    items.forEach((item, idx) => {
-      item.classList.toggle('active', idx === achadoIdx);
-    });
-  };
-  markList(desktopOutlineListEl);
-  markList(mobileOutlineListEl);
-
-  // Trava temporariamente o scrollspy para a rolagem suave não sobrescrever com o título anterior
-  isProgrammaticScroll = true;
-  clearTimeout(programmaticScrollTimer);
-  programmaticScrollTimer = setTimeout(() => {
-    isProgrammaticScroll = false;
-    updateActiveOutlineHeading();
-  }, 600);
-
-  achado.el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  // Um pisca-pisca curto: sem ele, num título parecido com os vizinhos, não dá
-  // pra saber se a rolagem parou no lugar certo.
-  achado.el.classList.add('heading-alvo');
-  setTimeout(() => achado.el.classList.remove('heading-alvo'), 1200);
-}
-
-// ── Sumário da Nota (Outline) ─────────────────────────────────────────────────
-export function extrairSumarioDaNota() {
-  if (!root || !root.children) return [];
-  const titulos = [...root.children].filter(b => b && b.dataset && HEADING_TAGS[b.dataset.type]);
-  const apelidos = headingSlugs(titulos.map(b => (getContentEl(b)?.textContent || '')));
-  return titulos.map((el, i) => {
-    const rawType = el.dataset.type || 'heading1';
-    const nivel = parseInt(rawType.replace('heading', ''), 10) || 1;
-    const texto = (getContentEl(el)?.textContent || '').trim();
-    return {
-      el,
-      nivel,
-      texto: texto || `Título ${nivel}`,
-      slug: apelidos[i],
-    };
-  });
-}
-
-export function renderOutline() {
-  if (typeof document === 'undefined') return;
-  const headings = extrairSumarioDaNota();
-  const countStr = String(headings.length);
-
-  if (desktopOutlineCountEl) desktopOutlineCountEl.textContent = countStr;
-  if (mobileOutlineCountEl) mobileOutlineCountEl.textContent = countStr;
-  if (floatingOutlineBadge) {
-    floatingOutlineBadge.textContent = countStr;
-    floatingOutlineBadge.hidden = headings.length === 0;
-  }
-
-  const populateList = (listEl) => {
-    if (!listEl) return;
-    listEl.innerHTML = '';
-    if (headings.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'outline-empty';
-      empty.innerHTML = `
-        <span class="qd-icon material-symbols-rounded">notes</span>
-        <span>Nenhum título na nota</span>
-      `;
-      listEl.appendChild(empty);
-      return;
-    }
-
-    for (const h of headings) {
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = `outline-item outline-level-${h.nivel}`;
-      item.dataset.slug = h.slug;
-      item.style.paddingLeft = `${Math.max(8, (h.nivel - 1) * 12 + 8)}px`;
-      item.innerHTML = `
-        <span class="outline-badge">H${h.nivel}</span>
-        <span class="outline-text" title="${escHtml(h.texto)}">${escHtml(h.texto)}</span>
-      `;
-      item.addEventListener('click', () => {
-        irParaTitulo(h.slug);
-      });
-      listEl.appendChild(item);
-    }
-  };
-
-  populateList(desktopOutlineListEl);
-  populateList(mobileOutlineListEl);
-  updateActiveOutlineHeading();
-}
-
-let scrollSpyRaf = null;
-export function updateActiveOutlineHeading() {
-  if (typeof document === 'undefined' || !noteEditorEl || !root || !root.children) return;
-  if (isProgrammaticScroll) return;
-  const titulos = [...root.children].filter(b => b && b.dataset && HEADING_TAGS[b.dataset.type]);
-  if (titulos.length === 0) return;
-
-  let activeIndex = -1;
-
-  // Se o scroll estiver no final ou quase no final do editor, o último título deve ficar ativo
-  const distFromBottom = noteEditorEl.scrollHeight - noteEditorEl.scrollTop - noteEditorEl.clientHeight;
-  if (distFromBottom < 40) {
-    activeIndex = titulos.length - 1;
-  } else {
-    const editorRect = noteEditorEl.getBoundingClientRect ? noteEditorEl.getBoundingClientRect() : { top: 0 };
-    const targetTop = (editorRect.top || 0) + 120;
-
-    for (let i = 0; i < titulos.length; i++) {
-      const el = titulos[i];
-      if (el.getBoundingClientRect) {
-        const rect = el.getBoundingClientRect();
-        if (rect.top <= targetTop) {
-          activeIndex = i;
-        } else {
-          break;
-        }
-      }
-    }
-  }
-
-  if (activeIndex === -1 && titulos.length > 0) {
-    activeIndex = 0;
-  }
-
-  const markList = (listEl) => {
-    if (!listEl) return;
-    const items = listEl.querySelectorAll('.outline-item');
-    items.forEach((item, idx) => {
-      item.classList.toggle('active', idx === activeIndex);
-    });
-  };
-
-  markList(desktopOutlineListEl);
-  markList(mobileOutlineListEl);
-}
-
-if (noteEditorEl) {
-  noteEditorEl.addEventListener('scroll', () => {
-    if (scrollSpyRaf) return;
-    scrollSpyRaf = requestAnimationFrame(() => {
-      scrollSpyRaf = null;
-      updateActiveOutlineHeading();
-    });
-  }, { passive: true });
-}
-
-let outlineTimer = null;
-export function scheduleOutlineUpdate() {
-  clearTimeout(outlineTimer);
-  outlineTimer = setTimeout(() => {
-    renderOutline();
-  }, 150);
-}
-
-// ── Alternador de Abas da Sidebar Desktop ((sumário)(backlinks)) ───────────────
-let activeSidebarTab = typeof localStorage !== 'undefined' ? (localStorage.getItem('quickdock:note-sidebar-tab') || 'outline') : 'outline';
-
-export function setSidebarTab(tab) {
-  activeSidebarTab = tab === 'backlinks' ? 'backlinks' : 'outline';
-  try { localStorage.setItem('quickdock:note-sidebar-tab', activeSidebarTab); } catch {}
-
-  const isOutline = activeSidebarTab === 'outline';
-  if (tabSidebarOutline) {
-    tabSidebarOutline.classList.toggle('active', isOutline);
-    tabSidebarOutline.setAttribute('aria-selected', isOutline ? 'true' : 'false');
-  }
-  if (tabSidebarBacklinks) {
-    tabSidebarBacklinks.classList.toggle('active', !isOutline);
-    tabSidebarBacklinks.setAttribute('aria-selected', !isOutline ? 'true' : 'false');
-  }
-  if (desktopOutlineListEl) desktopOutlineListEl.hidden = !isOutline;
-  if (desktopBacklinksListEl) desktopBacklinksListEl.hidden = isOutline;
-  if (isOutline) {
-    renderOutline();
-  } else {
-    refreshBacklinks(currentNoteId);
-  }
-}
-
-if (tabSidebarOutline) {
-  tabSidebarOutline.addEventListener('click', () => setSidebarTab('outline'));
-}
-if (tabSidebarBacklinks) {
-  tabSidebarBacklinks.addEventListener('click', () => setSidebarTab('backlinks'));
-}
-
-// ── Alternador do Rodapé (Backlinks vs Sumário) ───────────────────────────────
-let activeBottomTab = typeof localStorage !== 'undefined' ? (localStorage.getItem('quickdock:note-bottom-tab') || 'backlinks') : 'backlinks';
-
-export function setBottomTab(tab) {
-  activeBottomTab = tab === 'outline' ? 'outline' : 'backlinks';
-  try { localStorage.setItem('quickdock:note-bottom-tab', activeBottomTab); } catch {}
-
-  const isBacklinks = activeBottomTab === 'backlinks';
-  if (tabBtnBacklinks) {
-    tabBtnBacklinks.classList.toggle('active', isBacklinks);
-    tabBtnBacklinks.setAttribute('aria-selected', isBacklinks ? 'true' : 'false');
-  }
-  if (tabBtnOutline) {
-    tabBtnOutline.classList.toggle('active', !isBacklinks);
-    tabBtnOutline.setAttribute('aria-selected', !isBacklinks ? 'true' : 'false');
-  }
-  if (backlinksListEl) backlinksListEl.hidden = !isBacklinks;
-  if (mobileOutlineListEl) mobileOutlineListEl.hidden = isBacklinks;
-  if (!isBacklinks) renderOutline();
-}
-
-if (tabBtnBacklinks) {
-  tabBtnBacklinks.addEventListener('click', () => setBottomTab('backlinks'));
-}
-if (tabBtnOutline) {
-  tabBtnOutline.addEventListener('click', () => setBottomTab('outline'));
-}
-
-// ── Barra Lateral do Sumário (Desktop) ────────────────────────────────────────
-let outlineSidebarOpen = typeof localStorage !== 'undefined' ? localStorage.getItem('quickdock:outline-sidebar:open') !== 'false' : true;
-
-export function setOutlineSidebarOpen(open) {
-  outlineSidebarOpen = Boolean(open);
-  try { localStorage.setItem('quickdock:outline-sidebar:open', String(outlineSidebarOpen)); } catch {}
-  if (outlineSidebarEl) {
-    outlineSidebarEl.classList.toggle('is-collapsed', !outlineSidebarOpen);
-  }
-  if (toggleOutlineHeaderBtn) {
-    toggleOutlineHeaderBtn.classList.toggle('active', outlineSidebarOpen);
-  }
-}
-
-if (toggleOutlineSidebarBtn) {
-  toggleOutlineSidebarBtn.addEventListener('click', () => setOutlineSidebarOpen(false));
-}
-if (toggleOutlineHeaderBtn) {
-  toggleOutlineHeaderBtn.addEventListener('click', () => setOutlineSidebarOpen(!outlineSidebarOpen));
-}
-if (floatingOutlineToggleBtn) {
-  floatingOutlineToggleBtn.addEventListener('click', () => setOutlineSidebarOpen(true));
-}
-
-setOutlineSidebarOpen(outlineSidebarOpen);
-setSidebarTab(activeSidebarTab);
-setBottomTab(activeBottomTab);
 
 // ── Cálculo: clique no resultado copia ────────────────────────────────────────
 // O mousedown é cancelado em captura pra que o cursor não saia de onde estava:
@@ -4293,6 +3173,7 @@ function checkDividerShortcut(block) {
   // divisor comum, igual ao Obsidian. Só dispara com a nota ainda sem
   // nenhuma propriedade: se já tem alguma, a pessoa já sabe onde elas estão
   // e "---" ali continua sendo divisor mesmo.
+  const headerNoteRef = getHeaderNoteRef();
   if (text === '---' && block === root.firstElementChild
     && headerNoteRef && !Object.keys(headerNoteRef.properties || {}).length) {
     clearContent(content);
@@ -5634,66 +4515,6 @@ async function pasteMultilineText(text) {
   scheduleSave();
 }
 
-// ── Transformações de texto (maiúsculo, minúsculo, etc.) ─────────────────────
-const EMAIL_RE_GLOBAL = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
-
-function applySkipEmails(s, fn) {
-  const segments = [];
-  let pos = 0;
-  EMAIL_RE_GLOBAL.lastIndex = 0;
-  let m;
-  while ((m = EMAIL_RE_GLOBAL.exec(s)) !== null) {
-    if (m.index > pos) segments.push({ text: s.slice(pos, m.index), isEmail: false });
-    segments.push({ text: m[0], isEmail: true });
-    pos = m.index + m[0].length;
-  }
-  if (pos < s.length) segments.push({ text: s.slice(pos), isEmail: false });
-  return segments.map(seg => seg.isEmail ? seg.text : fn(seg.text)).join('');
-}
-
-function ttTitleCase(s)    { return s.replace(/(?<!\p{L})\p{L}/gu, c => c.toUpperCase()); }
-function ttSentenceCase(s) { return s.toLowerCase().replace(/(^|[.!?…]\s+)(\p{L})/gu, (_, p, c) => p + c.toUpperCase()); }
-function ttParaCase(s)     { return s.replace(/(^|\n)([ \t]*)(\p{L})/gu, (_, nl, sp, c) => nl + sp + c.toUpperCase()); }
-function ttInvertCase(s)   { return [...s].map(c => c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()).join(''); }
-function ttNoAccents(s)    { return s.normalize('NFD').replace(/\p{Mn}/gu, ''); }
-function ttCleanSpaces(s)  { return s.replace(/[^\S\n]+/g, ' '); }
-
-function applyTransformToSelection(fn) {
-  const sel = document.getSelection();
-  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
-  const range = sel.getRangeAt(0);
-  if (!root.contains(range.commonAncestorContainer)) return;
-
-  captureUndoPoint();
-  const block = getBlockFromNode(range.commonAncestorContainer);
-  const transformed = applySkipEmails(range.toString(), fn);
-
-  range.deleteContents();
-  const textNode = document.createTextNode(transformed);
-  range.insertNode(textNode);
-
-  const newRange = document.createRange();
-  newRange.selectNode(textNode);
-  sel.removeAllRanges();
-  sel.addRange(newRange);
-
-  if (block) scheduleRescan(block);
-  scheduleSave();
-}
-
-const TRANSFORMS = [
-  { label: 'AA', title: 'MAIÚSCULO',                      fn: s => s.toUpperCase() },
-  { label: 'aa', title: 'minúsculo',                      fn: s => s.toLowerCase() },
-  { label: 'Aa', title: 'Primeira letra de cada palavra', fn: ttTitleCase          },
-  null,
-  { label: 'A.', title: 'Após pontuação',                 fn: ttSentenceCase       },
-  { label: '¶A', title: 'Primeira letra do parágrafo',    fn: ttParaCase           },
-  null,
-  { label: 'aA', title: 'Inverter maiúsculas/minúsculas', fn: ttInvertCase         },
-  { label: 'Á',  title: 'Remover acentos',                fn: ttNoAccents          },
-  { label: '⎵',  title: 'Limpar espaços duplicados',      fn: ttCleanSpaces        },
-];
-
 // ── Formatação Markdown / troca de tipo de bloco ─────────────────────────────
 function execFormat(command) {
   captureUndoPoint();
@@ -6025,7 +4846,7 @@ function targetBlocksFor(block) {
   return [block];
 }
 
-function getSelectedBlockElements() {
+export function getSelectedBlockElements() {
   if (selectedBlockIds.size > 0) {
     return orderedBlocks().filter(b => selectedBlockIds.has(b.dataset.id));
   }
@@ -6033,29 +4854,11 @@ function getSelectedBlockElements() {
   return curr ? [curr] : [];
 }
 
-function downloadTextFile(filename, text, type = 'text/plain;charset=utf-8') {
-  const blob = new Blob([text], { type });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function getSuggestedBlockFilename(blocks, defaultName = 'nota') {
-  const alvos = blocks && blocks.length > 0 ? blocks : getSelectedBlockElements();
-  const text = alvos
-    .filter(b => !NO_TEXT_TYPES.has(b.dataset.type))
-    .map(b => getContentEl(b)?.textContent?.trim())
-    .find(Boolean) ?? defaultName;
-  return text.slice(0, 30).replace(/[\\/:*?"<>|]+/g, '-').trim() || defaultName;
-}
-
 // ── Barra Contextual Estilo Notion (Dual-State & No-Scrim Sheets) ────────────
 let lastFocusedBlock = null;
+// Getter exposto pra note-viewport.js (cluster ainda não migrou; lastFocusedBlock
+// continua vivendo aqui até a toolbar mobile ser extraída também).
+export function getLastFocusedBlock() { return lastFocusedBlock; }
 
 const mobileNotionToolbar = document.createElement('div');
 mobileNotionToolbar.className = 'mobile-notion-toolbar';
@@ -7052,52 +5855,6 @@ document.body.appendChild(mobileTypeSheet);
 document.body.appendChild(mobileTemplateSheet);
 updateMobileToolbarState();
 
-// ── Sincronização do Teclado Virtual (Notion Mobile Toolbar & VisualViewport) ──
-function syncVisualViewport() {
-  if (typeof window === 'undefined' || !window.visualViewport) return;
-  const isMobile = typeof document !== 'undefined' && document.documentElement.dataset.platform === 'mobile';
-  const app = document.getElementById('app');
-  const vv = window.visualViewport;
-
-  if (!isMobile) {
-    if (app) {
-      app.style.height = '';
-      app.style.transform = '';
-    }
-    document.documentElement.style.removeProperty('--vv-height');
-    document.documentElement.style.removeProperty('--keyboard-offset');
-    return;
-  }
-
-  const vvHeight = vv.height;
-  const keyboardOffset = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
-
-  document.documentElement.style.setProperty('--vv-height', `${vvHeight}px`);
-  document.documentElement.style.setProperty('--keyboard-offset', `${keyboardOffset}px`);
-
-  if (app) {
-    app.style.height = `${vvHeight}px`;
-    app.style.transform = vv.offsetTop ? `translateY(${vv.offsetTop}px)` : '';
-  }
-
-  // Quando o teclado sobe, garante que o bloco em edição continue visível acima da barra
-  if (document.activeElement && root && root.contains(document.activeElement)) {
-    const blk = currentBlock() || lastFocusedBlock;
-    if (blk) {
-      requestAnimationFrame(() => {
-        blk.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      });
-    }
-  }
-}
-
-if (typeof window !== 'undefined' && window.visualViewport) {
-  window.visualViewport.addEventListener('resize', syncVisualViewport);
-  window.visualViewport.addEventListener('scroll', syncVisualViewport);
-  window.addEventListener('resize', syncVisualViewport);
-  window.addEventListener('orientationchange', syncVisualViewport);
-}
-
 // Ao tocar no editor no mobile, se documentos estiver aberto, recolhe-o suavemente
 root.addEventListener('pointerdown', () => {
   const isMobile = typeof document !== 'undefined' && document.documentElement.dataset.platform === 'mobile';
@@ -7943,24 +6700,4 @@ root.addEventListener('touchstart', e => {
   }
 }, { passive: true });
 
-// ── Teclado virtual: rolar para manter o cursor visível ao digitar ───────────
-function scrollCursorIntoView() {
-  const rect = caretViewportRect(window.getSelection());
-  if (!rect || (rect.top === 0 && rect.bottom === 0)) return;
-
-  const vpBottom = window.visualViewport
-    ? window.visualViewport.offsetTop + window.visualViewport.height
-    : window.innerHeight;
-
-  const margin = 50;
-  if (rect.bottom > vpBottom - margin) {
-    const diff = rect.bottom - (vpBottom - margin);
-    noteEditorEl.scrollTop += diff;
-  }
-}
-
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', scrollCursorIntoView);
-}
-root.addEventListener('input', scrollCursorIntoView);
 

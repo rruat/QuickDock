@@ -2876,10 +2876,12 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   // 16.6: Modo de seleção por toque e controles em note.js
   const noteSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const noteStateSource = await readFile(new URL('../sidepanel/modules/note-state.js', import.meta.url), 'utf8');
+  const noteViewportSource = await readFile(new URL('../sidepanel/modules/note-viewport.js', import.meta.url), 'utf8');
   ok('touch · note.js exporta isTouchSelectionMode', noteSource.includes('export function isTouchSelectionMode'));
-  ok('touch · note.js escuta btn-touch-select', noteSource.includes('btn-touch-select'));
+  ok('touch · note-state.js escuta btn-touch-select', noteStateSource.includes('btn-touch-select'));
   ok('touch · note.js suporta toque longo na alça de bloco', noteSource.includes('touchDragTimer') && noteSource.includes('touchstart'));
-  ok('touch · note.js tem scrollCursorIntoView para teclado virtual', noteSource.includes('scrollCursorIntoView') && noteSource.includes('visualViewport'));
+  ok('touch · note-viewport.js tem scrollCursorIntoView para teclado virtual', noteViewportSource.includes('scrollCursorIntoView') && noteViewportSource.includes('visualViewport'));
 
   // 16.7: Barra Contextual Estilo Notion, Seleção de Blocos e Sheet de Modelos
   const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
@@ -3235,6 +3237,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const tabsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const backlinksSource = await readFile(new URL('../sidepanel/modules/note-backlinks.js', import.meta.url), 'utf8');
 
   ok('storage · declara versão 10 com tabela links', storageSource.includes('db.version(10)') && storageSource.includes('links: "++id, uidOrigem, uidDestino, tituloAlvo"'));
   ok('storage · exporta salvarLinksDaNota e obterBacklinks', storageSource.includes('salvarLinksDaNota') && storageSource.includes('obterBacklinks'));
@@ -3242,7 +3245,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   ok('note.js · possui menu de autocomplete de links [[', noteSource.includes('checkLinkAutocomplete') && noteSource.includes('link-autocomplete-menu'));
   ok('note.js · possui navegação ao clicar em link interno', noteSource.includes('note-internal-link') && noteSource.includes('quickdock:activate-note'));
-  ok('note.js · renderiza e atualiza seção de backlinks', noteSource.includes('refreshBacklinks') && noteSource.includes('note-backlinks-section'));
+  ok('note-backlinks.js · renderiza e atualiza seção de backlinks', backlinksSource.includes('refreshBacklinks') && backlinksSource.includes('note-backlinks-section'));
 
   ok('notes-tabs.js · responde ao evento quickdock:activate-note', tabsSource.includes('quickdock:activate-note'));
   ok('index.html · contém contêiner de backlinks no rodapé do editor', htmlSource.includes('id="note-backlinks-section"'));
@@ -3496,10 +3499,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     syncEngineSource.includes('properties: nota.properties || {}') &&
     syncEngineSource.includes('_extrairPropriedadesDeMeta')
   );
-  ok('propriedades · note.js possui renderPropertiesBar e integração com switchToNote',
+  const notePropertiesSource = await readFile(new URL('../sidepanel/modules/note-properties.js', import.meta.url), 'utf8');
+  ok('propriedades · note.js integra renderPropertiesBar (de note-properties.js) em switchToNote',
     noteSource.includes('renderPropertiesBar(note)') &&
-    noteSource.includes('export function renderPropertiesBar') &&
-    noteSource.includes('quickdock:note-properties-updated')
+    notePropertiesSource.includes('export function renderPropertiesBar') &&
+    notePropertiesSource.includes('quickdock:note-properties-updated')
   );
   ok('propriedades · index.html define estrutura do bloco de propriedades',
     sidepanelHtmlSource.includes('id="note-properties-bar"') &&
@@ -3620,25 +3624,27 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const relidoListaVazia = parseNoteFile(arquivoListaVazia);
   igual('notefile · lista vazia volta como array vazio', relidoListaVazia.meta.categoria, []);
 
-  // 24.4: note.js — cabeçalho tipado (ícone/título/cor) e propriedades tipadas
+  // 24.4: note-header.js / note-properties.js — cabeçalho tipado (ícone/título/cor) e propriedades tipadas
   const noteSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
-  ok('cabeçalho · note.js define renderNoteHeader e integra em switchToNote',
-    noteSource.includes('export function renderNoteHeader') &&
+  const noteHeaderSource = await readFile(new URL('../sidepanel/modules/note-header.js', import.meta.url), 'utf8');
+  const notePropertiesSource2 = await readFile(new URL('../sidepanel/modules/note-properties.js', import.meta.url), 'utf8');
+  ok('cabeçalho · note-header.js define renderNoteHeader e note.js integra em switchToNote',
+    noteHeaderSource.includes('export function renderNoteHeader') &&
     noteSource.includes('renderNoteHeader(note)'));
-  ok('cabeçalho · note.js persiste título com debounce e evento de preview na aba',
-    noteSource.includes('commitHeaderTitle') &&
-    noteSource.includes('quickdock:note-title-preview'));
-  ok('cabeçalho · note.js abre popover de aparência (ícone/cor) reaproveitado das abas',
-    noteSource.includes('openAppearancePopover') &&
-    noteSource.includes('quickdock:note-appearance-updated'));
-  ok('propriedades · note.js usa inferirTipoPropriedade/migrarPropriedadeParaTipo em renderPropertiesBar',
-    noteSource.includes('inferirTipoPropriedade') &&
-    noteSource.includes('migrarPropriedadeParaTipo') &&
-    noteSource.includes('abrirMenuDeTipo'));
-  ok('propriedades · note.js sabe renderizar checkbox, lista (chips) e select tipados',
-    noteSource.includes('renderPropertyList') &&
-    noteSource.includes('renderPropertySelect') &&
-    noteSource.includes('property-checkbox-wrap'));
+  ok('cabeçalho · note-header.js persiste título com debounce e evento de preview na aba',
+    noteHeaderSource.includes('commitHeaderTitle') &&
+    noteHeaderSource.includes('quickdock:note-title-preview'));
+  ok('cabeçalho · note-header.js abre popover de aparência (ícone/cor) reaproveitado das abas',
+    noteHeaderSource.includes('openAppearancePopover') &&
+    noteHeaderSource.includes('quickdock:note-appearance-updated'));
+  ok('propriedades · note-properties.js usa inferirTipoPropriedade/migrarPropriedadeParaTipo em renderPropertiesBar',
+    notePropertiesSource2.includes('inferirTipoPropriedade') &&
+    notePropertiesSource2.includes('migrarPropriedadeParaTipo') &&
+    notePropertiesSource2.includes('abrirMenuDeTipo'));
+  ok('propriedades · note-properties.js sabe renderizar checkbox, lista (chips) e select tipados',
+    notePropertiesSource2.includes('renderPropertyList') &&
+    notePropertiesSource2.includes('renderPropertySelect') &&
+    notePropertiesSource2.includes('property-checkbox-wrap'));
 
   // 24.5: index.html — estrutura do cabeçalho da nota
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
@@ -4466,17 +4472,18 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   // aba ou renomear por duplo clique na aside) refletem em todo o resto sem
   // precisar fechar e reabrir a nota; e renomear com 2 cliques direto na aside
   const noteJsSourceMod = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const noteHeaderSourceMod = await readFile(new URL('../sidepanel/modules/note-header.js', import.meta.url), 'utf8');
 
   ok('aside · refreshOpenAsideRows() é chamado depois de mudar ícone, cor ou título pelo menu "⋯"',
     tabsJsSourceMod.includes('async function refreshOpenAsideRows()') &&
     (tabsJsSourceMod.match(/refreshOpenAsideRows\(\)/g) || []).length >= 4);
 
-  ok('cabeçalho · note.js rebusca a nota (getNoteById) antes de re-renderizar ao mudar ícone/cor/título por fora',
-    noteJsSourceMod.includes("document.addEventListener('quickdock:note-appearance-updated'") &&
-    noteJsSourceMod.includes('headerNoteRef = fresh'));
+  ok('cabeçalho · note-header.js rebusca a nota (getNoteById) antes de re-renderizar ao mudar ícone/cor/título por fora',
+    noteHeaderSourceMod.includes("document.addEventListener('quickdock:note-appearance-updated'") &&
+    noteHeaderSourceMod.includes('headerNoteRef = fresh'));
 
   ok('aside · título editado no cabeçalho avisa quickdock:note-title-committed e a aside escuta pra sincronizar o notesMeta',
-    noteJsSourceMod.includes("new CustomEvent('quickdock:note-title-committed'") &&
+    noteHeaderSourceMod.includes("new CustomEvent('quickdock:note-title-committed'") &&
     tabsJsSourceMod.includes("addEventListener('quickdock:note-title-committed'"));
 
   ok('aside · renomear com duplo clique direto na linha, sem abrir o menu "⋯"',
@@ -4662,6 +4669,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { readFile } = await import('node:fs/promises');
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const noteOutlineSource = await readFile(new URL('../sidepanel/modules/note-outline.js', import.meta.url), 'utf8');
   const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
   const indexHtmlSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
@@ -4689,17 +4697,17 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     indexHtmlSource.includes('id="note-mobile-outline-list"') &&
     sidepanelHtmlSource.includes('id="note-mobile-outline-list"'));
 
-  ok('note.js · exporta funções do sumário (extrairSumarioDaNota, renderOutline, irParaTitulo, updateActiveOutlineHeading)',
-    noteJsSource.includes('export function extrairSumarioDaNota') &&
-    noteJsSource.includes('export function renderOutline') &&
-    noteJsSource.includes('export function irParaTitulo') &&
-    noteJsSource.includes('export function updateActiveOutlineHeading'));
+  ok('note-outline.js · exporta funções do sumário (extrairSumarioDaNota, renderOutline, irParaTitulo, updateActiveOutlineHeading)',
+    noteOutlineSource.includes('export function extrairSumarioDaNota') &&
+    noteOutlineSource.includes('export function renderOutline') &&
+    noteOutlineSource.includes('export function irParaTitulo') &&
+    noteOutlineSource.includes('export function updateActiveOutlineHeading'));
 
-  ok('note.js · exporta funções de alternância de abas e controle de sidebar (setBottomTab, setSidebarTab, setOutlineSidebarOpen)',
-    noteJsSource.includes('export function setBottomTab') &&
-    noteJsSource.includes('export function setSidebarTab') &&
-    noteJsSource.includes('export function setOutlineSidebarOpen') &&
-    noteJsSource.includes('btn-outline-floating-toggle'));
+  ok('note-outline.js · exporta funções de alternância de abas e controle de sidebar (setBottomTab, setSidebarTab, setOutlineSidebarOpen)',
+    noteOutlineSource.includes('export function setBottomTab') &&
+    noteOutlineSource.includes('export function setSidebarTab') &&
+    noteOutlineSource.includes('export function setOutlineSidebarOpen') &&
+    noteOutlineSource.includes('btn-outline-floating-toggle'));
 
   ok('html · sidebar lateral possui abas ((sumário)(backlinks)) e contêiner desktop de backlinks',
     indexHtmlSource.includes('id="tab-sidebar-outline"') &&
