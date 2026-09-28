@@ -4189,6 +4189,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const { readFile } = await import('node:fs/promises');
   const tabsJsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
   const notesAppearanceSource = await readFile(new URL('../sidepanel/modules/notes-appearance.js', import.meta.url), 'utf8');
+  const notesDashboardSource = await readFile(new URL('../sidepanel/modules/notes-dashboard.js', import.meta.url), 'utf8');
   const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
 
   // 30.1: Gestão de Abas Abertas e Botão de Fechar
@@ -4259,10 +4260,10 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     tabsJsSource.includes('switchToNote(null)'));
 
   ok('zero-abas · renderEmptyDashboardContent cria Hero, Ações Rápidas, Recentes e Dicas',
-    tabsJsSource.includes('empty-dashboard-hero') &&
-    tabsJsSource.includes('empty-dashboard-actions-grid') &&
-    tabsJsSource.includes('empty-dashboard-recents-list') &&
-    tabsJsSource.includes('empty-dashboard-tips-grid'));
+    notesDashboardSource.includes('empty-dashboard-hero') &&
+    notesDashboardSource.includes('empty-dashboard-actions-grid') &&
+    notesDashboardSource.includes('empty-dashboard-recents-list') &&
+    notesDashboardSource.includes('empty-dashboard-tips-grid'));
 
   ok('zero-abas · CSS para .notes-empty-dashboard e itens recentes',
     styleCssSource.includes('.notes-empty-dashboard {') &&
