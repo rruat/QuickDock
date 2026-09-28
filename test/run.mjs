@@ -4695,10 +4695,19 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     noteJsSource.includes('export function irParaTitulo') &&
     noteJsSource.includes('export function updateActiveOutlineHeading'));
 
-  ok('note.js · exporta funções de alternância de abas e controle de sidebar (setBottomTab, setOutlineSidebarOpen)',
+  ok('note.js · exporta funções de alternância de abas e controle de sidebar (setBottomTab, setSidebarTab, setOutlineSidebarOpen)',
     noteJsSource.includes('export function setBottomTab') &&
+    noteJsSource.includes('export function setSidebarTab') &&
     noteJsSource.includes('export function setOutlineSidebarOpen') &&
     noteJsSource.includes('btn-outline-floating-toggle'));
+
+  ok('html · sidebar lateral possui abas ((sumário)(backlinks)) e contêiner desktop de backlinks',
+    indexHtmlSource.includes('id="tab-sidebar-outline"') &&
+    indexHtmlSource.includes('id="tab-sidebar-backlinks"') &&
+    indexHtmlSource.includes('id="note-desktop-backlinks-list"') &&
+    sidepanelHtmlSource.includes('id="tab-sidebar-outline"') &&
+    sidepanelHtmlSource.includes('id="tab-sidebar-backlinks"') &&
+    sidepanelHtmlSource.includes('id="note-desktop-backlinks-list"'));
 
   ok('html · botão de recolher do sumário utiliza chevron_left estilo Google Docs',
     indexHtmlSource.includes('chevron_left') &&

@@ -30,12 +30,16 @@ const root         = document.getElementById('note-editor-blocks');
 const indicator    = document.getElementById('save-indicator');
 const btnTouchSelect = document.getElementById('btn-touch-select');
 
-// Sumário (Outline) e Abas Inferiores
+// Sumário (Outline), Backlinks e Abas
 const outlineSidebarEl = document.getElementById('note-outline-sidebar');
 const toggleOutlineSidebarBtn = document.getElementById('btn-toggle-outline-sidebar');
 const toggleOutlineHeaderBtn = document.getElementById('btn-note-outline-toggle-desktop');
 const desktopOutlineListEl = document.getElementById('note-desktop-outline-list');
 const desktopOutlineCountEl = document.getElementById('note-outline-desktop-count');
+const desktopBacklinksListEl = document.getElementById('note-desktop-backlinks-list');
+const desktopBacklinksCountEl = document.getElementById('note-desktop-backlinks-count');
+const tabSidebarOutline = document.getElementById('tab-sidebar-outline');
+const tabSidebarBacklinks = document.getElementById('tab-sidebar-backlinks');
 const mobileOutlineListEl = document.getElementById('note-mobile-outline-list');
 const mobileOutlineCountEl = document.getElementById('note-outline-count');
 const floatingOutlineToggleBtn = document.getElementById('btn-outline-floating-toggle');
@@ -2582,11 +2586,12 @@ export async function atualizarLinksInternos() {
 }
 
 export async function refreshBacklinks(noteId = currentNoteId) {
-  if (!backlinksSection || !backlinksListEl || noteId == null) return;
+  if (noteId == null) return;
   try {
     const note = await getNoteById(noteId);
     if (!note) {
-      backlinksSection.hidden = true;
+      if (backlinksSection) backlinksSection.hidden = true;
+      if (desktopBacklinksListEl) desktopBacklinksListEl.innerHTML = '';
       return;
     }
 
@@ -2596,34 +2601,42 @@ export async function refreshBacklinks(noteId = currentNoteId) {
     ]);
 
     const backlinks = calcularBacklinks(note, todasNotas, todosLinks);
-    backlinksSection.hidden = false;
-    if (backlinksCountEl) backlinksCountEl.textContent = String(backlinks.length);
+    const countStr = String(backlinks.length);
+    if (backlinksSection) backlinksSection.hidden = false;
+    if (backlinksCountEl) backlinksCountEl.textContent = countStr;
+    if (desktopBacklinksCountEl) desktopBacklinksCountEl.textContent = countStr;
 
-    backlinksListEl.innerHTML = '';
-    if (backlinks.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'backlinks-empty';
-      empty.textContent = 'Nenhuma outra nota menciona esta.';
-      backlinksListEl.appendChild(empty);
-      return;
-    }
+    const populateBacklinks = (containerEl) => {
+      if (!containerEl) return;
+      containerEl.innerHTML = '';
+      if (backlinks.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'backlinks-empty';
+        empty.textContent = 'Nenhuma outra nota menciona esta.';
+        containerEl.appendChild(empty);
+        return;
+      }
 
-    for (const bl of backlinks) {
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'backlink-item';
-      item.innerHTML = `
-        <span class="backlink-icon material-symbols-rounded qd-icon">description</span>
-        <span class="backlink-title">${escHtml(bl.title)}</span>
-        ${bl.pasta ? `<span class="backlink-folder">${escHtml(bl.pasta)}</span>` : ''}
-      `;
-      item.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
-          detail: { id: bl.id }
-        }));
-      });
-      backlinksListEl.appendChild(item);
-    }
+      for (const bl of backlinks) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'backlink-item';
+        item.innerHTML = `
+          <span class="backlink-icon material-symbols-rounded qd-icon">description</span>
+          <span class="backlink-title">${escHtml(bl.title)}</span>
+          ${bl.pasta ? `<span class="backlink-folder">${escHtml(bl.pasta)}</span>` : ''}
+        `;
+        item.addEventListener('click', () => {
+          document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
+            detail: { id: bl.id }
+          }));
+        });
+        containerEl.appendChild(item);
+      }
+    };
+
+    populateBacklinks(backlinksListEl);
+    populateBacklinks(desktopBacklinksListEl);
   } catch (err) {
     console.warn('Erro ao carregar backlinks:', err);
   }
@@ -2887,16 +2900,37 @@ function titulosDaNota() {
   return titulos.map((el, i) => ({ el, slug: apelidos[i] }));
 }
 
+let isProgrammaticScroll = false;
+let programmaticScrollTimer = null;
+
 export function irParaTitulo(alvoBruto) {
   const alvo = headingSlug(decodeURIComponent(alvoBruto));
-  const achado = titulosDaNota().find(t => t.slug === alvo)
-    // Sem correspondência exata: tenta sem o sufixo de repetição, pra que um
-    // "#secao-1" ainda caia na seção certa quando o título deixou de repetir.
-    ?? titulosDaNota().find(t => t.slug === alvo.replace(/-\d+$/, ''));
+  const titulos = titulosDaNota();
+  const achadoIdx = titulos.findIndex(t => t.slug === alvo || t.slug === alvo.replace(/-\d+$/, ''));
+  const achado = achadoIdx >= 0 ? titulos[achadoIdx] : null;
 
   if (!achado) { showFeedback('não achei esse título na nota'); return; }
 
-  achado.el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  // Marca imediatamente o item no sumário para resposta instantânea ao clique
+  const markList = (listEl) => {
+    if (!listEl) return;
+    const items = listEl.querySelectorAll('.outline-item');
+    items.forEach((item, idx) => {
+      item.classList.toggle('active', idx === achadoIdx);
+    });
+  };
+  markList(desktopOutlineListEl);
+  markList(mobileOutlineListEl);
+
+  // Trava temporariamente o scrollspy para a rolagem suave não sobrescrever com o título anterior
+  isProgrammaticScroll = true;
+  clearTimeout(programmaticScrollTimer);
+  programmaticScrollTimer = setTimeout(() => {
+    isProgrammaticScroll = false;
+    updateActiveOutlineHeading();
+  }, 600);
+
+  achado.el.scrollIntoView({ block: 'start', behavior: 'smooth' });
   // Um pisca-pisca curto: sem ele, num título parecido com os vizinhos, não dá
   // pra saber se a rolagem parou no lugar certo.
   achado.el.classList.add('heading-alvo');
@@ -2972,21 +3006,29 @@ export function renderOutline() {
 let scrollSpyRaf = null;
 export function updateActiveOutlineHeading() {
   if (typeof document === 'undefined' || !noteEditorEl || !root || !root.children) return;
+  if (isProgrammaticScroll) return;
   const titulos = [...root.children].filter(b => b && b.dataset && HEADING_TAGS[b.dataset.type]);
   if (titulos.length === 0) return;
 
-  const editorRect = noteEditorEl.getBoundingClientRect ? noteEditorEl.getBoundingClientRect() : { top: 0 };
-  const targetTop = (editorRect.top || 0) + 90;
   let activeIndex = -1;
 
-  for (let i = 0; i < titulos.length; i++) {
-    const el = titulos[i];
-    if (el.getBoundingClientRect) {
-      const rect = el.getBoundingClientRect();
-      if (rect.top <= targetTop) {
-        activeIndex = i;
-      } else {
-        break;
+  // Se o scroll estiver no final ou quase no final do editor, o último título deve ficar ativo
+  const distFromBottom = noteEditorEl.scrollHeight - noteEditorEl.scrollTop - noteEditorEl.clientHeight;
+  if (distFromBottom < 40) {
+    activeIndex = titulos.length - 1;
+  } else {
+    const editorRect = noteEditorEl.getBoundingClientRect ? noteEditorEl.getBoundingClientRect() : { top: 0 };
+    const targetTop = (editorRect.top || 0) + 120;
+
+    for (let i = 0; i < titulos.length; i++) {
+      const el = titulos[i];
+      if (el.getBoundingClientRect) {
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= targetTop) {
+          activeIndex = i;
+        } else {
+          break;
+        }
       }
     }
   }
@@ -3023,6 +3065,38 @@ export function scheduleOutlineUpdate() {
   outlineTimer = setTimeout(() => {
     renderOutline();
   }, 150);
+}
+
+// ── Alternador de Abas da Sidebar Desktop ((sumário)(backlinks)) ───────────────
+let activeSidebarTab = typeof localStorage !== 'undefined' ? (localStorage.getItem('quickdock:note-sidebar-tab') || 'outline') : 'outline';
+
+export function setSidebarTab(tab) {
+  activeSidebarTab = tab === 'backlinks' ? 'backlinks' : 'outline';
+  try { localStorage.setItem('quickdock:note-sidebar-tab', activeSidebarTab); } catch {}
+
+  const isOutline = activeSidebarTab === 'outline';
+  if (tabSidebarOutline) {
+    tabSidebarOutline.classList.toggle('active', isOutline);
+    tabSidebarOutline.setAttribute('aria-selected', isOutline ? 'true' : 'false');
+  }
+  if (tabSidebarBacklinks) {
+    tabSidebarBacklinks.classList.toggle('active', !isOutline);
+    tabSidebarBacklinks.setAttribute('aria-selected', !isOutline ? 'true' : 'false');
+  }
+  if (desktopOutlineListEl) desktopOutlineListEl.hidden = !isOutline;
+  if (desktopBacklinksListEl) desktopBacklinksListEl.hidden = isOutline;
+  if (isOutline) {
+    renderOutline();
+  } else {
+    refreshBacklinks(currentNoteId);
+  }
+}
+
+if (tabSidebarOutline) {
+  tabSidebarOutline.addEventListener('click', () => setSidebarTab('outline'));
+}
+if (tabSidebarBacklinks) {
+  tabSidebarBacklinks.addEventListener('click', () => setSidebarTab('backlinks'));
 }
 
 // ── Alternador do Rodapé (Backlinks vs Sumário) ───────────────────────────────
@@ -3078,6 +3152,7 @@ if (floatingOutlineToggleBtn) {
 }
 
 setOutlineSidebarOpen(outlineSidebarOpen);
+setSidebarTab(activeSidebarTab);
 setBottomTab(activeBottomTab);
 
 // ── Cálculo: clique no resultado copia ────────────────────────────────────────

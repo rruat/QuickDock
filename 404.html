@@ -274,18 +274,26 @@
         </svg>
       </div>
       <div class="note-workspace-body">
-        <aside id="note-outline-sidebar" class="note-outline-sidebar" aria-label="Sumário da nota">
+        <aside id="note-outline-sidebar" class="note-outline-sidebar" aria-label="Sumário e referências da nota">
           <div class="note-outline-header">
-            <div class="note-outline-title-wrap">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
-              <span class="note-outline-title">Sumário</span>
-              <span id="note-outline-desktop-count" class="outline-count-badge">0</span>
+            <div class="note-sidebar-tabs" role="tablist">
+              <button id="tab-sidebar-outline" class="note-sidebar-tab active" type="button" role="tab" aria-selected="true" aria-controls="note-desktop-outline-list" title="Sumário da nota">
+                <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>
+                <span class="note-sidebar-tab-title">Sumário</span>
+                <span id="note-outline-desktop-count" class="outline-count-badge">0</span>
+              </button>
+              <button id="tab-sidebar-backlinks" class="note-sidebar-tab" type="button" role="tab" aria-selected="false" aria-controls="note-desktop-backlinks-list" title="Backlinks / Menções a esta nota">
+                <span class="qd-icon material-symbols-rounded" aria-hidden="true">link</span>
+                <span class="note-sidebar-tab-title">Backlinks</span>
+                <span id="note-desktop-backlinks-count" class="outline-count-badge">0</span>
+              </button>
             </div>
-            <button id="btn-toggle-outline-sidebar" class="icon-btn outline-toggle-btn" type="button" title="Ocultar estrutura de tópicos" aria-label="Ocultar estrutura de tópicos">
+            <button id="btn-toggle-outline-sidebar" class="icon-btn outline-toggle-btn" type="button" title="Ocultar painel lateral" aria-label="Ocultar painel lateral">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">chevron_left</span>
             </button>
           </div>
-          <div id="note-desktop-outline-list" class="note-outline-list"></div>
+          <div id="note-desktop-outline-list" class="note-outline-list" role="tabpanel" aria-labelledby="tab-sidebar-outline"></div>
+          <div id="note-desktop-backlinks-list" class="note-backlinks-list note-desktop-backlinks-list" role="tabpanel" aria-labelledby="tab-sidebar-backlinks" hidden></div>
         </aside>
         <button id="btn-outline-floating-toggle" class="note-outline-floating-toggle" type="button" title="Mostrar estrutura de tópicos" aria-label="Mostrar estrutura de tópicos">
           <span class="qd-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span>

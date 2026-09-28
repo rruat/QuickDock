@@ -7039,6 +7039,68 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   color: var(--text-muted);
 }
 
+.note-sidebar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.note-sidebar-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  min-width: 0;
+}
+
+.note-sidebar-tab .qd-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.note-sidebar-tab-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-sidebar-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.note-sidebar-tab.active {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-normal);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.note-desktop-backlinks-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-desktop-backlinks-list .backlink-item {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .note-outline-title-wrap .qd-icon {
   font-size: 18px;
 }
@@ -7046,10 +7108,11 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
 .outline-count-badge {
   background: var(--bg-surface-hover, rgba(125, 125, 125, 0.15));
   color: var(--text-muted);
-  font-size: 11px;
-  padding: 1px 6px;
+  font-size: 10px;
+  padding: 1px 5px;
   border-radius: 10px;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .outline-toggle-btn {
