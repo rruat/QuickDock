@@ -1926,9 +1926,9 @@ for (const { nome, blocks } of BLOCOS_V18) {
 // de uma vez. Se o parser quebrar em alguma coisa, quebra aqui primeiro.
 {
   const { readFile } = await import('node:fs/promises');
-  const fonte = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  const fonte = await readFile(new URL('../sidepanel/modules/notes-tutorial.js', import.meta.url), 'utf8');
   const m = /const TUTORIAL_MARKDOWN = `([\s\S]*?)`;/.exec(fonte);
-  ok('tutorial · continua sendo possível extrair o texto de notes-tabs.js', !!m);
+  ok('tutorial · continua sendo possível extrair o texto de notes-tutorial.js', !!m);
 
   // O que se lê aqui é o FONTE, onde crase e cifrão aparecem escapados porque
   // o tutorial mora dentro de um literal de template. O JS desfaz isso ao
@@ -4188,6 +4188,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { readFile } = await import('node:fs/promises');
   const tabsJsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  const notesAppearanceSource = await readFile(new URL('../sidepanel/modules/notes-appearance.js', import.meta.url), 'utf8');
   const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
 
   // 30.1: Gestão de Abas Abertas e Botão de Fechar
@@ -4274,10 +4275,10 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     Array.isArray(MATERIAL_ICONS) && MATERIAL_ICONS.length >= 4000);
 
   ok('catalogo-icones · renderAppearanceContent inclui campo de busca, scroll e contador',
-    tabsJsSource.includes("icon-search-input") &&
-    tabsJsSource.includes("icon-catalog-scroll") &&
-    tabsJsSource.includes("icon-catalog-grid") &&
-    tabsJsSource.includes("icon-catalog-header-count"));
+    notesAppearanceSource.includes("icon-search-input") &&
+    notesAppearanceSource.includes("icon-catalog-scroll") &&
+    notesAppearanceSource.includes("icon-catalog-grid") &&
+    notesAppearanceSource.includes("icon-catalog-header-count"));
 
   ok('catalogo-icones · CSS de estilo para o catálogo de ícones e campo de busca',
     styleCssSource.includes('.icon-catalog-header-count') &&
@@ -4367,6 +4368,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   // 30.10: Destaque de nota ativa no grafo, guias das pastas na aside e fade do sync
   const graphViewSourceMod = await readFile(new URL('../sidepanel/modules/graph-view.js', import.meta.url), 'utf8');
   const tabsJsSourceMod = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  const notesAppearanceSourceMod = await readFile(new URL('../sidepanel/modules/notes-appearance.js', import.meta.url), 'utf8');
   const styleCssSourceMod = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
 
   ok('grafo · graph-view.js destaca nota ativa e não fecha o grafo ao clicar em outro nó',
@@ -4498,9 +4500,9 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   // cabeçalho passou — senão refreshOpenAsideRows() reconstruía a lista a
   // partir de dados antigos e nada mudava na tela.
   ok('aside · pickIcon/iconFilled/pickColor sincronizam a entrada real do notesMeta, não só o objeto recebido',
-    tabsJsSourceMod.includes('function sincronizarComNotesMeta') &&
-    tabsJsSourceMod.includes('notesMeta.find(n => n.id === meta.id)') &&
-    (tabsJsSourceMod.match(/sincronizarComNotesMeta\(meta, /g) || []).length >= 3);
+    notesAppearanceSourceMod.includes('function sincronizarComNotesMeta') &&
+    notesAppearanceSourceMod.includes('getNotesMeta().find(n => n.id === meta.id)') &&
+    (notesAppearanceSourceMod.match(/sincronizarComNotesMeta\(meta, /g) || []).length >= 3);
 }
 
 // ── 31. Bases: Painel Dedicado (tela cheia / dividida / painel simultâneo) ──

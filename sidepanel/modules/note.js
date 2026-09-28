@@ -18,7 +18,6 @@ import {
 import { blockTemplates, openSaveBlockTemplate } from './templates.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from './snapshot.js';
 import { iconSvg, createIcon } from './icons.js';
-import { openAppearancePopover } from './notes-tabs.js';
 import { buildEmbeddedBaseBlock } from './bases/bases-embedded.js';
 import { onViewChange } from './views.js';
 import {

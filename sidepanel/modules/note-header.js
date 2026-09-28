@@ -1,6 +1,6 @@
 // Cabeçalho da nota: ícone, título editável e cor.
 import { getNoteById, updateNoteMetaById } from './storage.js';
-import { openAppearancePopover } from './notes-tabs.js';
+import { openAppearancePopover } from './notes-appearance.js';
 
 const headerIconBtn  = document.getElementById('btn-note-header-icon');
 const headerIconEl   = document.getElementById('note-header-icon');
