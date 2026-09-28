@@ -1705,6 +1705,63 @@ for (const { nome, blocks } of BLOCOS_V18) {
     const modAApagado = await storeA.obterModeloPorUid('u_mod_1');
     igual('modelos · exclusão remota apaga modelo do store local', modAApagado, null);
   }
+
+  // 13. Adoção de arquivos .md externos e proteção contra perda de dados
+  {
+    const { SyncEngine } = await import('../sidepanel/modules/sync-engine.js');
+    const store = new InMemoryStore();
+    const adapter = new MemorySyncAdapter();
+    const engine = new SyncEngine({ adapter, store, deviceName: 'AparelhoTeste' });
+
+    // 13.1: Arquivo markdown cru na raiz sem frontmatter (ex.: Obsidian ou arquivo colado pelo usuário)
+    const conteudoCru = '# Minha Nota Externa\n\nEste é um parágrafo de texto puro.\n- Item 1\n- Item 2';
+    await adapter.escrever('minha-nota-externa.md', conteudoCru, null);
+
+    // 13.2: Arquivo markdown em subpasta personalizada sem frontmatter
+    const conteudoSub = 'Apenas conteúdo sem título H1.\nLinha 2.';
+    await adapter.escrever('trabalho/relatorios/status.md', conteudoSub, null);
+
+    const resSync = await engine.sincronizar();
+    igual('adoção · baixou os dois arquivos externos', resSync.baixadas, 2);
+    igual('adoção · nenhuma nota apagada', resSync.apagadas, 0);
+
+    const notas = await store.listarNotasLocais();
+    igual('adoção · store local contém exatamente 2 notas adotadas', notas.length, 2);
+
+    const notaRaiz = notas.find(n => n.title === 'Minha Nota Externa');
+    ok('adoção · nota raiz foi identificada pelo título H1', notaRaiz !== undefined);
+    ok('adoção · nota raiz recebeu um UID estável', !!notaRaiz?.uid);
+    igual('adoção · nota raiz não tem pasta definida', notaRaiz?.pasta, '');
+
+    const notaSub = notas.find(n => n.title === 'status');
+    ok('adoção · nota em subpasta derivou título do nome do arquivo', notaSub !== undefined);
+    igual('adoção · nota em subpasta derivou a pasta correta', notaSub?.pasta, 'trabalho/relatorios');
+
+    // 13.3: Verifica se o adapter teve os metadados injetados preservando o conteúdo
+    const arqRaiz = await adapter.ler('minha-nota-externa.md');
+    ok('adoção · arquivo na pasta externa agora possui frontmatter QuickDock', arqRaiz.texto.includes('quickdock: 1'));
+    ok('adoção · arquivo na pasta externa preservou o corpo markdown', arqRaiz.texto.includes('Este é um parágrafo de texto puro.'));
+
+    // 13.4: Sincronização subsequente não duplica nem apaga nada
+    const resSync2 = await engine.sincronizar();
+    igual('adoção · sync subsequente não baixa novamente', resSync2.baixadas, 0);
+    igual('adoção · sync subsequente não apaga nada', resSync2.apagadas, 0);
+    igual('adoção · total de notas no store local permanece 2', (await store.listarNotasLocais()).length, 2);
+
+    // 13.5: Edição local na nota adotada reflete no arquivo externo
+    await store.salvarNotaLocal({
+      ...notaRaiz,
+      blocks: [
+        { id: 'b1', type: 'h1', html: 'Minha Nota Externa' },
+        { id: 'b2', type: 'paragraph', html: 'Texto atualizado localmente!' },
+      ],
+      updatedAt: Date.now() + 1000,
+    });
+    const resSync3 = await engine.sincronizar();
+    igual('adoção · edição local enviada ao arquivo externo', resSync3.enviadas, 1);
+    const arqRaizAtualizado = await adapter.ler('minha-nota-externa.md');
+    ok('adoção · conteúdo remoto atualizado com sucesso', arqRaizAtualizado.texto.includes('Texto atualizado localmente!'));
+  }
 }
 
 // ── 5. Guarda de código: criar bloco a partir de dado serializado ────────────

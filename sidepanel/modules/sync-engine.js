@@ -82,8 +82,8 @@ export function slugTitulo(titulo) {
 }
 
 export function extrairPastaDoCaminho(caminho) {
-  if (!caminho || !caminho.startsWith('notas/')) return '';
-  const relativo = caminho.slice('notas/'.length);
+  if (!caminho) return '';
+  const relativo = caminho.startsWith('notas/') ? caminho.slice('notas/'.length) : caminho;
   const ultimoSlash = relativo.lastIndexOf('/');
   if (ultimoSlash === -1) return '';
   return relativo.slice(0, ultimoSlash);
@@ -306,8 +306,8 @@ export class SyncEngine {
     for (const mudanca of mudancas) {
       const { caminho, rev, apagado } = mudanca;
 
-      const ehNota = caminho.startsWith('notas/') && caminho.endsWith('.md');
       const ehModelo = caminho.startsWith('modelos/') && caminho.endsWith('.md');
+      const ehNota = !ehModelo && caminho.endsWith('.md');
 
       if (!ehNota && !ehModelo) {
         if (!tevePulo && Number(rev) > Number(maiorCursor || 0)) maiorCursor = rev;
@@ -506,7 +506,11 @@ export class SyncEngine {
 
       const { texto: textoRemoto, rev: revRemota } = arquivoRemoto;
       const parsed = parseNoteFile(textoRemoto);
-      if (!parsed || !parsed.meta || !parsed.meta.id) {
+      let mdCorpo = parsed?.md;
+      let metaNota = parsed?.meta;
+      let uid = metaNota?.id;
+
+      if (!uid) {
         // Se a nota remota tem formato mais novo que este cliente não conhece (ex.: quickdock: 2),
         // recusa com segurança: pula sem escrever por cima e registra aviso explícito.
         const bruto = extrairMetadadosBrutos(textoRemoto);
@@ -521,43 +525,99 @@ export class SyncEngine {
             versao: bruto.meta.quickdock,
             mensagem: 'esta nota foi criada por uma versão mais nova do QuickDock',
           });
+          continue;
         }
-        continue;
+
+        // Adoção segura de arquivo .md externo (Obsidian, notas prévias, markdown comum):
+        // QuickDock NUNCA apaga dados do usuário. Se o arquivo não possui 'id', geramos
+        // um UID estável para ele e o adotamos no banco local.
+        if (estadoLocal && estadoLocal.uid) {
+          // Já tínhamos adotado este caminho anteriormente
+          metaNota = { ...(metaNota || {}), id: estadoLocal.uid };
+        } else {
+          const novoUid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+
+          // Se não há frontmatter, todo o texto é o corpo markdown
+          if (mdCorpo === undefined) {
+            mdCorpo = textoRemoto;
+          }
+
+          // Extrai título do frontmatter ou do primeiro # Cabeçalho ou do nome do arquivo
+          let tituloDerivado = metaNota?.titulo || metaNota?.title;
+          if (!tituloDerivado) {
+            const matchH1 = /^#\s+(.+)$/m.exec(mdCorpo);
+            if (matchH1) {
+              tituloDerivado = matchH1[1].trim();
+            } else {
+              const nomeBase = caminho.split('/').pop().replace(/\.md$/i, '');
+              tituloDerivado = nomeBase || 'Sem título';
+            }
+          }
+
+          metaNota = {
+            ...(metaNota || {}),
+            id: novoUid,
+            titulo: tituloDerivado,
+          };
+        }
       }
 
-      const uid = parsed.meta.id;
+      uid = metaNota.id;
       const hashRemoto = hashDaNota(textoRemoto);
       const notaLocal = await this.store.obterNotaPorUid(uid);
       const estadoPorUid = await this.store.obterEstadoSync(uid);
 
       if (!notaLocal) {
         // Nota não existe localmente: baixa como nota nova
-        const blocks = parseMarkdownToBlocks(parsed.md);
-        const pasta = parsed.meta.pasta !== undefined ? parsed.meta.pasta : extrairPastaDoCaminho(caminho);
+        const blocks = parseMarkdownToBlocks(mdCorpo);
+        const pasta = metaNota.pasta !== undefined ? metaNota.pasta : extrairPastaDoCaminho(caminho);
         await this.store.salvarNotaLocal({
           uid,
-          title: parsed.meta.titulo || 'Sem título',
+          title: metaNota.titulo || 'Sem título',
           pasta,
           blocks,
-          color: parsed.meta.cor ?? null,
-          icon: parsed.meta.icone ?? null,
-          iconFilled: !!parsed.meta.iconePreenchido,
-          titleHidden: !!parsed.meta.tituloOculto,
-          ordem: parsed.meta.ordem ?? 'a0',
-          properties: this._extrairPropriedadesDeMeta(parsed.meta),
+          color: metaNota.cor ?? null,
+          icon: metaNota.icone ?? null,
+          iconFilled: !!metaNota.iconePreenchido,
+          titleHidden: !!metaNota.tituloOculto,
+          ordem: metaNota.ordem ?? 'a0',
+          properties: this._extrairPropriedadesDeMeta(metaNota),
           // Sem inventar: se o arquivo não traz criadoEm, a nota fica sem ele, e a
           // reserialização volta a omitir o campo. Carimbar Date.now() aqui fazia o
           // arquivo nunca convergir — quem baixava regravava com um campo que quem
           // enviou não tinha, o outro lado via diferença e regravava sem, sem fim.
           // Com os dois clientes sincronizando ao mesmo tempo, virava conflito.
-          createdAt: parsed.meta.criadoEm ? new Date(parsed.meta.criadoEm).getTime() : undefined,
-          updatedAt: parsed.meta.atualizadoEm ? new Date(parsed.meta.atualizadoEm).getTime() : undefined,
+          createdAt: metaNota.criadoEm ? new Date(metaNota.criadoEm).getTime() : undefined,
+          updatedAt: metaNota.atualizadoEm ? new Date(metaNota.atualizadoEm).getTime() : undefined,
         });
+
+        // Se o arquivo remoto não tinha 'id' (foi adotado agora), gravamos os metadados
+        // no arquivo sem alterar o texto para que futuros syncs mantenham a identidade estável.
+        let revSalva = revRemota;
+        let hashSalvo = hashRemoto;
+        if (!parsed?.meta?.id) {
+          try {
+            const notaAdotada = await this.store.obterNotaPorUid(uid);
+            if (notaAdotada) {
+              const textoComMeta = this.serializarNota(notaAdotada);
+              const resEscrita = await this.adapter.escrever(caminho, textoComMeta, revRemota);
+              if (resEscrita && resEscrita.rev) {
+                revSalva = resEscrita.rev;
+                hashSalvo = hashDaNota(textoComMeta);
+              }
+            }
+          } catch {
+            // Em caso de falha de escrita, preserva a revisão original
+          }
+        }
+
         await this.store.salvarEstadoSync({
           uid,
           caminho,
-          rev: revRemota,
-          hash: hashRemoto,
+          rev: revSalva,
+          hash: hashSalvo,
           sincronizadoEm: Date.now(),
         });
         resultado.baixadas++;
@@ -588,22 +648,22 @@ export class SyncEngine {
 
         if (!estadoPorUid || hashLocal === estadoPorUid.hash) {
           // Lado local não foi editado (ou reconciliação inicial sem estado): remoto vence com segurança
-          const blocks = parseMarkdownToBlocks(parsed.md);
+          const blocks = parseMarkdownToBlocks(mdCorpo);
           this._preservarImagensLocais(notaLocal.blocks, blocks);
-          const pasta = parsed.meta.pasta !== undefined ? parsed.meta.pasta : extrairPastaDoCaminho(caminho);
+          const pasta = metaNota.pasta !== undefined ? metaNota.pasta : extrairPastaDoCaminho(caminho);
           await this.store.salvarNotaLocal({
             ...notaLocal,
             uid,
-            title: parsed.meta.titulo || notaLocal.title,
+            title: metaNota.titulo || notaLocal.title,
             pasta,
             blocks,
-            color: parsed.meta.cor !== undefined ? parsed.meta.cor : notaLocal.color,
-            icon: parsed.meta.icone !== undefined ? parsed.meta.icone : notaLocal.icon,
-            iconFilled: parsed.meta.iconePreenchido !== undefined ? parsed.meta.iconePreenchido : notaLocal.iconFilled,
-            titleHidden: parsed.meta.tituloOculto !== undefined ? parsed.meta.tituloOculto : notaLocal.titleHidden,
-            ordem: parsed.meta.ordem || notaLocal.ordem,
-            properties: this._extrairPropriedadesDeMeta(parsed.meta),
-            updatedAt: parsed.meta.atualizadoEm ? new Date(parsed.meta.atualizadoEm).getTime() : undefined,
+            color: metaNota.cor !== undefined ? metaNota.cor : notaLocal.color,
+            icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
+            iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
+            titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
+            ordem: metaNota.ordem || notaLocal.ordem,
+            properties: this._extrairPropriedadesDeMeta(metaNota),
+            updatedAt: metaNota.atualizadoEm ? new Date(metaNota.atualizadoEm).getTime() : undefined,
           });
           await this.store.salvarEstadoSync({
             uid,
@@ -647,21 +707,21 @@ export class SyncEngine {
           await this.store.salvarNotaLocal(notaConflito);
 
           // 2. Atualiza a nota principal com o conteúdo que veio do remoto
-          const blocks = parseMarkdownToBlocks(parsed.md);
+          const blocks = parseMarkdownToBlocks(mdCorpo);
           this._preservarImagensLocais(notaLocal.blocks, blocks);
-          const pastaRemota = parsed.meta.pasta !== undefined ? parsed.meta.pasta : extrairPastaDoCaminho(caminho);
+          const pastaRemota = metaNota.pasta !== undefined ? metaNota.pasta : extrairPastaDoCaminho(caminho);
           await this.store.salvarNotaLocal({
             ...notaLocal,
             uid,
-            title: parsed.meta.titulo || notaLocal.title,
+            title: metaNota.titulo || notaLocal.title,
             pasta: pastaRemota,
             blocks,
-            color: parsed.meta.cor !== undefined ? parsed.meta.cor : notaLocal.color,
-            icon: parsed.meta.icone !== undefined ? parsed.meta.icone : notaLocal.icon,
-            iconFilled: parsed.meta.iconePreenchido !== undefined ? parsed.meta.iconePreenchido : notaLocal.iconFilled,
-            titleHidden: parsed.meta.tituloOculto !== undefined ? parsed.meta.tituloOculto : notaLocal.titleHidden,
-            ordem: parsed.meta.ordem || notaLocal.ordem,
-            updatedAt: parsed.meta.atualizadoEm ? new Date(parsed.meta.atualizadoEm).getTime() : undefined,
+            color: metaNota.cor !== undefined ? metaNota.cor : notaLocal.color,
+            icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
+            iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
+            titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
+            ordem: metaNota.ordem || notaLocal.ordem,
+            updatedAt: metaNota.atualizadoEm ? new Date(metaNota.atualizadoEm).getTime() : undefined,
           });
 
           await this.store.salvarEstadoSync({
@@ -896,7 +956,7 @@ export class SyncEngine {
           await this.store.excluirEstadoSync(est.uid);
           resultado.apagadas++;
         }
-      } else if (est.caminho.startsWith('notas/')) {
+      } else if (!est.caminho.startsWith('modelos/')) {
         const notaExiste = await this.store.obterNotaPorUid(est.uid);
         if (!notaExiste) {
           // Usuário apagou localmente: propaga exclusão
@@ -992,6 +1052,17 @@ export class SyncEngine {
    * continua sendo a identidade, então ficar com o nome antigo não quebra nada.
    */
   async _renomearSePreciso(nota, estado) {
+    // Se a nota foi adotada fora de notas/ (ex: raiz "arquivo.md" ou subpasta externa)
+    // e o título/pasta não mudou, preserva o caminho existente
+    const slugAtual = slugTitulo(nota.title);
+    const pastaNota = nota.pasta ? String(nota.pasta).trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : '';
+    const pastaEstado = extrairPastaDoCaminho(estado.caminho);
+    const nomeBaseEstado = estado.caminho.split('/').pop().replace(/\.md$/i, '');
+
+    if (!estado.caminho.startsWith('notas/') && pastaEstado === pastaNota && nomeBaseEstado === slugAtual) {
+      return estado.caminho;
+    }
+
     const desejado = this._caminhoDesejado(nota);
     if (desejado === estado.caminho) return estado.caminho;
 

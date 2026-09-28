@@ -87,12 +87,13 @@ export class LocalFolderAdapter {
     const mudancas = [];
     const encontrados = new Set();
 
-    const pastas = ['notas', 'modelos'];
+    const pastasIgnoradas = new Set(['imagens', 'node_modules', 'dist', 'build', '.git']);
+
     const varrer = async (dirHandle, prefixo, nivel) => {
       for await (const [nome, handle] of dirHandle.entries()) {
         if (nome.startsWith('.')) continue;
         if (handle.kind === 'file' && nome.endsWith('.md')) {
-          const caminho = `${prefixo}/${nome}`;
+          const caminho = prefixo ? `${prefixo}/${nome}` : nome;
           encontrados.add(caminho);
 
           const file = await handle.getFile();
@@ -103,20 +104,17 @@ export class LocalFolderAdapter {
             mudancas.push({ caminho, rev, apagado: false });
             this.conhecidos.set(caminho, { rev });
           }
-        } else if (handle.kind === 'directory' && nivel < 3) {
-          await varrer(handle, `${prefixo}/${nome}`, nivel + 1);
+        } else if (handle.kind === 'directory' && nivel < 4) {
+          if (!pastasIgnoradas.has(nome)) {
+            const subPrefixo = prefixo ? `${prefixo}/${nome}` : nome;
+            await varrer(handle, subPrefixo, nivel + 1);
+          }
         }
       }
     };
 
-    for (const pasta of pastas) {
-      try {
-        const dir = await this.root.getDirectoryHandle(pasta, { create: false });
-        await varrer(dir, pasta, 0);
-      } catch {
-        // Pasta ainda não existe
-      }
-    }
+    // Varre recursivamente a partir da raiz (inclui arquivos na raiz, em notas/, modelos/ e subpastas)
+    await varrer(this.root, '', 0);
 
     // Detecta arquivos que estavam no cache mas sumiram da pasta (excluídos no disco)
     for (const [caminho] of this.conhecidos.entries()) {
