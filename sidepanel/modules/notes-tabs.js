@@ -33,6 +33,12 @@ import {
   closeFolderModal as _closeFolderModal,
   promptExcluirPastaModal,
 } from './tabs/notes-folder-modals.js';
+import {
+  openTabMenu as _openTabMenu,
+  closeTabMenu as _closeTabMenu,
+  getTabMenuElement,
+} from './tabs/notes-tab-menu.js';
+
 
 
 const tabsEl        = document.getElementById('notes-tabs');
@@ -435,161 +441,84 @@ export async function downloadAllNotes() {
   downloadText(`quickdock-backup-${carimbo}.md`, buildBackup(notas));
 }
 
-let tabMenuEl = null;
-let tabMenuAppearanceOpen = false;
-
 function closeTabMenu() {
-  tabMenuEl?.remove();
-  tabMenuEl = null;
-  tabMenuAppearanceOpen = false;
+  _closeTabMenu();
 }
 
-function renderTabMenu(meta, anchorEl) {
-  const menu = tabMenuEl ?? document.createElement('div');
-  menu.className = 'copy-menu tab-menu';
-  menu.innerHTML = '';
-
-  // Nome — o próprio input já dentro do menu, sem botão "Renomear" separado.
-  const renameInput = document.createElement('input');
-  renameInput.className = 'tab-menu-rename';
-  renameInput.value = meta.title;
-  renameInput.placeholder = 'Sem título';
-  renameInput.addEventListener('mousedown', e => e.stopPropagation());
-  renameInput.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter')  renameInput.blur();
-    if (e.key === 'Escape') { renameInput.value = meta.title; renameInput.blur(); }
-  });
-  renameInput.addEventListener('blur', async () => {
-    const val = renameInput.value.trim() || 'Sem título';
-    if (val === meta.title) return;
-    await updateNoteMetaById(meta.id, { title: val });
-    meta.title = val;
-    renderTabs();
-    refreshOpenAsideRows();
-    // Se esta for a nota aberta no momento, o cabeçalho precisa saber —
-    // reaproveita o mesmo aviso do ícone/cor (note.js já busca dados frescos).
-    document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
-  });
-  menu.appendChild(renameInput);
-
-  menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-
-  // Ícone e cor — dropdown embutido no mesmo menu, em vez de abrir outro
-  // popover por cima. Expande/recolhe sem fechar o menu.
-  const appearanceToggle = document.createElement('button');
-  appearanceToggle.className = 'copy-opt tab-menu-appearance-toggle';
-  appearanceToggle.innerHTML =
-    `<span class="copy-opt-value">Ícone e cor</span><span class="copy-opt-hint">${tabMenuAppearanceOpen ? '▲' : '▼'}</span>`;
-  appearanceToggle.addEventListener('mousedown', e => e.stopPropagation());
-  appearanceToggle.addEventListener('click', e => {
-    e.stopPropagation();
-    tabMenuAppearanceOpen = !tabMenuAppearanceOpen;
-    renderTabMenu(meta, anchorEl);
-  });
-  menu.appendChild(appearanceToggle);
-
-  if (tabMenuAppearanceOpen) {
-    const wrap = document.createElement('div');
-    wrap.className = 'tab-menu-appearance';
-    renderAppearanceContent(wrap, meta);
-    menu.appendChild(wrap);
-  }
-
-  menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-
-  const addOpt = (label, run) => {
-    const btn = document.createElement('button');
-    btn.className = 'copy-opt';
-    btn.innerHTML = `<span class="copy-opt-value">${label}</span>`;
-    btn.addEventListener('mousedown', e => e.stopPropagation());
-    btn.addEventListener('click', async e => { e.stopPropagation(); closeTabMenu(); await run(); });
-    menu.appendChild(btn);
-  };
-
-  addOpt('Copiar como Markdown', async () => {
-    const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
-    await navigator.clipboard.writeText(text);
-  });
-  addOpt('Copiar como texto', async () => {
-    const text = blocksToPlainText(await getBlocksForNote(meta));
-    await navigator.clipboard.writeText(text);
-  });
-  addOpt('Baixar .md', async () => {
-    const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
-    downloadText(`${safeFilename(meta.title)}.md`, text);
-  });
-  addOpt('Baixar .txt', async () => {
-    const text = blocksToPlainText(await getBlocksForNote(meta));
-    downloadText(`${safeFilename(meta.title)}.txt`, text);
-  });
-
-  addOpt('Mover para pasta...', async () => {
-    await promptMoverNotaParaPasta(meta, anchorEl, () => {
+function openTabMenu(meta, anchorEl) {
+  _openTabMenu({
+    meta,
+    anchorEl,
+    hasMultipleTabs: openTabIds.length > 1,
+    renderAppearanceContent,
+    onRename: async (newTitle) => {
+      if (newTitle === meta.title) return;
+      await updateNoteMetaById(meta.id, { title: newTitle });
+      meta.title = newTitle;
       renderTabs();
-    });
-  });
-
-  menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-
-  addOpt('Fechar aba', async () => {
-    await closeTab(meta.id);
-  });
-
-  if (openTabIds.length > 1) {
-    addOpt('Fechar outras abas', async () => {
+      refreshOpenAsideRows();
+      document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
+    },
+    onCopyMarkdown: async () => {
+      const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
+      await navigator.clipboard.writeText(text);
+    },
+    onCopyText: async () => {
+      const text = blocksToPlainText(await getBlocksForNote(meta));
+      await navigator.clipboard.writeText(text);
+    },
+    onDownloadMarkdown: async () => {
+      const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
+      downloadText(`${safeFilename(meta.title)}.md`, text);
+    },
+    onDownloadText: async () => {
+      const text = blocksToPlainText(await getBlocksForNote(meta));
+      downloadText(`${safeFilename(meta.title)}.txt`, text);
+    },
+    onMoveToFolder: async () => {
+      // Menu de contexto inclui a opção 'Mover para pasta...'
+      await promptMoverNotaParaPasta(meta, anchorEl, () => {
+        renderTabs();
+      });
+    },
+    onCloseTab: async () => {
+      // addOpt('Fechar aba'
+      await closeTab(meta.id);
+    },
+    onCloseOtherTabs: async () => {
+      // addOpt('Fechar outras abas'
       openTabIds = [meta.id];
       saveOpenTabIds(openTabIds);
       if (activeId !== meta.id) await activateNote(meta.id);
       renderTabs();
-    });
-  }
-
-  menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-
-  addOpt('Limpar conteúdo', async () => {
-    if (!confirm(`Limpar o conteúdo de "${meta.title}"?\n\nO nome, a cor e os documentos da nota não mudam.`)) return;
-    if (meta.id === activeId) await clearCurrentNote();
-    else await updateNoteBlocksById(meta.id, [], '');
-  });
-
-  addOpt('Excluir', async () => {
-    if (notesMeta.length <= 1) { alert('Deve existir ao menos uma nota.'); return; }
-    if (!confirm(`Excluir a nota "${meta.title}"?`)) return;
-    // Os documentos vinculados viram gerais: some a nota, não os arquivos.
-    await detachFilesFromNote(meta.id);
-    await deleteNoteRecordById(meta.id);
-    // Imagem inline só existe dentro daquela nota: sem a nota, é lixo.
-    await gcInlineFiles();
-    notesMeta = notesMeta.filter(n => n.id !== meta.id);
-    openTabIds = openTabIds.filter(id => id !== meta.id);
-    saveOpenTabIds(openTabIds);
-    if (activeId === meta.id) {
-      const nextId = openTabIds[0] ?? notesMeta[0]?.id;
-      if (nextId) await activateNote(nextId);
+    },
+    onClearContent: async () => {
+      if (!confirm(`Limpar o conteúdo de "${meta.title}"?\n\nO nome, a cor e os documentos da nota não mudam.`)) return;
+      if (meta.id === activeId) await clearCurrentNote();
+      else await updateNoteBlocksById(meta.id, [], '');
+    },
+    onDeleteNote: async () => {
+      if (notesMeta.length <= 1) { alert('Deve existir ao menos uma nota.'); return; }
+      if (!confirm(`Excluir a nota "${meta.title}"?`)) return;
+      await detachFilesFromNote(meta.id);
+      await deleteNoteRecordById(meta.id);
+      await gcInlineFiles();
+      notesMeta = notesMeta.filter(n => n.id !== meta.id);
+      openTabIds = openTabIds.filter(id => id !== meta.id);
+      saveOpenTabIds(openTabIds);
+      if (activeId === meta.id) {
+        const nextId = openTabIds[0] ?? notesMeta[0]?.id;
+        if (nextId) await activateNote(nextId);
+      }
+      await refreshDocuments();
+      renderTabs();
     }
-    await refreshDocuments();
-    renderTabs();
   });
-
-  if (!tabMenuEl) {
-    document.body.appendChild(menu);
-    tabMenuEl = menu;
-  }
-  positionPopover(menu, anchorEl);
 }
-
-function openTabMenu(meta, anchorEl) {
-  closeTabMenu();
-  renderTabMenu(meta, anchorEl);
-  const renameInput = tabMenuEl.querySelector('.tab-menu-rename');
-  renameInput?.focus();
-  renameInput?.select();
-}
-
 
 document.addEventListener('mousedown', e => {
-  if (tabMenuEl && !tabMenuEl.contains(e.target)) closeTabMenu();
+  const menuEl = getTabMenuElement();
+  if (menuEl && !menuEl.contains(e.target)) closeTabMenu();
   closeAppearancePopoverIfOutside(e.target);
 });
 
