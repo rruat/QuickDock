@@ -73,12 +73,12 @@
   - [x] Ligar chamadas de delegação no `note.js`
   - [x] Validar testes automatizados (1158 verificações passaram)
 
-- [ ] **Submódulo 2.7 — Teclado e Eventos Principais:**
-  - Arquivo: `sidepanel/modules/note/note-events.js` (~450 linhas)
-  - Conteúdo: Comportamento de `Enter` e `Backspace` entre diferentes tipos de bloco, divisão de blocos e navegação de cursor.
-  - [ ] Criar arquivo e extrair lógica
-  - [ ] Ligar chamadas de delegação no `note.js`
-  - [ ] Validar testes automatizados
+- [x] **Submódulo 2.7 — Menus Contextuais e Diálogos Inline:**
+  - Arquivo: `sidepanel/modules/note/note-dialogs.js` (168 linhas)
+  - Conteúdo: Menu flutuante de links (`openLinkMenu`/`closeLinkMenu`), menu de texto alternativo (`openAltMenu`/`closeAltMenu`) e controle de cliques fora/escape.
+  - [x] Criar arquivo e extrair lógica
+  - [x] Ligar chamadas de delegação no `note.js`
+  - [x] Validar testes automatizados (1158 verificações passaram)
 
 - [ ] **Submódulo 2.8 — Ciclo de Vida e Salvamento:**
   - Arquivo: `sidepanel/modules/note/note-lifecycle.js` (~350 linhas)

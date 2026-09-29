@@ -64,6 +64,13 @@ import {
   findNearestInlineFormatting,
   isDividerText,
 } from './note/note-live-preview.js';
+import {
+  openLinkMenu as _openLinkMenu,
+  closeLinkMenu as _closeLinkMenu,
+  openAltMenu as _openAltMenu,
+  closeAltMenu as _closeAltMenu,
+  isClickInsideLinkMenu,
+} from './note/note-dialogs.js';
 export {
   getSelectedBlockIds, getIsBlockSelectActive, setIsBlockSelectActive,
   getLastHandleClickedId, setLastHandleClickedId, setBlockSelection,
@@ -1383,54 +1390,17 @@ async function moverImagemParaDocumentos(bloco) {
 }
 
 // Texto alternativo: menu dentro da extensão, não um dialog da página.
-let altMenuEl = null;
-function closeAltMenu() { altMenuEl?.remove(); altMenuEl = null; }
+function closeAltMenu() {
+  _closeAltMenu();
+}
 
 function openAltMenu(bloco, anchorRect) {
-  closeAltMenu();
-  const menu = document.createElement('div');
-  menu.className = 'copy-menu alt-menu';
-
-  const head = document.createElement('div');
-  head.className = 'copy-menu-header';
-  head.textContent = 'Texto alternativo';
-
-  const dica = document.createElement('div');
-  dica.className = 'alt-menu-hint';
-  dica.textContent = 'Descreve a imagem pra quem usa leitor de tela — e é o que aparece se o arquivo se perder.';
-
-  const campo = document.createElement('input');
-  campo.className = 'link-input';
-  campo.type = 'text';
-  campo.value = bloco.dataset.alt ?? '';
-  campo.placeholder = 'Ex.: print do protocolo aberto';
-
-  const aplicar = () => {
-    captureUndoPoint();
-    setImageData(bloco, { alt: campo.value.trim() });
-    closeAltMenu();
-    scheduleSave();
-  };
-
-  campo.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter')  { e.preventDefault(); aplicar(); }
-    if (e.key === 'Escape') { e.preventDefault(); closeAltMenu(); }
+  _openAltMenu(bloco, anchorRect, {
+    captureUndoPoint,
+    setImageData,
+    scheduleSave,
+    positionMenu,
   });
-
-  const ok = document.createElement('button');
-  ok.className = 'copy-opt';
-  ok.innerHTML = '<span class="copy-opt-value">Salvar</span>';
-  ok.addEventListener('mousedown', e => e.stopPropagation());
-  ok.addEventListener('click', aplicar);
-
-  menu.append(head, dica, campo, ok);
-  menu.addEventListener('mousedown', e => e.stopPropagation());
-  document.body.appendChild(menu);
-  altMenuEl = menu;
-  positionMenu(menu, anchorRect);
-  campo.focus();
-  campo.select();
 }
 
 document.addEventListener('mousedown', () => closeAltMenu());
@@ -3203,96 +3173,16 @@ function currentLinkEl() {
 }
 
 // Menu de link — dentro da extensão, não um prompt() do navegador.
-let linkMenuEl = null;
-function closeLinkMenu() { linkMenuEl?.remove(); linkMenuEl = null; }
+function closeLinkMenu() {
+  _closeLinkMenu();
+}
 
-function openLinkMenu(anchorRect, { href = '', texto = '', canRemove = false, onApply, onRemove }) {
-  closeLinkMenu();
-  const menu = document.createElement('div');
-  menu.className = 'copy-menu link-menu';
-
-  const header = document.createElement('div');
-  header.className   = 'copy-menu-header';
-  header.textContent = canRemove ? 'Editar link' : 'Novo link';
-
-  // Dois campos, com rótulo: só o endereço não bastava — trocar a palavra que
-  // aparece na nota obrigava a apagar o link e refazer.
-  const campo = (rotulo, valor, placeholder) => {
-    const wrap = document.createElement('label');
-    wrap.className = 'link-field';
-    const nome = document.createElement('span');
-    nome.className = 'link-field-label';
-    nome.textContent = rotulo;
-    const input = document.createElement('input');
-    input.className   = 'link-input';
-    input.type        = 'text';
-    input.value       = valor;
-    input.placeholder = placeholder;
-    wrap.append(nome, input);
-    return { wrap, input };
-  };
-
-  const campoTexto = campo('Texto',    texto, 'o que aparece na nota');
-  const campoHref  = campo('Endereço', href,  'exemplo.com.br');
-  const input = campoHref.input;
-
-  const error = document.createElement('div');
-  error.className   = 'link-error';
-  error.textContent = 'Endereço inválido';
-  error.hidden      = true;
-
-  const apply = () => {
-    const url = safeHref(input.value);
-    if (!url) { error.hidden = false; input.focus(); return; }
-    closeLinkMenu();
-    // Texto vazio: o endereço vira o rótulo, como já acontece ao colar uma URL
-    // sem nada selecionado.
-    onApply(url, campoTexto.input.value.trim() || url);
-  };
-
-  for (const { input: campoEl } of [campoTexto, campoHref]) {
-    campoEl.addEventListener('mousedown', e => e.stopPropagation());
-    campoEl.addEventListener('input', () => { error.hidden = true; });
-    campoEl.addEventListener('keydown', e => {
-      e.stopPropagation();
-      if (e.key === 'Enter')  { e.preventDefault(); apply(); }
-      if (e.key === 'Escape') { e.preventDefault(); closeLinkMenu(); }
-    });
-  }
-
-  const actions = document.createElement('div');
-  actions.className = 'link-actions';
-
-  const okBtn = document.createElement('button');
-  okBtn.className   = 'link-btn link-apply';
-  okBtn.textContent = 'Aplicar';
-  okBtn.addEventListener('mousedown', e => e.preventDefault());
-  okBtn.addEventListener('click', apply);
-  actions.appendChild(okBtn);
-
-  if (canRemove) {
-    const rmBtn = document.createElement('button');
-    rmBtn.className   = 'link-btn link-remove';
-    rmBtn.textContent = 'Remover';
-    rmBtn.addEventListener('mousedown', e => e.preventDefault());
-    rmBtn.addEventListener('click', () => { closeLinkMenu(); onRemove(); });
-    actions.appendChild(rmBtn);
-  }
-
-  menu.append(header, campoTexto.wrap, campoHref.wrap, error, actions);
-  document.body.appendChild(menu);
-  linkMenuEl = menu;
-  positionMenu(menu, anchorRect);
-
-  // O foco vai pro campo que falta preencher: com texto já vindo da seleção,
-  // o que a pessoa veio fazer é digitar o endereço.
-  const primeiro = texto ? campoHref.input : campoTexto.input;
-  primeiro.focus();
-  primeiro.select();
+function openLinkMenu(anchorRect, opts) {
+  _openLinkMenu(anchorRect, opts, positionMenu);
 }
 
 document.addEventListener('mousedown', e => {
-  if (linkMenuEl && !linkMenuEl.contains(e.target)) closeLinkMenu();
+  if (!isClickInsideLinkMenu(e.target)) closeLinkMenu();
   closeLinkAutocompleteIfOutside(e.target);
 });
 
