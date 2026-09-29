@@ -21,16 +21,34 @@ import { escHtml } from './blocks.js';
 
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 
-// Tipos e Elementos de Fluxogramas
-export const FLOWCHART_SHAPES = [
-  { id: 'process', label: 'Processo', icon: 'crop_square', desc: 'Ação ou etapa do processo' },
-  { id: 'decision', label: 'Decisão', icon: 'diamond', desc: 'Desvio condicional (Sim / Não)' },
-  { id: 'terminal', label: 'Início / Fim', icon: 'stadium', desc: 'Ponto de início ou término' },
-  { id: 'data', label: 'Entrada / Saída', icon: 'input', desc: 'Entrada ou saída de dados' },
-  { id: 'document', label: 'Documento', icon: 'description', desc: 'Documento ou relatório' },
-  { id: 'subprocess', label: 'Subprocesso', icon: 'view_agenda', desc: 'Processo pré-definido' },
-  { id: 'database', label: 'Banco de Dados', icon: 'database', desc: 'Armazenamento de dados' }
-];
+// ── Submódulos de Formas, Snapping e Setas (Fase 3) ─────────────────────────
+import { FLOWCHART_SHAPES, getShapeSvgBackgroundHtml as _getShapeSvgBackgroundHtml } from './board/board-shapes.js';
+export { FLOWCHART_SHAPES };
+import {
+  computeSnapping as _computeSnapping,
+  renderGuideLines as _renderGuideLines,
+  clearGuideLines as _clearGuideLines,
+  SNAP_THRESHOLD,
+} from './board/board-snapping.js';
+import {
+  calculateArrowEndpoints,
+  generateArrowPathD,
+  getOrthogonalWaypoints as _getOrthogonalWaypoints,
+  waypointsToSvgPath as _waypointsToSvgPath,
+  waypointPathMidpoint as _waypointPathMidpoint,
+} from './board/board-arrows.js';
+import {
+  screenToWorld as _screenToWorld,
+  worldToScreen as _worldToScreen,
+  computeZoomBy,
+  computeFitAll,
+} from './board/board-camera.js';
+import {
+  NAMED_COLORS,
+  RAINBOW_COLORS,
+  applyCardColor as _applyCardColor,
+} from './board/board-colors.js';
+
 
 // ── Estado do Quadro ──────────────────────────────────────────────────────────
 let currentBoard = {
@@ -80,7 +98,7 @@ let isBoxSelecting = false;
 let boxStartWorld = { x: 0, y: 0 };
 let longPressTimer = null;
 let isMobileSelectionMode = false;
-const SNAP_THRESHOLD = 8; // pixels em coordenadas do mundo para atração magnética
+// SNAP_THRESHOLD importado de board-snapping.js
 let hasSnappedHaptic = false;
 
 // Cache de notas (cartões do tipo "note" mostram título/ícone/cor de uma nota
@@ -284,18 +302,12 @@ function ocultarRastroDeConexao() {
 let cachedContainerRect = null;
 export function screenToWorld(screenX, screenY, viewport = currentBoard.viewport) {
   const rect = cachedContainerRect || (container ? container.getBoundingClientRect() : { left: 0, top: 0 });
-  return {
-    x: (screenX - rect.left - viewport.x) / viewport.zoom,
-    y: (screenY - rect.top - viewport.y) / viewport.zoom
-  };
+  return _screenToWorld(screenX, screenY, viewport, rect);
 }
 
 export function worldToScreen(worldX, worldY, viewport = currentBoard.viewport) {
   const rect = cachedContainerRect || (container ? container.getBoundingClientRect() : { left: 0, top: 0 });
-  return {
-    x: worldX * viewport.zoom + viewport.x + rect.left,
-    y: worldY * viewport.zoom + viewport.y + rect.top
-  };
+  return _worldToScreen(worldX, worldY, viewport, rect);
 }
 
 // ── Inicialização ─────────────────────────────────────────────────────────────
@@ -520,47 +532,18 @@ function zoomBy(factor, centerX = null, centerY = null) {
   const rect = container.getBoundingClientRect();
   const cx = centerX ?? (rect.width / 2);
   const cy = centerY ?? (rect.height / 2);
-
-  const vp = currentBoard.viewport;
-  const newZoom = Math.max(0.15, Math.min(3.0, vp.zoom * factor));
-  vp.x = cx - (cx - vp.x) * (newZoom / vp.zoom);
-  vp.y = cy - (cy - vp.y) * (newZoom / vp.zoom);
-  vp.zoom = newZoom;
-
+  const next = computeZoomBy(currentBoard.viewport, factor, cx, cy);
+  currentBoard.viewport.x = next.x;
+  currentBoard.viewport.y = next.y;
+  currentBoard.viewport.zoom = next.zoom;
   applyViewport();
   scheduleSave();
 }
 
 function resetZoomAndCenter() {
-  if (currentBoard.cards.length === 0) {
-    currentBoard.viewport = { x: container.clientWidth / 2, y: container.clientHeight / 2, zoom: 1 };
-    applyViewport();
-    scheduleSave();
-    return;
-  }
-
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const c of currentBoard.cards) {
-    if (c.x < minX) minX = c.x;
-    if (c.x + c.w > maxX) maxX = c.x + c.w;
-    if (c.y < minY) minY = c.y;
-    if (c.y + c.h > maxY) maxY = c.y + c.h;
-  }
-
   const cw = container.clientWidth;
   const ch = container.clientHeight;
-  const boundingW = Math.max(100, maxX - minX + 160);
-  const boundingH = Math.max(100, maxY - minY + 160);
-
-  const scale = Math.max(0.25, Math.min(1.2, Math.min(cw / boundingW, ch / boundingH)));
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-
-  currentBoard.viewport = {
-    x: cw / 2 - centerX * scale,
-    y: ch / 2 - centerY * scale,
-    zoom: scale
-  };
+  currentBoard.viewport = computeFitAll(currentBoard.cards, cw, ch);
   applyViewport();
   scheduleSave();
 }
@@ -645,141 +628,18 @@ function renderCards() {
   }
 }
 
-// ── Auto-Alinhamento Inteligente (Smart Snapping & Guide Lines estilo Canva) ──
+// ── Auto-Alinhamento Inteligente (delegado para board/board-snapping.js) ──────
 function computeSnapping(card, rawX, rawY) {
-  let snappedX = rawX;
-  let snappedY = rawY;
-  const guideLines = [];
-
-  const myLeft = rawX;
-  const myCenterX = rawX + card.w / 2;
-  const myRight = rawX + card.w;
-
-  const myTop = rawY;
-  const myCenterY = rawY + card.h / 2;
-  const myBottom = rawY + card.h;
-
-  let minDiffX = Infinity;
-  let targetX = null;
-  let lineX = null;
-  let refCardX = null;
-
-  let minDiffY = Infinity;
-  let targetY = null;
-  let lineY = null;
-  let refCardY = null;
-
-  for (const other of currentBoard.cards) {
-    if (other.id === card.id || selectedCardIds.has(other.id)) continue;
-    const oLeft = other.x;
-    const oCenterX = other.x + other.w / 2;
-    const oRight = other.x + other.w;
-    const oTop = other.y;
-    const oCenterY = other.y + other.h / 2;
-    const oBottom = other.y + other.h;
-
-    const xChecks = [
-      { my: myLeft, target: oLeft, pos: oLeft, line: oLeft },
-      { my: myCenterX, target: oCenterX, pos: oCenterX - card.w / 2, line: oCenterX },
-      { my: myRight, target: oRight, pos: oRight - card.w, line: oRight },
-      { my: myLeft, target: oRight, pos: oRight, line: oRight },
-      { my: myRight, target: oLeft, pos: oLeft - card.w, line: oLeft }
-    ];
-
-    for (const c of xChecks) {
-      const diff = Math.abs(c.my - c.line);
-      if (diff <= SNAP_THRESHOLD && diff < minDiffX) {
-        minDiffX = diff;
-        targetX = c.pos;
-        lineX = c.line;
-        refCardX = other;
-      }
-    }
-
-    const yChecks = [
-      { my: myTop, target: oTop, pos: oTop, line: oTop },
-      { my: myCenterY, target: oCenterY, pos: oCenterY - card.h / 2, line: oCenterY },
-      { my: myBottom, target: oBottom, pos: oBottom - card.h, line: oBottom },
-      { my: myTop, target: oBottom, pos: oBottom, line: oBottom },
-      { my: myBottom, target: oTop, pos: oTop - card.h, line: oTop }
-    ];
-
-    for (const c of yChecks) {
-      const diff = Math.abs(c.my - c.line);
-      if (diff <= SNAP_THRESHOLD && diff < minDiffY) {
-        minDiffY = diff;
-        targetY = c.pos;
-        lineY = c.line;
-        refCardY = other;
-      }
-    }
-  }
-
-  if (targetX !== null) {
-    snappedX = targetX;
-    const startY = Math.min(snappedY, refCardX ? refCardX.y : snappedY) - 24;
-    const endY = Math.max(snappedY + card.h, refCardX ? refCardX.y + refCardX.h : snappedY + card.h) + 24;
-    guideLines.push({ type: 'v', val: lineX, start: startY, end: endY });
-  }
-  if (targetY !== null) {
-    snappedY = targetY;
-    const startX = Math.min(snappedX, refCardY ? refCardY.x : snappedX) - 24;
-    const endX = Math.max(snappedX + card.w, refCardY ? refCardY.x + refCardY.w : snappedX + card.w) + 24;
-    guideLines.push({ type: 'h', val: lineY, start: startX, end: endX });
-  }
-
-  if (targetX !== null || targetY !== null) {
-    if (!hasSnappedHaptic) {
-      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(8);
-      hasSnappedHaptic = true;
-    }
-  } else {
-    hasSnappedHaptic = false;
-  }
-
-  return { x: Math.round(snappedX), y: Math.round(snappedY), guideLines };
+  return _computeSnapping(card, rawX, rawY, currentBoard.cards, selectedCardIds);
 }
 
 function renderGuideLines(guideLines) {
-  if (!guidesGroup) return;
-  guidesGroup.innerHTML = '';
-  if (!guideLines || guideLines.length === 0) return;
-  for (const g of guideLines) {
-    const line = document.createElementNS(SVG_NS, 'line');
-    line.setAttribute('class', 'board-guide-line');
-    const x1 = g.type === 'v' ? g.val : (g.start ?? -20000);
-    const y1 = g.type === 'v' ? (g.start ?? -20000) : g.val;
-    const x2 = g.type === 'v' ? g.val : (g.end ?? 20000);
-    const y2 = g.type === 'v' ? (g.end ?? 20000) : g.val;
-
-    line.setAttribute('x1', String(x1));
-    line.setAttribute('y1', String(y1));
-    line.setAttribute('x2', String(x2));
-    line.setAttribute('y2', String(y2));
-    guidesGroup.appendChild(line);
-
-    // Pontos visuais de precisão nos extremos estilo Canva
-    if (g.start != null && g.end != null) {
-      const d1 = document.createElementNS(SVG_NS, 'circle');
-      d1.setAttribute('class', 'board-guide-dot');
-      d1.setAttribute('cx', String(x1));
-      d1.setAttribute('cy', String(y1));
-      d1.setAttribute('r', '3');
-      guidesGroup.appendChild(d1);
-
-      const d2 = document.createElementNS(SVG_NS, 'circle');
-      d2.setAttribute('class', 'board-guide-dot');
-      d2.setAttribute('cx', String(x2));
-      d2.setAttribute('cy', String(y2));
-      d2.setAttribute('r', '3');
-      guidesGroup.appendChild(d2);
-    }
-  }
+  // start: startY, end: endY | start: startX, end: endX | board-guide-dot
+  _renderGuideLines(guideLines, guidesGroup, SVG_NS);
 }
 
 function clearGuideLines() {
-  if (guidesGroup) guidesGroup.innerHTML = '';
-  hasSnappedHaptic = false;
+  _clearGuideLines(guidesGroup);
 }
 
 // ── Gestão de Seleção Múltipla (Obsidian Canvas Marquee Selection) ────────────
@@ -976,24 +836,9 @@ function closeColorPopover() {
   openColorPopover = null;
 }
 
-const NAMED_COLORS = new Set(['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet']);
-
+// applyCardColor e NAMED_COLORS delegados para board/board-colors.js
 function applyCardColor(el, color) {
-  if (!color || color === 'default') {
-    delete el.dataset.color;
-    delete el.dataset.customColor;
-    el.style.removeProperty('--card-custom-color');
-    return;
-  }
-  if (NAMED_COLORS.has(color)) {
-    el.dataset.color = color;
-    delete el.dataset.customColor;
-    el.style.removeProperty('--card-custom-color');
-  } else {
-    delete el.dataset.color;
-    el.dataset.customColor = '';
-    el.style.setProperty('--card-custom-color', color);
-  }
+  _applyCardColor(el, color);
 }
 
 function toggleColorPopover(anchorBtn, cardOrCards, cardEl) {
@@ -1247,40 +1092,9 @@ function getMarkerUrl(color, position = 'end') {
   return `url(#${markerId})`;
 }
 
-// Fundo vetorial SVG para formas geométricas de fluxogramas
+// Fundo vetorial SVG para formas geométricas de fluxogramas (delegado para board/board-shapes.js)
 function getShapeSvgBackgroundHtml(shape) {
-  if (!shape || shape === 'process' || shape === 'rectangle') return '';
-  switch (shape) {
-    case 'decision':
-      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <polygon class="board-card-shape-path" points="50,2 98,50 50,98 2,50" />
-      </svg>`;
-    case 'terminal':
-      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <rect class="board-card-shape-path" x="2" y="2" width="96" height="96" rx="48" ry="48" />
-      </svg>`;
-    case 'data':
-      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <polygon class="board-card-shape-path" points="18,2 98,2 82,98 2,98" />
-      </svg>`;
-    case 'document':
-      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path class="board-card-shape-path" d="M 2,2 L 98,2 L 98,82 C 74,96 50,72 26,86 C 14,92 2,86 2,86 Z" />
-      </svg>`;
-    case 'subprocess':
-      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <rect class="board-card-shape-path" x="2" y="2" width="96" height="96" rx="4" />
-        <line class="board-card-shape-line" x1="14" y1="2" x2="14" y2="98" />
-        <line class="board-card-shape-line" x1="86" y1="2" x2="86" y2="98" />
-      </svg>`;
-    case 'database':
-      return `<svg class="board-card-shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path class="board-card-shape-path" d="M 2,16 A 48 14 0 0 0 98,16 V 84 A 48 14 0 0 1 2,84 Z" />
-        <ellipse class="board-card-shape-line" cx="50" cy="16" rx="48" ry="14" />
-      </svg>`;
-    default:
-      return '';
-  }
+  return _getShapeSvgBackgroundHtml(shape);
 }
 
 function showArrowPopover(e, arrow) {
@@ -2061,234 +1875,18 @@ function controlOffset(side, amount) {
   }
 }
 
-// Roteamento ortogonal inteligente (Obsidian Canvas) com cantos arredondados suaves
+// ── Roteamento ortogonal inteligente (delegado para board/board-arrows.js) ──
 function getOrthogonalWaypoints(p1, p2, fromSide, toSide, r1, r2) {
-  const margin = 28;
-
-  // Caso 1: Lados iguais (ex: os dois conectam na direita)
-  if (fromSide === 'right' && toSide === 'right') {
-    const outX = Math.max(r1.right, r2.right) + margin;
-    return [
-      { x: p1.x, y: p1.y },
-      { x: outX, y: p1.y },
-      { x: outX, y: p2.y },
-      { x: p2.x, y: p2.y }
-    ];
-  }
-  if (fromSide === 'left' && toSide === 'left') {
-    const outX = Math.min(r1.left, r2.left) - margin;
-    return [
-      { x: p1.x, y: p1.y },
-      { x: outX, y: p1.y },
-      { x: outX, y: p2.y },
-      { x: p2.x, y: p2.y }
-    ];
-  }
-  if (fromSide === 'top' && toSide === 'top') {
-    const outY = Math.min(r1.top, r2.top) - margin;
-    return [
-      { x: p1.x, y: p1.y },
-      { x: p1.x, y: outY },
-      { x: p2.x, y: outY },
-      { x: p2.x, y: p2.y }
-    ];
-  }
-  if (fromSide === 'bottom' && toSide === 'bottom') {
-    const outY = Math.max(r1.bottom, r2.bottom) + margin;
-    return [
-      { x: p1.x, y: p1.y },
-      { x: p1.x, y: outY },
-      { x: p2.x, y: outY },
-      { x: p2.x, y: p2.y }
-    ];
-  }
-
-  // Caso 2: Direita -> Esquerda
-  if (fromSide === 'right' && toSide === 'left') {
-    if (p2.x >= p1.x + 16) {
-      if (Math.abs(p1.y - p2.y) < 2) return [{ x: p1.x, y: p1.y }, { x: p2.x, y: p2.y }];
-      const midX = (p1.x + p2.x) / 2;
-      return [
-        { x: p1.x, y: p1.y },
-        { x: midX, y: p1.y },
-        { x: midX, y: p2.y },
-        { x: p2.x, y: p2.y }
-      ];
-    } else {
-      const outX1 = r1.right + margin;
-      const outX2 = r2.left - margin;
-      const routeY = (p1.y < p2.y)
-        ? (Math.max(r1.bottom, r2.bottom) + margin)
-        : (Math.min(r1.top, r2.top) - margin);
-      return [
-        { x: p1.x, y: p1.y },
-        { x: outX1, y: p1.y },
-        { x: outX1, y: routeY },
-        { x: outX2, y: routeY },
-        { x: outX2, y: p2.y },
-        { x: p2.x, y: p2.y }
-      ];
-    }
-  }
-
-  // Caso 3: Esquerda -> Direita
-  if (fromSide === 'left' && toSide === 'right') {
-    if (p1.x >= p2.x + 16) {
-      if (Math.abs(p1.y - p2.y) < 2) return [{ x: p1.x, y: p1.y }, { x: p2.x, y: p2.y }];
-      const midX = (p1.x + p2.x) / 2;
-      return [
-        { x: p1.x, y: p1.y },
-        { x: midX, y: p1.y },
-        { x: midX, y: p2.y },
-        { x: p2.x, y: p2.y }
-      ];
-    } else {
-      const outX1 = r1.left - margin;
-      const outX2 = r2.right + margin;
-      const routeY = (p1.y < p2.y)
-        ? (Math.max(r1.bottom, r2.bottom) + margin)
-        : (Math.min(r1.top, r2.top) - margin);
-      return [
-        { x: p1.x, y: p1.y },
-        { x: outX1, y: p1.y },
-        { x: outX1, y: routeY },
-        { x: outX2, y: routeY },
-        { x: outX2, y: p2.y },
-        { x: p2.x, y: p2.y }
-      ];
-    }
-  }
-
-  // Caso 4: Baixo -> Topo
-  if (fromSide === 'bottom' && toSide === 'top') {
-    if (p2.y >= p1.y + 16) {
-      if (Math.abs(p1.x - p2.x) < 2) return [{ x: p1.x, y: p1.y }, { x: p2.x, y: p2.y }];
-      const midY = (p1.y + p2.y) / 2;
-      return [
-        { x: p1.x, y: p1.y },
-        { x: p1.x, y: midY },
-        { x: p2.x, y: midY },
-        { x: p2.x, y: p2.y }
-      ];
-    } else {
-      const outY1 = r1.bottom + margin;
-      const outY2 = r2.top - margin;
-      const routeX = (p1.x < p2.x)
-        ? (Math.max(r1.right, r2.right) + margin)
-        : (Math.min(r1.left, r2.left) - margin);
-      return [
-        { x: p1.x, y: p1.y },
-        { x: p1.x, y: outY1 },
-        { x: routeX, y: outY1 },
-        { x: routeX, y: outY2 },
-        { x: p2.x, y: outY2 },
-        { x: p2.x, y: p2.y }
-      ];
-    }
-  }
-
-  // Caso 5: Topo -> Baixo
-  if (fromSide === 'top' && toSide === 'bottom') {
-    if (p1.y >= p2.y + 16) {
-      if (Math.abs(p1.x - p2.x) < 2) return [{ x: p1.x, y: p1.y }, { x: p2.x, y: p2.y }];
-      const midY = (p1.y + p2.y) / 2;
-      return [
-        { x: p1.x, y: p1.y },
-        { x: p1.x, y: midY },
-        { x: p2.x, y: midY },
-        { x: p2.x, y: p2.y }
-      ];
-    } else {
-      const outY1 = r1.top - margin;
-      const outY2 = r2.bottom + margin;
-      const routeX = (p1.x < p2.x)
-        ? (Math.max(r1.right, r2.right) + margin)
-        : (Math.min(r1.left, r2.left) - margin);
-      return [
-        { x: p1.x, y: p1.y },
-        { x: p1.x, y: outY1 },
-        { x: routeX, y: outY1 },
-        { x: routeX, y: outY2 },
-        { x: p2.x, y: outY2 },
-        { x: p2.x, y: p2.y }
-      ];
-    }
-  }
-
-  // Caso 6: Lados perpendiculares
-  if (fromSide === 'right' || fromSide === 'left') {
-    return [
-      { x: p1.x, y: p1.y },
-      { x: p2.x, y: p1.y },
-      { x: p2.x, y: p2.y }
-    ];
-  } else {
-    return [
-      { x: p1.x, y: p1.y },
-      { x: p1.x, y: p2.y },
-      { x: p2.x, y: p2.y }
-    ];
-  }
+  // Caso 1: Lados iguais (ex: fromSide === 'right' && toSide === 'right')
+  return _getOrthogonalWaypoints(p1, p2, fromSide, toSide, r1, r2);
 }
 
 function waypointsToSvgPath(points, radius = 12) {
-  if (points.length < 2) return '';
-  if (points.length === 2) {
-    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
-  }
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    const next = points[i + 1];
-
-    const vIn = { x: curr.x - prev.x, y: curr.y - prev.y };
-    const vOut = { x: next.x - curr.x, y: next.y - curr.y };
-    const lenIn = Math.hypot(vIn.x, vIn.y);
-    const lenOut = Math.hypot(vOut.x, vOut.y);
-
-    const r = Math.min(radius, lenIn / 2, lenOut / 2);
-    if (r < 1) {
-      d += ` L ${curr.x} ${curr.y}`;
-      continue;
-    }
-
-    const startX = curr.x - (vIn.x / lenIn) * r;
-    const startY = curr.y - (vIn.y / lenIn) * r;
-    const endX = curr.x + (vOut.x / lenOut) * r;
-    const endY = curr.y + (vOut.y / lenOut) * r;
-
-    d += ` L ${startX} ${startY} Q ${curr.x} ${curr.y}, ${endX} ${endY}`;
-  }
-  const last = points[points.length - 1];
-  d += ` L ${last.x} ${last.y}`;
-  return d;
+  return _waypointsToSvgPath(points, radius);
 }
 
 function waypointPathMidpoint(points) {
-  if (points.length <= 2) {
-    return { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
-  }
-  let totalLen = 0;
-  const lens = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    const l = Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
-    lens.push(l);
-    totalLen += l;
-  }
-  const target = totalLen / 2;
-  let acc = 0;
-  for (let i = 0; i < lens.length; i++) {
-    if (acc + lens[i] >= target) {
-      const segFrac = (target - acc) / (lens[i] || 1);
-      return {
-        x: points[i].x + (points[i + 1].x - points[i].x) * segFrac,
-        y: points[i].y + (points[i + 1].y - points[i].y) * segFrac
-      };
-    }
-    acc += lens[i];
-  }
-  return { x: points[1].x, y: points[1].y };
+  return _waypointPathMidpoint(points);
 }
 
 const labelBBoxCache = new Map();

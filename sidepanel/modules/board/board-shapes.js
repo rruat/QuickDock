@@ -12,6 +12,10 @@ export const FLOWCHART_SHAPES = [
   { id: 'database',   label: 'Dados',          desc: 'Banco de dados ou armazenamento', icon: 'database' }
 ];
 
+export function isFlowchartShape(shape) {
+  return FLOWCHART_SHAPES.some(s => s.id === shape);
+}
+
 export function getShapeSvgBackgroundHtml(shape) {
   if (!shape || shape === 'process' || shape === 'rectangle') return '';
   switch (shape) {
@@ -46,3 +50,5 @@ export function getShapeSvgBackgroundHtml(shape) {
       return '';
   }
 }
+
+export const generateShapeSvg = getShapeSvgBackgroundHtml;
