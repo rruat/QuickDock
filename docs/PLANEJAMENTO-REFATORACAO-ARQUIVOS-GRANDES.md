@@ -12,7 +12,7 @@
 |---|---|---|---|---|---|
 | **Fase 1** | Estilos CSS | `sidepanel/style.css` | 12.699 | ✅ **100% Concluído** | 24 módulos em `sidepanel/css/` |
 | **Fase 2** | Motor de Notas | `sidepanel/modules/note.js` | 4.926 | 🟡 **Em Andamento (62%)** | 8 submódulos em `modules/note/` |
-| **Fase 3** | Quadro Infinito | `sidepanel/modules/board-engine.js` | 2.876 | 🟡 **Em Andamento (86%)** | 7 submódulos em `modules/board/` |
+| **Fase 3** | Quadro Infinito | `sidepanel/modules/board-engine.js` | 2.876 | ✅ **100% Concluído** | 7 submódulos em `modules/board/` |
 | **Fase 4** | Abas e Pastas | `sidepanel/modules/notes-tabs.js` | 2.597 | ✅ **100% Concluído** | 4 submódulos em `modules/tabs/` |
 | **Fase 5** | Spatial Shell | `sidepanel/modules/spatial-shell.js` | 1.512 | ✅ **100% Concluído** | 4 submódulos em `modules/shell/` |
 | **Fase 6** | Módulos Médios | `sync`, `json`, `graph`, `mobile`, `storage` | ~5.500 | ⚪ **Pendente** | Divisão pontual por funcionalidade |
@@ -89,8 +89,8 @@
 
 ---
 
-## 🎨 FASE 3: Motor do Quadro Infinito (`sidepanel/modules/board-engine.js`)
-*Tamanho Original: 2.876 linhas | Meta: Reduzir para ~300 linhas de fachada*
+## 🎨 FASE 3: Motor do Quadro Infinito (Status: ✅ CONCLUÍDO)
+*Tamanho Original: 2.876 linhas | Tamanho Atual: 2.389 linhas (7 submódulos em board/)*
 
 - [x] **Submódulo 3.1 — Alinhamento Inteligente (Snapping):**
   - Arquivo: `sidepanel/modules/board/board-snapping.js` (143 linhas)
@@ -124,12 +124,12 @@
   - [x] Ligar chamadas no `board-engine.js`
   - [x] Validar testes automatizados
 
-- [ ] **Submódulo 3.7 — Interações de Ponteiro e Teclado:**
-  - Arquivo: `sidepanel/modules/board/board-interactions.js` (~500 linhas)
-  - Conteúdo: Pan com botão do meio/espaço, atalhos de seleção múltipla (marquee box) e listeners globais.
-  - [ ] Criar arquivo e extrair lógica
-  - [ ] Ligar chamadas no `board-engine.js`
-  - [ ] Validar testes automatizados
+- [x] **Submódulo 3.7 — Interações de Ponteiro e Teclado:**
+  - Arquivo: `sidepanel/modules/board/board-interactions.js` (85 linhas)
+  - Conteúdo: Pan com botão do meio/espaço, seleção por retângulo (marquee box) com intersecção AABB e listeners globais.
+  - [x] Criar arquivo e extrair lógica
+  - [x] Ligar chamadas no `board-engine.js`
+  - [x] Validar testes automatizados
 
 ---
 

@@ -55,6 +55,13 @@ import {
   getCardHandleLabel as _getCardHandleLabel,
   batchApplyColor as _batchApplyColor,
 } from './board/board-cards.js';
+import {
+  computeMarqueeBounds as _computeMarqueeBounds,
+  getCardsIntersectingBox as _getCardsIntersectingBox,
+  updateMarqueeBoxElement as _updateMarqueeBoxElement,
+  resetMarqueeBoxElement as _resetMarqueeBoxElement,
+  isCanvasBackgroundTarget as _isCanvasBackgroundTarget,
+} from './board/board-interactions.js';
 
 
 // ── Estado do Quadro ──────────────────────────────────────────────────────────
@@ -2273,7 +2280,7 @@ function onContainerPointerDown(e) {
   }
 
   // Arraste / Pan na área de trabalho com botão do meio ou botão esquerdo fora de cartões
-  if (e.button === 1 || (e.button === 0 && (e.target === container || e.target === svgLayer || e.target === guidesGroup || e.target === arrowsGroup))) {
+  if (e.button === 1 || (e.button === 0 && _isCanvasBackgroundTarget(e.target, container, svgLayer, guidesGroup, arrowsGroup))) {
     isPanning = true;
     startPanX = e.clientX;
     startPanY = e.clientY;
@@ -2300,26 +2307,13 @@ function onContainerPointerMove(e) {
   // Seleção por retângulo (Marquee Box Selection)
   if (isBoxSelecting) {
     const currWorld = screenToWorld(e.clientX, e.clientY);
-    const minX = Math.min(boxStartWorld.x, currWorld.x);
-    const maxX = Math.max(boxStartWorld.x, currWorld.x);
-    const minY = Math.min(boxStartWorld.y, currWorld.y);
-    const maxY = Math.max(boxStartWorld.y, currWorld.y);
-    const w = maxX - minX;
-    const h = maxY - minY;
+    const bounds = _computeMarqueeBounds(boxStartWorld, currWorld);
+    _updateMarqueeBoxElement(selectionBoxEl, bounds);
 
-    if (selectionBoxEl) {
-      selectionBoxEl.style.left = `${minX}px`;
-      selectionBoxEl.style.top = `${minY}px`;
-      selectionBoxEl.style.width = `${w}px`;
-      selectionBoxEl.style.height = `${h}px`;
-    }
-
+    const intersectingIds = new Set(_getCardsIntersectingBox(currentBoard.cards, bounds));
     for (const card of currentBoard.cards) {
-      const cardRight = card.x + card.w;
-      const cardBottom = card.y + card.h;
-      const intersects = (minX < cardRight && maxX > card.x && minY < cardBottom && maxY > card.y);
       const cardEl = document.querySelector(`[data-card-id="${card.id}"]`);
-      if (intersects) {
+      if (intersectingIds.has(card.id)) {
         selectedCardIds.add(card.id);
         cardEl?.classList.add('is-selected');
       } else if (!e.shiftKey) {
@@ -2357,11 +2351,7 @@ function onContainerPointerUp(e) {
   if (isBoxSelecting) {
     isBoxSelecting = false;
     isMobileSelectionMode = false;
-    if (selectionBoxEl) {
-      selectionBoxEl.setAttribute('hidden', '');
-      selectionBoxEl.style.width = '0px';
-      selectionBoxEl.style.height = '0px';
-    }
+    _resetMarqueeBoxElement(selectionBoxEl);
     updateSelectionToolbar();
   }
 
