@@ -300,6 +300,17 @@
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25) !important;
   }
 
+  /* A regra global de 09-sync-responsive.css ("#app:has(.docs-section.is-
+     collapsed) .note-section { height: calc(100vh - 38px) !important }") vale
+     pro empilhamento vertical da extensão e tem mais especificidade que o
+     `height: auto` acima. Sem este reset, o card de notas fica mais alto que o
+     #mMain e o header (rodapé do card) some sob a bottom bar. */
+  #app:has(.docs-section.is-collapsed) #mMain > .note-section,
+  html[data-platform="mobile"] #app:has(.docs-section.is-collapsed) #mMain > .note-section {
+    height: auto !important;
+    max-height: none !important;
+  }
+
   .aside-header {
     height: 40px !important;
     padding-inline: 0.25rem !important;
