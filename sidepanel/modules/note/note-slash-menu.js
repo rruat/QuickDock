@@ -4,7 +4,7 @@
 // Destaques, Blocos, Modelos), com suporte a navegação por teclado e filtros.
 
 import { createIcon } from '../icons.js';
-import { positionMenu } from '../popover.js';
+import { positionMenu } from '../note-detection.js';
 import { blockTemplates } from '../templates.js';
 import { CALLOUT_TYPES, CALLOUT_LABELS } from '../blocks.js';
 

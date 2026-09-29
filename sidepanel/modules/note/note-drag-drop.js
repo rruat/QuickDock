@@ -4,7 +4,7 @@
 // suporte a gestos de toque (touch / pointer: coarse).
 
 import { iconSvg } from '../icons.js';
-import { positionMenu } from '../popover.js';
+import { positionMenu } from '../note-detection.js';
 import { blockTemplates, openSaveBlockTemplate } from '../templates.js';
 import { blocksToMarkdown, blocksToPlainText, blocksToExportMarkdown } from '../blocks.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from '../snapshot.js';
