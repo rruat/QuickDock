@@ -6,7 +6,8 @@
 import { iconSvg } from '../icons.js';
 import { positionMenu } from '../note-detection.js';
 import { blockTemplates, openSaveBlockTemplate } from '../templates.js';
-import { blocksToMarkdown, blocksToPlainText, blocksToExportMarkdown } from '../blocks.js';
+import { blocksToMarkdown, blocksToPlainText } from '../blocks.js';
+import { blocksToExportMarkdown } from '../note.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from '../snapshot.js';
 
 let _callbacks = {
