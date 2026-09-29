@@ -24,10 +24,20 @@ const fonte = (await readFile(new URL('../sidepanel/modules/note.js', import.met
   .replace(/\r\n?/g, '\n');
 
 function recorta(nome) {
-  const inicio = fonte.indexOf(`\nfunction ${nome}(`);
+  // Algumas dessas funções acabaram exportadas (outros módulos passaram a
+  // importá-las de note.js) — o recorte aceita os dois jeitos.
+  let inicio = fonte.indexOf(`\nfunction ${nome}(`);
+  let marcador = `\nfunction ${nome}(`;
+  if (inicio === -1) {
+    inicio = fonte.indexOf(`\nexport function ${nome}(`);
+    marcador = `\nexport function ${nome}(`;
+  }
   if (inicio === -1) throw new Error(`função ${nome}() não existe mais em note.js — atualize test/indent.mjs`);
   const fim = fonte.indexOf('\n}\n', inicio);
-  return fonte.slice(inicio, fim + 3);
+  const corpo = fonte.slice(inicio, fim + 3);
+  // A cópia roda solta (sem o resto do módulo), então o prefixo "export "
+  // teria que resolver um binding que não existe aqui — tira ele.
+  return corpo.startsWith('\nexport function') ? corpo.replace('\nexport function', '\nfunction') : corpo;
 }
 
 // ── Bloco de mentira: só o que as funções recortadas encostam ────────────────

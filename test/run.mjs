@@ -2885,15 +2885,16 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   // 16.7: Barra Contextual Estilo Notion, Seleção de Blocos e Sheet de Modelos
   const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
-  ok('mobile · note.js define mobileTemplateSheet separado de tipo', noteSource.includes('mobileTemplateSheet') && noteSource.includes('mobile-template-sheet-no-scrim'));
-  ok('mobile · note.js tem botão de Modelos na barra normal', noteSource.includes('mobBtnTemplates') && noteSource.includes('toggleMobileTemplateSheet'));
-  ok('mobile · note.js tem botão de Selecionar na barra normal', noteSource.includes('mobBtnSelect') && noteSource.includes('toggleBlockSelectMode'));
-  ok('mobile · note.js define mobileSelectBar com contador e ações', noteSource.includes('mobileSelectBar') && noteSource.includes('mobSelectCount'));
-  ok('mobile · mobileSelectBar possui copiar e baixar como imagem', noteSource.includes('copySelectedBlocksAsImage') && noteSource.includes('downloadSelectedBlocksAsImage'));
-  ok('mobile · mobileSelectBar possui baixar como md e txt', noteSource.includes('downloadSelectedBlocksAsMd') && noteSource.includes('downloadSelectedBlocksAsTxt'));
-  ok('mobile · mobileSelectBar possui salvar modelo e excluir blocos', noteSource.includes('saveSelectedBlocksAsTemplate') && noteSource.includes('deleteSelectedBlocks'));
-  ok('mobile · note.js tem gesto de toque longo em blocos para seleção', noteSource.includes('touchSelectTimer') && noteSource.includes('enterBlockSelectMode'));
-  ok('mobile · mobileFormatBar possui atalhos de imagem, md e txt', noteSource.includes('mobBtnFmtCopyImg') && noteSource.includes('mobBtnFmtDownloadMd') && noteSource.includes('mobBtnFmtDownloadTxt'));
+  const noteMobileToolbarSource = await readFile(new URL('../sidepanel/modules/note-mobile-toolbar.js', import.meta.url), 'utf8');
+  ok('mobile · note-mobile-toolbar.js define mobileTemplateSheet separado de tipo', noteMobileToolbarSource.includes('mobileTemplateSheet') && noteMobileToolbarSource.includes('mobile-template-sheet-no-scrim'));
+  ok('mobile · note-mobile-toolbar.js tem botão de Modelos na barra normal', noteMobileToolbarSource.includes('mobBtnTemplates') && noteMobileToolbarSource.includes('toggleMobileTemplateSheet'));
+  ok('mobile · note-mobile-toolbar.js tem botão de Selecionar na barra normal', noteMobileToolbarSource.includes('mobBtnSelect') && noteMobileToolbarSource.includes('toggleBlockSelectMode'));
+  ok('mobile · note-mobile-toolbar.js define mobileSelectBar com contador e ações', noteMobileToolbarSource.includes('mobileSelectBar') && noteMobileToolbarSource.includes('mobSelectCount'));
+  ok('mobile · mobileSelectBar possui copiar e baixar como imagem', noteMobileToolbarSource.includes('copySelectedBlocksAsImage') && noteMobileToolbarSource.includes('downloadSelectedBlocksAsImage'));
+  ok('mobile · mobileSelectBar possui baixar como md e txt', noteMobileToolbarSource.includes('downloadSelectedBlocksAsMd') && noteMobileToolbarSource.includes('downloadSelectedBlocksAsTxt'));
+  ok('mobile · mobileSelectBar possui salvar modelo e excluir blocos', noteMobileToolbarSource.includes('saveSelectedBlocksAsTemplate') && noteMobileToolbarSource.includes('deleteSelectedBlocks'));
+  ok('mobile · note-mobile-toolbar.js tem gesto de toque longo em blocos para seleção', noteMobileToolbarSource.includes('touchSelectTimer') && noteMobileToolbarSource.includes('enterBlockSelectMode'));
+  ok('mobile · mobileFormatBar possui atalhos de imagem, md e txt', noteMobileToolbarSource.includes('mobBtnFmtCopyImg') && noteMobileToolbarSource.includes('mobBtnFmtDownloadMd') && noteMobileToolbarSource.includes('mobBtnFmtDownloadTxt'));
   ok('mobile · style.css estiliza mobile-template-sheet-no-scrim', styleSource.includes('.mobile-template-sheet-no-scrim') && styleSource.includes('.mob-template-item'));
   ok('mobile · style.css estiliza mobile-select-bar e mob-select-count', styleSource.includes('.mobile-select-bar') && styleSource.includes('.mob-select-count'));
   ok('mobile · sheets usam --keyboard-offset', styleSource.includes('bottom: var(--keyboard-offset, 0px)'));
@@ -4295,6 +4296,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   // 30.6: Visibilidade e abertura de notas no estado zero-abas
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const noteMobileToolbarSourceZeroAbas = await readFile(new URL('../sidepanel/modules/note-mobile-toolbar.js', import.meta.url), 'utf8');
   ok('zero-abas · CSS sobrescreve display:flex com display:none !important em elementos com [hidden]',
     styleCssSource.includes('.note-editor[hidden]') &&
     styleCssSource.includes('.notes-empty-dashboard[hidden]'));
@@ -4305,8 +4307,8 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('body.no-note-open .mobile-notion-toolbar'));
 
   ok('zero-abas · updateMobileToolbarState oculta a barra móvel/inteligente quando !currentNoteId',
-    noteJsSource.includes('if (!currentNoteId)') &&
-    noteJsSource.includes('mobileNotionToolbar.style.display = \'none\''));
+    noteMobileToolbarSourceZeroAbas.includes('if (!getCurrentNoteId())') &&
+    noteMobileToolbarSourceZeroAbas.includes('mobileNotionToolbar.style.display = \'none\''));
 
   // 30.7: Seletor de visão auxiliar e migração do menu More para o Aside Drawer
   const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
@@ -4675,6 +4677,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const { readFile } = await import('node:fs/promises');
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const noteOutlineSource = await readFile(new URL('../sidepanel/modules/note-outline.js', import.meta.url), 'utf8');
+  const noteMobileToolbarSourceFullscreen = await readFile(new URL('../sidepanel/modules/note-mobile-toolbar.js', import.meta.url), 'utf8');
   const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
   const indexHtmlSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
@@ -4727,10 +4730,10 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     sidepanelHtmlSource.includes('chevron_left') &&
     notFoundHtmlSource.includes('chevron_left'));
 
-  ok('note.js · updateMobileToolbarState oculta a barra móvel/inteligente quando em tela cheia ou painel maximizado',
-    noteJsSource.includes('isFullscreenView') &&
-    noteJsSource.includes('has-maximized-panel') &&
-    noteJsSource.includes('view-fullscreen'));
+  ok('note-mobile-toolbar.js · updateMobileToolbarState oculta a barra móvel/inteligente quando em tela cheia ou painel maximizado',
+    noteMobileToolbarSourceFullscreen.includes('isFullscreenView') &&
+    noteMobileToolbarSourceFullscreen.includes('has-maximized-panel') &&
+    noteMobileToolbarSourceFullscreen.includes('view-fullscreen'));
 
   ok('style.css · CSS oculta barra inteligente em modo tela cheia e maximizado',
     styleCssSource.includes('html.has-maximized-panel .mobile-notion-toolbar') &&
