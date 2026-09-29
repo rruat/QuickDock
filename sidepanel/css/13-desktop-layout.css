@@ -462,6 +462,16 @@
     border-top: none;
   }
 
+  /* Barra contextual dentro do editor: fixa no fim da área de rolagem, na
+     largura do editor (não invade a sidebar de sumário/backlinks). */
+  html[data-platform="desktop"] .note-editor > .mobile-notion-toolbar {
+    position: sticky;
+    bottom: 0;
+    align-self: stretch;
+    width: 100%;
+    margin-top: auto;
+  }
+
   /* Barra Lateral do Sumário (Outline) no Desktop - Estilo Google Docs */
   html[data-platform="desktop"] .note-outline-sidebar {
     position: relative;

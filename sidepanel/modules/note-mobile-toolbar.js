@@ -1020,7 +1020,12 @@ mobileNotionToolbar.append(
   mobileBlockBar,
   mobileSelectBar
 );
-noteSection.appendChild(mobileNotionToolbar);
+// No desktop a barra fica só sob o editor (sticky no fim da rolagem dele), não
+// sob a sidebar de sumário/backlinks — que é irmã do editor, não filha.
+const desktopEditor = document.documentElement.dataset.platform === 'desktop'
+  ? noteSection.querySelector('.note-editor')
+  : null;
+(desktopEditor || noteSection).appendChild(mobileNotionToolbar);
 document.body.appendChild(mobileTypeSheet);
 document.body.appendChild(mobileTemplateSheet);
 // Adiado: este módulo é importado cedo no carregamento de note.js (antes da
