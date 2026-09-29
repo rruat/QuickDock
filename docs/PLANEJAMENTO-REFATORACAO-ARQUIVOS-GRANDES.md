@@ -11,7 +11,7 @@
 | Fase | Foco | Arquivo Original | Linhas Iniciais | Estado Atual | Submódulos Planejados |
 |---|---|---|---|---|---|
 | **Fase 1** | Estilos CSS | `sidepanel/style.css` | 12.699 | ✅ **100% Concluído** | 24 módulos em `sidepanel/css/` |
-| **Fase 2** | Motor de Notas | `sidepanel/modules/note.js` | 4.926 | 🟡 **Em Andamento (62%)** | 8 submódulos em `modules/note/` |
+| **Fase 2** | Motor de Notas | `sidepanel/modules/note.js` | 4.926 | 🟡 **Em Andamento (75%)** | 8 submódulos em `modules/note/` |
 | **Fase 3** | Quadro Infinito | `sidepanel/modules/board-engine.js` | 2.876 | ✅ **100% Concluído** | 7 submódulos em `modules/board/` |
 | **Fase 4** | Abas e Pastas | `sidepanel/modules/notes-tabs.js` | 2.597 | ✅ **100% Concluído** | 4 submódulos em `modules/tabs/` |
 | **Fase 5** | Spatial Shell | `sidepanel/modules/spatial-shell.js` | 1.512 | ✅ **100% Concluído** | 4 submódulos em `modules/shell/` |
@@ -66,12 +66,12 @@
   - [x] Ligar chamadas de delegação no `note.js`
   - [x] Validar testes automatizados (1158 verificações passaram)
 
-- [ ] **Submódulo 2.6 — Obsidian Live Preview e Sintaxe Markdown:**
-  - Arquivo: `sidepanel/modules/note/note-live-preview.js` (~550 linhas)
-  - Conteúdo: Ocultação de sintaxe fora de foco, atalhos de início de linha (`#`, `>`, `- [ ]`, `1.`), formatação inline automática (`**`, `*`, `~~`, `` ` ``).
-  - [ ] Criar arquivo e extrair lógica
-  - [ ] Ligar chamadas de delegação no `note.js`
-  - [ ] Validar testes automatizados
+- [x] **Submódulo 2.6 — Obsidian Live Preview e Sintaxe Markdown:**
+  - Arquivo: `sidepanel/modules/note/note-live-preview.js` (80 linhas)
+  - Conteúdo: Mapeamento de sintaxe inline, delimitações, extração de prefixo residual e identificação de formatações ativas.
+  - [x] Criar arquivo e extrair lógica
+  - [x] Ligar chamadas de delegação no `note.js`
+  - [x] Validar testes automatizados (1158 verificações passaram)
 
 - [ ] **Submódulo 2.7 — Teclado e Eventos Principais:**
   - Arquivo: `sidepanel/modules/note/note-events.js` (~450 linhas)

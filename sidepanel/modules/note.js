@@ -58,6 +58,12 @@ import {
   hideBlockControls, positionBlockControls, findBlockById, orderedBlocks,
   deleteBlocksOrOne, closeBlockMenu, isGestureActive, isSelecaoEspelhada, setSelecaoEspelhada,
 } from './note/note-drag-drop.js';
+import {
+  getInlineDelimiters,
+  extractExtraPrefixText,
+  findNearestInlineFormatting,
+  isDividerText,
+} from './note/note-live-preview.js';
 export {
   getSelectedBlockIds, getIsBlockSelectActive, setIsBlockSelectActive,
   getLastHandleClickedId, setLastHandleClickedId, setBlockSelection,
@@ -1849,8 +1855,7 @@ export function updateLivePreviewState() {
     if (block) revealBlockSyntax(block);
   }
 
-  const el = anchor.nodeType === Node.ELEMENT_NODE ? anchor : anchor.parentElement;
-  const inline = el?.closest?.('.note-editor-blocks strong, .note-editor-blocks b, .note-editor-blocks em, .note-editor-blocks i, .note-editor-blocks s, .note-editor-blocks strike, .note-editor-blocks del, .note-editor-blocks code, .note-editor-blocks a');
+  const inline = findNearestInlineFormatting(anchor, root);
 
   if (inline !== livePreviewActiveInline) {
     if (livePreviewActiveInline) collapseInlineSyntax(livePreviewActiveInline);
