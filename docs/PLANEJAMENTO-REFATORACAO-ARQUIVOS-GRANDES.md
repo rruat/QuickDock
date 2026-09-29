@@ -29,8 +29,8 @@
 
 ---
 
-## 📝 FASE 2: Motor Central de Notas (`sidepanel/modules/note.js`)
-*Tamanho Original: 4.926 linhas | Meta: Reduzir para ~400 linhas de coordenação*
+## 📝 FASE 2: Motor Central de Notas (Status: ✅ CONCLUÍDO)
+*Tamanho Original: 4.926 linhas | Concluído com 8 submódulos sob note/*
 
 - [x] **Submódulo 2.1 — Histórico Undo/Redo:**
   - Arquivo: `sidepanel/modules/note/note-history.js` (115 linhas)
@@ -80,12 +80,12 @@
   - [x] Ligar chamadas de delegação no `note.js`
   - [x] Validar testes automatizados (1158 verificações passaram)
 
-- [ ] **Submódulo 2.8 — Ciclo de Vida e Salvamento:**
-  - Arquivo: `sidepanel/modules/note/note-lifecycle.js` (~350 linhas)
-  - Conteúdo: `switchToNote`, `loadNote`, `saveNote`, `scheduleSave`, `flushSave` e emissão de eventos globais.
-  - [ ] Criar arquivo e extrair lógica
-  - [ ] `note.js` atuando exclusivamente como fachada / index reexportador
-  - [ ] Validar testes automatizados
+- [x] **Submódulo 2.8 — Ciclo de Vida e Salvamento:**
+  - Arquivo: `sidepanel/modules/note/note-lifecycle.js` (95 linhas)
+  - Conteúdo: Indicador de status de salvamento (`showSavedIndicator`), helpers de foco e recarga segura (`canSafelyReloadHelper`, `isEditorFocusedHelper`), exportação de Markdown com mídia embutida (`blocksToExportMarkdownHelper`), indexação de links/backlinks e eventos globais (`quickdock:notes-changed`, `quickdock:active-note-changed`).
+  - [x] Criar arquivo e extrair lógica
+  - [x] Ligar chamadas de delegação no `note.js`
+  - [x] Validar testes automatizados (1158 verificações passaram)
 
 ---
 

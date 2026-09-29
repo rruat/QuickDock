@@ -71,6 +71,13 @@ import {
   closeAltMenu as _closeAltMenu,
   isClickInsideLinkMenu,
 } from './note/note-dialogs.js';
+import {
+  showSavedIndicator,
+  isEditorFocusedHelper,
+  canSafelyReloadHelper,
+  blocksToExportMarkdownHelper,
+  indexNoteLinksHelper,
+} from './note/note-lifecycle.js';
 export {
   getSelectedBlockIds, getIsBlockSelectActive, setIsBlockSelectActive,
   getLastHandleClickedId, setLastHandleClickedId, setBlockSelection,
@@ -903,10 +910,7 @@ export function getCurrentBlocks() {
 }
 
 function showSaved() {
-  indicator.innerHTML = `salvo ${iconSvg('check')}`;
-  indicator.classList.add('visible');
-  clearTimeout(indicatorTimer);
-  indicatorTimer = setTimeout(() => indicator.classList.remove('visible'), 2200);
+  showSavedIndicator(indicator, iconSvg);
 }
 
 // ── Modo modelo ───────────────────────────────────────────────────────────────
@@ -933,16 +937,7 @@ export function currentTemplateMarkdown() {
 // Markdown pronto pra sair da extensão: a imagem vai embutida em base64, pra
 // que o arquivo abra em qualquer lugar sem depender do banco daqui.
 export async function blocksToExportMarkdown(blocks) {
-  return blocksToMarkdownForExport(blocks, async fileId => {
-    const blob = await loadFileBlob(fileId);
-    if (!blob) return null;
-    return new Promise(resolve => {
-      const leitor = new FileReader();
-      leitor.onload  = () => resolve(leitor.result);
-      leitor.onerror = () => resolve(null);
-      leitor.readAsDataURL(blob);
-    });
-  });
+  return blocksToExportMarkdownHelper(blocks, loadFileBlob, blocksToMarkdownForExport);
 }
 
 export function clearTemplateEditing() { editingTemplate = null; }
@@ -968,18 +963,14 @@ export async function flushSave() {
   showSaved();
 
   // Indexa os links da nota salva no Dexie v10
-  try {
-    const note = await getNoteById(currentNoteId);
-    if (note && note.uid) {
-      const todasNotas = await loadAllNotesMeta();
-      const refs = extrairLinksDeBlocos(blocks);
-      const linksResolvidos = resolverLinks(refs, note.uid, todasNotas);
-      await salvarLinksDaNota(note.uid, linksResolvidos);
-      await refreshBacklinks(currentNoteId);
-    }
-  } catch (err) {
-    console.warn('Erro ao indexar links da nota:', err);
-  }
+  await indexNoteLinksHelper(currentNoteId, blocks, {
+    getNoteById,
+    loadAllNotesMeta,
+    extrairLinksDeBlocos,
+    resolverLinks,
+    salvarLinksDaNota,
+    refreshBacklinks,
+  });
   renderOutline();
 
   // Avisa quem mantém uma visão derivada de TODAS as notas (Grafo/Constelações)
@@ -1017,7 +1008,7 @@ export function requestSaveFromExternalEdit() {
 }
 
 export function isEditorFocused() {
-  return !!noteEditorEl?.contains(document.activeElement);
+  return isEditorFocusedHelper(noteEditorEl);
 }
 
 export function hasPendingSave() {
@@ -1025,7 +1016,7 @@ export function hasPendingSave() {
 }
 
 export function canSafelyReloadCurrentNote() {
-  return !isEditingTemplate() && !isEditorFocused() && !hasPendingSave();
+  return canSafelyReloadHelper(isEditingTemplate(), isEditorFocused(), hasPendingSave());
 }
 
 // Esvazia a nota aberta. Tem que passar pelo editor: escrever direto no banco
