@@ -3238,12 +3238,13 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
   const backlinksSource = await readFile(new URL('../sidepanel/modules/note-backlinks.js', import.meta.url), 'utf8');
+  const linkAutocompleteSource = await readFile(new URL('../sidepanel/modules/note-link-autocomplete.js', import.meta.url), 'utf8');
 
   ok('storage · declara versão 10 com tabela links', storageSource.includes('db.version(10)') && storageSource.includes('links: "++id, uidOrigem, uidDestino, tituloAlvo"'));
   ok('storage · exporta salvarLinksDaNota e obterBacklinks', storageSource.includes('salvarLinksDaNota') && storageSource.includes('obterBacklinks'));
   ok('storage · deleteNoteRecordById remove links em cascata', storageSource.includes('uidOrigem') && storageSource.includes('uidDestino'));
 
-  ok('note.js · possui menu de autocomplete de links [[', noteSource.includes('checkLinkAutocomplete') && noteSource.includes('link-autocomplete-menu'));
+  ok('note-link-autocomplete.js · possui menu de autocomplete de links [[', linkAutocompleteSource.includes('checkLinkAutocomplete') && linkAutocompleteSource.includes('link-autocomplete-menu'));
   ok('note.js · possui navegação ao clicar em link interno', noteSource.includes('note-internal-link') && noteSource.includes('quickdock:activate-note'));
   ok('note-backlinks.js · renderiza e atualiza seção de backlinks', backlinksSource.includes('refreshBacklinks') && backlinksSource.includes('note-backlinks-section'));
 
