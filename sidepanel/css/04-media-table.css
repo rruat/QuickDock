@@ -1,0 +1,219 @@
+/* ==========================================================================
+   04-media-table.css - Tabela, imagem na nota, audio e video
+   Linhas originais: 1017 a 1231 (215 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== TABELA ===== */
+.block-table { margin: 8px 0; }
+
+/* O painel é estreito: a tabela rola na horizontal em vez de espremer coluna. */
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.block-table table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.table-cell {
+  border: 1px solid var(--border);
+  padding: 5px 7px;
+  /* largura que segura um CPF mascarado sem quebrar no meio do número; o que
+     passar disso vai pro scroll horizontal, não pra célula espremida */
+  min-width: 88px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  vertical-align: top;
+  outline: none;
+  word-break: break-word;
+}
+
+.block-table th.table-cell {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  text-align: left;
+}
+
+.table-cell:focus { box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* A barra só existe enquanto o cursor está na tabela — fora disso é ruído. */
+.table-tools {
+  display: none;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.block-table:focus-within .table-tools { display: flex; }
+
+.table-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 2px 9px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.table-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+/* ===== IMAGEM NA NOTA ===== */
+/* O bloco não é editável (o cursor não entra nele); o que se edita é o texto
+   alternativo, por botão. */
+.block-image {
+  margin: 6px 0;
+  position: relative;
+  max-width: 100%;
+}
+
+.image-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.block-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: zoom-in;
+  background: var(--bg-secondary);
+  /* Teto de altura: um print de tela inteira colado numa coluna estreita
+     empurraria o resto da nota pra fora da vista. Some assim que a imagem
+     ganha uma largura explícita (redimensionada) — ver aplicarTamanhoImagem. */
+  max-height: 320px;
+  object-fit: contain;
+}
+
+/* Alça no canto da imagem — arrastar muda a largura, mesma ideia do
+   redimensionamento de imagem do Obsidian. Só aparece no hover pra não
+   poluir a leitura normal da nota. */
+.image-resize-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--bg);
+  border: 1.5px solid var(--accent);
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.image-frame:hover .image-resize-handle,
+.block-image.is-resizing .image-resize-handle {
+  opacity: 0.9;
+}
+.image-resize-handle:hover {
+  opacity: 1;
+}
+
+/* Arquivo que não foi encontrado (faxina, banco limpo): mostra a moldura vazia
+   com o texto alternativo, em vez de um ícone de imagem quebrada. Mesma marca
+   serve imagem, áudio e vídeo. */
+.block-image-missing img,
+.block-image-missing audio,
+.block-image-missing video { display: none; }
+.block-image-missing::before {
+  content: 'imagem não encontrada';
+  display: block;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.block-audio.block-image-missing::before { content: 'áudio não encontrado'; }
+.block-video.block-image-missing::before { content: 'vídeo não encontrado'; }
+
+/* ===== ÁUDIO E VÍDEO NA NOTA ===== */
+/* Mesma moldura da imagem — bloco não editável, ferramentas só no hover. */
+.block-audio, .block-video {
+  margin: 6px 0;
+  position: relative;
+  max-width: 100%;
+}
+
+.block-audio audio {
+  width: 100%;
+  max-width: 420px;
+  display: block;
+}
+
+.block-video video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #000;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+/* A barra só aparece no hover — como a da tabela, que só existe enquanto o
+   cursor está nela. Aqui não dá pra usar :focus-within: o bloco não é
+   editável e nunca recebe foco. */
+.image-tools {
+  display: none;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.block-image:hover .image-tools,
+.block-audio:hover .image-tools,
+.block-video:hover .image-tools { display: flex; }
+
+.image-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 2px 9px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.image-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+/* "Mover p/ Documentos" é a ação com mais consequência da barra — ela tira a
+   imagem do texto. Vem preenchida na cor de destaque pra ser a primeira coisa
+   que se enxerga, já que é o que a pessoa procura quando decide que a imagem
+   não devia estar ali. */
+.image-btn-accent {
+  background: var(--note-accent, var(--accent));
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+.image-btn-accent:hover {
+  background: color-mix(in srgb, var(--note-accent, var(--accent)) 85%, #000);
+  color: #fff;
+}
+
+.alt-menu { min-width: 230px; padding: 8px; }
+.alt-menu-hint {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding: 0 2px 6px;
+}
+
+/* Arrastar um arquivo de imagem pra dentro do editor */
+.note-editor-blocks.editor-drop {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: var(--radius-sm);
+}

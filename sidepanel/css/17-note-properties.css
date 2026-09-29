@@ -1,0 +1,429 @@
+/* ==========================================================================
+   17-note-properties.css - Barra de propriedades da nota (Notion / Obsidian style)
+   Linhas originais: 7665 a 8089 (425 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ==========================================================================
+   BARRA DE PROPRIEDADES DA NOTA (NOTION / OBSIDIAN PROPERTIES STYLE)
+   ========================================================================== */
+
+/* Sem caixa: linhas soltas por baixo do título, igual ao Obsidian — só uma
+   linha fina separando as propriedades do corpo da nota. */
+.note-properties-bar {
+  margin: 4px 14px 8px 34px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  overflow: visible;
+  transition: border-color 0.15s ease;
+  font-size: 12px;
+}
+
+.note-properties-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  min-height: 28px;
+  gap: 8px;
+}
+
+.note-properties-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.note-properties-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.note-properties-toggle-btn .properties-chevron {
+  font-size: 15px;
+  transition: transform 0.15s ease;
+}
+
+.note-properties-toggle-btn .properties-icon {
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.properties-count-badge {
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.note-properties-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-properties-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.note-properties-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.note-properties-add-btn .qd-icon {
+  font-size: 13px;
+}
+
+.note-properties-list {
+  padding: 2px 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.note-properties-list[hidden] {
+  display: none !important;
+}
+
+/* Nota sem propriedade nenhuma: some a caixa com borda/cabeçalho e sobra só
+   este link discreto — igual a uma nota nova do Obsidian, que não carrega a
+   seção de Properties até alguém pedir uma. */
+.note-properties-bar.is-empty-ghost {
+  border: none;
+  background: transparent;
+  margin-bottom: 2px;
+}
+.note-properties-bar.is-empty-ghost .note-properties-header {
+  display: none;
+}
+.note-properties-bar.is-empty-ghost .note-properties-list {
+  padding: 0;
+  border-top: none;
+}
+.note-properties-ghost-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-family: inherit;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
+}
+.note-properties-ghost-add:hover {
+  opacity: 1;
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+.note-properties-ghost-add .qd-icon {
+  font-size: 14px;
+}
+
+.note-property-row-new {
+  border-top: 1px dashed var(--border);
+  margin-top: 2px;
+  padding-top: 6px;
+}
+.property-name-input-new {
+  flex: 1;
+  max-width: none;
+}
+
+.note-property-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  min-height: 26px;
+}
+.note-property-row.is-dragging {
+  opacity: 0.4;
+}
+
+.property-drag-handle {
+  font-size: 15px;
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: grab;
+  flex-shrink: 0;
+  transition: opacity 0.12s ease;
+  margin-left: -4px;
+}
+.note-property-row:hover .property-drag-handle {
+  opacity: 0.6;
+}
+.property-drag-handle:hover {
+  opacity: 1 !important;
+}
+
+.note-property-drop-indicator {
+  height: 2px;
+  margin: 0 4px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.note-property-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 95px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.note-property-label-wrap .property-icon {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.property-type-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+}
+
+.property-type-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.property-type-btn .qd-icon {
+  font-size: 14px;
+}
+
+.note-property-label-wrap .property-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+.note-property-label-wrap .property-name:hover {
+  color: var(--text);
+}
+
+.property-name-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 11.5px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--text);
+  outline: none;
+}
+
+.note-property-value-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.property-input,
+.property-select {
+  width: 100%;
+  max-width: 220px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.property-input:focus,
+.property-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.25);
+}
+
+.property-input-date {
+  color-scheme: light dark;
+}
+
+.property-input-number {
+  max-width: 120px;
+}
+
+.property-checkbox-wrap {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.property-checkbox-wrap input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.property-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.property-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 2px 4px 2px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.property-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 50%;
+}
+
+.property-chip-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.property-chip-remove .qd-icon {
+  font-size: 12px;
+}
+
+.property-chip-input {
+  flex: 1;
+  min-width: 60px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--text);
+  padding: 2px 4px;
+}
+
+.property-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  opacity: 0.4;
+  transition: all 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-property-row:hover .property-delete-btn {
+  opacity: 1;
+}
+
+.property-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.property-delete-btn .qd-icon {
+  font-size: 14px;
+}
+
+.note-properties-popup-menu {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 150px;
+}
+
+.note-properties-popup-menu .popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.12s ease;
+}
+
+.note-properties-popup-menu .popover-item:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.note-properties-popup-menu .popover-item.active {
+  background: var(--bg-hover);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.note-properties-popup-menu .popover-item .qd-icon {
+  font-size: 16px;
+  color: var(--accent);
+}

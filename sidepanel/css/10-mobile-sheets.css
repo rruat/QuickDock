@@ -1,0 +1,554 @@
+/* ==========================================================================
+   10-mobile-sheets.css - Estrutura base aside, cabecalho e abas mobile/extensao, bottom sheets
+   Linhas originais: 3376 a 3925 (550 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== ESTRUTURA BASE PARA ASIDE E FLUXO ===== */
+.app-aside {
+  display: contents;
+}
+
+.aside-brand {
+  display: none;
+}
+
+.aside-actions {
+  display: contents;
+}
+
+.aside-search-label {
+  display: none;
+}
+
+.notes-tabbar {
+  order: 1;
+}
+
+.note-section {
+  order: 2;
+}
+
+#resize-handle {
+  order: 3;
+}
+
+.docs-section {
+  order: 4;
+}
+
+/* ===== EXTENSÃO E MOBILE: CABEÇALHO E ABAS BASEADOS NO REDESIGN.HTML ===== */
+html[data-platform="extension"] #app,
+html[data-platform="mobile"] #app {
+  display: flex;
+  flex-direction: column;
+  height: var(--vv-height, 100vh);
+  overflow: hidden;
+}
+
+html[data-platform="extension"] .app-aside,
+html[data-platform="mobile"] .app-aside {
+  display: contents;
+}
+
+html[data-platform="extension"] .aside-brand,
+html[data-platform="mobile"] .aside-brand {
+  display: none;
+}
+
+html[data-platform="extension"] .aside-actions,
+html[data-platform="mobile"] .aside-actions {
+  display: contents;
+}
+
+html[data-platform="extension"] .aside-search-label,
+html[data-platform="mobile"] .aside-search-label {
+  display: none;
+}
+
+/* Cabeçalho em Grid: [Menu/H] [Novo/+] [Abas centrais] [Sync/S] */
+html[data-platform="extension"] .notes-tabbar,
+html[data-platform="mobile"] .notes-tabbar {
+  order: 1;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 5px;
+  padding: 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+  min-height: 50px;
+  position: relative;
+}
+
+/* Degradê fade esquerdo (atrás do botão +, projetando profundidade sobre as abas) */
+html[data-platform="extension"] .notes-tabbar::before,
+html[data-platform="mobile"] .notes-tabbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 69px;
+  width: 46px;
+  background: linear-gradient(to right, var(--bg) 35%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Degradê fade direito (atrás do botão Sync, projetando profundidade sobre as abas) */
+html[data-platform="extension"] .notes-tabbar::after,
+html[data-platform="mobile"] .notes-tabbar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 14px;
+  width: 48px;
+  background: linear-gradient(to left, var(--bg) 40%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Ordem e visual dos controles do cabeçalho */
+html[data-platform="extension"] #btn-notes-list,
+html[data-platform="mobile"] #btn-notes-list {
+  order: 1;
+  position: relative;
+  z-index: 10;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+html[data-platform="extension"] #btn-notes-list:hover,
+html[data-platform="mobile"] #btn-notes-list:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-platform="extension"] #btn-notes-list .qd-icon,
+html[data-platform="mobile"] #btn-notes-list .qd-icon {
+  font-size: 18px;
+}
+
+/* Botão de Adicionar (+) em formato de pílula (sempre em primeiro plano) */
+html[data-platform="extension"] #btn-new-note,
+html[data-platform="mobile"] #btn-new-note {
+  order: 2;
+  position: relative;
+  z-index: 10;
+  width: 44px;
+  height: 34px;
+  min-width: 44px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+
+html[data-platform="extension"] #btn-new-note:hover,
+html[data-platform="mobile"] #btn-new-note:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+html[data-platform="extension"] #btn-new-note:active,
+html[data-platform="mobile"] #btn-new-note:active {
+  transform: scale(0.96);
+}
+
+html[data-platform="extension"] #btn-new-note .qd-icon,
+html[data-platform="mobile"] #btn-new-note .qd-icon {
+  font-size: 18px;
+}
+
+/* Área central de abas com scroll horizontal que entra até a metade dos botões + e S com dissolução em fade */
+html[data-platform="extension"] .notes-tabs,
+html[data-platform="mobile"] .notes-tabs {
+  order: 3;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  min-width: 0;
+  height: 40px;
+  margin-left: -27px;
+  margin-right: -22px;
+  padding-left: 27px;
+  padding-right: 22px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    black 27px,
+    black calc(100% - 22px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0px,
+    black 27px,
+    black calc(100% - 22px),
+    transparent 100%
+  );
+}
+
+html[data-platform="extension"] .notes-tabs::-webkit-scrollbar,
+html[data-platform="mobile"] .notes-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Abas em formato de pílula (Pill Tabs) */
+html[data-platform="extension"] .note-tab,
+html[data-platform="mobile"] .note-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  max-width: 140px;
+  user-select: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+}
+
+html[data-platform="extension"] .note-tab:hover,
+html[data-platform="mobile"] .note-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+html[data-platform="extension"] .note-tab.active,
+html[data-platform="mobile"] .note-tab.active {
+  background: var(--bg);
+  border-color: var(--active-accent, var(--tab-active-border-default));
+  color: var(--text);
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+html[data-platform="extension"] .note-tab-dot,
+html[data-platform="mobile"] .note-tab-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  clip-path: polygon(50% 0%, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0% 50%, 37% 37%);
+}
+
+html[data-platform="extension"] .note-tab-title,
+html[data-platform="mobile"] .note-tab-title {
+  font-size: 11.5px;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Botão de Sincronização (S) sempre em primeiro plano sobre o degradê */
+html[data-platform="extension"] #btn-sync,
+html[data-platform="mobile"] #btn-sync {
+  order: 4;
+  position: relative;
+  z-index: 10;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+html[data-platform="extension"] #btn-sync:hover,
+html[data-platform="mobile"] #btn-sync:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+html[data-platform="extension"] #btn-app-menu,
+html[data-platform="mobile"] #btn-app-menu {
+  order: 5;
+  position: relative;
+  z-index: 10;
+  width: 30px;
+  height: 34px;
+  min-width: 30px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: calc(34px / 2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+html[data-platform="extension"] #btn-app-menu:hover,
+html[data-platform="mobile"] #btn-app-menu:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* Seções principais da extensão empilhadas com divisor vertical funcional (drag & drop) */
+html[data-platform="extension"] .note-section {
+  order: 2;
+  flex: 0 0 auto !important;
+  min-height: 80px;
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Transição suave durante expansão/recolhimento programático (sem piscar) */
+.note-section.is-animating {
+  transition: height 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: height;
+}
+
+.docs-section.is-animating {
+  overflow: hidden !important;
+}
+
+.docs-section.is-animating .drop-zone {
+  overflow-y: hidden !important;
+}
+
+html[data-platform="extension"] #resize-handle {
+  order: 3;
+  display: block !important;
+  height: 7px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  position: relative;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  z-index: 5;
+}
+
+html[data-platform="extension"] #resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+html[data-platform="extension"] #resize-handle:hover::after,
+html[data-platform="extension"] #resize-handle.dragging::after {
+  background: var(--accent);
+}
+
+html[data-platform="extension"] .docs-section {
+  order: 4;
+  flex: 1 1 0px !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  position: static !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: var(--bg-secondary);
+  border-top: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  transform: none !important;
+}
+
+html[data-platform="extension"] .docs-section::before {
+  display: none !important;
+}
+
+/* Botão de recolher/expandir na extensão */
+html[data-platform="extension"] #btn-docs-toggle {
+  display: inline-flex !important;
+  cursor: pointer;
+}
+
+html[data-platform="extension"] #btn-docs-toggle .qd-icon {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+}
+
+/* Quando na altura mínima (header), a seta aponta para CIMA (^) */
+html[data-platform="extension"] .docs-section.is-minimized #btn-docs-toggle .qd-icon {
+  transform: rotate(180deg);
+}
+
+/* Quando aberto, a seta aponta para BAIXO (v) */
+html[data-platform="extension"] .docs-section:not(.is-minimized) #btn-docs-toggle .qd-icon {
+  transform: rotate(0deg);
+}
+
+/* Header com cursor pointer quando minimizado para facilitar clique */
+html[data-platform="extension"] .docs-section.is-minimized .docs-header {
+  cursor: pointer;
+}
+
+html[data-platform="extension"] .docs-section:not(.is-minimized) .docs-header {
+  cursor: default;
+}
+
+/* Oculta o conteúdo interno quando minimizado para evitar qualquer scrollbar/salto */
+html[data-platform="extension"] .docs-section.is-minimized .drop-zone,
+html[data-platform="extension"] .docs-section.is-minimized #group-bar,
+html[data-platform="extension"] .docs-section.is-minimized #docs-hidden-hint {
+  display: none !important;
+}
+
+/* ===== BOTTOM SHEETS (MOBILE: BLOCOS E DOCUMENTOS) ===== */
+.bottom-sheet-backdrop,
+.docs-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 9990;
+  opacity: 1;
+  animation: backdrop-fade-in 0.2s ease-out;
+}
+
+@keyframes backdrop-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.copy-menu.is-bottom-sheet {
+  position: fixed !important;
+  bottom: var(--keyboard-offset, 0px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: 80vh !important;
+  border-radius: 18px 18px 0 0 !important;
+  padding: 10px 16px 28px !important;
+  z-index: 10000 !important;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.28) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  animation: sheet-slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-bottom: none !important;
+}
+
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0);    }
+}
+
+.bottom-sheet-drag-pill {
+  width: 38px;
+  height: 4.5px;
+  background: var(--text-muted);
+  opacity: 0.35;
+  border-radius: 99px;
+  margin: 2px auto 10px;
+}
+
+.bottom-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.bottom-sheet-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.bottom-sheet-close {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Documentos como Bottom Sheet exclusivamente no MOBILE */
+html[data-platform="mobile"] #resize-handle {
+  display: none !important;
+}
+
+html[data-platform="mobile"] .note-section {
+  order: 2;
+  flex: 1 1 0px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  display: flex;
+  flex-direction: column !important;
+  position: relative !important;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}

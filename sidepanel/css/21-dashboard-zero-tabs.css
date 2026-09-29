@@ -1,0 +1,480 @@
+/* ==========================================================================
+   21-dashboard-zero-tabs.css - Dashboard zero-abas, rodape do drawer lateral e seletor de visao auxiliar
+   Linhas originais: 10336 a 10811 (476 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== DASHBOARD ZERO-ABAS (QUANDO TODAS AS ABAS ESTÃO FECHADAS) ===== */
+.notes-empty-dashboard {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 24px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.empty-dashboard-inner {
+  width: 100%;
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.empty-dashboard-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 6px;
+}
+
+.empty-dashboard-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(168, 85, 247, 0.12));
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.empty-dashboard-icon-wrap .qd-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.empty-dashboard-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.empty-dashboard-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 380px;
+  line-height: 1.4;
+}
+
+.empty-dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty-dashboard-section-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-dashboard-section-title .qd-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+}
+
+.empty-dashboard-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.empty-dashboard-action-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.1s, border-color 0.12s, box-shadow 0.12s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.empty-dashboard-action-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dash-action-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dash-action-icon .qd-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.dash-action-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-action-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-action-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-dashboard-recents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.empty-dashboard-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bg-surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.empty-dashboard-recent-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.recent-item-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-item-folder {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  flex-shrink: 0;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-item-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.empty-dashboard-tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.empty-dashboard-tip-card {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-card, var(--bg-surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  align-items: flex-start;
+  text-align: left;
+}
+
+.empty-dashboard-tip-card.is-clickable {
+  cursor: pointer;
+}
+
+.empty-dashboard-tip-card.is-clickable:hover {
+  border-color: var(--accent);
+}
+
+.tip-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--border);
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.tip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tip-content strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tip-content span {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* ===== RODAPÉ DO DRAWER LATERAL (AÇÕES E VISÕES) ===== */
+.notes-aside-footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-card, var(--bg-surface));
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.aside-footer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aside-footer-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.aside-footer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.aside-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bg-surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  user-select: none;
+  min-height: 34px;
+  box-sizing: border-box;
+}
+
+.aside-footer-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover, var(--border));
+}
+
+.aside-footer-btn:active {
+  transform: scale(0.98);
+}
+
+.aside-footer-btn .qd-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.aside-footer-btn:hover .qd-icon {
+  color: var(--accent);
+}
+
+/* Painel aberto no sistema de colunas simultâneas do desktop (Quadro/Grafo/
+   Calendário/Documentos, ver desktop-panels.js) — os botões de "Visões" que
+   têm data-panel refletem esse estado, os outros (Modelos) ficam de fora. */
+.aside-footer-btn.is-active {
+  background: var(--bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.aside-footer-btn.is-active .qd-icon {
+  color: var(--accent);
+}
+
+/* ===== SELETOR DE VISÃO AUXILIAR NO CABEÇALHO DE DOCUMENTOS ===== */
+.docs-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.aux-view-switcher-btn {
+  padding: 2px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.aux-view-switcher-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.aux-view-switcher-btn .qd-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.aux-view-menu,
+.aux-view-dropdown {
+  position: fixed !important;
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+  z-index: 10000 !important;
+  min-width: 230px;
+  padding: 5px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: menu-in 0.1s ease-out;
+  box-sizing: border-box;
+}
+
+.aux-view-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.aux-view-opt:hover {
+  background: var(--bg-hover);
+}
+
+/* Painel aberto no sistema de colunas simultâneas do desktop (ver
+   desktop-panels.js) — some sozinho fora do desktop, já que o addOpt()
+   correspondente só passa isActive=true nesse modo. */
+.aux-view-opt.is-active {
+  background: var(--bg-hover);
+}
+
+.aux-view-opt.is-active .aux-view-icon {
+  color: var(--accent);
+}
+
+.aux-view-opt .aux-view-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.aux-view-opt:hover .aux-view-icon {
+  color: var(--accent);
+}
+
+.aux-view-opt .aux-view-icon .qd-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.aux-view-opt .aux-view-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.aux-view-opt .aux-view-title,
+.aux-view-opt .aux-view-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.aux-view-opt .aux-view-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: normal;
+  line-height: 1.25;
+}

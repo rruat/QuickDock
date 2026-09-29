@@ -1,0 +1,814 @@
+/* ==========================================================================
+   11-view-engine.css - Regras universais de visoes (View Engine), fullscreen, split e barra contextual estilo Notion
+   Linhas originais: 3926 a 4735 (810 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ── Regras Universais de Visões (View Engine) ─────────────────────────────── */
+
+/* Qualquer seção ou visão com [hidden] JAMAIS deve ser exibida */
+.note-section[hidden],
+.templates-gallery-view[hidden],
+.graph-view[hidden],
+.board-view[hidden],
+html[data-platform="extension"] .note-section[hidden],
+html[data-platform="mobile"] .note-section[hidden],
+html[data-platform="desktop"] .note-section[hidden],
+html[data-platform="extension"] .templates-gallery-view[hidden],
+html[data-platform="mobile"] .templates-gallery-view[hidden],
+html[data-platform="desktop"] .templates-gallery-view[hidden],
+html[data-platform="extension"] .graph-view[hidden],
+html[data-platform="mobile"] .graph-view[hidden],
+html[data-platform="desktop"] .graph-view[hidden],
+html[data-platform="extension"] .board-view[hidden],
+html[data-platform="mobile"] .board-view[hidden],
+html[data-platform="desktop"] .board-view[hidden],
+html[data-platform="extension"] .calendar-view[hidden],
+html[data-platform="mobile"] .calendar-view[hidden],
+html[data-platform="desktop"] .calendar-view[hidden],
+html[data-platform="extension"] .bases-view[hidden],
+html[data-platform="mobile"] .bases-view[hidden],
+html[data-platform="desktop"] .bases-view[hidden],
+html[data-platform="extension"] .json-view[hidden],
+html[data-platform="mobile"] .json-view[hidden],
+html[data-platform="desktop"] .json-view[hidden] {
+  display: none !important;
+}
+
+/* Quando a visão estiver em tela cheia (100%), oculta o editor de notas e controles */
+html.view-fullscreen .note-section,
+body.view-fullscreen .note-section,
+html.view-fullscreen #btn-touch-select,
+body.view-fullscreen #btn-touch-select,
+html.view-fullscreen #resize-handle,
+body.view-fullscreen #resize-handle,
+html.view-fullscreen .mobile-notion-toolbar,
+body.view-fullscreen .mobile-notion-toolbar,
+html.has-maximized-panel .mobile-notion-toolbar,
+body.has-maximized-panel .mobile-notion-toolbar,
+html.view-templates .mobile-notion-toolbar,
+body.view-templates .mobile-notion-toolbar,
+html.view-grafo:not(.view-split) .mobile-notion-toolbar,
+body.view-grafo:not(.view-split) .mobile-notion-toolbar,
+html.view-board:not(.view-split) .mobile-notion-toolbar,
+body.view-board:not(.view-split) .mobile-notion-toolbar,
+html.view-calendar:not(.view-split) .mobile-notion-toolbar,
+body.view-calendar:not(.view-split) .mobile-notion-toolbar,
+html.view-bases:not(.view-split) .mobile-notion-toolbar,
+body.view-bases:not(.view-split) .mobile-notion-toolbar,
+html.view-json:not(.view-split) .mobile-notion-toolbar,
+body.view-json:not(.view-split) .mobile-notion-toolbar {
+  display: none !important;
+}
+
+/* Quando qualquer visão auxiliar secundária estiver ativa, oculta a seção de documentos para dar lugar à visão */
+html.view-templates .docs-section,
+html.view-grafo .docs-section,
+html.view-board .docs-section,
+html.view-board .note-section,
+html.view-calendar .docs-section,
+html.view-calendar .note-section,
+html.view-bases .docs-section,
+html.view-json .docs-section,
+body.view-templates .docs-section,
+body.view-grafo .docs-section,
+body.view-board .docs-section,
+body.view-calendar .docs-section,
+body.view-bases .docs-section,
+body.view-json .docs-section {
+  display: none !important;
+}
+
+/* Em tela cheia modal no extension/mobile, oculta barra de abas e resize handle */
+html[data-platform="extension"].view-fullscreen .notes-tabbar,
+html[data-platform="extension"].view-fullscreen #resize-handle,
+body.view-fullscreen html[data-platform="extension"] .notes-tabbar,
+body.view-fullscreen html[data-platform="extension"] #resize-handle,
+html[data-platform="mobile"].view-fullscreen .notes-tabbar,
+html[data-platform="mobile"].view-fullscreen #resize-handle {
+  display: none !important;
+}
+
+/* Visões em tela cheia 100% (Extension e Mobile) */
+html[data-platform="extension"].view-fullscreen.view-templates .templates-gallery-view,
+html[data-platform="mobile"].view-fullscreen.view-templates .templates-gallery-view,
+html[data-platform="extension"].view-fullscreen.view-grafo .graph-view,
+html[data-platform="extension"].view-fullscreen.view-board .board-view,
+html[data-platform="extension"].view-fullscreen.view-calendar .calendar-view,
+html[data-platform="extension"].view-fullscreen.view-bases .bases-view,
+html[data-platform="extension"].view-fullscreen.view-json .json-view,
+html[data-platform="mobile"].view-fullscreen.view-grafo .graph-view,
+html[data-platform="mobile"].view-fullscreen.view-board .board-view,
+html[data-platform="mobile"].view-fullscreen.view-calendar .calendar-view,
+html[data-platform="mobile"].view-fullscreen.view-bases .bases-view,
+html[data-platform="mobile"].view-fullscreen.view-json .json-view,
+html[data-platform="extension"].view-fullscreen .graph-view,
+html[data-platform="extension"].view-fullscreen .board-view,
+html[data-platform="extension"].view-fullscreen .calendar-view,
+html[data-platform="extension"].view-fullscreen .bases-view,
+html[data-platform="extension"].view-fullscreen .json-view {
+  order: 1 !important;
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1500 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Visões auxiliares ativas em modo dividido (split-view): dividem a tela simultaneamente com as notas */
+html[data-platform="extension"].view-grafo:not(.view-fullscreen) .graph-view:not([hidden]),
+html[data-platform="extension"].view-board:not(.view-fullscreen) .board-view:not([hidden]),
+html[data-platform="extension"].view-calendar:not(.view-fullscreen) .calendar-view:not([hidden]),
+html[data-platform="extension"].view-bases:not(.view-fullscreen) .bases-view:not([hidden]),
+html[data-platform="extension"].view-json:not(.view-fullscreen) .json-view:not([hidden]),
+html[data-platform="mobile"].view-grafo:not(.view-fullscreen) .graph-view:not([hidden]),
+html[data-platform="mobile"].view-board:not(.view-fullscreen) .board-view:not([hidden]),
+html[data-platform="mobile"].view-calendar:not(.view-fullscreen) .calendar-view:not([hidden]),
+html[data-platform="mobile"].view-bases:not(.view-fullscreen) .bases-view:not([hidden]),
+html[data-platform="mobile"].view-json:not(.view-fullscreen) .json-view:not([hidden]),
+html[data-platform="extension"] .graph-view.split-active:not([hidden]),
+html[data-platform="extension"] .board-view.split-active:not([hidden]),
+html[data-platform="extension"] .calendar-view.split-active:not([hidden]),
+html[data-platform="extension"] .bases-view.split-active:not([hidden]),
+html[data-platform="extension"] .json-view.split-active:not([hidden]) {
+  order: 4 !important;
+  flex: 1 1 0px !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  width: 100% !important;
+  position: relative !important;
+  inset: auto !important;
+  z-index: 2 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: var(--bg);
+}
+
+/* Visões auxiliares inativas ou com [hidden] JAMAIS devem ser exibidas em qualquer plataforma */
+.graph-view[hidden],
+.board-view[hidden],
+.calendar-view[hidden],
+.bases-view[hidden],
+.json-view[hidden],
+.templates-gallery-view[hidden],
+.docs-section[hidden],
+html[data-platform="extension"] .graph-view[hidden],
+html[data-platform="extension"] .board-view[hidden],
+html[data-platform="extension"] .calendar-view[hidden],
+html[data-platform="extension"] .bases-view[hidden],
+html[data-platform="extension"] .json-view[hidden],
+html[data-platform="extension"] .templates-gallery-view[hidden],
+html[data-platform="extension"] .docs-section[hidden],
+html[data-platform="mobile"] .graph-view[hidden],
+html[data-platform="mobile"] .board-view[hidden],
+html[data-platform="mobile"] .calendar-view[hidden],
+html[data-platform="mobile"] .bases-view[hidden],
+html[data-platform="mobile"] .json-view[hidden],
+html[data-platform="mobile"] .templates-gallery-view[hidden],
+html[data-platform="mobile"] .docs-section[hidden],
+html:not(.view-grafo) .graph-view,
+html:not(.view-board) .board-view,
+html:not(.view-calendar) .calendar-view,
+html:not(.view-bases) .bases-view,
+html:not(.view-json) .json-view,
+html:not(.view-templates) .templates-gallery-view {
+  display: none !important;
+}
+
+html[data-platform="mobile"] .docs-section {
+  position: fixed;
+  bottom: var(--keyboard-offset, 0px);
+  left: 0;
+  right: 0;
+  z-index: 900;
+  border-radius: 16px 16px 0 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+/* Pílula de arrasto para o bottom sheet de documentos */
+html[data-platform="mobile"] .docs-section::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  background: var(--text-muted);
+  opacity: 0.35;
+  border-radius: 99px;
+  margin: 6px auto 2px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+html[data-platform="mobile"] .docs-header {
+  padding: 4px 12px 6px;
+}
+
+/* Estado recolhido (fechado): escondido abaixo da tela sem ocupar espaço e sem peek bar */
+html[data-platform="mobile"] .docs-section.is-collapsed {
+  transform: translateY(100%) !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  flex: 0 0 0px !important;
+}
+
+/* Estado expandido (slide-up integrado no rodapé sem scrim/backdrop) */
+html[data-platform="mobile"] .docs-section:not(.is-collapsed) {
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  height: 60vh !important;
+  min-height: 220px !important;
+  max-height: 80vh !important;
+  flex: 0 0 auto !important;
+  background: var(--bg);
+  animation: sheet-slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ===== BARRA CONTEXTUAL ESTILO NOTION (DUAL-STATE & NO-SCRIM SHEETS) ===== */
+
+/* As antigas barras estáticas não existem mais */
+.note-toolbar {
+  display: none !important;
+}
+
+/* Ocultação dos controles de hover no mobile (na extensão e desktop eles permanecem!) */
+html[data-platform="mobile"] .block-controls {
+  display: none !important;
+}
+
+html[data-platform="mobile"] .btn-touch-select {
+  display: none !important;
+}
+
+.mobile-notion-toolbar {
+  display: flex !important;
+  align-items: center;
+  position: relative;
+  height: 38px;
+  min-height: 38px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 850;
+  user-select: none;
+}
+
+html[data-platform="mobile"] .mobile-notion-toolbar {
+  height: 44px;
+  min-height: 44px;
+}
+
+.mobile-notion-toolbar[hidden] {
+  display: none !important;
+}
+
+.mobile-toolbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-toolbar-inner[hidden] {
+  display: none !important;
+}
+
+.mobile-toolbar-inner::-webkit-scrollbar {
+  display: none;
+}
+
+.mob-btn {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mob-btn .qd-icon {
+  font-size: 18px;
+}
+
+html[data-platform="mobile"] .mob-btn {
+  height: 36px;
+  min-width: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+html[data-platform="mobile"] .mob-btn .qd-icon {
+  font-size: 20px;
+}
+
+.mob-btn:active,
+.mob-btn.is-active {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.mob-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
+
+.mob-btn .qd-icon {
+  font-size: 20px;
+}
+
+.mob-btn-add {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.mob-btn-add:active {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent);
+}
+
+.mob-btn-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.mob-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* Popover de Adicionar Bloco (Acima / Abaixo) */
+.mobile-add-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 960;
+  min-width: 168px;
+  animation: popover-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-add-popover[hidden] {
+  display: none !important;
+}
+
+.mob-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.1s;
+}
+
+.mob-popover-item:active {
+  background: var(--bg-hover);
+}
+
+.mob-popover-item .qd-icon {
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+/* Popover de Cores / Destaque */
+.mobile-color-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 960;
+  animation: popover-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-color-popover[hidden] {
+  display: none !important;
+}
+
+.mob-color-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.12s;
+}
+
+.mob-color-dot:active {
+  transform: scale(1.18);
+}
+
+/* Painel de Formatar Texto (Transformações) */
+.mobile-text-format-sheet {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  right: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+  padding: 10px 12px 12px;
+  z-index: 960;
+  animation: popover-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-text-format-sheet[hidden] {
+  display: none !important;
+}
+
+.mob-tf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mob-tf-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mob-tf-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mob-tf-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.mob-tf-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 500;
+  text-align: center;
+  transition: background 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mob-tf-btn b {
+  font-size: 13px;
+  font-family: var(--font-mono, monospace);
+  color: var(--accent);
+}
+
+.mob-tf-btn span {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.mob-tf-btn:active {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+/* Bottom Sheet de Troca de Bloco (SEM modal e SEM scrim) */
+.mobile-type-sheet-no-scrim {
+  position: fixed;
+  bottom: var(--keyboard-offset, 0px);
+  left: 0;
+  right: 0;
+  max-height: 52vh;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.22);
+  z-index: 960;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: sheet-slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-type-sheet-no-scrim[hidden] {
+  display: none !important;
+}
+
+.mob-sheet-handle {
+  width: 38px;
+  height: 4px;
+  background: var(--text-muted);
+  opacity: 0.35;
+  border-radius: 99px;
+  margin: 8px auto 4px;
+  flex-shrink: 0;
+}
+
+.mob-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.mob-sheet-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.mob-sheet-close {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.mob-sheet-close:active {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.mob-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 12px 14px 28px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mob-sheet-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  transition: background 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.mob-sheet-item:active {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.mob-sheet-item .qd-icon {
+  font-size: 22px;
+  color: var(--text-muted);
+}
+
+/* Bottom Sheet de Modelos de Bloco (SEM modal e SEM scrim) */
+.mobile-template-sheet-no-scrim {
+  position: fixed;
+  bottom: var(--keyboard-offset, 0px);
+  left: 0;
+  right: 0;
+  max-height: 52vh;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.22);
+  z-index: 960;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: sheet-slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-template-sheet-no-scrim[hidden] {
+  display: none !important;
+}
+
+.mob-template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 34vh;
+}
+
+.mob-template-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mob-template-item:active {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.mob-template-item .qd-icon {
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.mob-template-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mob-template-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.mob-template-footer {
+  padding: 8px 14px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.mob-template-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mob-template-save-btn:active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.mob-template-save-btn .qd-icon {
+  font-size: 18px;
+}
+
+/* Barra do Modo de Seleção de Blocos (mobileSelectBar) */
+.mobile-select-bar {
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-secondary));
+}
+
+.mob-select-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin-right: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mob-btn-danger {
+  color: var(--danger, #ef4444);
+}
+
+.mob-btn-danger:active {
+  background: color-mix(in srgb, var(--danger, #ef4444) 15%, transparent);
+  color: var(--danger, #ef4444);
+}
+
+@keyframes popover-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== COMPARTILHADO: OCULTA ITENS ESPECÍFICOS DE DESKTOP NO MOBILE/EXTENSÃO ===== */
+html[data-platform="extension"] #btn-nav-templates,
+html[data-platform="extension"] #btn-nav-graph,
+html[data-platform="extension"] #btn-nav-board,
+html[data-platform="mobile"] #btn-nav-templates,
+html[data-platform="mobile"] #btn-nav-graph,
+html[data-platform="mobile"] #btn-nav-board {
+  display: none !important;
+}

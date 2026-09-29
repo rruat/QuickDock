@@ -1,0 +1,398 @@
+/* ==========================================================================
+   05-tabs.css - Abas de notas, menu da aba, catalogo de icones e lista de notas
+   Linhas originais: 1232 a 1625 (394 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== ABAS DE NOTAS ===== */
+.notes-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 4px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.notes-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+}
+.notes-tabs::-webkit-scrollbar { display: none; }
+
+/* Barra indicadora de onde a aba vai cair ao arrastar (mesma ideia da linha
+   dos blocos, só que vertical porque as abas ficam lado a lado) */
+.tab-drop-indicator {
+  width: 2px;
+  height: 26px;
+  flex-shrink: 0;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.note-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  max-width: 140px;
+  border: 1px solid transparent;
+  user-select: none;
+  transition: background 0.12s, border-color 0.12s;
+}
+.note-tab:hover  { background: var(--bg-hover); }
+.note-tab.active { background: var(--bg-secondary); border-color: var(--border); }
+
+.note-tab-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  cursor: pointer;
+  clip-path: polygon(50% 0%, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0% 50%, 37% 37%);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.note-tab:hover .note-tab-dot {
+  transform: scale(1.22);
+}
+
+.note-tab-title-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  line-height: 1.15;
+}
+
+.note-tab-title {
+  font-size: 11px;
+  line-height: 1.15;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 84px;
+}
+
+.note-tab-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+  --icon-opsz: 20;
+}
+
+.note-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 2px;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+.note-tab:hover .note-tab-close,
+.note-tab.active .note-tab-close {
+  opacity: 0.6;
+}
+
+.note-tab-close:hover {
+  opacity: 1 !important;
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.note-tab-close svg,
+.note-tab-close .qd-icon {
+  width: 11px;
+  height: 11px;
+  font-size: 11px;
+}
+
+/* ===== MENU "⋯" DA ABA (nome + ícone/cor + copiar/baixar/excluir, tudo num
+   menu só — ver openTabMenu em notes-tabs.js) ===== */
+.tab-menu { width: 216px; max-height: 420px; overflow-y: auto; }
+
+.tab-menu-rename {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 2px 0;
+  outline: none;
+}
+.tab-menu-rename:focus { border-color: var(--accent); }
+
+/* Dropdown de ícone/cor embutido no menu — a seta gira ao expandir */
+.tab-menu-appearance-toggle .copy-opt-hint { font-size: 9px; }
+.tab-menu-appearance { padding: 2px 0 4px; }
+.tab-menu-appearance .copy-menu-header:first-child { padding-top: 2px; }
+
+/* Uma fileira só, com as bolinhas distribuídas em colunas iguais. Com
+   repeat(4, 1fr) elas flutuavam à esquerda de células muito mais largas que
+   elas, que é o que deixava a seção desalinhada. */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  align-items: center;
+}
+
+.color-swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: transform 0.1s;
+}
+.color-swatch:hover { transform: scale(1.18); }
+.color-swatch.active { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* "Nenhuma cor" — círculo com uma linha diagonal, convenção comum de "sem preenchimento" */
+.color-swatch-none {
+  background: linear-gradient(135deg, transparent 46%, #dc2626 46%, #dc2626 54%, transparent 54%);
+  border: 1px solid var(--border);
+}
+
+/* "Outra cor" — arco-íris até escolherem uma; aí o inline style assume. */
+.color-swatch-custom {
+  background: conic-gradient(#ef4444, #f97316, #eab308, #22c55e, #3b82f6, #6366f1, #a855f7, #ef4444);
+  overflow: hidden;
+}
+
+/* O <input type="color"> cobre a bolinha inteira, invisível: o que se vê e se
+   clica é o círculo, e o seletor nativo abre por cima. */
+.color-custom-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ===== SELETOR DE ÍCONE DA NOTA (Catálogo 4.000+ Material Symbols) ===== */
+.icon-catalog-header-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.icon-search-wrap {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin: 4px 0 6px;
+}
+
+.icon-search-input {
+  width: 100%;
+  height: 26px;
+  box-sizing: border-box;
+  font-size: 11px;
+  padding: 0 24px 0 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text);
+  outline: none;
+}
+
+.icon-search-input:focus {
+  border-color: var(--accent);
+}
+
+.icon-search-clear {
+  position: absolute;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.icon-catalog-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.icon-catalog-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg);
+  padding: 4px;
+  margin-bottom: 6px;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+}
+
+.icon-catalog-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 16px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.icon-swatch {
+  width: 100%;
+  height: 28px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 17px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-swatch:hover { background: var(--bg-hover); }
+.icon-swatch.active { background: color-mix(in srgb, var(--accent) 14%, var(--bg)); border-color: var(--accent); color: var(--accent); }
+.icon-swatch-none { font-family: var(--font); font-size: 15px; color: var(--text-muted); }
+
+.icon-fill-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.icon-fill-row:hover { color: var(--text); }
+.icon-fill-row input[type="checkbox"] { cursor: pointer; accent-color: var(--accent); }
+
+.icon-custom-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.icon-custom-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 6px;
+  outline: none;
+}
+.icon-custom-input:focus { border-color: var(--accent); }
+
+/* Preview e botão de aplicar são o mesmo elemento: mostra o ícone digitado e
+   clicar confirma. Antes era um <span>, e só dava pra confirmar com Enter. */
+.icon-custom-apply {
+  flex-shrink: 0;
+  width: 28px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  --icon-opsz: 20;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.icon-custom-apply:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg));
+}
+
+.icon-custom-apply:disabled {
+  cursor: default;
+  color: var(--text-muted);
+  border-color: var(--border);
+  background: var(--bg-secondary);
+}
+
+.icon-hint-link {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.icon-hint-link:hover { text-decoration: underline; }
+
+/* ===== LISTA DE NOTAS ("☰") ===== */
+.notes-list-popover { max-height: 320px; overflow-y: auto; min-width: 180px; }
+.notes-list-item { gap: 8px; }
+.notes-list-item.current { background: var(--bg-hover); }
+.notes-list-item .note-tab-dot,
+.notes-list-item .note-tab-icon { flex-shrink: 0; cursor: default; }
+
+/* Linha indicadora de onde a nota vai cair, arrastando pela lista do "☰"
+   (mesma ideia da barra das abas e da linha dos blocos, só que horizontal) */
+.notes-list-drop-indicator {
+  height: 2px;
+  margin: 0 6px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.notes-list-edit-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.notes-list-item:hover .notes-list-edit-btn { opacity: 1; }
+.notes-list-edit-btn:hover { color: var(--text); background: var(--bg-hover); }

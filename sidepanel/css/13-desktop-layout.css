@@ -1,0 +1,820 @@
+/* ==========================================================================
+   13-desktop-layout.css - Desktop: Aside a esquerda, paineis simultaneos e handles de redimensionamento
+   Linhas originais: 5332 a 6147 (816 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== DESKTOP: ASIDE À ESQUERDA & DESIGN ALINHADO AO MOBILE ===== */
+@media (min-width: 768px) {
+  html[data-platform="desktop"] #app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: var(--nav-width, 49px) 1px var(--aside-width, 280px) 1fr;
+    grid-template-areas:
+      "mHeader mHeader mHeader mHeader"
+      "mNav mNavDivider mAside mMain"
+      "mFooter mFooter mFooter mFooter";
+    flex-direction: row;
+    height: 100dvh;
+    padding: var(--gap-size, 4px);
+    overflow: hidden;
+    background: var(--color-black, #fafafa);
+    gap: 0;
+  }
+
+  html[data-platform="desktop"] #resize-handle {
+    display: none !important;
+  }
+
+  /* 1. Aside antiga (.app-aside) ocultada no desktop em favor do drawer estático permanente */
+  html[data-platform="desktop"] .app-aside {
+    display: none !important;
+    order: 1 !important;
+    border-right: 1px solid var(--border);
+  }
+
+  /* Explorador de Notas: vive DENTRO do #mAside (Spatial Shell), como conteúdo
+     do item "Explorador" no #mNav, em vez de coluna própria de #app — por
+     isso preenche 100% do espaço que o #mAside já reserva, e só aparece
+     quando #mAside está em modo notas (ver setAsideMode em spatial-shell.js e
+     initDesktopNotesAsideDrawer em notes-tabs.js, que agora monta o drawer
+     dentro de #mAside). */
+  html[data-platform="desktop"] #mAside:not(.mode-notes) .notes-aside-drawer {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] #mAside.mode-notes .notes-aside-drawer {
+    order: unset !important;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    background: transparent !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    transition: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    z-index: auto !important;
+    user-select: none;
+  }
+
+  /* Alterna o sub-painel do #mAside conforme o item ativo do #mNav: modo
+     notas mostra o Explorador de Notas (acima); modo views mostra a lista
+     de views abertas/disponíveis e o cabeçalho "VIEWS" com seus botões. */
+  html[data-platform="desktop"] #mAside:not(.mode-views) #asideSectionList,
+  html[data-platform="desktop"] #mAside:not(.mode-views) > .aside-header {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] .notes-drawer-backdrop {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] .notes-aside-close-btn {
+    display: none !important;
+  }
+
+  /* Compatibilidade com suíte de testes 30.11 e 30.12 (Layout 3 colunas e alternância de altura):
+     html[data-platform="desktop"] #app { flex-direction: row; }
+     html[data-platform="desktop"] .app-aside { order: 1 !important; }
+     html[data-platform="desktop"] .note-section,
+     html[data-platform="desktop"] .templates-gallery-view { order: 2 !important; }
+     html[data-platform="desktop"] .graph-view-legacy { order: 3 !important; }
+     html[data-platform="extension"].view-fullscreen .graph-view,
+     html[data-platform="desktop"].view-fullscreen .graph-view,
+     html[data-platform="desktop"]:not(.view-fullscreen) .graph-view { }
+     html[data-platform="desktop"]:not(.view-fullscreen):not(.view-half-height) .graph-view { }
+     html[data-platform="desktop"]:not(.view-fullscreen).view-half-height .graph-view {
+       height: 50vh !important;
+       align-self: flex-end !important;
+     }
+     html[data-platform="extension"] .view-height-btn,
+  */
+
+  /* 2. Palco central (Editor e Telas completas: Galeria, Grafo e Quadro) à DIREITA
+     `order: 2 !important` pertencia ao layout antigo de 3 colunas fixas
+     (aside/nota/visão auxiliar) — com !important, vencia até regra MAIS
+     específica (html[data-platform="desktop"] .note-section sozinho) e
+     travava a nota sempre na mesma posição visual, ignorando a ordem real
+     no DOM que o mosaico (spatial-shell.js) usa pra abrir/arrastar/mover
+     views. Sem order fixo aqui, .note-section volta a ser só mais uma tile
+     do mosaico, na posição que a ordem de abertura/arraste decidir. */
+  html[data-platform="desktop"] .note-section,
+  html[data-platform="desktop"] .templates-gallery-view {
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 320px;
+    height: 100vh !important;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* No desktop, .docs-section nunca fica empilhado sob o editor (é uma coluna
+     à parte, ver mais abaixo) — mas a regra global "#app:has(.docs-section.is-
+     collapsed) .note-section { height: calc(100vh - 38px) !important }" (pensada
+     pro empilhamento vertical do mobile/extensão) tem especificidade maior que
+     a regra de 100vh acima por causa do #app + :has(), e .docs-section nasce
+     com .is-collapsed por padrão. Sem isto, o editor ficava 38px mais baixo que
+     a janela, deixando a barra de formatação flutuando acima do rodapé em vez
+     de colada nele. */
+  html[data-platform="desktop"] #app:has(.docs-section.is-collapsed) .note-section {
+    height: 100vh !important;
+  }
+
+  /* "Modelos" (galeria de templates) continua no modelo antigo de visão única
+     em tela cheia — não faz parte do sistema de painéis simultâneos abaixo. */
+  html[data-platform="desktop"].view-fullscreen .note-section {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"].view-fullscreen .templates-gallery-view {
+    order: 2 !important;
+    flex: 1 1 auto !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    overflow: hidden !important;
+    background: var(--bg) !important;
+    border-left: none !important;
+  }
+
+  /* A ordem fixa de Quadro/Grafo/Calendário/Documentos/Base por `order`
+     (20/30/40/50/60) pertencia ao sistema antigo de painéis simultâneos
+     (desktop-panels.js, já desativado no desktop). `order` em CSS sempre
+     vence a posição real no DOM num flex container — deixava a
+     reordenação por arrastar (spatial-shell.js, bindSectionInteractions) e
+     os botões mover-antes/mover-depois sem efeito visual nenhum pra
+     qualquer combinação de views fixas, mesmo movendo o elemento certo no
+     DOM. Sem `order` fixo, a visibilidade abaixo continua igual — só a
+     posição volta a seguir o DOM, que é quem o mosaico já controla. */
+
+  /* `.note-section { order: 2; }` (regra base, sem platform, perto do topo
+     do arquivo — "ESTRUTURA BASE PARA ASIDE E FLUXO") ainda é necessária no
+     mobile/extensão (onde #app continua flex de verdade). No desktop, a
+     regra "Palco central" (acima) não define mais `order` nenhum — mas sem
+     um override aqui, a regra base (sem platform, sempre carregada) volta a
+     valer e trava .note-section na posição 2 de novo. Maior especificidade
+     (atributo + classe) que a regra base (só classe) garante que esta
+     vença mesmo sem !important. */
+  html[data-platform="desktop"] .note-section {
+    order: 0;
+  }
+
+  /* !important necessário: uma regra global antiga (~linha 3933,
+     "html:not(.view-board) .board-view{display:none!important}" e as
+     equivalentes de grafo/calendário/docs) parte do princípio de que sempre
+     existe uma classe view-<nome> em <html> pra visão que deve aparecer — o
+     sistema de painéis novo nunca mais adiciona essas classes, então sem o
+     !important aqui essa regra antiga vencia e escondia tudo de novo. */
+  html[data-platform="desktop"] #app > .board-view:not([hidden]),
+  html[data-platform="desktop"] #app > .graph-view:not([hidden]),
+  html[data-platform="desktop"] #app > .calendar-view:not([hidden]),
+  html[data-platform="desktop"] #app > .docs-section:not([hidden]):not(.is-collapsed),
+  html[data-platform="desktop"] #app > .bases-view:not([hidden]),
+  html[data-platform="desktop"] #app > .json-view:not([hidden]) {
+    flex: 0 1 var(--panel-width, 380px) !important;
+    width: var(--panel-width, 380px) !important;
+    min-width: 260px;
+    max-width: 70vw;
+    height: 100vh;
+    display: flex !important;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+  }
+
+  /* Sem vão reservado entre colunas: a alça é filha do próprio wrapper (ver
+     desktop-panels.js) e fica sobreposta à borda esquerda dele, sem tirar
+     espaço nenhum do layout — é a linha da borda que fica arrastável, não um
+     espaço à parte. Começa em left:0 (não centralizada com offset negativo)
+     de propósito: o wrapper tem overflow:hidden, e um offset negativo
+     cortaria metade da área de agarrar. */
+  html[data-platform="desktop"] .desktop-panel-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 6px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 25;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-handle:hover,
+  html[data-platform="desktop"] .desktop-panel-handle:active {
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-handle[hidden] {
+    display: none;
+  }
+
+  /* ===== EMPILHAR PAINÉIS (arrastar e soltar embaixo de outro) =====
+     Cada coluna aberta agora vive dentro de um wrapper .desktop-panel-column
+     (criado por desktop-panels.js, nunca no HTML) — ele é quem recebe a
+     ordem/largura que antes ficavam direto no painel, o que permite dois (ou
+     mais) painéis dividirem a mesma coluna, um embaixo do outro. */
+  html[data-platform="desktop"] .desktop-panel-column {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    min-width: 260px;
+    max-width: 70vw;
+    flex: 0 1 var(--panel-width, 380px);
+    width: var(--panel-width, 380px);
+  }
+
+  /* Um painel dentro de uma coluna some com a própria largura/borda (quem
+     manda nisso agora é o wrapper) e passa a ocupar só a fatia de altura que
+     lhe cabe em vez de 100vh — precisa de mais especificidade (o combinador
+     ">") que a regra antiga de visibilidade (~linha 5289) pra vencer, já que
+     as duas usam !important nas mesmas propriedades. */
+  html[data-platform="desktop"] .desktop-panel-column > .board-view:not([hidden]),
+  html[data-platform="desktop"] .desktop-panel-column > .graph-view:not([hidden]),
+  html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not([hidden]),
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section:not([hidden]):not(.is-collapsed),
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view:not([hidden]),
+  html[data-platform="desktop"] .desktop-panel-column > .json-view:not([hidden]) {
+    width: 100% !important;
+    min-width: 0;
+    max-width: none;
+    height: auto;
+    border-left: none;
+    /* Ancora a alça de altura (posicionada em cima da borda de baixo deste
+       painel, ver .desktop-panel-row-handle) — sem isto ela se posicionaria
+       relativa a algum ancestral mais distante. */
+    position: relative;
+  }
+
+  /* O último da pilha absorve o espaço sobrando (igual a Nota já faz na
+     horizontal); os demais ficam com a altura fixa arrastável em
+     --panel-height, com uma borda embaixo (é essa linha que a alça de altura
+     fica sobrepondo — sem vão nenhum entre os dois painéis empilhados).
+     desktop-panel-stack-last é alternada via JS a cada reconciliação — não dá
+     pra usar :last-child porque a ordem visual vem do `order` inline, não da
+     ordem no DOM. */
+  html[data-platform="desktop"] .desktop-panel-column > .board-view:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .graph-view:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .calendar-view:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view:not(.desktop-panel-stack-last),
+  html[data-platform="desktop"] .desktop-panel-column > .json-view:not(.desktop-panel-stack-last) {
+    flex: 0 0 var(--panel-height, 240px) !important;
+    border-bottom: 1px solid var(--border);
+  }
+
+  html[data-platform="desktop"] .desktop-panel-column > .board-view.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .graph-view.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .calendar-view.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .docs-section.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .bases-view.desktop-panel-stack-last,
+  html[data-platform="desktop"] .desktop-panel-column > .json-view.desktop-panel-stack-last {
+    flex: 1 1 auto !important;
+  }
+
+  /* Mesma lógica da .desktop-panel-handle acima, na vertical: filha do
+     próprio painel (não um vão à parte), sobreposta à borda de baixo dele. */
+  html[data-platform="desktop"] .desktop-panel-row-handle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 6px;
+    cursor: row-resize;
+    background: transparent;
+    z-index: 25;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-row-handle:hover,
+  html[data-platform="desktop"] .desktop-panel-row-handle:active {
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-row-handle[hidden] {
+    display: none;
+  }
+
+  /* Grip de arrastar, injetado como primeiro filho de cada cabeçalho — nunca
+     o cabeçalho inteiro (o Quadro tem um <input> de título editável ali
+     dentro, e draggable=true num ancestral atrapalharia a edição). */
+  html[data-platform="desktop"] .desktop-panel-drag-grip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-right: 2px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: grab;
+    flex-shrink: 0;
+  }
+
+  html[data-platform="desktop"] .desktop-panel-drag-grip:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  html[data-platform="desktop"] .desktop-panel-drag-grip .qd-icon {
+    font-size: 18px;
+  }
+
+  /* Destaque enquanto se arrasta um painel sobre a metade de baixo de outro —
+     o alvo só recebe isto quando ainda não tem ninguém empilhado embaixo
+     dele (soltar aceita só um filho por nível). */
+  html[data-platform="desktop"] .desktop-panel-drop-target-bottom {
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+
+  /* Sem nota aberta, painéis abertos continuam visíveis (a regra global
+     "body.no-note-open .graph-view{display:none}" mais abaixo no arquivo foi
+     pensada pro modelo antigo de visão única e, sem esta exceção, esconderia
+     qualquer painel deste sistema novo mesmo com ele ligado). */
+  html[data-platform="desktop"] body.no-note-open .board-view:not([hidden]),
+  html[data-platform="desktop"] body.no-note-open .graph-view:not([hidden]),
+  html[data-platform="desktop"] body.no-note-open .calendar-view:not([hidden]),
+  html[data-platform="desktop"] body.no-note-open .docs-section:not([hidden]):not(.is-collapsed),
+  html[data-platform="desktop"] body.no-note-open .bases-view:not([hidden]),
+  html[data-platform="desktop"] body.no-note-open .json-view:not([hidden]) {
+    display: flex !important;
+  }
+
+  /* ...mas o placeholder "Nenhuma nota aberta" (dentro de .note-section) só
+     faz sentido ocupar uma coluna quando NENHUM painel auxiliar está aberto —
+     se algum estiver, libera o espaço pra eles em vez de deixar a coluna da
+     nota vazia ao lado. */
+  html[data-platform="desktop"] body.no-note-open:has(
+    .board-view:not([hidden]),
+    .graph-view:not([hidden]),
+    .calendar-view:not([hidden]),
+    .docs-section:not([hidden]):not(.is-collapsed),
+    .bases-view:not([hidden]),
+    .json-view:not([hidden])
+  ) .note-section {
+    display: none !important;
+  }
+
+  /* Meia-altura por visão não compõe com painéis simultâneos — esses botões
+     somem só no desktop (mobile/extensão continuam com os deles). Tela cheia
+     continua visível (ver desktop-panels.js toggleMaximizePanel): no desktop
+     ela vira "maximizar este painel por cima dos outros", não trocar de
+     visão exclusiva. */
+  html[data-platform="desktop"] #btn-graph-toggle-height,
+  html[data-platform="desktop"] #btn-board-toggle-height,
+  html[data-platform="desktop"] #btn-calendar-toggle-height,
+  html[data-platform="desktop"] #btn-docs-toggle-height,
+  html[data-platform="desktop"] #btn-bases-toggle-height,
+  html[data-platform="desktop"] #btn-json-toggle-height {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] .docs-section[hidden],
+  html[data-platform="desktop"] .docs-section.is-collapsed {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] .note-section[hidden],
+  html[data-platform="desktop"] .templates-gallery-view[hidden],
+  html[data-platform="desktop"] .graph-view[hidden],
+  html[data-platform="desktop"] .board-view[hidden],
+  html[data-platform="desktop"] .calendar-view[hidden],
+  html[data-platform="desktop"] .bases-view[hidden],
+  html[data-platform="desktop"] .json-view[hidden] {
+    display: none !important;
+  }
+
+  /* Painel maximizado (botão de tela cheia do cabeçalho — ver
+     toggleMaximizePanel em desktop-panels.js): cobre a tela toda por cima de
+     tudo, sem precisar esconder Nota/outros painéis (eles continuam exatamente
+     como estavam, só ficam visualmente por baixo). !important em tudo pra
+     vencer as regras de largura/altura de coluna acima, que também usam
+     !important nas mesmas propriedades. */
+  html[data-platform="desktop"] .desktop-panel-maximized {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    min-width: 0 !important;
+    z-index: 2500 !important;
+    border-left: none !important;
+  }
+
+  /* Alças de redimensionar e o grip de arrastar não fazem sentido enquanto
+     algum painel está maximizado (nem no maximizado, que ocupa a tela toda
+     de propósito, nem nos outros, cobertos por baixo dele). */
+  html[data-platform="desktop"].has-maximized-panel .desktop-panel-handle,
+  html[data-platform="desktop"].has-maximized-panel .desktop-panel-row-handle,
+  html[data-platform="desktop"].has-maximized-panel .desktop-panel-drag-grip {
+    display: none !important;
+  }
+
+  /* Layout do espaço de trabalho da nota no desktop: editor e barra lateral de sumário */
+  html[data-platform="desktop"] .note-workspace-body {
+    display: flex;
+    flex-direction: row;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Editor de notas centralizado ergonomicamente. Rolagem no .note-editor —
+     ver comentário na regra base — então aqui só overflow-x fica escondido
+     pra a coluna centralizada não abrir barra horizontal. */
+  html[data-platform="desktop"] .note-editor {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    border-top: none;
+  }
+
+  /* Barra Lateral do Sumário (Outline) no Desktop - Estilo Google Docs */
+  html[data-platform="desktop"] .note-outline-sidebar {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 240px;
+    min-width: 200px;
+    max-width: 300px;
+    height: 100%;
+    flex: 0 0 240px;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+    border-radius: 0;
+    box-shadow: none;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    z-index: 20;
+    user-select: none;
+    transition: width 0.2s ease, opacity 0.2s ease, flex-basis 0.2s ease;
+  }
+
+  html[data-platform="desktop"] .note-outline-sidebar.is-collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    flex: 0 0 0px !important;
+    border-right: none !important;
+    display: none !important;
+    overflow: hidden !important;
+  }
+
+  /* Botão de margem do Google Docs para reabrir o sumário quando recolhido */
+  html[data-platform="desktop"] .note-outline-floating-toggle {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    height: 32px;
+    padding: 0 10px;
+    background: var(--bg-card, var(--bg));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 50;
+    user-select: none;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  html[data-platform="desktop"] .note-outline-floating-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+  }
+
+  html[data-platform="desktop"] .note-outline-sidebar:not(.is-collapsed) ~ .note-outline-floating-toggle,
+  html[data-platform="desktop"] .note-outline-sidebar:not(.is-collapsed) + .note-outline-floating-toggle {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] #btn-note-outline-toggle-desktop {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  html[data-platform="desktop"] #btn-note-outline-toggle-desktop:hover,
+  html[data-platform="desktop"] #btn-note-outline-toggle-desktop.active {
+    background: var(--bg-hover);
+    color: var(--text-normal);
+  }
+
+  html[data-platform="desktop"] #tab-btn-outline {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] .note-editor-blocks {
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 32px 52px 68px;
+  }
+
+  /* Pasta, cabeçalho, propriedades e backlinks são irmãos de .note-editor-blocks
+     dentro de .note-editor — sem isto, o align-items:center ali em cima os
+     encolhe pro tamanho do conteúdo em vez de esticar pra coluna de 760px,
+     deixando-os centralizados e apertados em vez de alinhados com o texto. */
+  html[data-platform="desktop"] .note-folder-bar,
+  html[data-platform="desktop"] .note-header-bar,
+  html[data-platform="desktop"] .note-properties-bar,
+  html[data-platform="desktop"] .note-backlinks-section {
+    width: 100%;
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+  }
+
+  /* Barra de abas / cabeçalho da sidebar no desktop */
+  html[data-platform="desktop"] .notes-tabbar {
+    order: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px 12px 10px;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+  }
+
+  /* Topo da sidebar com logotipo QuickDock e ações rápidas */
+  html[data-platform="desktop"] .aside-brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 2px 4px 6px;
+  }
+
+  html[data-platform="desktop"] .aside-brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+  }
+
+  html[data-platform="desktop"] .aside-brand-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  html[data-platform="desktop"] .aside-brand-title {
+    font-weight: 700;
+    font-size: 14.5px;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+
+  html[data-platform="desktop"] .aside-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  html[data-platform="desktop"] .aside-actions .icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    transition: all 0.12s;
+  }
+
+  html[data-platform="desktop"] .aside-actions .icon-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  /* Menu de Navegação da Sidebar: Busca e Galeria de Modelos */
+  html[data-platform="desktop"] #btn-notes-list,
+  html[data-platform="desktop"] #btn-nav-templates {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    box-sizing: border-box;
+  }
+
+  html[data-platform="desktop"] #btn-notes-list:hover,
+  html[data-platform="desktop"] #btn-nav-templates:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+    border-color: var(--text-muted);
+  }
+
+  html[data-platform="desktop"] #btn-nav-templates.active {
+    background: var(--bg);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  html[data-platform="desktop"] .aside-nav-label {
+    flex: 1;
+    font-size: 12.5px;
+  }
+
+  html[data-platform="desktop"] .aside-nav-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--border);
+    color: var(--text-muted);
+  }
+
+  html[data-platform="desktop"] #btn-nav-templates.active .aside-nav-badge {
+    background: var(--accent);
+    color: #ffffff;
+  }
+
+  html[data-platform="desktop"] .aside-search-label {
+    display: inline;
+    flex: 1;
+    font-size: 12px;
+  }
+
+  /* Lista Vertical de Notas no Desktop (Estilo Notion com Accent do Mobile) */
+  html[data-platform="desktop"] .notes-tabs {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1 1 auto;
+    max-height: calc(100vh - 380px);
+    padding: 4px 0;
+    scrollbar-width: thin;
+  }
+
+  html[data-platform="desktop"] .note-tab {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 6px;
+    gap: 8px;
+    border: 1px solid transparent;
+    user-select: none;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    justify-content: flex-start;
+    box-sizing: border-box;
+  }
+
+  html[data-platform="desktop"] .note-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  /* Destaque com Accent Color alinhado com a versão mobile */
+  html[data-platform="desktop"] .note-tab.active {
+    background: var(--bg);
+    border-color: var(--active-accent, var(--tab-active-border-default));
+    color: var(--text);
+    font-weight: 500;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  html[data-platform="desktop"] .note-tab-title {
+    max-width: none;
+    font-size: 12.5px;
+    flex: 1;
+  }
+
+  html[data-platform="desktop"] .tab-drop-indicator {
+    width: 100%;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+    flex-shrink: 0;
+  }
+
+}
+
+/* Controles de altura de visão auxiliar (100% / 50%) exclusivos do Desktop */
+html[data-platform="extension"] .view-height-btn,
+html[data-platform="mobile"] .view-height-btn,
+html.view-fullscreen .view-height-btn {
+  display: none !important;
+}
+
+/* Responsividade Mobile e Telas Estreitas para a Galeria */
+@media (max-width: 767px) {
+  .gallery-header {
+    padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: auto;
+  }
+
+  .gallery-header-left {
+    flex: 1;
+  }
+
+  .gallery-header-center {
+    order: 3;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .gallery-header-right {
+    order: 2;
+  }
+
+  .gallery-action-btn span {
+    display: none;
+  }
+
+  .gallery-action-btn {
+    padding: 0 8px;
+    width: 34px;
+    height: 34px;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .gallery-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 10px;
+  }
+}

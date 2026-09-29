@@ -1,0 +1,456 @@
+/* ==========================================================================
+   15-backlinks-outline.css - Autocomplete [[, secao de backlinks e sumario / outline
+   Linhas originais: 6767 a 7218 (452 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== AUTOCOMPLETE DE LINKS [[ ===== */
+.link-autocomplete-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  width: 260px;
+  max-width: calc(100vw - 24px);
+  overflow: hidden;
+  font-family: inherit;
+}
+.link-autocomplete-header {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.link-autocomplete-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.link-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.link-autocomplete-item:hover,
+.link-autocomplete-item.active {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+.link-autocomplete-item.create-item {
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+  color: var(--accent);
+}
+.link-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-item-folder {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-surface-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* ===== SEÇÃO DE BACKLINKS E SUMÁRIO NO RODAPÉ DO EDITOR ===== */
+.note-workspace-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html[data-platform="extension"] .note-outline-sidebar,
+html[data-platform="mobile"] .note-outline-sidebar,
+html[data-platform="extension"] .note-outline-floating-toggle,
+html[data-platform="mobile"] .note-outline-floating-toggle,
+html[data-platform="extension"] #btn-note-outline-toggle-desktop,
+html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
+  display: none !important;
+}
+
+.note-backlinks-section {
+  margin-top: 20px;
+  margin-bottom: 24px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface, var(--bg-secondary));
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.note-bottom-bar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.note-bottom-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-bottom-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.note-bottom-tab .qd-icon {
+  font-size: 15px;
+}
+
+.note-bottom-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.note-bottom-tab.active {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-normal);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.note-backlinks-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.note-backlinks-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.backlinks-chevron {
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.note-backlinks-section.is-collapsed .backlinks-chevron {
+  transform: rotate(-90deg);
+}
+
+.note-backlinks-section.is-collapsed .note-bottom-content,
+.note-backlinks-section.is-collapsed .note-backlinks-list,
+.note-backlinks-section.is-collapsed .note-outline-list {
+  display: none !important;
+}
+
+.backlinks-count {
+  background: var(--bg-surface-hover, rgba(125, 125, 125, 0.15));
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.note-bottom-content {
+  margin-top: 8px;
+}
+
+.note-backlinks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.backlink-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--text-normal);
+  font-size: 13px;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.backlink-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.backlink-icon {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.backlink-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backlink-folder {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-surface-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.backlinks-empty,
+.outline-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  text-align: center;
+}
+
+/* ===== SUMÁRIO / OUTLINE (DESKTOP E MOBILE) ===== */
+.note-outline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.note-outline-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.note-sidebar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.note-sidebar-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  min-width: 0;
+}
+
+.note-sidebar-tab .qd-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.note-sidebar-tab-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-sidebar-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.note-sidebar-tab.active {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-normal);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.note-desktop-backlinks-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-desktop-backlinks-list .backlink-item {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.note-outline-title-wrap .qd-icon {
+  font-size: 18px;
+}
+
+.outline-count-badge {
+  background: var(--bg-surface-hover, rgba(125, 125, 125, 0.15));
+  color: var(--text-muted);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.outline-toggle-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.outline-toggle-btn:hover {
+  color: var(--text-normal);
+  background: var(--bg-hover);
+}
+
+.note-outline-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.outline-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background 0.15s ease, color 0.15s ease;
+  position: relative;
+}
+
+.outline-item:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.outline-item.active {
+  color: var(--accent);
+  background: var(--bg-hover);
+  font-weight: 600;
+}
+
+.outline-item.active::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.outline-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-surface-hover, rgba(125, 125, 125, 0.12));
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.outline-item:hover .outline-badge,
+.outline-item.active .outline-badge {
+  background: var(--accent-light, rgba(99, 102, 241, 0.15));
+  color: var(--accent);
+}
+
+.outline-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.outline-level-1 { font-weight: 600; color: var(--text-normal); }
+.outline-level-2 { font-weight: 500; color: var(--text-normal); }
+.outline-level-3, .outline-level-4, .outline-level-5, .outline-level-6 { font-weight: 400; color: var(--text-muted); }
+.outline-item:hover .outline-level-3,
+.outline-item:hover .outline-level-4 { color: var(--accent); }

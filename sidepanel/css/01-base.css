@@ -1,0 +1,170 @@
+/* ==========================================================================
+   01-base.css - Variaveis de tema, reset global, tipografia, icones e body
+   Linhas originais: 1 a 166 (166 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== VARIÁVEIS DE TEMA ===== */
+:root,
+[data-theme="light"],
+html:not([data-theme="dark"]) {
+  /* Dimensões base consistentes (design-pattern) */
+  --nav-item-size: 40px;
+  --nav-padding: 4px;
+  --nav-width: calc(var(--nav-item-size) + (var(--nav-padding) * 2) + 1px); /* 49px */
+  --header-height: 49px;
+  --gap-size: 4px;
+
+  /* Cores do design-pattern (Tema Claro: textos pretos explícitos #000000) */
+  --color-black: #fafafa;
+  --color-white: #000000;
+  --color-cyan: #ebebeb;
+  --color-transparent: transparent;
+  --color-text-primary: #000000;
+  --color-text-secondary: #555555;
+  --color-text-muted: #777777;
+  --color-outline: #ebebeb;
+  --color-outline-focus: #d7d7d9;
+  --color-bg-card: #ffffff;
+  --color-bg-nav: #f9f9fa;
+
+  --bg: #fafafa;
+  --bg-secondary: #f9f9fa;
+  --bg-hover: #ebebeb;
+  --border: #ebebeb;
+  --text: #000000;
+  --text-muted: #777777;
+  --accent: #000000;
+  --tab-active-border-default: #000000;
+  --radius: 12px;
+  --radius-sm: 6px;
+  --font: 'Google Sans Flex', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, 'Courier New', Courier, monospace;
+}
+
+[data-theme="dark"] {
+  /* Cores do design-pattern (Tema Escuro: textos brancos automáticos #ffffff) */
+  --color-black: #121212;
+  --color-white: #ffffff;
+  --color-cyan: #262626;
+  --color-transparent: transparent;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a3a3a3;
+  --color-text-muted: #8b8b8d;
+  --color-outline: #2a2a2a;
+  --color-outline-focus: #404040;
+  --color-bg-card: #1c1c1c;
+  --color-bg-nav: #181818;
+
+  --bg: #121212;
+  --bg-secondary: #181818;
+  --bg-hover: #262626;
+  --border: #2a2a2a;
+  --text: #ffffff;
+  --text-muted: #8b8b8d;
+  --accent: #ffffff;
+  --tab-active-border-default: #808080;
+}
+
+/* ===== RESET E HERANÇA GLOBAL DE TIPOGRAFIA ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Tira o flash cinza/azul de toque do WebKit mobile em tudo */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Controles de formulário e botões devem herdar a cor do tema e fonte */
+button, input, textarea, select {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Garante que qualquer texto sem cor específica no tema claro assuma preto (#000000),
+   e ao alternar para o tema escuro mude automaticamente para branco (#ffffff) */
+html,
+body,
+#app,
+#mHeader,
+#mMain,
+#mAside,
+#mNav,
+#mFooter,
+.main-section,
+.section-body,
+.note-section,
+.note-editor,
+.note-editor-blocks,
+.block,
+.block-content,
+[contenteditable="true"],
+h1, h2, h3, h4, h5, h6,
+p,
+li,
+td,
+th,
+label,
+summary,
+blockquote,
+.search-dropdown,
+.add-view-dropdown,
+.empty-state {
+  color: var(--color-text-primary, var(--text));
+}
+
+/* ===== ÍCONES (fonte Material Symbols Rounded, via icons.js) ===== */
+.qd-icon {
+  font-size: 1.15em;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-variation-settings: 'FILL' var(--icon-fill, 0), 'wght' 400, 'GRAD' 0, 'opsz' var(--icon-opsz, 24);
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-flex;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+.icon-filled { --icon-fill: 1; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  height: 100vh;
+  overflow: hidden;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ===== APP ===== */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ===== BOTÕES ===== */
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px 7px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}

@@ -1,0 +1,405 @@
+/* ==========================================================================
+   06-smart-detection-templates.css - Alca de redimensionamento, deteccao inteligente (CPF/CNPJ), slash menu e templates
+   Linhas originais: 1626 a 2026 (401 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== ALÇA DE REDIMENSIONAMENTO ===== */
+.resize-handle {
+  height: 7px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  position: relative;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+.resize-handle:hover::after,
+.resize-handle.dragging::after {
+  background: var(--accent);
+}
+
+/* ===== DETECÇÃO INTELIGENTE (CPF / CNPJ / Telefone / Data / Cálculo) =====
+   Os <mark> ficam dentro do próprio editor de blocos (não tem mais camada
+   separada). Ctrl+clique abre o menu; clique normal só posiciona o cursor. */
+.note-editor-blocks mark {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  border-radius: 2px;
+}
+
+.note-section.ctrl-active .note-editor-blocks mark {
+  color: var(--accent);
+  background: rgba(35, 131, 226, 0.09);
+  border-bottom: 1.5px solid var(--accent);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.note-section.ctrl-active .note-editor-blocks mark:hover {
+  background: rgba(35, 131, 226, 0.20);
+}
+
+/* Período — roxo */
+.note-section.ctrl-active .note-editor-blocks mark.daterange,
+.note-section.ctrl-active .note-editor-blocks mark.datetimerange {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.09);
+  border-bottom: 1.5px solid #7c3aed;
+}
+.note-section.ctrl-active .note-editor-blocks mark.daterange:hover,
+.note-section.ctrl-active .note-editor-blocks mark.datetimerange:hover {
+  background: rgba(124, 58, 237, 0.20);
+}
+
+/* Intervalo de horas — ciano */
+.note-section.ctrl-active .note-editor-blocks mark.timerange {
+  color: #0891b2;
+  background: rgba(8, 145, 178, 0.09);
+  border-bottom: 1.5px solid #0891b2;
+}
+.note-section.ctrl-active .note-editor-blocks mark.timerange:hover {
+  background: rgba(8, 145, 178, 0.20);
+}
+
+/* ── Badge de validação (CPF / CNPJ) ── */
+.copy-menu-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px 3px;
+  margin: 0 8px 4px;
+  border-radius: 99px;
+  display: inline-block;
+  letter-spacing: 0.2px;
+}
+.copy-menu-badge.valid   { background: rgba(22, 163, 74, 0.13); color: #16a34a; }
+.copy-menu-badge.invalid { background: rgba(220, 38, 38, 0.13); color: #dc2626; }
+
+/* CPF / CNPJ inválido: sublinhado vermelho pontilhado sempre visível */
+.note-editor-blocks mark.cpf.invalid,
+.note-editor-blocks mark.cnpj.invalid {
+  border-bottom: 1.5px dotted #dc2626;
+}
+
+/* Cores no modo Ctrl: válido = verde, inválido = vermelho */
+.note-section.ctrl-active .note-editor-blocks mark.cpf.valid,
+.note-section.ctrl-active .note-editor-blocks mark.cnpj.valid {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.09);
+  border-bottom: 1.5px solid #16a34a;
+}
+.note-section.ctrl-active .note-editor-blocks mark.cpf.valid:hover,
+.note-section.ctrl-active .note-editor-blocks mark.cnpj.valid:hover {
+  background: rgba(22, 163, 74, 0.20);
+}
+
+.note-section.ctrl-active .note-editor-blocks mark.cpf.invalid,
+.note-section.ctrl-active .note-editor-blocks mark.cnpj.invalid {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.09);
+  border-bottom: 1.5px solid #dc2626;
+}
+.note-section.ctrl-active .note-editor-blocks mark.cpf.invalid:hover,
+.note-section.ctrl-active .note-editor-blocks mark.cnpj.invalid:hover {
+  background: rgba(220, 38, 38, 0.20);
+}
+
+/* Cor âmbar pro cálculo, pra distinguir do azul de CPF/CNPJ/telefone */
+.note-section.ctrl-active .note-editor-blocks mark.math {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.09);
+  border-bottom-color: #d97706;
+}
+.note-section.ctrl-active .note-editor-blocks mark.math:hover {
+  background: rgba(217, 119, 6, 0.20);
+}
+
+/* ===== MENU "/" (trocar tipo de bloco) ===== */
+/* A altura real é calculada em positionMenu() conforme o espaço disponível —
+   isto aqui é só o teto quando sobra janela de sobra. */
+.slash-menu {
+  min-width: 236px;      /* três colunas cabem sem espremer o nome */
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* ===== MODELOS DE NOTA ===== */
+.new-menu { min-width: 190px; }
+.templates-manager { min-width: 232px; }
+
+.templates-empty {
+  padding: 6px 10px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* Nome à esquerda ocupa a linha toda; as ações aparecem no hover, pra lista
+   ficar legível quando há vários modelos. */
+.template-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+}
+
+.template-row:hover { background: var(--bg-hover); }
+
+.template-use {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.template-actions {
+  display: flex;
+  gap: 1px;
+  padding-right: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.template-row:hover .template-actions,
+.template-row:focus-within .template-actions { opacity: 1; }
+
+.template-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.template-btn:hover { background: var(--bg-secondary); color: var(--text); }
+
+
+
+
+
+/* ===== BARRA DE MODO MODELO (DESIGN UNIFICADO AO CABEÇALHO) =====
+   O editor abaixo é o mesmo das notas; esta barra é o que diz que o que está
+   sendo editado é um modelo, e dá a saída. */
+.template-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  min-height: 50px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 10;
+}
+
+.template-bar[hidden] {
+  display: none !important;
+}
+
+.template-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Botão voltar circular estilo novo do header */
+.template-bar-back {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--text-muted) !important;
+  cursor: pointer;
+  padding: 0 !important;
+  transition: all 0.15s ease;
+}
+
+.template-bar-back:hover {
+  background: var(--bg-hover) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+.template-bar-back:active {
+  transform: scale(0.96);
+}
+
+.template-bar-back .qd-icon {
+  font-size: 18px;
+}
+
+/* Badge pílula de Modelo */
+.template-bar-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(147, 51, 234, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(147, 51, 234, 0.25);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.template-bar-tag .qd-icon {
+  font-size: 15px;
+}
+
+/* Centro: input de nome e seletor de tipo em pílula */
+.template-bar-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 580px;
+}
+
+.template-bar-name {
+  flex: 1;
+  min-width: 90px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.template-bar-name:focus {
+  background: var(--bg);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+.template-bar-select-wrap {
+  flex-shrink: 0;
+}
+
+.template-bar-kind {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.template-bar-kind:hover,
+.template-bar-kind:focus {
+  background: var(--bg);
+  border-color: var(--text-muted);
+}
+
+/* Direita: Botão salvar estilo primário moderno */
+.template-bar-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.template-bar-btn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 17px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.template-bar-primary {
+  background: var(--accent) !important;
+  border: 1px solid var(--accent) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.25);
+}
+
+.template-bar-primary:hover {
+  opacity: 0.94;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(124, 58, 237, 0.35);
+}
+
+.template-bar-primary:active {
+  transform: scale(0.97);
+}
+
+.template-bar-primary .qd-icon {
+  font-size: 16px;
+}
+
+/* Ocultar barra de abas de notas durante a edição de modelos em todas as plataformas */
+html.template-mode .notes-tabbar,
+body.template-mode .notes-tabbar,
+#app:has(.template-bar:not([hidden])) .notes-tabbar,
+.notes-tabbar.is-template-mode {
+  display: none !important;
+}
+
+/* No modo modelo a marca d'água sai */
+.note-section.template-mode .note-watermark,
+body.template-mode .note-watermark {
+  opacity: 0;
+}

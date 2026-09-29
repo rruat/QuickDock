@@ -1,0 +1,264 @@
+/* ==========================================================================
+   08-toolbars-math.css - Toolbar de texto, expressoes matematicas, historico de calculo, menu de copia e scrollbar
+   Linhas originais: 2738 a 2997 (260 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== TOOLBAR DE TRANSFORMAÇÕES DE TEXTO ===== */
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 6px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.note-toolbar::-webkit-scrollbar { display: none; }
+
+.tt-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 7px;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  line-height: 1;
+  flex-shrink: 0;
+  letter-spacing: 0.2px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.tt-btn:hover  { background: var(--bg-hover); color: var(--text); }
+.tt-btn:active { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
+
+.tt-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ===== EXPRESSÕES MATEMÁTICAS ===== */
+
+/* Menu do cálculo — mais largo que o de cópia simples */
+.math-menu { min-width: 224px; max-width: 290px; }
+
+.math-expr {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-secondary);
+  border-radius: 5px;
+  padding: 6px 10px;
+  margin: 2px 4px 6px;
+  word-break: break-all;
+}
+
+.math-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 10px 3px;
+  user-select: none;
+}
+
+.math-step {
+  font-size: 11.5px;
+  color: var(--text);
+  padding: 2px 10px;
+  font-family: 'Courier New', Courier, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.math-result-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 6px;
+}
+
+.math-result-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.math-result-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #d97706;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 4px;
+  transition: background 0.1s;
+}
+.math-result-value:hover {
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.math-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* Menu "⋯" da barra de abas */
+.app-menu { min-width: 168px; }
+.app-menu .copy-opt { justify-content: flex-start; }
+
+/* Botão limpar histórico */
+.math-hist-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  font-family: var(--font);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.math-hist-clear:hover { color: var(--text); }
+
+/* Linhas do histórico */
+.math-hist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  font-family: var(--font);
+  text-align: left;
+  transition: background 0.1s;
+}
+.math-hist-row:hover { background: var(--bg-hover); }
+
+.math-hist-expr {
+  font-size: 11px;
+  color: var(--text);
+  font-family: 'Courier New', Courier, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.math-hist-res {
+  font-size: 11px;
+  font-weight: 700;
+  color: #d97706;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== MENU DE CÓPIA INTELIGENTE ===== */
+.copy-menu {
+  position: fixed;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.08);
+  z-index: 10000;
+  min-width: 152px;
+  padding: 4px;
+  animation: menu-in 0.1s ease-out;
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: scale(0.95) translateY(-2px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+.copy-menu-header {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 10px 4px;
+  user-select: none;
+}
+
+.copy-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: var(--font);
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.copy-opt:hover {
+  background: var(--bg-hover);
+}
+
+.copy-opt-value {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Substitui o <span> do título na linha da aside durante o renomear por
+   duplo clique (ver ligarCliqueEDuploCliqueNaLinha em notes-tabs.js) — mesmo
+   tamanho/peso do .copy-opt-value que ela troca de lugar, só com borda pra
+   deixar claro que virou um campo editável. */
+.notes-list-rename-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 4px;
+  outline: none;
+}
+
+.copy-opt-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ===== SCROLLBAR FINA ===== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }

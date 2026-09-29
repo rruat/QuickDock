@@ -1,0 +1,382 @@
+/* ==========================================================================
+   09-sync-responsive.css - Sincronizacao v3, leitura desktop, touch targets, documentos colapsaveis e busca no popover
+   Linhas originais: 2998 a 3375 (378 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== SINCRONIZAÇÃO (v3.0) ===== */
+#btn-sync.spinning {
+  animation: spin-sync 1s linear infinite;
+}
+#btn-sync.has-error {
+  color: #dc2626;
+}
+#btn-sync.needs-reauth {
+  color: #b45309;
+}
+@keyframes spin-sync {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.sync-menu {
+  min-width: 250px;
+  max-width: 320px;
+}
+.sync-status-box {
+  padding: 6px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sync-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.sync-folder-label {
+  font-size: 12px;
+  color: var(--text);
+  word-break: break-all;
+}
+.sync-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  width: fit-content;
+}
+.sync-badge-ok {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+.sync-badge-busy {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+.sync-badge-warn {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+}
+.sync-badge-error {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+.sync-error-msg {
+  font-size: 11px;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.06);
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  word-break: break-word;
+}
+/* Aviso de nota adiada: informação, não erro — a nota não foi atualizada agora
+   porque estava sendo editada, e isso é o comportamento correto. Cor de alerta
+   em vez de vermelho para não parecer que algo quebrou. */
+/* Explicação curta abaixo do botão do Drive. Diz o que a permissão alcança
+   antes de a pessoa clicar — pedir acesso ao Drive de alguém sem dizer o que
+   se vai enxergar é o tipo de coisa que corrói confiança. */
+.sync-desc-sub {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted, #6b7280);
+  margin-top: 6px;
+}
+.sync-skipped-msg {
+  font-size: 11px;
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.08);
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  line-height: 1.45;
+  word-break: break-word;
+}
+@media (prefers-color-scheme: dark) {
+  .sync-skipped-msg { color: #fbbf24; background: rgba(251, 191, 36, 0.10); }
+}
+.sync-actions-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+.sync-action-btn {
+  text-align: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+.sync-btn-primary {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+.sync-btn-danger {
+  color: #dc2626 !important;
+}
+
+/* Indicador discreto de nota de conflito (Tarefa 6) */
+.note-tab.is-conflict::after,
+.notes-list-item.is-conflict .copy-opt-value::after {
+  content: ' ⚠️';
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.85;
+}
+
+/* Caixa de alerta de conflito no popover (Tarefa 2) */
+.sync-conflict-box {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sync-conflict-box-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: #b45309;
+}
+[data-theme="dark"] .sync-conflict-box-title {
+  color: #fbbf24;
+}
+.sync-conflict-box-desc,
+.sync-conflict-box-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.sync-conflict-box-list {
+  margin: 4px 0 6px 14px;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.sync-btn-dismiss {
+  align-self: flex-start;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-top: 2px;
+}
+.btn-sync.has-conflict {
+  color: #d97706;
+}
+.btn-sync.has-conflict::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+/* ===== LARGURA DE LEITURA (PWA Desktop / telas largas - Tarefa 2) =====
+   Evita que o texto estique por milhares de pixels na tela do computador.
+   Alinhado ao centro com margem confortável para leitura. */
+@media (min-width: 768px) {
+  .note-editor-blocks {
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* ===== ENTRADA POR TOQUE / PONTEIRO GROSSO (pointer: coarse - Tarefas 1, 2, 3) =====
+   Alvos com no mínimo 44px, alças acessíveis e botão flutuante de seleção. */
+.btn-touch-select {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .btn-touch-select {
+    display: flex;
+    position: fixed;
+    right: 16px;
+    bottom: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    border: 2px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-touch-select .qd-icon {
+    font-size: 24px;
+  }
+
+  .btn-touch-select.is-active,
+  .btn-touch-select[aria-pressed="true"] {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(35, 131, 226, 0.5);
+  }
+
+  /* Alvos mínimos de 44px para dedos */
+  .icon-btn,
+  .docs-view-opt,
+  .group-action-btn,
+  .group-action-close,
+  .viewer-btn,
+  .template-bar-btn,
+  .btn-touch-select,
+  .tt-btn {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  html[data-platform="desktop"] .note-tab {
+    min-height: 40px;
+    padding: 0 12px;
+  }
+
+  .type-cell {
+    min-height: 52px;
+    padding: 6px 4px;
+  }
+
+  /* Controles de bloco (+ / ⠿) em dispositivos com toque: proporções elegantes com área de toque generosa invisível */
+  .block-controls {
+    gap: 2px;
+  }
+
+  .block-add-btn,
+  .block-handle-btn {
+    width: 22px;
+    height: 24px;
+    min-width: 22px;
+    min-height: 24px;
+    font-size: 13px;
+    background: var(--bg-hover);
+    border-radius: 4px;
+    position: relative;
+  }
+
+  .block-add-btn::before,
+  .block-handle-btn::before {
+    content: '';
+    position: absolute;
+    inset: -8px -4px;
+  }
+
+  /* Exibe controles de bloco no toque ou foco sem depender de hover */
+  .note-editor-blocks .block:focus-within {
+    position: relative;
+  }
+}
+
+/* ===== SEÇÃO DE DOCUMENTOS COLAPSÁVEL (Tarefa 6) ===== */
+.docs-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.docs-toggle-btn {
+  margin-right: 2px;
+  transition: transform 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.docs-section.is-collapsed .docs-toggle-btn .qd-icon {
+  transform: rotate(-90deg);
+}
+
+.docs-section.is-collapsed {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  flex: 0 0 38px !important;
+  overflow: hidden;
+}
+
+.docs-section.is-collapsed .drop-zone,
+.docs-section.is-collapsed #group-bar,
+.docs-section.is-collapsed .docs-view-switch,
+.docs-section.is-collapsed #btn-upload {
+  display: none !important;
+}
+
+.note-section.docs-collapsed,
+#app:has(.docs-section.is-collapsed) .note-section {
+  flex: 1 1 auto;
+  height: calc(100vh - 38px) !important;
+}
+
+#resize-handle.docs-collapsed,
+#app:has(.docs-section.is-collapsed) #resize-handle {
+  display: none !important;
+}
+
+/* ===== BUSCA NO POPOVER DE NOTAS (Tarefa 5) ===== */
+.notes-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.notes-search-bar .search-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.notes-search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.notes-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.notes-search-clear {
+  padding: 2px 4px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.notes-search-count {
+  padding: 5px 8px 3px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.notes-list-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+}

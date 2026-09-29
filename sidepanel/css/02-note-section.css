@@ -1,0 +1,213 @@
+/* ==========================================================================
+   02-note-section.css - Secao de nota, splash de carregamento, watermark e cabecalho
+   Linhas originais: 167 a 375 (209 linhas)
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+/* ===== SEÇÃO DE NOTA ===== */
+.note-section {
+  height: 70%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ===== SPLASH DE CARREGAMENTO + MARCA D'ÁGUA =====
+   São o mesmo elemento: a marca já nasce na posição final, por cima do véu e
+   em opacidade quase cheia. Quando o app fica pronto o véu dissolve e ela cai
+   pra opacidade de marca d'água — sem se mover um pixel.
+   Fica antes de .note-editor no DOM: os dois são posicionados com z-index
+   auto, então a ordem do DOM sozinha já deixa a marca atrás do texto. */
+.note-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--text);
+  opacity: 0.045;
+  transition: opacity 0.38s ease 0.08s;
+}
+
+.note-watermark svg {
+  width: min(46%, 148px);
+  height: auto;
+  fill: currentColor;
+}
+
+.boot-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+  /* a cor também transiciona: initTheme() troca o tema por baixo do véu */
+  transition: opacity 0.22s ease, background-color 0.2s;
+}
+
+body.booting .boot-veil { opacity: 1; }
+body.booting .note-watermark { opacity: 0.9; z-index: 61; }
+
+body.booting .note-editor-blocks {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* O conteúdo só entra depois que o véu já saiu. Subindo junto, ele aparece
+   através do véu meio transparente e dá a impressão de que já estava lá. */
+body:not(.booting) .note-editor-blocks {
+  transition: opacity 0.26s ease 0.18s,
+              transform 0.3s cubic-bezier(0.2, 0.7, 0.3, 1) 0.18s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-veil,
+  .note-watermark,
+  body:not(.booting) .note-editor-blocks {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+  body.booting .note-editor-blocks { transform: none; }
+}
+
+/* Container do editor. Quem rola é ele — pasta, título e propriedades sobem
+   junto com o conteúdo, como no Obsidian, em vez de ficarem presos acima de
+   um .note-editor-blocks com rolagem própria. */
+.note-editor {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-top: 3px solid var(--note-accent, transparent);
+  transition: border-color 0.15s;
+}
+
+/* Barra de pasta no topo do editor */
+.note-folder-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px 2px 34px;
+  flex-shrink: 0;
+}
+
+.note-folder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-family: inherit;
+}
+
+/* Cabeçalho da nota: ícone + título editável + cor (estilo Obsidian) */
+.note-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 2px 30px;
+  flex-shrink: 0;
+}
+
+.note-header-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--note-accent, var(--text-muted));
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.note-header-icon-btn:hover {
+  background: var(--bg-hover);
+}
+
+.note-header-icon-btn .qd-icon {
+  font-size: 22px;
+}
+
+.note-header-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  outline: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.note-header-title:focus {
+  background: var(--bg-hover);
+}
+
+.note-header-title:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.note-header-color-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.note-header-color-btn:hover {
+  background: var(--bg-hover);
+}
+
+.note-header-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--note-accent, transparent);
+}
+
+.note-folder-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.note-folder-btn.has-folder {
+  color: var(--accent);
+  background: var(--bg-hover);
+  border-color: var(--border);
+  font-weight: 500;
+}
+
+.note-folder-btn.has-folder:hover {
+  border-color: var(--accent);
+}
+
+.note-folder-btn .qd-icon {
+  font-size: 13px;
+}
