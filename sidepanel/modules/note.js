@@ -26,6 +26,12 @@ import {
   pointAtOffset, rangeFromOffsets, getCaretOffset, setCaretOffset, caretViewportRect,
   getContentEl, getBlockFromNode, currentBlock, focusBlockStart,
 } from './note-dom-utils.js';
+import {
+  initNoteHistory, getUndoStackLength, getRedoStackLength, snapshotState,
+  captureUndoPoint, captureTypingUndoPoint, resetUndoHistory,
+  performUndo, performRedo,
+} from './note/note-history.js';
+export { getUndoStackLength, getRedoStackLength, snapshotState, captureUndoPoint, performUndo, performRedo };
 import { syncVisualViewport } from './note-viewport.js';
 import {
   ttTitleCase, ttSentenceCase, ttParaCase, ttInvertCase, ttNoAccents,
@@ -1002,97 +1008,15 @@ export function renumberLists() {
   }
 }
 
-// ── Undo / redo próprios ──────────────────────────────────────────────────────
-// O undo nativo do navegador só entende edição de texto simples — ele não
-// sabe desfazer as trocas de tipo de bloco (viram elementos novos via
-// replaceWith), então precisa de um histórico próprio por nota.
-const UNDO_LIMIT = 100;
-let undoStack = [];
-let redoStack = [];
-let pendingTypingSnapshot = null;
-let typingSnapshotTimer   = null;
-export function getUndoStackLength() { return undoStack.length; }
-export function getRedoStackLength() { return redoStack.length; }
-
-export function snapshotState() {
-  return root.innerHTML;
-}
-
-function pushUndoSnapshot(html) {
-  undoStack.push(html);
-  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
-  redoStack = [];
-}
-
-// Chama antes de qualquer mudança estrutural (conversão de tipo, enter,
-// backspace, colar, divisor…) — captura o estado imediatamente anterior.
-// `html` permite capturar um estado colhido antes de saber se a mudança ia
-// mesmo acontecer — é o caso do Tab, que às vezes não tem pra onde indentar e
-// não deve sujar o histórico.
-export function captureUndoPoint(html = null) {
-  clearTimeout(typingSnapshotTimer);
-  pendingTypingSnapshot = null;
-  pushUndoSnapshot(html ?? snapshotState());
-}
-
-// Para digitação contínua: grava só um ponto no início de cada "rajada" de
-// teclas (debounce), não a cada caractere.
-function captureTypingUndoPoint() {
-  if (pendingTypingSnapshot === null) {
-    pendingTypingSnapshot = snapshotState();
-    pushUndoSnapshot(pendingTypingSnapshot);
-  }
-  clearTimeout(typingSnapshotTimer);
-  typingSnapshotTimer = setTimeout(() => { pendingTypingSnapshot = null; }, 600);
-}
-
-function resetUndoHistory() {
-  undoStack = [];
-  redoStack = [];
-  pendingTypingSnapshot = null;
-  clearTimeout(typingSnapshotTimer);
-}
-
-function restoreSnapshot(html) {
-  root.innerHTML = html;
-
-  // O atributo "checked" do <input> não acompanha sozinho o innerHTML (é uma
-  // propriedade viva, não refletida) — sincroniza a partir do data-checked,
-  // que é um atributo de verdade e volta certinho.
-  root.querySelectorAll('.block-checklist').forEach(block => {
-    const cb = block.querySelector('input[type="checkbox"]');
-    if (cb) cb.checked = block.dataset.checked === 'true';
-  });
-
-  renumberLists();
-  refreshChecklistStates();   // o "meio marcado" também é propriedade viva
-
-  const last = root.lastElementChild;
-  if (last) {
-    const c = getContentEl(last);
-    c.focus();
-    setCaretOffset(c, c.textContent.length);
-  }
-  scheduleSave();
-}
-
-export function performUndo() {
-  if (undoStack.length === 0) return;
-  pendingTypingSnapshot = null;
-  clearTimeout(typingSnapshotTimer);
-  const current = snapshotState();
-  const prev = undoStack.pop();
-  redoStack.push(current);
-  restoreSnapshot(prev);
-}
-
-export function performRedo() {
-  if (redoStack.length === 0) return;
-  const current = snapshotState();
-  const next = redoStack.pop();
-  undoStack.push(current);
-  restoreSnapshot(next);
-}
+// ── Undo / redo próprios (delegado para note-history.js) ──────────────────────
+initNoteHistory({
+  getRoot: () => root,
+  renumberLists,
+  refreshChecklistStates,
+  getContentEl,
+  setCaretOffset,
+  scheduleSave,
+});
 
 // ── Detecção com debounce (não recalcula a cada tecla, só quando pausa) ──────
 export function scheduleRescan(block) {
