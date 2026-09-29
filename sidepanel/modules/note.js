@@ -32,6 +32,38 @@ import {
   performUndo, performRedo,
 } from './note/note-history.js';
 export { getUndoStackLength, getRedoStackLength, snapshotState, captureUndoPoint, performUndo, performRedo };
+import {
+  initNoteTable, DEFAULT_TABLE, buildCell, buildTableEl, buildTableTools,
+  focusedCell, focusCell, addTableRow, addTableCol, delTableRow, delTableCol,
+  moveCell, handleTableButtonClick, parseClipboardTable, parseTsvTable,
+  insertTableBlock,
+} from './note/note-table.js';
+export { focusCell };
+import {
+  initNoteMedia, revokeImageURLs, loadInlineMedia, aplicarTamanhoImagem,
+  setImageData, setMediaData, buildImageTools, buildMediaTools,
+  buildImageResizeHandle, setImageResolver,
+} from './note/note-media.js';
+export { setImageResolver };
+import {
+  initNoteSlashMenu, SLASH_ITEMS, INSERTED_TYPES, buildTypeGrid,
+  slashItemsWithTemplates, closeSlashMenu, cancelSlashMenu,
+  moveSlashSelection, moveSlashRow, confirmSlashSelection,
+  checkSlashMenu, isSlashMenuOpen, openSlashMenuForBlock,
+} from './note/note-slash-menu.js';
+import {
+  initNoteDragDrop, getSelectedBlockIds, getIsBlockSelectActive, setIsBlockSelectActive,
+  getLastHandleClickedId, setLastHandleClickedId, setBlockSelection, clearBlockSelection,
+  selectBlockRange, targetBlocksFor, getSelectedBlockElements, printBlocks, transformBlocks,
+  hideBlockControls, positionBlockControls, findBlockById, orderedBlocks,
+  deleteBlocksOrOne, closeBlockMenu, isGestureActive, isSelecaoEspelhada, setSelecaoEspelhada,
+} from './note/note-drag-drop.js';
+export {
+  getSelectedBlockIds, getIsBlockSelectActive, setIsBlockSelectActive,
+  getLastHandleClickedId, setLastHandleClickedId, setBlockSelection,
+  clearBlockSelection, targetBlocksFor, getSelectedBlockElements,
+  printBlocks, transformBlocks,
+};
 import { syncVisualViewport } from './note-viewport.js';
 import {
   ttTitleCase, ttSentenceCase, ttParaCase, ttInvertCase, ttNoAccents,
@@ -449,214 +481,13 @@ function blocksForIndent() {
   return block ? [block] : [];
 }
 
-// ── Imagem na nota ────────────────────────────────────────────────────────────
-// O bloco guarda só o id do arquivo; o Blob mora na tabela `files` com a marca
-// `inline`. O que aparece na tela é um objectURL, criado sob demanda.
-//
-// Revogar ao trocar de nota é obrigatório: sem isso cada troca de aba deixa um
-// Blob inteiro preso na memória, e uma sessão de trabalho acumula todos.
-const imageURLs = new Map();   // fileId → objectURL
-
-function revokeImageURLs() {
-  for (const url of imageURLs.values()) URL.revokeObjectURL(url);
-  imageURLs.clear();
-}
-
-// Serve qualquer elemento com `.src` (img, audio, video) — o Blob mora no
-// mesmo lugar não importa o tipo de arquivo.
-function loadInlineMedia(mediaEl, fileId) {
-  const cached = imageURLs.get(fileId);
-  if (cached) { mediaEl.src = cached; return; }
-
-  loadFileBlob(fileId).then(blob => {
-    if (!blob) {
-      mediaEl.closest('.block')?.classList.add('block-image-missing');
-      return;
-    }
-    const url = URL.createObjectURL(blob);
-    // A nota pode ter mudado enquanto o banco respondia. Sem esta checagem, a
-    // URL nova ficaria presa num elemento que já saiu da tela.
-    if (!root.contains(mediaEl)) { URL.revokeObjectURL(url); return; }
-    imageURLs.set(fileId, url);
-    mediaEl.src = url;
-  });
-}
-
-let imageResolver = null;
-export function setImageResolver(fn) {
-  imageResolver = fn;
-}
-
-function setImageData(el, { fileId, alt, dataUrl, imagePath, src, width, height }) {
-  const img = el.querySelector('img');
-  if (alt) el.dataset.alt = alt;
-  else delete el.dataset.alt;
-  if (img) img.alt = alt ?? '';
-  aplicarTamanhoImagem(el, width, height);
-  if (fileId != null && Number.isFinite(Number(fileId))) {
-    el.dataset.fileId = String(fileId);
-    delete el.dataset.imagePath;
-    el.classList.remove('block-image-missing');
-    if (img) loadInlineMedia(img, Number(fileId));
-  } else if (dataUrl) {
-    delete el.dataset.fileId;
-    delete el.dataset.imagePath;
-    el.classList.remove('block-image-missing');
-    if (img) img.src = dataUrl;
-  } else {
-    delete el.dataset.fileId;
-    const caminho = imagePath || (src && /^(\.\.\/)?imagens\//.test(src) ? src : null);
-    if (caminho) {
-      el.dataset.imagePath = caminho;
-      el.classList.add('block-image-missing');
-      // Download sob demanda (preguiçoso): busca o arquivo na pasta imagens/
-      // e renderiza assim que o resolvedor (SyncController) salvar no Dexie local.
-      if (typeof imageResolver === 'function') {
-        imageResolver(caminho, currentNoteId).then(res => {
-          if (!root.contains(el)) return;
-          if (res && res.fileId != null) {
-            // Passa o tamanho já gravado adiante: esta chamada só troca o
-            // fileId (placeholder → arquivo de verdade), não pode apagar um
-            // redimensionamento que a pessoa já tinha feito.
-            const w = el.dataset.width ? Number(el.dataset.width) : undefined;
-            const h = el.dataset.height ? Number(el.dataset.height) : undefined;
-            setImageData(el, { fileId: res.fileId, alt, width: w, height: h });
-          }
-        }).catch(() => {});
-      }
-    } else {
-      delete el.dataset.imagePath;
-      el.classList.add('block-image-missing');
-    }
-  }
-}
-
-// Versão mais simples pra áudio/vídeo: só fileId ou dataUrl, sem o caminho de
-// sincronização preguiçosa da imagem (imagePath/imageResolver) — "local" é
-// exatamente isso, o arquivo mora no Dexie desta máquina.
-function setMediaData(el, type, { fileId, alt, dataUrl, width, height }) {
-  const media = el.querySelector(type);
-  if (alt) el.dataset.alt = alt;
-  else delete el.dataset.alt;
-  if (type === 'video') aplicarTamanhoImagem(el, width, height);
-  if (fileId != null && Number.isFinite(Number(fileId))) {
-    el.dataset.fileId = String(fileId);
-    el.classList.remove('block-image-missing');
-    if (media) loadInlineMedia(media, Number(fileId));
-  } else if (dataUrl) {
-    delete el.dataset.fileId;
-    el.classList.remove('block-image-missing');
-    if (media) media.src = dataUrl;
-  } else {
-    delete el.dataset.fileId;
-    el.classList.add('block-image-missing');
-  }
-}
-
-// Largura (e opcionalmente altura) explícitas, escritas pela alça de
-// redimensionar ou lidas de "|320" / "|320x240" no markdown (ver blocks.js).
-// Sem altura, só a largura é fixada — a altura segue sozinha (proporção
-// preservada), e por isso o teto de 320px (CSS) precisa sair do caminho.
-function aplicarTamanhoImagem(el, width, height) {
-  const img = el.querySelector('img, video');
-  if (width) {
-    el.dataset.width = String(width);
-    if (img) {
-      img.style.width = `${width}px`;
-      img.style.maxHeight = 'none';
-    }
-  } else {
-    delete el.dataset.width;
-    if (img) { img.style.width = ''; img.style.maxHeight = ''; }
-  }
-  if (height) {
-    el.dataset.height = String(height);
-    if (img) img.style.height = `${height}px`;
-  } else {
-    delete el.dataset.height;
-    if (img) img.style.height = '';
-  }
-}
-
-function buildImageTools() {
-  const bar = document.createElement('div');
-  bar.className = 'image-tools';
-  bar.contentEditable = 'false';
-  const acts = [
-    ['to-docs', 'Mover p/ Documentos', 'Tirar da nota e guardar na seção Documentos', 'image-btn-accent'],
-    ['replace', 'Trocar',  'Trocar por outra imagem'],
-    ['alt',     'Texto',   'Descrever a imagem (texto alternativo)'],
-    ['remove',  'Remover', 'Remover a imagem da nota'],
-  ];
-  for (const [act, label, title, extra] of acts) {
-    const btn = document.createElement('button');
-    btn.className   = `image-btn ${extra ?? ''}`.trim();
-    btn.dataset.act = act;
-    btn.textContent = label;
-    btn.title       = title;
-    bar.appendChild(btn);
-  }
-  return bar;
-}
-
-// Barra de ferramentas de áudio/vídeo — só "Remover" por enquanto (sem
-// "Trocar": o seletor de arquivo embutido é hoje só de imagem). O
-// data-act="remove-media" tem um ouvinte de clique próprio, separado do da
-// imagem, pra não arriscar mexer no que já funciona lá.
-function buildMediaTools() {
-  const bar = document.createElement('div');
-  bar.className = 'image-tools';
-  bar.contentEditable = 'false';
-  const btn = document.createElement('button');
-  btn.className   = 'image-btn';
-  btn.dataset.act = 'remove-media';
-  btn.textContent = 'Remover';
-  btn.title       = 'Remover da nota';
-  bar.appendChild(btn);
-  return bar;
-}
-
-// Alça no canto inferior direito — arrastar muda a largura (a altura segue
-// sozinha, proporção preservada), igual ao redimensionamento de imagem do
-// Obsidian. Só a largura é gravada (ver aplicarTamanhoImagem/serializeBlockEl);
-// sem altura fixada, o navegador mesmo mantém a proporção original.
-function buildImageResizeHandle(el) {
-  const handle = document.createElement('div');
-  handle.className = 'image-resize-handle';
-  handle.contentEditable = 'false';
-  handle.title = 'Arrastar para redimensionar';
-
-  handle.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const img = el.querySelector('img, video');
-    if (!img) return;
-
-    const startX = e.clientX;
-    const startWidth = img.getBoundingClientRect().width;
-    const larguraMaxima = Math.max(60, root.clientWidth - 8);
-    captureUndoPoint();
-    el.classList.add('is-resizing');
-
-    const mover = ev => {
-      const bruta = startWidth + (ev.clientX - startX);
-      const tetoNatural = (img.tagName === 'VIDEO' ? img.videoWidth : img.naturalWidth) || Infinity;
-      const largura = Math.round(Math.min(Math.max(60, bruta), larguraMaxima, tetoNatural));
-      aplicarTamanhoImagem(el, largura, null);
-    };
-    const soltar = () => {
-      document.removeEventListener('mousemove', mover);
-      document.removeEventListener('mouseup', soltar);
-      el.classList.remove('is-resizing');
-      scheduleSave();
-    };
-    document.addEventListener('mousemove', mover);
-    document.addEventListener('mouseup', soltar);
-  });
-
-  return handle;
-}
+// ── Imagem e mídia (delegado para note-media.js) ───────────────────────────
+initNoteMedia({
+  getRoot: () => root,
+  getCurrentNoteId: () => currentNoteId,
+  captureUndoPoint,
+  scheduleSave,
+});
 
 // Base64 → arquivo. Chega assim de um .md importado, de uma colagem de texto
 // ou de um modelo compartilhado. A decodificação é na mão (atob) em vez de
@@ -755,114 +586,17 @@ function focusBlockEnd(block) {
   setCaretOffset(content, content.textContent.length);
 }
 
-// ── Tabela ────────────────────────────────────────────────────────────────────
-const DEFAULT_TABLE = [['', ''], ['', '']];
-
-function buildCell(isHeader, html) {
-  const cell = document.createElement(isHeader ? 'th' : 'td');
-  cell.className = 'table-cell';
-  cell.contentEditable = 'true';
-  cell.innerHTML = html || '<br>';
-  return cell;
-}
-
-function buildTableEl(rows) {
-  const data   = rows?.length ? rows : DEFAULT_TABLE;
-  const scroll = document.createElement('div');
-  scroll.className = 'table-scroll';
-  const table = document.createElement('table');
-
-  data.forEach((row, r) => {
-    const tr = document.createElement('tr');
-    row.forEach(html => tr.appendChild(buildCell(r === 0, html)));
-    table.appendChild(tr);
-  });
-
-  scroll.appendChild(table);
-  return scroll;
-}
-
-function buildTableTools() {
-  const bar = document.createElement('div');
-  bar.className = 'table-tools';
-  bar.contentEditable = 'false';
-  const acts = [
-    ['add-row', '+ linha',  'Adicionar linha abaixo da atual'],
-    ['add-col', '+ coluna', 'Adicionar coluna à direita da atual'],
-    ['del-row', '− linha',  'Remover a linha do cursor'],
-    ['del-col', '− coluna', 'Remover a coluna do cursor'],
-  ];
-  for (const [act, label, title] of acts) {
-    const btn = document.createElement('button');
-    btn.className   = 'table-btn';
-    btn.dataset.act = act;
-    btn.textContent = label;
-    btn.title       = title;
-    bar.appendChild(btn);
-  }
-  return bar;
-}
-
-function focusedCell() {
-  const sel = document.getSelection();
-  if (!sel || sel.rangeCount === 0) return null;
-  let node = sel.getRangeAt(0).startContainer;
-  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-  const cell = node?.closest?.('.table-cell');
-  return cell && root.contains(cell) ? cell : null;
-}
-
-export function focusCell(cell) {
-  if (!cell) return;
-  cell.focus();
-  const range = document.createRange();
-  range.selectNodeContents(cell);
-  range.collapse(false);
-  const sel = document.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-function addTableRow(table, afterIndex) {
-  const cols = table.rows[0]?.cells.length ?? 2;
-  const tr   = table.insertRow(Math.min(afterIndex + 1, table.rows.length));
-  for (let i = 0; i < cols; i++) tr.appendChild(buildCell(false, ''));
-  return tr;
-}
-
-function addTableCol(table, afterIndex) {
-  [...table.rows].forEach((tr, r) => {
-    tr.insertBefore(buildCell(r === 0, ''), tr.cells[afterIndex + 1] ?? null);
-  });
-}
-
-// A primeira linha é o cabeçalho e o markdown exige pelo menos uma linha de
-// dados, então o piso é duas linhas e uma coluna.
-function delTableRow(table, index) {
-  if (table.rows.length <= 2 || index === 0) return;
-  table.deleteRow(index);
-}
-
-function delTableCol(table, index) {
-  if ((table.rows[0]?.cells.length ?? 0) <= 1) return;
-  [...table.rows].forEach(tr => tr.cells[index]?.remove());
-}
-
-function moveCell(cell, delta) {
-  const table = cell.closest('table');
-  const cells = [...table.querySelectorAll('.table-cell')];
-  const i     = cells.indexOf(cell);
-
-  // Tab na última célula cria uma linha, em vez de sair da tabela.
-  if (delta > 0 && i === cells.length - 1) {
-    captureUndoPoint();
-    addTableRow(table, table.rows.length - 1);
-    scheduleSave();
-    focusCell([...table.querySelectorAll('.table-cell')][i + 1]);
-    return;
-  }
-  focusCell(cells[i + delta]);
-}
+// ── Tabela (delegado para note-table.js) ──────────────────────────────────
+initNoteTable({
+  getRoot: () => root,
+  captureUndoPoint,
+  scheduleSave,
+  escHtml,
+  createBlockEl,
+  currentBlock,
+  getContentEl,
+  renumberLists,
+});
 
 // Esvazia o conteúdo de um bloco mantendo o <br> de segurança (ver createBlockEl).
 function clearContent(el) {
@@ -1468,22 +1202,7 @@ root.addEventListener('mousedown', e => {
 root.addEventListener('click', e => {
   const btn = e.target.closest('.table-btn');
   if (!btn) return;
-  const table = btn.closest('.block-table')?.querySelector('table');
-  if (!table) return;
-
-  // Sem cursor em célula, a ação cai na última linha/coluna.
-  const cell = focusedCell();
-  const r = cell?.closest('tr')?.rowIndex ?? table.rows.length - 1;
-  const c = cell?.cellIndex ?? (table.rows[0].cells.length - 1);
-
-  captureUndoPoint();
-  switch (btn.dataset.act) {
-    case 'add-row': addTableRow(table, r); break;
-    case 'add-col': addTableCol(table, c); break;
-    case 'del-row': delTableRow(table, r); break;
-    case 'del-col': delTableCol(table, c); break;
-  }
-  scheduleSave();
+  handleTableButtonClick(btn);
 });
 
 
@@ -1891,85 +1610,8 @@ root.addEventListener('copy', e => {
 // dezoito cabem em sete linhas, e o grupo diz de cara em que vizinhança
 // procurar.
 //
-// `label` é o nome inteiro: é o que o filtro casa e o que aparece ao passar o
-// mouse. `short` é o que cabe embaixo do ícone.
-const CALLOUT_ICONS = {
-  note: 'info', tip: 'lightbulb', important: 'priority_high',
-  warning: 'warning', caution: 'dangerous',
-};
+// ── Menu Slash & Tipos de Bloco (delegado para note-slash-menu.js) ────────────
 
-const SLASH_ITEMS = [
-  { key: 'texto',     label: 'Texto',               short: 'Texto',     hint: 'parágrafo', icon: 'notes',                 grupo: 'Texto',     type: 'paragraph' },
-  { key: 'titulo1',   label: 'Título 1',            short: 'Título 1',  hint: '#',         icon: 'format_h1',             grupo: 'Texto',     type: 'heading1'  },
-  { key: 'titulo2',   label: 'Título 2',            short: 'Título 2',  hint: '##',        icon: 'format_h2',             grupo: 'Texto',     type: 'heading2'  },
-  { key: 'titulo3',   label: 'Título 3',            short: 'Título 3',  hint: '###',       icon: 'format_h3',             grupo: 'Texto',     type: 'heading3'  },
-
-  { key: 'lista',     label: 'Lista com marcadores', short: 'Lista',    hint: '-',         icon: 'format_list_bulleted',  grupo: 'Listas',    type: 'bullet'    },
-  { key: 'numerada',  label: 'Lista numerada',       short: 'Numerada', hint: '1.',        icon: 'format_list_numbered',  grupo: 'Listas',    type: 'number'    },
-  { key: 'checklist', label: 'Checklist',            short: 'Checklist',hint: '[ ]',       icon: 'checklist',             grupo: 'Listas',    type: 'checklist' },
-
-  { key: 'citacao',   label: 'Citação',              short: 'Citação',  hint: '>',         icon: 'format_quote',          grupo: 'Destaques', type: 'quote'     },
-  ...CALLOUT_TYPES.map(t => ({
-    key:   CALLOUT_LABELS[t].toLowerCase(),
-    label: `Destaque · ${CALLOUT_LABELS[t]}`,
-    short: CALLOUT_LABELS[t],
-    hint:  `[!${t}]`,
-    icon:  CALLOUT_ICONS[t],
-    grupo: 'Destaques',
-    type:  `callout:${t}`,
-  })),
-
-  { key: 'codigo',    label: 'Código',               short: 'Código',   hint: '```',       icon: 'code',                  grupo: 'Blocos',    type: 'code'      },
-  { key: 'calculo',   label: 'Cálculo',              short: 'Cálculo',  hint: '= ao vivo', icon: 'calculate',             grupo: 'Blocos',    type: 'calc'      },
-  { key: 'tabela',    label: 'Tabela',               short: 'Tabela',   hint: '| |',       icon: 'table',                 grupo: 'Blocos',    type: 'table'     },
-  { key: 'imagem',    label: 'Imagem',               short: 'Imagem',   hint: 'arquivo',   icon: 'image',                 grupo: 'Blocos',    type: 'image'     },
-  { key: 'audio',     label: 'Áudio',                short: 'Áudio',    hint: 'arquivo',   icon: 'audio_file',            grupo: 'Blocos',    type: 'audio'     },
-  { key: 'video',     label: 'Vídeo',                short: 'Vídeo',    hint: 'arquivo',   icon: 'videocam',              grupo: 'Blocos',    type: 'video'     },
-  { key: 'base',      label: 'Base de dados',        short: 'Base',     hint: '```base',   icon: 'view_kanban',           grupo: 'Blocos',    type: 'base'      },
-  { key: 'divisor',   label: 'Divisor',              short: 'Divisor',  hint: '---',       icon: 'horizontal_rule',       grupo: 'Blocos',    type: 'divider'   },
-];
-
-// Monta a grade de tipos, com um cabeçalho por grupo. Serve o menu "/" e o
-// "Transformar em" — os dois mostram a mesma lista e tinham o mesmo problema.
-function buildTypeGrid(itens, aoEscolher) {
-  const wrap = document.createElement('div');
-  wrap.className = 'type-grid-wrap';
-
-  let grupoAtual = null;
-  let grade = null;
-
-  itens.forEach((it, i) => {
-    if (it.grupo !== grupoAtual) {
-      grupoAtual = it.grupo;
-      const cab = document.createElement('div');
-      cab.className = 'copy-menu-header';
-      cab.textContent = grupoAtual;
-      wrap.appendChild(cab);
-      grade = document.createElement('div');
-      grade.className = 'type-grid';
-      wrap.appendChild(grade);
-    }
-
-    const btn = document.createElement('button');
-    btn.className = 'type-cell';
-    btn.title = it.hint ? `${it.label} · ${it.hint}` : it.label;
-    const ico = createIcon(it.icon, 'type-cell-icon');
-    const nome = document.createElement('span');
-    nome.className = 'type-cell-label';
-    nome.textContent = it.short;   // textContent: nome de modelo é texto do usuário
-    btn.append(ico, nome);
-    btn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
-    btn.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true });
-    btn.addEventListener('click', e => { e.stopPropagation(); aoEscolher(i); });
-    grade.appendChild(btn);
-  });
-
-  return wrap;
-}
-
-// Tipos que não são conversão de um parágrafo, e sim inserção de uma estrutura
-// própria: substituem o bloco e abrem um parágrafo livre logo abaixo.
-const INSERTED_TYPES = new Set(['divider', 'table', 'image', 'base']);
 
 // ── Modelos de bloco ──────────────────────────────────────────────────────────
 // O markdown do modelo passa pelo mesmo parser da importação, então checklist,
@@ -2008,184 +1650,19 @@ document.addEventListener('quickdock:insert-template-blocks', e => {
   if (target) insertTemplateBlocks(content, target);
 });
 
-// Modelos entram no menu "/" como itens normais, filtráveis pelo nome.
-function slashItemsWithTemplates() {
-  return [
-    ...SLASH_ITEMS,
-    ...blockTemplates().map(t => ({
-      key:   t.name.toLowerCase(),
-      label: t.name,
-      short: t.name,
-      hint:  'modelo',
-      icon:  'bookmark',
-      grupo: 'Modelos',
-      template: t.content,
-    })),
-  ];
-}
-
-let slashMenuEl = null;
-let slashItems  = [];
-let slashIndex  = 0;
-let slashBlock  = null;
-
-let slashBackdropEl = null;
-function closeSlashBackdrop() {
-  slashBackdropEl?.remove();
-  slashBackdropEl = null;
-}
-
-function closeSlashMenuEl() {
-  closeSlashBackdrop();
-  slashMenuEl?.remove();
-  slashMenuEl = null;
-}
-function closeSlashMenu() { closeSlashMenuEl(); slashItems = []; slashBlock = null; }
-
-function cancelSlashMenu() {
-  if (slashBlock) clearContent(getContentEl(slashBlock));
-  closeSlashMenu();
-}
-
-function renderSlashMenu(block) {
-  closeSlashMenuEl();
-  const menu = document.createElement('div');
-  menu.className = 'copy-menu slash-menu';
-
-  const isMobile = document.documentElement.dataset.platform === 'mobile';
-  if (isMobile) {
-    menu.classList.add('is-bottom-sheet');
-    slashBackdropEl = document.createElement('div');
-    slashBackdropEl.className = 'bottom-sheet-backdrop';
-    slashBackdropEl.addEventListener('click', cancelSlashMenu);
-    document.body.appendChild(slashBackdropEl);
-
-    const pill = document.createElement('div');
-    pill.className = 'bottom-sheet-drag-pill';
-    const head = document.createElement('div');
-    head.className = 'bottom-sheet-header';
-    head.innerHTML = `<span class="bottom-sheet-title">Inserir bloco</span>`;
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'icon-btn bottom-sheet-close';
-    closeBtn.innerHTML = '✕';
-    closeBtn.title = 'Fechar';
-    closeBtn.setAttribute('aria-label', 'Fechar menu de blocos');
-    closeBtn.addEventListener('click', cancelSlashMenu);
-    head.appendChild(closeBtn);
-    menu.prepend(pill, head);
-  }
-
-  menu.appendChild(buildTypeGrid(slashItems, i => { slashIndex = i; confirmSlashSelection(); }));
-
-  document.body.appendChild(menu);
-  slashMenuEl = menu;
-  if (!isMobile) {
-    positionMenu(menu, block.getBoundingClientRect());
-  }
-  highlightSlashItem();
-}
-
-// Andar com as setas só troca o destaque — não reconstrói o menu. Reconstruir
-// significa tirar o elemento do DOM e recolocar, e era isso que fazia o menu
-// piscar a cada tecla. Reconstruir só faz sentido quando a LISTA muda, que é
-// quando a pessoa digita mais uma letra depois da barra.
-function highlightSlashItem() {
-  if (!slashMenuEl) return;
-  const celulas = slashMenuEl.querySelectorAll('.type-cell');
-  celulas.forEach((btn, i) => btn.classList.toggle('active', i === slashIndex));
-  // Sem isto o item ativo some da vista quando a grade é mais alta que o menu.
-  celulas[slashIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-}
-
-// Esquerda/direita andam item a item na ordem da lista.
-function moveSlashSelection(delta) {
-  slashIndex = (slashIndex + delta + slashItems.length) % slashItems.length;
-  highlightSlashItem();
-}
-
-// Cima/baixo pulam de linha. A linha é descoberta pela posição na tela, e não
-// contando "de três em três": os grupos têm tamanhos diferentes, então a
-// última linha de um grupo quase nunca está cheia, e contar erraria toda vez
-// que a seta cruzasse de um grupo pro outro.
-function moveSlashRow(direcao) {
-  if (!slashMenuEl) return;
-  const celulas = [...slashMenuEl.querySelectorAll('.type-cell')];
-  const atual = celulas[slashIndex];
-  if (!atual) return;
-
-  const r = atual.getBoundingClientRect();
-  let melhor = -1, menorDistancia = Infinity;
-
-  celulas.forEach((c, i) => {
-    const cr = c.getBoundingClientRect();
-    const dy = cr.top - r.top;
-    if (direcao > 0 ? dy <= 1 : dy >= -1) return;   // não está na direção pedida
-    // A linha pesa mil vezes mais que a coluna: primeiro a linha mais próxima,
-    // e dentro dela a célula mais alinhada horizontalmente.
-    const dist = Math.abs(dy) * 1000 + Math.abs(cr.left - r.left);
-    if (dist < menorDistancia) { menorDistancia = dist; melhor = i; }
-  });
-
-  // Sem linha na direção pedida: vai pra ponta, como numa lista.
-  slashIndex = melhor !== -1 ? melhor : (direcao > 0 ? 0 : celulas.length - 1);
-  highlightSlashItem();
-}
-
-function confirmSlashSelection() {
-  const item  = slashItems[slashIndex];
-  const block = slashBlock;
-  closeSlashMenu();
-  if (!item || !block) return;
-
-  captureUndoPoint();
-
-  if (item.template) {
-    // Tira o "/nome-do-modelo" que ficou digitado ANTES de inserir: com o
-    // texto ainda ali, insertTemplateBlocks não reconhecia a linha como vazia
-    // e pendurava o modelo abaixo dela, deixando a barra na nota.
-    clearContent(getContentEl(block));
-    insertTemplateBlocks(item.template, block);
-    return;
-  }
-
-  // Imagem/áudio/vídeo não inserem bloco vazio: o bloco nasce junto com o
-  // arquivo, quando ele for escolhido. Aqui só se limpa o "/imagem" (ou
-  // "/áudio", "/vídeo") que ficou digitado.
-  if (item.type === 'image' || item.type === 'audio' || item.type === 'video') {
-    clearContent(getContentEl(block));
-    pedirImagem({ inserirEm: block }, item.type);
-    return;
-  }
-
-  if (INSERTED_TYPES.has(item.type)) {
-    const inserted = createBlockEl(item.type);
-    block.replaceWith(inserted);
-    const para = createBlockEl('paragraph');
-    inserted.after(para);
-    if (item.type === 'table') focusCell(inserted.querySelector('.table-cell'));
-    else focusBlockStart(para);
-  } else {
-    const newBlock = convertBlockType(block, item.type);
-    clearContent(getContentEl(newBlock));
-    focusBlockStart(newBlock);
-  }
-  renumberLists();
-}
-
-function checkSlashMenu(block) {
-  const text = getContentEl(block).textContent;
-  const m = /^\/(\w*)$/.exec(text);
-  if (!m) { closeSlashMenu(); return; }
-
-  const filter = m[1].toLowerCase();
-  slashItems = slashItemsWithTemplates()
-    .filter(it => it.label.toLowerCase().includes(filter) || it.key.includes(filter));
-  if (slashItems.length === 0) { closeSlashMenu(); return; }
-
-  slashBlock = block;
-  slashIndex = 0;
-  renderSlashMenu(block);
-}
+// ── Menu Slash (delegado para note-slash-menu.js) ─────────────────────────
+initNoteSlashMenu({
+  getContentEl,
+  clearContent,
+  captureUndoPoint,
+  insertTemplateBlocks,
+  pedirImagem,
+  createBlockEl,
+  convertBlockType,
+  focusCell,
+  focusBlockStart,
+  renumberLists,
+});
 
 
 // ── Obsidian Live Preview Engine ─────────────────────────────────────────────
@@ -3422,7 +2899,7 @@ root.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.preventDefault(); closeLinkAutocomplete(); return; }
   }
 
-  if (slashMenuEl) {
+  if (isSlashMenuOpen()) {
     if (e.key === 'ArrowDown')  { e.preventDefault(); moveSlashRow(1);  return; }
     if (e.key === 'ArrowUp')    { e.preventDefault(); moveSlashRow(-1); return; }
     if (e.key === 'ArrowRight') { e.preventDefault(); moveSlashSelection(1);  return; }
@@ -3576,56 +3053,8 @@ root.addEventListener('paste', e => {
   }
 });
 
-// ── Colar planilha ────────────────────────────────────────────────────────────
-// Só o texto das células: o HTML do Excel vem cheio de <font>, style inline e
-// atributos próprios, que poluiriam a nota e não acrescentam nada aqui.
-function cellText(el) {
-  return escHtml(el.textContent.replace(/\s+/g, ' ').trim());
-}
+// ── Colar planilha (delegado para note-table.js) ─────────────────────────────
 
-// Iguala o número de colunas e garante o mínimo de duas linhas — a primeira é
-// cabeçalho e o markdown exige ao menos uma linha de dados.
-function normalizeGrid(rows) {
-  const cols = Math.max(...rows.map(r => r.length));
-  const out = rows.map(r => [...r, ...Array(cols - r.length).fill('')]);
-  if (out.length === 1) out.push(Array(cols).fill(''));
-  return out;
-}
-
-function parseClipboardTable(html) {
-  if (!html || !/<table/i.test(html)) return null;
-  const table = new DOMParser().parseFromString(html, 'text/html').querySelector('table');
-  if (!table) return null;
-  const rows = [...table.rows].map(tr => [...tr.cells].map(cellText));
-  if (!rows.length || !rows[0].length) return null;
-  return normalizeGrid(rows);
-}
-
-function parseTsvTable(text) {
-  if (!text.includes('\t')) return null;
-  const lines = text.replace(/\r\n?/g, '\n').split('\n').filter(l => l.length > 0);
-  if (lines.length < 2) return null;
-  return normalizeGrid(lines.map(l => l.split('\t').map(c => escHtml(c.trim()))));
-}
-
-function insertTableBlock(rows) {
-  const block = currentBlock() ?? root.lastElementChild;
-  if (!block) return;
-
-  captureUndoPoint();
-  const table = createBlockEl('table', '', false, rows);
-
-  // Cola por cima do bloco atual quando ele está vazio, em vez de deixar uma
-  // linha em branco órfã acima da tabela.
-  const empty = block.dataset.type !== 'table' && !getContentEl(block).textContent.trim();
-  if (empty) block.replaceWith(table);
-  else block.after(table);
-
-  if (!table.nextElementSibling) table.after(createBlockEl('paragraph'));
-  focusCell(table.querySelector('.table-cell'));
-  renumberLists();
-  scheduleSave();
-}
 
 // O <br> de um bloco vazio (ver clearContent) não está dentro da seleção
 // quando ela só marca "o fim do bloco" — sobra como uma quebra de linha solta
@@ -4033,781 +3462,42 @@ export function insertDividerAtCursor() {
   scheduleSave();
 }
 
-// ── Seleção múltipla de blocos ────────────────────────────────────────────────
-let selectedBlockIds     = new Set();
-let lastHandleClickedId  = null;
-let selecaoEspelhada     = false;   // a seleção de blocos nasceu de uma seleção de texto
-let isBlockSelectActive  = false;   // modo de seleção explícito ativo no mobile
-export function getSelectedBlockIds() { return selectedBlockIds; }
-export function getIsBlockSelectActive() { return isBlockSelectActive; }
-export function setIsBlockSelectActive(v) { isBlockSelectActive = v; }
-export function getLastHandleClickedId() { return lastHandleClickedId; }
-export function setLastHandleClickedId(id) { lastHandleClickedId = id; }
-
-function findBlockById(id) {
-  return [...root.children].find(el => el.classList?.contains('block') && el.dataset.id === id) || null;
-}
-
-function orderedBlocks() {
-  return [...root.children].filter(el => el.classList?.contains('block'));
-}
-
-export function setBlockSelection(ids) {
-  root.querySelectorAll('.block.block-selected').forEach(b => b.classList.remove('block-selected'));
-  selectedBlockIds = new Set(ids);
-  for (const b of orderedBlocks()) {
-    if (selectedBlockIds.has(b.dataset.id)) b.classList.add('block-selected');
-  }
-  root.classList.toggle('blocks-selected', selectedBlockIds.size > 1);
-  updateMobileToolbarState();
-}
-
-export function clearBlockSelection() {
-  isBlockSelectActive = false;
-  setBlockSelection([]);
-  lastHandleClickedId = null;
-  selecaoEspelhada = false;
-  if (noteSection) noteSection.classList.remove('touch-selection-active');
-}
-
-function selectBlockRange(fromBlock, toBlock) {
-  const all = orderedBlocks();
-  const a = all.indexOf(fromBlock), b = all.indexOf(toBlock);
-  if (a === -1 || b === -1) return;
-  const [lo, hi] = a < b ? [a, b] : [b, a];
-  setBlockSelection(all.slice(lo, hi + 1).map(el => el.dataset.id));
-}
-
-export function targetBlocksFor(block) {
-  if (selectedBlockIds.size > 1 && selectedBlockIds.has(block.dataset.id)) {
-    return orderedBlocks().filter(el => selectedBlockIds.has(el.dataset.id));
-  }
-  return [block];
-}
-
-export function getSelectedBlockElements() {
-  if (selectedBlockIds.size > 0) {
-    return orderedBlocks().filter(b => selectedBlockIds.has(b.dataset.id));
-  }
-  const curr = currentBlock() || getLastFocusedBlock();
-  return curr ? [curr] : [];
-}
-
-// ── Controles de bloco ao passar o mouse (＋ / ⠿) ─────────────────────────────
-// Overlay único e flutuante (não embrulha cada bloco) que acompanha o mouse
-// e se posiciona à esquerda do bloco sob o cursor. Fica FORA do editável
-// (`root`), como irmão dele dentro de `.note-editor` — assim não interfere
-// com o `root.children` que o resto do código assume ser só blocos.
-const blockControls = document.createElement('div');
-blockControls.className = 'block-controls';
-blockControls.hidden = true;
-
-const blockAddBtn = document.createElement('button');
-blockAddBtn.className = 'block-add-btn';
-blockAddBtn.innerHTML = iconSvg('add');
-blockAddBtn.title = 'Adicionar bloco abaixo (Ctrl+clique: acima)';
-blockAddBtn.setAttribute('aria-label', 'Adicionar bloco');
-
-const blockHandleBtn = document.createElement('button');
-blockHandleBtn.className = 'block-handle-btn';
-blockHandleBtn.innerHTML = iconSvg('drag_indicator');
-blockHandleBtn.title = 'Clique: opções do bloco · Arrastar: mover · Ctrl+arrastar (em qualquer lugar do bloco): selecionar vários';
-blockHandleBtn.setAttribute('aria-label', 'Opções e movimentação do bloco');
-
-blockControls.append(blockAddBtn, blockHandleBtn);
-noteEditorEl.appendChild(blockControls);
-
-let hoveredBlock = null;
-
-function positionBlockControls(block) {
-  if (typeof document !== 'undefined' && document?.documentElement?.dataset?.platform === 'mobile') {
-    blockControls.hidden = true;
-    return;
-  }
-  hoveredBlock = block;
-
-  const blockRect     = block.getBoundingClientRect();
-  const containerRect = noteEditorEl.getBoundingClientRect();
-  const viewRect      = root.getBoundingClientRect();   // área visível do editor (ele rola)
-
-  // Bloco rolou pra fora da vista: esconde, em vez de deixar os ícones
-  // encostados na borda apontando pra nada.
-  if (blockRect.bottom < viewRect.top || blockRect.top > viewRect.bottom) {
-    blockControls.hidden = true;
-    return;
-  }
-
-  blockControls.hidden = false;   // precisa estar visível pra poder ser medido
-
-  // Horizontal: os ícones acompanham a indentação do bloco. Com um `left`
-  // fixo, um item aninhado ganhava ícones lá na margem esquerda, longe do
-  // bloco a que se referem — e dois blocos de níveis diferentes ficavam
-  // indistinguíveis, já que a escolha do bloco é só pela altura do cursor.
-  const largura = blockControls.offsetWidth || 31;
-  const left = Math.max(0, blockRect.left - containerRect.left - largura + 1);
-
-  // Vertical: alinhado com a primeira linha do bloco, mas preso dentro da
-  // área visível. Um bloco alto (imagem) costuma ter o topo fora da tela, e
-  // sem o limite os ícones subiam por cima da barra de abas.
-  const topoVisivel = viewRect.top - containerRect.top;
-  const baseVisivel = viewRect.bottom - containerRect.top - blockControls.offsetHeight;
-  const top = Math.min(
-    Math.max(blockRect.top - containerRect.top, topoVisivel),
-    Math.max(topoVisivel, baseVisivel),
-  );
-
-  blockControls.style.left = `${left}px`;
-  blockControls.style.top  = `${top}px`;
-}
-
-function hideBlockControls() {
-  blockControls.hidden = true;
-  hoveredBlock = null;
-}
-
-root.addEventListener('mousemove', e => {
-  if (pointerDown || ctrlPointerDown) return; // decidindo ou já em arrasto — não reposiciona o overlay de hover
-  // Bloco mais próximo verticalmente do cursor, não o que está exatamente
-  // por baixo — a margem esquerda (onde os ícones aparecem) não pertence a
-  // nenhum .block específico, então hover lá nunca batia em nada antes.
-  const target = blockNearestToY(e.clientY);
-  if (!target) return;
-  // O "&& !hidden" importa: os controles podem ter sido escondidos por outro
-  // caminho (rolagem levou o bloco pra fora da vista) sem que o bloco sob o
-  // cursor tenha mudado. Sem isso, eles não voltavam mais.
-  if (target === hoveredBlock && !blockControls.hidden) return;
-  positionBlockControls(target);
-});
-
-// No container que engloba texto + controles (não só o texto) — senão mover
-// o mouse do bloco até os botões já contava como "saiu" e escondia tudo
-// antes de dar tempo de clicar.
-noteEditorEl.addEventListener('mouseleave', () => {
-  if (!blockMenuEl) hideBlockControls();
-});
-
-// Rolar sem mover o mouse: reposiciona em vez de esconder. Escondendo, os
-// ícones só voltavam quando o cursor passasse por OUTRO bloco (o mousemove
-// sai cedo quando o alvo é o mesmo de antes) — então rolar por cima de um
-// bloco alto fazia os controles sumirem e não voltarem mais.
-root.addEventListener('scroll', () => {
-  if (hoveredBlock && root.contains(hoveredBlock)) positionBlockControls(hoveredBlock);
-  else blockControls.hidden = true;
-}, { passive: true });
-
-blockAddBtn.addEventListener('mousedown', e => e.preventDefault());
-blockAddBtn.addEventListener('click', e => {
-  if (!hoveredBlock) return;
-  captureUndoPoint();
-  const newBlock = createBlockEl('paragraph');
-  if (e.ctrlKey || e.metaKey) hoveredBlock.before(newBlock);
-  else hoveredBlock.after(newBlock);
-  renumberLists();
-  focusBlockStart(newBlock);
-  scheduleSave();
-
-  if (window.innerWidth < 768) {
-    slashItems = slashItemsWithTemplates();
-    slashBlock = newBlock;
-    slashIndex = 0;
-    renderSlashMenu(newBlock);
-  }
-});
-
-// (A lógica principal de seleção de blocos foi inicializada acima, junto com as barras de atalhos)
-
-document.addEventListener('mousedown', e => {
-  if (selectedBlockIds.size === 0) return;
-  if (blockMenuEl && blockMenuEl.contains(e.target)) return;
-  if (isEventInsideMobileToolbar(e.target)) return;
-  if (isBlockSelectActive && root.contains(e.target)) return;
-  // .contains(), não === : o alvo real do clique é o <span> do ícone dentro
-  // do botão, nunca o próprio <button>. Com === isso nunca batia, e clicar na
-  // alça sempre limpava o grupo antes de handleHandleClick chegar a lê-lo.
-  if (blockHandleBtn.contains(e.target) || blockAddBtn.contains(e.target)) return;
-  clearBlockSelection();
-});
-
-let blockMenuEl = null;
-let blockMenuBackdropEl = null;
-function closeBlockMenuBackdrop() {
-  blockMenuBackdropEl?.remove();
-  blockMenuBackdropEl = null;
-}
-
-function closeBlockMenu() {
-  closeBlockMenuBackdrop();
-  blockMenuEl?.remove();
-  blockMenuEl = null;
-}
-
-function getTransformTypes() {
-  return SLASH_ITEMS.filter(it => !INSERTED_TYPES.has(it.type));
-}
-
-function openBlockMenu(block, anchorEl) {
-  closeBlockMenu();
-  const menu = document.createElement('div');
-  menu.className = 'copy-menu block-menu';
-
-  const isMobile = document.documentElement.dataset.platform === 'mobile';
-  if (isMobile) {
-    menu.classList.add('is-bottom-sheet');
-    blockMenuBackdropEl = document.createElement('div');
-    blockMenuBackdropEl.className = 'bottom-sheet-backdrop';
-    blockMenuBackdropEl.addEventListener('click', closeBlockMenu);
-    document.body.appendChild(blockMenuBackdropEl);
-
-    const pill = document.createElement('div');
-    pill.className = 'bottom-sheet-drag-pill';
-    const head = document.createElement('div');
-    head.className = 'bottom-sheet-header';
-    head.innerHTML = `<span class="bottom-sheet-title">Opções do bloco</span>`;
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'icon-btn bottom-sheet-close';
-    closeBtn.innerHTML = '✕';
-    closeBtn.title = 'Fechar';
-    closeBtn.setAttribute('aria-label', 'Fechar opções do bloco');
-    closeBtn.addEventListener('click', closeBlockMenu);
-    head.appendChild(closeBtn);
-    menu.prepend(pill, head);
-  }
-
-  const scopeCount = (selectedBlockIds.size > 1 && selectedBlockIds.has(block.dataset.id))
-    ? selectedBlockIds.size : 1;
-
-  // ── Barra de ações rápidas, presa no topo ────────────────────────────────
-  // O que se faz o tempo todo vira ícone e fica sempre à vista, mesmo quando a
-  // lista de "Transformar em" está rolando por baixo. O resto continua escrito
-  // por extenso na lista — ícone sozinho só funciona pro que é óbvio.
-  const barra = document.createElement('div');
-  barra.className = 'block-menu-quickbar';
-
-  const acaoRapida = (icone, titulo, run, extra = '') => {
-    const btn = document.createElement('button');
-    btn.className = `block-menu-quick ${extra}`.trim();
-    btn.title = scopeCount > 1 ? `${titulo} (${scopeCount} blocos)` : titulo;
-    btn.innerHTML = iconSvg(icone);
-    btn.addEventListener('mousedown', e => e.stopPropagation());
-    btn.addEventListener('click', e => { e.stopPropagation(); closeBlockMenu(); run(); });
-    barra.appendChild(btn);
-  };
-
-  acaoRapida('content_copy', 'Copiar como texto', () => copyBlocksAs(block, 'text'));
-  acaoRapida('image',        'Copiar imagem',     () => printBlocks(block, 'clipboard'));
-  acaoRapida('library_add',  'Duplicar',          () => duplicateBlocks(block));
-  acaoRapida('delete',       'Excluir',           () => deleteBlocksOrOne(block), 'is-danger');
-
-  menu.appendChild(barra);
-
-  // Divisor não tem conteúdo e tabela não tem um conteúdo único — converter
-  // qualquer um dos dois em título/lista não teria o que preservar (e, no caso
-  // da tabela, despejaria o HTML dela inteiro dentro de um parágrafo).
-  const canTransform = !INSERTED_TYPES.has(block.dataset.type);
-
-  if (canTransform) {
-    const header = document.createElement('div');
-    header.className   = 'copy-menu-header';
-    header.textContent = scopeCount > 1 ? `Transformar em (${scopeCount} blocos)` : 'Transformar em';
-    menu.appendChild(header);
-
-    // A mesma grade do menu "/": é a mesma lista, e tinha o mesmo problema de
-    // virar uma coluna comprida demais pra achar qualquer coisa nela.
-    const tipos = getTransformTypes();
-    menu.appendChild(buildTypeGrid(tipos, i => {
-      closeBlockMenu();
-      transformBlocks(block, tipos[i].type);
-    }));
-
-    menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-  }
-
-  // Sublinhado só existe pra título 1 e 2 — é o que o markdown alcança com o
-  // traço embaixo. Interruptor contextual em vez de dois tipos novos no menu.
-  if (PODE_SUBLINHAR.has(block.dataset.type)) {
-    const sublinhado = isBlockUnderlined(block);
-    const btn = document.createElement('button');
-    btn.className = 'copy-opt';
-    btn.innerHTML = `<span class="copy-opt-value">${sublinhado ? 'Tirar sublinhado' : 'Sublinhar título'}</span><span class="copy-opt-hint">${sublinhado ? '#' : '==='}</span>`;
-    btn.addEventListener('mousedown', e => e.stopPropagation());
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      closeBlockMenu();
-      captureUndoPoint();
-      for (const b of targetBlocksFor(block)) setBlockUnderlined(b, !sublinhado);
-      scheduleSave();
-    });
-    menu.appendChild(btn);
-
-    menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-  }
-
-  // Modelos de bloco: mesma lista do menu "/", aqui pra quem prefere a alça.
-  const tpls = blockTemplates();
-  if (tpls.length > 0) {
-    const tplHead = document.createElement('div');
-    tplHead.className = 'copy-menu-header';
-    tplHead.textContent = 'Inserir modelo';
-    menu.appendChild(tplHead);
-
-    for (const tpl of tpls) {
-      const btn = document.createElement('button');
-      btn.className = 'copy-opt';
-      const span = document.createElement('span');
-      span.className = 'copy-opt-value';
-      span.textContent = tpl.name;
-      btn.appendChild(span);
-      btn.addEventListener('mousedown', e => e.stopPropagation());
-      btn.addEventListener('click', () => {
-        closeBlockMenu();
-        captureUndoPoint();
-        insertTemplateBlocks(tpl.content, block);
-      });
-      menu.appendChild(btn);
-    }
-
-    menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-  }
-
-  const saveTplBtn = document.createElement('button');
-  saveTplBtn.className = 'copy-opt';
-  saveTplBtn.innerHTML = `<span class="copy-opt-value">Salvar como modelo de bloco${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
-  saveTplBtn.addEventListener('mousedown', e => e.stopPropagation());
-  saveTplBtn.addEventListener('click', () => {
-    closeBlockMenu();
-    const markdown = blocksToMarkdown(targetBlocksFor(block).map(serializeBlockEl));
-    if (!markdown.trim()) { showFeedback('Nada para salvar'); return; }
-    openSaveBlockTemplate(anchorEl, markdown, nome => showFeedback(`modelo "${nome}" salvo`));
-  });
-  menu.appendChild(saveTplBtn);
-
-  const copyMdBtn = document.createElement('button');
-  copyMdBtn.className = 'copy-opt';
-  copyMdBtn.innerHTML = `<span class="copy-opt-value">Copiar como Markdown${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
-  copyMdBtn.addEventListener('mousedown', e => e.stopPropagation());
-  copyMdBtn.addEventListener('click', () => { closeBlockMenu(); copyBlocksAs(block, 'markdown'); });
-  menu.appendChild(copyMdBtn);
-
-  // "Copiar como texto" e "Copiar imagem" moraram aqui e subiram pra barra de
-  // ícones do topo — são as duas mais usadas. O que fica na lista é o que
-  // precisa do nome por extenso pra não virar adivinhação.
-  const saveImgBtn = document.createElement('button');
-  saveImgBtn.className = 'copy-opt';
-  saveImgBtn.innerHTML = `<span class="copy-opt-value">Baixar imagem (.png)${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
-  saveImgBtn.addEventListener('mousedown', e => e.stopPropagation());
-  saveImgBtn.addEventListener('click', () => { closeBlockMenu(); printBlocks(block, 'download'); });
-  menu.appendChild(saveImgBtn);
-
-  // Duplicar e Excluir também subiram pra barra de ícones.
-
-  document.body.appendChild(menu);
-  blockMenuEl = menu;
-  if (!isMobile) {
-    positionMenu(menu, anchorEl.getBoundingClientRect());
-  }
-}
-
-// Copia o(s) bloco(s)-alvo (o clicado, ou toda a seleção múltipla se ele
-// fizer parte de uma) como Markdown de verdade ou como texto simples —
-// mesma dupla de formatos que já existe pra nota inteira no menu "⋯" da aba.
-// Print dos blocos. A seleção é desfeita antes de desenhar: o realce azul é
-// estado da edição, não conteúdo da nota, e ninguém quer mandar um print com
-// ele. (O snapshot.js também tira, por garantia — aqui é pra que a tela
-// acompanhe o que saiu na imagem.)
-export async function printBlocks(block, destino) {
-  const alvos = targetBlocksFor(block);
-  if (alvos.length === 0) return;
-
-  clearBlockSelection();
-  hideBlockControls();
-  closeCopyMenu();
-
-  // Nome do arquivo: o primeiro texto que aparecer no print. É o que a pessoa
-  // reconhece na pasta de downloads — "nota.png" não diz nada.
-  const nome = alvos
-    .filter(b => !NO_TEXT_TYPES.has(b.dataset.type))
-    .map(b => getContentEl(b).textContent.trim())
-    .find(Boolean) ?? 'nota';
-
-  showFeedback('gerando imagem…');
-  try {
-    const ok = destino === 'clipboard'
-      ? await copyBlocksAsImage(alvos)
-      : await downloadBlocksAsImage(alvos, nome);
-    showFeedback(ok
-      ? (destino === 'clipboard' ? 'imagem copiada!' : 'imagem baixada!')
-      : 'não deu pra gerar a imagem');
-  } catch {
-    // Copiar imagem depende de permissão da área de transferência, que o
-    // navegador só concede com o painel em foco. Baixar sempre funciona.
-    showFeedback(destino === 'clipboard'
-      ? 'não deu pra copiar — tente "Baixar imagem"'
-      : 'não deu pra gerar a imagem');
-  }
-}
-
-async function copyBlocksAs(block, format) {
-  const targets = targetBlocksFor(block).map(serializeBlockEl);
-  // Markdown sai pra fora da extensão, então a imagem vai embutida — colar num
-  // editor de markdown qualquer tem que mostrar a imagem, não uma referência
-  // interna que só o QuickDock entende.
-  const text = format === 'markdown'
-    ? await blocksToExportMarkdown(targets)
-    : blocksToPlainText(targets);
-  await navigator.clipboard.writeText(text);
-  showFeedback('copiado!');
-}
-
-export function transformBlocks(block, type) {
-  // Divisor e tabela nunca entram como origem de conversão, mesmo dentro de
-  // uma seleção múltipla — não têm conteúdo de linha pra preservar.
-  const targets = targetBlocksFor(block).filter(b => !INSERTED_TYPES.has(b.dataset.type));
-  if (targets.length === 0) return;
-
-  captureUndoPoint();
-  const converted = targets.map(b => convertBlockType(b, type, b.dataset.checked === 'true'));
-  renumberLists();
-  clearBlockSelection();
-  hideBlockControls();
-  const lastContent = getContentEl(converted[converted.length - 1]);
-  lastContent.focus();
-  setCaretOffset(lastContent, lastContent.textContent.length);
-  scheduleSave();
-}
-
-function duplicateBlocks(block) {
-  const targets = targetBlocksFor(block);
-  captureUndoPoint();
-  let anchor = targets[targets.length - 1];
-  for (const b of targets) {
-    // Passa pela serialização em vez de copiar innerHTML na mão: é o que faz
-    // duplicar uma tabela duplicar as células, e não devolver uma tabela vazia.
-    const clone = createBlockElFrom({ ...serializeBlockEl(b), id: null });
-    anchor.after(clone);
-    anchor = clone;
-  }
-  renumberLists();
-  clearBlockSelection();
-  hideBlockControls();
-  scheduleSave();
-}
-
-function deleteBlocksOrOne(block) {
-  const targets = targetBlocksFor(block);
-  captureUndoPoint();
-
-  const prev = targets[0].previousElementSibling;
-  targets.forEach(b => b.remove());
-  if (root.children.length === 0) root.appendChild(createBlockEl('paragraph'));
-
-  renumberLists();
-  clearBlockSelection();
-  hideBlockControls();
-
-  const focusTarget = (prev && document.body.contains(prev)) ? prev : root.firstElementChild;
-  if (focusTarget) {
-    const c = getContentEl(focusTarget);
-    c.focus();
-    setCaretOffset(c, c.textContent.length);
-  }
-  scheduleSave();
-}
-
-// ── Alça "⠿": clique (menu), Ctrl+clique (seleção), arrastar (mover) ─────────
-// Tudo passa por mousedown/mousemove/mouseup — só decide se virou arrasto
-// depois de um deslocamento mínimo; sem movimento, trata como clique normal.
-// Ctrl (não Shift) pra combinar com o "arrastar pra selecionar" do Windows.
-let pointerDown     = null; // { block, startX, startY, ctrl, moved }
-let reorderState    = null; // { targets, indicator, dropTarget, dropBefore }
-let rangeSelectState = null; // { anchorBlock }
-
-function blockNearestToY(y, exclude = []) {
-  let closest = null, closestDist = Infinity;
-  for (const b of orderedBlocks()) {
-    if (exclude.includes(b)) continue;
-    const rect = b.getBoundingClientRect();
-
-    // O bloco que contém o cursor ganha na hora. A conta antiga era pela
-    // distância até o MEIO do bloco, e o meio de uma imagem de 200px fica a
-    // 100px do topo dela — resultado: passar o mouse na metade de cima de uma
-    // imagem trazia os controles do parágrafo de cima, que está mais perto do
-    // próprio meio. Com blocos de uma linha só isso nunca aparecia.
-    if (y >= rect.top && y <= rect.bottom) return b;
-
-    // Fora de qualquer bloco (a margem esquerda, ou acima/abaixo de tudo):
-    // vale a distância até a BORDA mais próxima, não até o meio — de novo,
-    // pelo mesmo motivo.
-    const dist = y < rect.top ? rect.top - y : y - rect.bottom;
-    if (dist < closestDist) { closestDist = dist; closest = b; }
-  }
-  return closest;
-}
-
-function handleHandleClick(block, ctrl) {
-  if (ctrl) {
-    if (lastHandleClickedId) {
-      const anchor = findBlockById(lastHandleClickedId);
-      if (anchor) selectBlockRange(anchor, block);
-      else setBlockSelection([block.dataset.id]);
-    } else {
-      setBlockSelection([block.dataset.id]);
-    }
-    lastHandleClickedId = block.dataset.id;
-    return;
-  }
-
-  if (!(selectedBlockIds.size > 1 && selectedBlockIds.has(block.dataset.id))) {
-    setBlockSelection([block.dataset.id]);
-  }
-  lastHandleClickedId = block.dataset.id;
-  openBlockMenu(block, blockHandleBtn);
-}
-
-// ── Arrastar pra reordenar (um bloco, ou o grupo selecionado) ────────────────
-function startBlockReorderDrag(block) {
-  const targets = targetBlocksFor(block);
-  const indicator = document.createElement('div');
-  indicator.className = 'block-drop-indicator';
-  indicator.hidden = true;
-  noteEditorEl.appendChild(indicator);
-  targets.forEach(b => b.classList.add('block-dragging'));
-  document.body.style.cursor = 'grabbing';
-  reorderState = { targets, indicator, dropTarget: null, dropBefore: true };
-}
-
-function updateBlockReorderDrag(e) {
-  if (!reorderState) return;
-  const { targets, indicator } = reorderState;
-  const closest = blockNearestToY(e.clientY, targets);
-  reorderState.dropTarget = closest;
-
-  if (!closest) { indicator.hidden = true; return; }
-
-  const rect = closest.getBoundingClientRect();
-  const before = e.clientY < rect.top + rect.height / 2;
-  reorderState.dropBefore = before;
-
-  const containerRect = noteEditorEl.getBoundingClientRect();
-  indicator.style.top = `${(before ? rect.top : rect.bottom) - containerRect.top}px`;
-  indicator.hidden = false;
-}
-
-function finishBlockReorderDrag() {
-  if (!reorderState) return;
-  const { targets, indicator, dropTarget, dropBefore } = reorderState;
-
-  targets.forEach(b => b.classList.remove('block-dragging'));
-  indicator.remove();
-  document.body.style.cursor = '';
-
-  if (dropTarget) {
-    captureUndoPoint();
-    if (dropBefore) {
-      targets.forEach(b => dropTarget.before(b));
-    } else {
-      let anchor = dropTarget;
-      for (const b of targets) { anchor.after(b); anchor = b; }
-    }
-    renumberLists();
-    scheduleSave();
-  }
-
-  reorderState = null;
-}
-
-// ── Ctrl+arrastar pra selecionar um intervalo contínuo ────────────────────────
-// Funciona a partir de qualquer ponto do bloco (não só em cima da alça) —
-// como o "arrastar pra selecionar" do Windows Explorer, só que em blocos.
-function startRangeSelectDrag(block) {
-  rangeSelectState = { anchorBlock: block };
-  selecaoEspelhada = false;          // esta veio do Ctrl, não de seleção de texto
-  setBlockSelection([block.dataset.id]);
-}
-
-function updateRangeSelectDrag(e) {
-  if (!rangeSelectState) return;
-  const target = blockNearestToY(e.clientY);
-  if (!target) return;
-  selectBlockRange(rangeSelectState.anchorBlock, target);
-}
-
-function finishRangeSelectDrag() {
-  if (!rangeSelectState) return;
-  lastHandleClickedId = rangeSelectState.anchorBlock.dataset.id;
-  rangeSelectState = null;
-}
-
-blockHandleBtn.addEventListener('mousedown', e => {
-  if (!hoveredBlock) return;
-  e.preventDefault();
-  pointerDown = { block: hoveredBlock, startX: e.clientX, startY: e.clientY, ctrl: e.ctrlKey || e.metaKey, moved: false };
-});
-
-function finishPointerGesture() {
-  if (!pointerDown) return;
-  if (pointerDown.moved) {
-    if (pointerDown.ctrl) finishRangeSelectDrag();
-    else                  finishBlockReorderDrag();
-  } else {
-    handleHandleClick(pointerDown.block, pointerDown.ctrl);
-  }
-  pointerDown = null;
-}
-
-document.addEventListener('mousemove', e => {
-  if (!pointerDown) return;
-
-  // Botão já não está mais pressionado (ex.: soltou fora da janela, que é
-  // bem fácil de acontecer num painel lateral estreito) — o 'mouseup' pode
-  // nunca chegar; encerra o gesto aqui em vez de deixar preso.
-  if (e.buttons === 0) { finishPointerGesture(); return; }
-
-  if (!pointerDown.moved) {
-    const dx = Math.abs(e.clientX - pointerDown.startX);
-    const dy = Math.abs(e.clientY - pointerDown.startY);
-    if (dx < 4 && dy < 4) return;
-    pointerDown.moved = true;
-    hideBlockControls();
-    if (pointerDown.ctrl) startRangeSelectDrag(pointerDown.block);
-    else                  startBlockReorderDrag(pointerDown.block);
-  }
-
-  if (pointerDown.ctrl) updateRangeSelectDrag(e);
-  else                  updateBlockReorderDrag(e);
-});
-
-document.addEventListener('mouseup', finishPointerGesture);
-
-// ── Toque na alça de bloco (dedo / pointer: coarse) ──────────────────────────
-// Diferencia toque rápido (abre menu / seleciona) de toque longo (~350ms) para
-// arrastar e reordenar blocos sem brigar com a rolagem natural da página.
-let touchDragTimer = null;
-let touchDragState = null; // { block, startX, startY, moved, dragging }
-
-blockHandleBtn.addEventListener('touchstart', e => {
-  if (!hoveredBlock) return;
-  const touch = e.touches[0];
-  const block = hoveredBlock;
-  touchDragState = {
-    block,
-    startX: touch.clientX,
-    startY: touch.clientY,
-    moved: false,
-    dragging: false,
-  };
-
-  clearTimeout(touchDragTimer);
-  touchDragTimer = setTimeout(() => {
-    if (!touchDragState) return;
-    touchDragState.dragging = true;
-    hideBlockControls();
-    if (touchSelectionActive) {
-      startRangeSelectDrag(block);
-    } else {
-      startBlockReorderDrag(block);
-    }
-    if (navigator.vibrate) {
-      try { navigator.vibrate(40); } catch (_) {}
-    }
-  }, 350);
-}, { passive: true });
-
-blockHandleBtn.addEventListener('touchmove', e => {
-  if (!touchDragState) return;
-  const touch = e.touches[0];
-  const dx = Math.abs(touch.clientX - touchDragState.startX);
-  const dy = Math.abs(touch.clientY - touchDragState.startY);
-
-  // Se moveu mais de 8px antes dos 350ms, o usuário estava rolando a página: cancela
-  if (!touchDragState.dragging) {
-    if (dx > 8 || dy > 8) {
-      clearTimeout(touchDragTimer);
-      touchDragState = null;
-    }
-    return;
-  }
-
-  // Toque longo confirmado: arrasto ativo, previne rolagem nativa
-  e.preventDefault();
-  if (touchSelectionActive) {
-    updateRangeSelectDrag(touch);
-  } else {
-    updateBlockReorderDrag(touch);
-  }
-}, { passive: false });
-
-function finishTouchDrag() {
-  clearTimeout(touchDragTimer);
-  if (!touchDragState) return;
-  if (touchDragState.dragging) {
-    if (touchSelectionActive) finishRangeSelectDrag();
-    else finishBlockReorderDrag();
-  } else {
-    // Toque rápido (soltou antes dos 350ms sem mover): abre o menu ou seleciona
-    handleHandleClick(touchDragState.block, touchSelectionActive);
-  }
-  touchDragState = null;
-}
-
-blockHandleBtn.addEventListener('touchend', finishTouchDrag);
-blockHandleBtn.addEventListener('touchcancel', () => {
-  clearTimeout(touchDragTimer);
-  if (touchDragState?.dragging) {
-    if (touchSelectionActive) finishRangeSelectDrag();
-    else finishBlockReorderDrag();
-  }
-  touchDragState = null;
-});
-
-// ── Ctrl+arrastar a partir de qualquer lugar do bloco (não só a alça) ────────
-// Só ativa como seleção quando o mouse realmente se move — um Ctrl+clique
-// parado continua funcionando normalmente pro menu de cópia de CPF/data/etc.
-let ctrlPointerDown = null; // { startX, startY, moved, anchorBlock }
-
-root.addEventListener('mousedown', e => {
-  if (pointerDown) return; // já é um gesto iniciado pela alça
-  if (!(e.ctrlKey || e.metaKey)) return;
-  const target = e.target.closest('.block');
-  if (!target) return;
-  // Evita que o navegador comece a selecionar texto nativamente enquanto
-  // arrasta; não afeta o Ctrl+clique parado em cima de um <mark> (CPF/data/
-  // cálculo) — aquele menu depende do evento 'click', que ainda dispara normalmente.
-  e.preventDefault();
-  ctrlPointerDown = { startX: e.clientX, startY: e.clientY, moved: false, anchorBlock: target };
-});
-
-document.addEventListener('mousemove', e => {
-  if (!ctrlPointerDown) return;
-
-  if (e.buttons === 0) { ctrlPointerDown = null; return; }
-
-  if (!ctrlPointerDown.moved) {
-    const dx = Math.abs(e.clientX - ctrlPointerDown.startX);
-    const dy = Math.abs(e.clientY - ctrlPointerDown.startY);
-    if (dx < 4 && dy < 4) return;
-    ctrlPointerDown.moved = true;
-    hideBlockControls();
-    startRangeSelectDrag(ctrlPointerDown.anchorBlock);
-  }
-
-  updateRangeSelectDrag(e);
-});
-
-document.addEventListener('mouseup', () => {
-  if (!ctrlPointerDown) return;
-  if (ctrlPointerDown.moved) finishRangeSelectDrag();
-  ctrlPointerDown = null;
-});
-
-document.addEventListener('mousedown', e => {
-  if (blockMenuEl && !blockMenuEl.contains(e.target) && e.target !== blockHandleBtn) closeBlockMenu();
+// ── Controles de bloco e Drag & Drop (touchDragTimer / touchstart delegado para note-drag-drop.js) ─────
+initNoteDragDrop({
+  getRoot: () => root,
+  getNoteEditorEl: () => noteEditorEl,
+  getNoteSection: () => noteSection,
+  captureUndoPoint,
+  scheduleSave,
+  renumberLists,
+  showFeedback,
+  currentBlock,
+  getLastFocusedBlock,
+  getContentEl,
+  createBlockEl,
+  createBlockElFrom,
+  convertBlockType,
+  serializeBlockEl,
+  focusBlockStart,
+  openSlashMenuForBlock,
+  insertTemplateBlocks,
+  updateMobileToolbarState,
+  isEventInsideMobileToolbar,
+  closeCopyMenu,
+  isBlockUnderlined,
+  setBlockUnderlined,
+  PODE_SUBLINHAR,
+  NO_TEXT_TYPES,
+  INSERTED_TYPES,
+  SLASH_ITEMS,
+  buildTypeGrid,
 });
 
 document.addEventListener('selectionchange', () => {
   updateLivePreviewState();
 
   // Gesto de arrastar em andamento tem dono — não mexe na seleção no meio dele.
-  if (pointerDown || ctrlPointerDown || reorderState) return;
+  if (isGestureActive()) return;
 
   const sel = document.getSelection();
   if (!sel || sel.rangeCount === 0) return;
@@ -4817,17 +3507,18 @@ document.addEventListener('selectionchange', () => {
 
   if (blocos.length > 1) {
     const ids = blocos.map(b => b.dataset.id);
+    const sIds = getSelectedBlockIds();
     // selectionchange dispara a cada pixel do arraste; só repinta se mudou.
-    const mudou = ids.length !== selectedBlockIds.size || ids.some(id => !selectedBlockIds.has(id));
+    const mudou = ids.length !== sIds.size || ids.some(id => !sIds.has(id));
     if (mudou) setBlockSelection(ids);
-    selecaoEspelhada = true;
+    setSelecaoEspelhada(true);
     return;
   }
 
   // Voltou a ser um bloco só (ou um cursor): o grupo deixa de existir. Uma
   // seleção feita com Ctrl+arrastar não é espelhada e não se desfaz aqui —
   // ela tem os próprios caminhos de saída (Esc, clique fora).
-  if (selecaoEspelhada) clearBlockSelection();
+  if (isSelecaoEspelhada()) clearBlockSelection();
 });
 
 // ── Controles de bloco sem hover (toque e foco no celular) ───────────────────

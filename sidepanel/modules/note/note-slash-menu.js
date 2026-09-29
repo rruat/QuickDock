@@ -253,6 +253,13 @@ export function renderSlashMenu(block) {
   highlightSlashItem();
 }
 
+export function openSlashMenuForBlock(block) {
+  slashItems = slashItemsWithTemplates();
+  slashBlock = block;
+  slashIndex = 0;
+  renderSlashMenu(block);
+}
+
 export function checkSlashMenu(block) {
   const text = _callbacks.getContentEl(block).textContent;
   const m = /^\/(\w*)$/.exec(text);

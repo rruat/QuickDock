@@ -8,12 +8,21 @@
 
 import { readFile } from 'node:fs/promises';
 
-const fonte = (await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8'))
+let fonte = (await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8'))
   .replace(/\r\n?/g, '\n');
+try {
+  const subFonte = (await readFile(new URL('../sidepanel/modules/note/note-drag-drop.js', import.meta.url), 'utf8'))
+    .replace(/\r\n?/g, '\n');
+  fonte += '\n' + subFonte;
+} catch {}
 
 function recorta(nome) {
-  const inicio = fonte.indexOf(`\nfunction ${nome}(`);
-  if (inicio === -1) throw new Error(`função ${nome}() não existe mais em note.js — atualize test/controls.mjs`);
+  let inicio = fonte.indexOf(`\nfunction ${nome}(`);
+  if (inicio === -1) {
+    inicio = fonte.indexOf(`\nexport function ${nome}(`);
+    if (inicio !== -1) inicio += 8; // pular "\nexport "
+  }
+  if (inicio === -1) throw new Error(`função ${nome}() não existe mais em note.js ou submódulos — atualize test/controls.mjs`);
   const fim = fonte.indexOf('\n}\n', inicio);
   return fonte.slice(inicio, fim + 3);
 }

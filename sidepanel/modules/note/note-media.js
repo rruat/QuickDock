@@ -1,10 +1,9 @@
 // ── note-media.js ────────────────────────────────────────────────────────────
 // Manipulação de mídia (imagens, áudio, vídeo) no editor de blocos.
 // Gerencia Blobs locais sob demanda, URLs de objeto com revogação automática,
-// redimensionamento interativo e drag & drop de arquivos de imagem no editor.
+// redimensionamento interativo e ferramentas de imagem e áudio/vídeo.
 
-import { saveFile, loadFileBlob, deleteFileRecord } from '../storage.js';
-import { createIcon } from '../icons.js';
+import { loadFileBlob } from '../storage.js';
 
 const imageURLs = new Map(); // fileId → objectURL
 let imageResolver = null;
@@ -14,8 +13,6 @@ let _callbacks = {
   getCurrentNoteId: () => null,
   captureUndoPoint: () => {},
   scheduleSave: () => {},
-  createBlockEl: (type, html, checked, rows, media) => null,
-  renumberLists: () => {},
 };
 
 export function initNoteMedia(callbacks) {
@@ -54,29 +51,28 @@ export function loadInlineMedia(mediaEl, fileId) {
   });
 }
 
+// Largura (e opcionalmente altura) explícitas, escritas pela alça de
+// redimensionar ou lidas de "|320" / "|320x240" no markdown.
+// Sem altura, só a largura é fixada — a altura segue sozinha (proporção
+// preservada), e por isso o teto de 320px (CSS) precisa sair do caminho.
 export function aplicarTamanhoImagem(el, width, height) {
-  const frame = el.querySelector('.image-frame');
-  const img   = el.querySelector('img');
-  if (!frame || !img) return;
-
-  if (width && Number.isFinite(Number(width))) {
-    el.dataset.width   = String(width);
-    frame.style.width  = `${width}px`;
-    img.style.maxWidth = 'none';
+  const img = el.querySelector('img, video');
+  if (width) {
+    el.dataset.width = String(width);
+    if (img) {
+      img.style.width = `${width}px`;
+      img.style.maxHeight = 'none';
+    }
   } else {
     delete el.dataset.width;
-    frame.style.width  = '';
-    img.style.maxWidth = '';
+    if (img) { img.style.width = ''; img.style.maxHeight = ''; }
   }
-
-  if (height && Number.isFinite(Number(height))) {
-    el.dataset.height   = String(height);
-    frame.style.height  = `${height}px`;
-    img.style.maxHeight = 'none';
+  if (height) {
+    el.dataset.height = String(height);
+    if (img) img.style.height = `${height}px`;
   } else {
     delete el.dataset.height;
-    frame.style.height  = '';
-    img.style.maxHeight = '';
+    if (img) img.style.height = '';
   }
 }
 
@@ -111,11 +107,33 @@ export function setImageData(el, { fileId, alt, dataUrl, imagePath, src, width, 
           if (res && res.fileId != null) {
             const w = el.dataset.width ? Number(el.dataset.width) : undefined;
             const h = el.dataset.height ? Number(el.dataset.height) : undefined;
-            setImageData(el, { fileId: res.fileId, alt: el.dataset.alt, width: w, height: h });
+            setImageData(el, { fileId: res.fileId, alt, width: w, height: h });
           }
-        });
+        }).catch(() => {});
       }
+    } else {
+      delete el.dataset.imagePath;
+      el.classList.add('block-image-missing');
     }
+  }
+}
+
+export function setMediaData(el, type, { fileId, alt, dataUrl, width, height }) {
+  const media = el.querySelector(type);
+  if (alt) el.dataset.alt = alt;
+  else delete el.dataset.alt;
+  if (type === 'video') aplicarTamanhoImagem(el, width, height);
+  if (fileId != null && Number.isFinite(Number(fileId))) {
+    el.dataset.fileId = String(fileId);
+    el.classList.remove('block-image-missing');
+    if (media) loadInlineMedia(media, Number(fileId));
+  } else if (dataUrl) {
+    delete el.dataset.fileId;
+    el.classList.remove('block-image-missing');
+    if (media) media.src = dataUrl;
+  } else {
+    delete el.dataset.fileId;
+    el.classList.add('block-image-missing');
   }
 }
 
@@ -123,133 +141,71 @@ export function buildImageTools() {
   const bar = document.createElement('div');
   bar.className = 'image-tools';
   bar.contentEditable = 'false';
-
-  const btnReplace = document.createElement('button');
-  btnReplace.className = 'image-btn';
-  btnReplace.dataset.act = 'replace';
-  btnReplace.title = 'Trocar imagem';
-  btnReplace.appendChild(createIcon('cached'));
-
-  const btnExtract = document.createElement('button');
-  btnExtract.className = 'image-btn';
-  btnExtract.dataset.act = 'extract';
-  btnExtract.title = 'Mover para Documentos';
-  btnExtract.appendChild(createIcon('drive_file_move'));
-
-  const btnAlt = document.createElement('button');
-  btnAlt.className = 'image-btn';
-  btnAlt.dataset.act = 'alt';
-  btnAlt.title = 'Texto alternativo';
-  btnAlt.appendChild(createIcon('subtitles'));
-
-  bar.append(btnReplace, btnExtract, btnAlt);
+  const acts = [
+    ['to-docs', 'Mover p/ Documentos', 'Tirar da nota e guardar na seção Documentos', 'image-btn-accent'],
+    ['replace', 'Trocar',  'Trocar por outra imagem'],
+    ['alt',     'Texto',   'Descrever a imagem (texto alternativo)'],
+    ['remove',  'Remover', 'Remover a imagem da nota'],
+  ];
+  for (const [act, label, title, extra] of acts) {
+    const btn = document.createElement('button');
+    btn.className   = `image-btn ${extra ?? ''}`.trim();
+    btn.dataset.act = act;
+    btn.textContent = label;
+    btn.title       = title;
+    bar.appendChild(btn);
+  }
   return bar;
 }
 
-export function buildImageEl(media) {
-  const wrap = document.createElement('div');
-  wrap.className = 'image-wrap';
-  wrap.contentEditable = 'false';
+export function buildMediaTools() {
+  const bar = document.createElement('div');
+  bar.className = 'image-tools';
+  bar.contentEditable = 'false';
+  const btn = document.createElement('button');
+  btn.className   = 'image-btn';
+  btn.dataset.act = 'remove-media';
+  btn.textContent = 'Remover';
+  btn.title       = 'Remover da nota';
+  bar.appendChild(btn);
+  return bar;
+}
 
-  const frame = document.createElement('div');
-  frame.className = 'image-frame';
-
-  const img = document.createElement('img');
-  img.draggable = false;
-  img.loading   = 'lazy';
-
-  const missing = document.createElement('div');
-  missing.className = 'image-missing-badge';
-  missing.title     = 'Arquivo não encontrado neste dispositivo';
-  missing.append(createIcon('broken_image'), document.createTextNode('Arquivo não encontrado'));
-
+export function buildImageResizeHandle(el) {
   const handle = document.createElement('div');
   handle.className = 'image-resize-handle';
-  handle.title     = 'Arrastar para redimensionar (clique duplo restaura o tamanho original)';
+  handle.contentEditable = 'false';
+  handle.title = 'Arrastar para redimensionar';
 
-  frame.append(img, missing, handle);
-  wrap.append(frame, buildImageTools());
-  return wrap;
-}
+  handle.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const img = el.querySelector('img, video');
+    if (!img) return;
 
-export function buildAudioEl(media) {
-  const wrap = document.createElement('div');
-  wrap.className = 'media-wrap media-audio-wrap';
-  wrap.contentEditable = 'false';
-  const audio = document.createElement('audio');
-  audio.controls = true;
-  wrap.appendChild(audio);
-  return wrap;
-}
-
-export function buildVideoEl(media) {
-  const wrap = document.createElement('div');
-  wrap.className = 'media-wrap media-video-wrap';
-  wrap.contentEditable = 'false';
-  const video = document.createElement('video');
-  video.controls = true;
-  wrap.appendChild(video);
-  return wrap;
-}
-
-export async function insertImageFile(file, targetBlock) {
-  const noteId = _callbacks.getCurrentNoteId();
-  const fileId = await saveFile(file, noteId, { inline: true });
-  _callbacks.captureUndoPoint();
-  const newBlock = _callbacks.createBlockEl('image');
-  setImageData(newBlock, { fileId, alt: file.name.replace(/\.[^.]+$/, '') });
-
-  if (targetBlock && targetBlock.parentElement) {
-    targetBlock.replaceWith(newBlock);
-  } else {
     const root = _callbacks.getRoot();
-    root?.appendChild(newBlock);
-  }
+    const startX = e.clientX;
+    const startWidth = img.getBoundingClientRect().width;
+    const larguraMaxima = Math.max(60, (root?.clientWidth ?? 400) - 8);
+    _callbacks.captureUndoPoint();
+    el.classList.add('is-resizing');
 
-  _callbacks.renumberLists();
-  _callbacks.scheduleSave();
-}
+    const mover = ev => {
+      const bruta = startWidth + (ev.clientX - startX);
+      const tetoNatural = (img.tagName === 'VIDEO' ? img.videoWidth : img.naturalWidth) || Infinity;
+      const largura = Math.round(Math.min(Math.max(60, bruta), larguraMaxima, tetoNatural));
+      aplicarTamanhoImagem(el, largura, null);
+    };
+    const soltar = () => {
+      document.removeEventListener('mousemove', mover);
+      document.removeEventListener('mouseup', soltar);
+      el.classList.remove('is-resizing');
+      _callbacks.scheduleSave();
+    };
+    document.addEventListener('mousemove', mover);
+    document.addEventListener('mouseup', soltar);
+  });
 
-export async function insertMediaFile(file, targetBlock, tipo = 'audio') {
-  const noteId = _callbacks.getCurrentNoteId();
-  const fileId = await saveFile(file, noteId, { inline: true });
-  _callbacks.captureUndoPoint();
-  const newBlock = _callbacks.createBlockEl(tipo);
-  newBlock.dataset.fileId = String(fileId);
-  const mediaEl = newBlock.querySelector(tipo);
-  if (mediaEl) loadInlineMedia(mediaEl, fileId);
-
-  if (targetBlock && targetBlock.parentElement) {
-    targetBlock.replaceWith(newBlock);
-  } else {
-    const root = _callbacks.getRoot();
-    root?.appendChild(newBlock);
-  }
-
-  _callbacks.renumberLists();
-  _callbacks.scheduleSave();
-}
-
-export async function absorbDataUrls() {
-  const root = _callbacks.getRoot();
-  if (!root) return;
-  const blocks = root.querySelectorAll('.block-image');
-  const noteId = _callbacks.getCurrentNoteId();
-
-  for (const block of blocks) {
-    const img = block.querySelector('img');
-    const src = img?.src ?? '';
-    if (!src.startsWith('data:')) continue;
-
-    try {
-      const res = await fetch(src);
-      const blob = await res.blob();
-      const ext = blob.type.split('/')[1] || 'png';
-      const file = new File([blob], `imagem-${Date.now()}.${ext}`, { type: blob.type });
-      const fileId = await saveFile(file, noteId, { inline: true });
-      setImageData(block, { fileId, alt: block.dataset.alt ?? '' });
-    } catch (err) {
-      console.warn('QuickDock: erro ao absorver dataURL inline:', err);
-    }
-  }
+  return handle;
 }
