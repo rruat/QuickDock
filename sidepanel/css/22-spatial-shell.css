@@ -733,11 +733,6 @@
   outline: none;
 }
 
-.main-section.is-focused {
-  border-color: #94a3b8;
-  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.45), 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
 .main-section.is-drag-over {
   border-color: var(--text);
   box-shadow: 0 0 12px var(--border);

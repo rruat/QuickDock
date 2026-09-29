@@ -533,7 +533,7 @@ html[data-platform="desktop"] .note-tab.has-folder {
   justify-content: space-between;
   padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-card);
+  background: var(--bg);
   flex-shrink: 0;
 }
 
