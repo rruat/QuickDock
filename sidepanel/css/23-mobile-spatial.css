@@ -147,6 +147,17 @@
     border-bottom: none !important;
   }
 
+  /* Barra Contextual Estilo Notion: logo acima do header da view, que fica
+     no rodapé (order 99). */
+  .mobile-notion-toolbar,
+  html[data-platform="mobile"] .mobile-notion-toolbar {
+    order: 98 !important;
+    border-top: 1px solid var(--border) !important;
+    border-bottom: none !important;
+    border-radius: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
   .section-header .section-btn,
   .section-header .section-close,
   html[data-platform="mobile"] .section-header .section-btn,
