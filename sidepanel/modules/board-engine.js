@@ -48,6 +48,13 @@ import {
   RAINBOW_COLORS,
   applyCardColor as _applyCardColor,
 } from './board/board-colors.js';
+import {
+  alignCards as _alignCards,
+  computeGroupBounds as _computeGroupBounds,
+  renderSelectionToolbarHtml as _renderSelectionToolbarHtml,
+  getCardHandleLabel as _getCardHandleLabel,
+  batchApplyColor as _batchApplyColor,
+} from './board/board-cards.js';
 
 
 // ── Estado do Quadro ──────────────────────────────────────────────────────────
@@ -665,56 +672,7 @@ function updateSelectionToolbar() {
   }
   selectionToolbarEl.removeAttribute('hidden');
   const count = selectedCardIds.size;
-  selectionToolbarEl.innerHTML = `
-    <span style="font-size:11.5px;font-weight:600;color:var(--text-muted);padding:0 6px;">${count} selecionado${count > 1 ? 's' : ''}</span>
-    <div class="board-toolbar-divider"></div>
-    <div class="board-align-dropdown">
-      <button type="button" class="board-toolbar-btn btn-toolbar-align" title="Alinhar cartões">
-        <span class="qd-icon material-symbols-rounded">format_align_center</span>
-        <span>Alinhar</span>
-      </button>
-      <div class="board-align-menu" hidden>
-        <button type="button" class="board-align-item" data-align="left">
-          <span class="qd-icon material-symbols-rounded">align_horizontal_left</span>
-          <span>Esquerda</span>
-        </button>
-        <button type="button" class="board-align-item" data-align="center-h">
-          <span class="qd-icon material-symbols-rounded">align_horizontal_center</span>
-          <span>Centro H</span>
-        </button>
-        <button type="button" class="board-align-item" data-align="right">
-          <span class="qd-icon material-symbols-rounded">align_horizontal_right</span>
-          <span>Direita</span>
-        </button>
-        <div style="height:1px;background:var(--border);margin:2px 0;"></div>
-        <button type="button" class="board-align-item" data-align="top">
-          <span class="qd-icon material-symbols-rounded">align_vertical_top</span>
-          <span>Topo</span>
-        </button>
-        <button type="button" class="board-align-item" data-align="center-v">
-          <span class="qd-icon material-symbols-rounded">align_vertical_center</span>
-          <span>Centro V</span>
-        </button>
-        <button type="button" class="board-align-item" data-align="bottom">
-          <span class="qd-icon material-symbols-rounded">align_vertical_bottom</span>
-          <span>Base</span>
-        </button>
-      </div>
-    </div>
-    <button type="button" class="board-toolbar-btn btn-toolbar-group" title="Criar grupo em torno dos selecionados">
-      <span class="qd-icon material-symbols-rounded">crop_square</span>
-      <span>Agrupar</span>
-    </button>
-    <button type="button" class="board-toolbar-btn btn-toolbar-color" title="Alterar cor de todos">
-      <span class="qd-icon material-symbols-rounded">palette</span>
-      <span>Cor</span>
-    </button>
-    <div class="board-toolbar-divider"></div>
-    <button type="button" class="board-toolbar-btn is-danger btn-toolbar-delete" title="Excluir selecionados">
-      <span class="qd-icon material-symbols-rounded">delete</span>
-      <span>Excluir</span>
-    </button>
-  `;
+  selectionToolbarEl.innerHTML = _renderSelectionToolbarHtml(count);
 
   const btnAlign = selectionToolbarEl.querySelector('.btn-toolbar-align');
   const alignMenu = selectionToolbarEl.querySelector('.board-align-menu');
@@ -752,25 +710,7 @@ function updateSelectionToolbar() {
 function alignSelectedCards(type) {
   const cards = currentBoard.cards.filter(c => selectedCardIds.has(c.id));
   if (cards.length <= 1) return;
-  if (type === 'left') {
-    const minX = Math.min(...cards.map(c => c.x));
-    cards.forEach(c => c.x = minX);
-  } else if (type === 'center-h') {
-    const avgX = cards.reduce((acc, c) => acc + (c.x + c.w / 2), 0) / cards.length;
-    cards.forEach(c => c.x = Math.round(avgX - c.w / 2));
-  } else if (type === 'right') {
-    const maxRight = Math.max(...cards.map(c => c.x + c.w));
-    cards.forEach(c => c.x = maxRight - c.w);
-  } else if (type === 'top') {
-    const minY = Math.min(...cards.map(c => c.y));
-    cards.forEach(c => c.y = minY);
-  } else if (type === 'center-v') {
-    const avgY = cards.reduce((acc, c) => acc + (c.y + c.h / 2), 0) / cards.length;
-    cards.forEach(c => c.y = Math.round(avgY - c.h / 2));
-  } else if (type === 'bottom') {
-    const maxBottom = Math.max(...cards.map(c => c.y + c.h));
-    cards.forEach(c => c.y = maxBottom - c.h);
-  }
+  _alignCards(cards, type);
   renderCards();
   renderArrows();
   scheduleSave();
@@ -779,17 +719,14 @@ function alignSelectedCards(type) {
 function groupSelectedCards() {
   const cards = currentBoard.cards.filter(c => selectedCardIds.has(c.id) && c.type !== 'group');
   if (cards.length === 0) return;
-  const minX = Math.min(...cards.map(c => c.x));
-  const maxX = Math.max(...cards.map(c => c.x + (c.w || 220)));
-  const minY = Math.min(...cards.map(c => c.y));
-  const maxY = Math.max(...cards.map(c => c.y + (c.h || 120)));
-  const padX = 24, padTop = 38, padBottom = 24;
+  const bounds = _computeGroupBounds(cards);
+  if (!bounds) return;
   const groupCard = {
     id: `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-    x: Math.round(minX - padX),
-    y: Math.round(minY - padTop),
-    w: Math.round((maxX - minX) + padX * 2),
-    h: Math.round((maxY - minY) + padTop + padBottom),
+    x: bounds.x,
+    y: bounds.y,
+    w: bounds.w,
+    h: bounds.h,
     type: 'group',
     label: 'Novo Grupo',
     text: '',
@@ -804,11 +741,7 @@ function groupSelectedCards() {
 }
 
 function batchChangeColor(color) {
-  for (const card of currentBoard.cards) {
-    if (selectedCardIds.has(card.id)) {
-      card.color = (color === 'default') ? null : color;
-    }
-  }
+  _batchApplyColor(currentBoard.cards, selectedCardIds, color);
   renderCards();
   scheduleSave();
 }
@@ -1498,15 +1431,7 @@ if (typeof document !== 'undefined') {
 // (padrão, cartões antigos sem `type` caem aqui), imagem colada e nota
 // vinculada. O corpo de imagem/nota não é editável como texto solto.
 function cardHandleLabel(card) {
-  const tipo = card.type || 'text';
-  if (tipo === 'group') return card.label || 'Grupo';
-  if (tipo === 'image') return '⠿ Imagem';
-  if (tipo === 'note') return '⠿ Nota';
-  if (card.shape && card.shape !== 'rectangle' && card.shape !== 'process') {
-    const s = FLOWCHART_SHAPES.find(it => it.id === card.shape);
-    if (s) return `⠿ ${s.label}`;
-  }
-  return '⠿ Cartão';
+  return _getCardHandleLabel(card, FLOWCHART_SHAPES);
 }
 
 function noteCardBodyHtml(card) {

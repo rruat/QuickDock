@@ -12,7 +12,7 @@
 |---|---|---|---|---|---|
 | **Fase 1** | Estilos CSS | `sidepanel/style.css` | 12.699 | ✅ **100% Concluído** | 24 módulos em `sidepanel/css/` |
 | **Fase 2** | Motor de Notas | `sidepanel/modules/note.js` | 4.926 | 🟡 **Em Andamento (62%)** | 8 submódulos em `modules/note/` |
-| **Fase 3** | Quadro Infinito | `sidepanel/modules/board-engine.js` | 2.876 | 🟡 **Em Andamento (71%)** | 7 submódulos em `modules/board/` |
+| **Fase 3** | Quadro Infinito | `sidepanel/modules/board-engine.js` | 2.876 | 🟡 **Em Andamento (86%)** | 7 submódulos em `modules/board/` |
 | **Fase 4** | Abas e Pastas | `sidepanel/modules/notes-tabs.js` | 2.597 | ✅ **100% Concluído** | 4 submódulos em `modules/tabs/` |
 | **Fase 5** | Spatial Shell | `sidepanel/modules/spatial-shell.js` | 1.512 | ✅ **100% Concluído** | 4 submódulos em `modules/shell/` |
 | **Fase 6** | Módulos Médios | `sync`, `json`, `graph`, `mobile`, `storage` | ~5.500 | ⚪ **Pendente** | Divisão pontual por funcionalidade |
@@ -117,12 +117,12 @@
   - Conteúdo: Paleta temática das 7 cores do arco-íris e suporte a cores personalizadas.
   - [x] Criado e validado
 
-- [ ] **Submódulo 3.6 — Gestão de Cartões (Cards Lifecycle):**
-  - Arquivo: `sidepanel/modules/board/board-cards.js` (~550 linhas)
-  - Conteúdo: Criação, renderização DOM, vinculo de notas existentes e manipulação de cartões de imagem colada.
-  - [ ] Criar arquivo e extrair lógica
-  - [ ] Ligar chamadas no `board-engine.js`
-  - [ ] Validar testes automatizados
+- [x] **Submódulo 3.6 — Gestão de Cartões (Cards Lifecycle):**
+  - Arquivo: `sidepanel/modules/board/board-cards.js` (170 linhas)
+  - Conteúdo: Operações em lote (alinhamento, bounds de grupo, aplicação de cores), toolbar de seleção e rótulos de handle.
+  - [x] Criar arquivo e extrair lógica
+  - [x] Ligar chamadas no `board-engine.js`
+  - [x] Validar testes automatizados
 
 - [ ] **Submódulo 3.7 — Interações de Ponteiro e Teclado:**
   - Arquivo: `sidepanel/modules/board/board-interactions.js` (~500 linhas)
