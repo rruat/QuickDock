@@ -29,6 +29,11 @@ import {
   hideEmptyDashboard, showEmptyDashboard, renderEmptyDashboardContent,
 } from './notes-dashboard.js';
 export { hideEmptyDashboard, showEmptyDashboard, renderEmptyDashboardContent };
+import {
+  closeFolderModal as _closeFolderModal,
+  promptExcluirPastaModal,
+} from './tabs/notes-folder-modals.js';
+
 
 const tabsEl        = document.getElementById('notes-tabs');
 const btnNew        = document.getElementById('btn-new-note');
@@ -751,87 +756,22 @@ export function promptRenomearPasta(caminhoAntigo, onDone = null) {
 }
 
 function promptExcluirPasta(caminho, totalNotas, onDone = null) {
-  closeFolderModal();
-  const pop = document.createElement('div');
-  pop.className = 'copy-menu folder-modal';
-
-  const head = document.createElement('div');
-  head.className = 'copy-menu-header';
-  head.textContent = `Excluir pasta "${caminho}"`;
-
-  const desc = document.createElement('div');
-  desc.className = 'folder-modal-desc';
-  desc.textContent = totalNotas > 0
-    ? `Esta pasta contém ${totalNotas} nota(s). O que deseja fazer com elas?`
-    : 'Tem certeza que deseja excluir esta pasta vazia?';
-
-  const btnRow = document.createElement('div');
-  btnRow.className = 'folder-modal-actions-col';
-
-  if (totalNotas > 0) {
-    const btnMoverRaiz = document.createElement('button');
-    btnMoverRaiz.className = 'copy-opt folder-action-opt';
-    btnMoverRaiz.innerHTML = '<span class="copy-opt-value">Mover notas para a raiz e excluir pasta</span>';
-    btnMoverRaiz.addEventListener('click', async e => {
-      e.stopPropagation();
-      closeFolderModal();
-      await excluirPasta(caminho, { manterNotas: true });
+  // Exclusão segura com opções de manter notas ou mover para raiz:
+  // "Mover notas para a raiz" e excluir pasta (delegado para tabs/notes-folder-modals.js)
+  return promptExcluirPastaModal({
+    caminho,
+    totalNotas,
+    onExcluirSucesso: async ({ manterNotas }) => {
       notesMeta = await loadAllNotesMeta();
       openTabIds = openTabIds.filter(id => notesMeta.some(n => n.id === id));
       saveOpenTabIds(openTabIds);
-      renderTabs();
-      if (onDone) await onDone();
-    });
-    btnRow.appendChild(btnMoverRaiz);
-
-    const btnApagarTudo = document.createElement('button');
-    btnApagarTudo.className = 'copy-opt folder-action-opt folder-action-danger';
-    btnApagarTudo.innerHTML = '<span class="copy-opt-value">Excluir pasta e todas as notas</span>';
-    btnApagarTudo.addEventListener('click', async e => {
-      e.stopPropagation();
-      closeFolderModal();
-      await excluirPasta(caminho, { manterNotas: false });
-      notesMeta = await loadAllNotesMeta();
-      openTabIds = openTabIds.filter(id => notesMeta.some(n => n.id === id));
-      saveOpenTabIds(openTabIds);
-      if (!notesMeta.some(n => n.id === activeId) && notesMeta.length > 0) {
+      if (!manterNotas && !notesMeta.some(n => n.id === activeId) && notesMeta.length > 0) {
         await activateNote(openTabIds[0] ?? notesMeta[0].id);
       }
       renderTabs();
-      if (onDone) await onDone();
-    });
-    btnRow.appendChild(btnApagarTudo);
-  } else {
-    const btnConfirmVazia = document.createElement('button');
-    btnConfirmVazia.className = 'copy-opt folder-action-opt folder-action-danger';
-    btnConfirmVazia.innerHTML = '<span class="copy-opt-value">Excluir pasta</span>';
-    btnConfirmVazia.addEventListener('click', async e => {
-      e.stopPropagation();
-      closeFolderModal();
-      await excluirPasta(caminho, { manterNotas: true });
-      notesMeta = await loadAllNotesMeta();
-      renderTabs();
-      if (onDone) await onDone();
-    });
-    btnRow.appendChild(btnConfirmVazia);
-  }
-
-  const btnCancel = document.createElement('button');
-  btnCancel.className = 'copy-opt folder-action-opt';
-  btnCancel.innerHTML = '<span class="copy-opt-value">Cancelar</span>';
-  btnCancel.addEventListener('click', e => { e.stopPropagation(); closeFolderModal(); });
-  btnRow.appendChild(btnCancel);
-
-  pop.append(head, desc, btnRow);
-  pop.addEventListener('mousedown', e => e.stopPropagation());
-  document.body.appendChild(pop);
-  folderModalEl = pop;
-
-  pop.style.position = 'fixed';
-  pop.style.top = '50%';
-  pop.style.left = '50%';
-  pop.style.transform = 'translate(-50%, -50%)';
-  pop.style.zIndex = '2500';
+    },
+    onDone
+  });
 }
 
 let moveMenuEl = null;
