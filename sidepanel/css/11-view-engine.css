@@ -784,12 +784,12 @@ html[data-platform="mobile"] .mob-btn .qd-icon {
 }
 
 .mob-btn-danger {
-  color: var(--danger, #ef4444);
+  color: var(--danger);
 }
 
 .mob-btn-danger:active {
-  background: color-mix(in srgb, var(--danger, #ef4444) 15%, transparent);
-  color: var(--danger, #ef4444);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
 }
 
 @keyframes popover-fade-in {

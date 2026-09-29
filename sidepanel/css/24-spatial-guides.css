@@ -5,7 +5,7 @@
    ========================================================================== */
 /* ── Canvas Espacial: Guias Inteligentes & Destaque de Conexão ── */
 .board-guide-line {
-  stroke: var(--accent, #3b82f6) !important;
+  stroke: var(--accent) !important;
   stroke-width: 1.5px !important;
   stroke-dasharray: 4 3 !important;
   pointer-events: none !important;
@@ -13,14 +13,14 @@
 }
 
 .board-guide-dot {
-  fill: var(--accent, #3b82f6) !important;
-  stroke: var(--bg, #ffffff) !important;
+  fill: var(--accent) !important;
+  stroke: var(--bg) !important;
   stroke-width: 1.5px !important;
   pointer-events: none !important;
 }
 
 .board-card.is-connect-target {
-  outline: 2.5px solid var(--accent, #3b82f6) !important;
+  outline: 2.5px solid var(--accent) !important;
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.25), 0 8px 24px rgba(0, 0, 0, 0.15) !important;
   transition: box-shadow 0.15s ease !important;
   z-index: 25 !important;
@@ -33,14 +33,14 @@
 .board-card-connect-handle.is-target-port {
   opacity: 1 !important;
   transform: scale(1.7) !important;
-  background: var(--accent, #3b82f6) !important;
+  background: var(--accent) !important;
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4) !important;
   z-index: 35 !important;
 }
 
 .draft-arrow.is-snapped {
   stroke-width: 2.5px !important;
-  stroke: var(--accent, #3b82f6) !important;
+  stroke: var(--accent) !important;
 }
 
 /* Popover de conexão e formas no sidepanel */
@@ -80,12 +80,12 @@
   min-height: auto !important;
   max-height: calc(100vh - 24px);
   padding: 10px 12px;
-  background: var(--bg, #ffffff);
-  border: 1px solid var(--border, #e2e8f0);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   font-family: inherit;
-  color: var(--text, #000000);
+  color: var(--text);
   box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;

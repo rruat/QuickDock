@@ -14,52 +14,40 @@ html:not([data-theme="dark"]) {
   --header-height: 49px;
   --gap-size: 4px;
 
-  /* Cores do design-pattern (Tema Claro: textos pretos explícitos #000000) */
-  --color-black: #fafafa;
-  --color-white: #000000;
-  --color-cyan: #ebebeb;
-  --color-transparent: transparent;
-  --color-text-primary: #000000;
-  --color-text-secondary: #555555;
-  --color-text-muted: #777777;
-  --color-outline: #ebebeb;
-  --color-outline-focus: #d7d7d9;
-  --color-bg-card: #ffffff;
-  --color-bg-nav: #f9f9fa;
-
+  /* Tokens de cor — um nome por papel:
+     --bg / --bg-secondary / --bg-card / --bg-hover  superfícies
+     --border / --border-hover                       TODA borda neutra usa --border
+     --text / --text-secondary / --text-muted        textos
+     --accent / --accent-light / --danger            destaque e alerta */
   --bg: #fafafa;
   --bg-secondary: #f9f9fa;
+  --bg-card: #ffffff;
   --bg-hover: #ebebeb;
   --border: #ebebeb;
+  --border-hover: #d7d7d9;
   --text: #000000;
+  --text-secondary: #555555;
   --text-muted: #777777;
   --accent: #000000;
+  --accent-light: rgba(99, 102, 241, 0.15);
+  --danger: #ef4444;
   --tab-active-border-default: #000000;
   --radius: 12px;
   --radius-sm: 6px;
+  --radius-md: 8px;
   --font: 'Google Sans Flex', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Cascadia Code', Consolas, 'Courier New', Courier, monospace;
 }
 
 [data-theme="dark"] {
-  /* Cores do design-pattern (Tema Escuro: textos brancos automáticos #ffffff) */
-  --color-black: #121212;
-  --color-white: #ffffff;
-  --color-cyan: #262626;
-  --color-transparent: transparent;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #a3a3a3;
-  --color-text-muted: #8b8b8d;
-  --color-outline: #2a2a2a;
-  --color-outline-focus: #404040;
-  --color-bg-card: #1c1c1c;
-  --color-bg-nav: #181818;
-
   --bg: #121212;
   --bg-secondary: #181818;
+  --bg-card: #1c1c1c;
   --bg-hover: #262626;
   --border: #2a2a2a;
+  --border-hover: #404040;
   --text: #ffffff;
+  --text-secondary: #a3a3a3;
   --text-muted: #8b8b8d;
   --accent: #ffffff;
   --tab-active-border-default: #808080;
@@ -106,7 +94,7 @@ blockquote,
 .search-dropdown,
 .add-view-dropdown,
 .empty-state {
-  color: var(--color-text-primary, var(--text));
+  color: var(--text);
 }
 
 /* ===== ÍCONES (fonte Material Symbols Rounded, via icons.js) ===== */

@@ -83,7 +83,7 @@
 .graph-stats-badge {
   font-size: 11px;
   color: var(--text-muted);
-  background: var(--bg-surface-hover);
+  background: var(--bg-hover);
   padding: 2px 8px;
   border-radius: 12px;
   font-weight: 500;
@@ -101,7 +101,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-canvas, var(--bg));
+  background: var(--bg);
   touch-action: none;
 }
 
@@ -129,7 +129,7 @@
   padding: 24px;
   background: var(--bg-card);
   border: 1px dashed var(--border);
-  border-radius: var(--radius-md, 8px);
+  border-radius: var(--radius-md);
   pointer-events: none;
 }
 
@@ -148,7 +148,7 @@
 }
 
 .graph-empty-state code {
-  background: var(--bg-surface-hover);
+  background: var(--bg-hover);
   padding: 1px 4px;
   border-radius: 3px;
   color: var(--accent);
@@ -164,9 +164,9 @@
   position: absolute;
   pointer-events: none;
   z-index: 100;
-  background: var(--bg-surface);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius-sm);
   padding: 6px 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   font-family: inherit;
@@ -183,7 +183,7 @@
   display: inline-block;
   font-size: 10px;
   color: var(--text-muted);
-  background: var(--bg-surface-hover);
+  background: var(--bg-hover);
   padding: 1px 5px;
   border-radius: 3px;
   margin-top: 2px;

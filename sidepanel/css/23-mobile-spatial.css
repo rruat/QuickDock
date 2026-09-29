@@ -19,7 +19,7 @@
     margin: 0 !important;
     overflow: hidden !important;
     gap: 0 !important;
-    background-color: var(--color-black, #141414) !important;
+    background-color: var(--bg) !important;
   }
 
   /* Oculta aside legada em favor do drawer do Spatial Shell */
@@ -38,8 +38,8 @@
     padding: 0.5rem 0.75rem !important;
     height: auto !important;
     min-height: 48px !important;
-    border-bottom: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
-    background-color: var(--color-black, #141414) !important;
+    border-bottom: 1px solid var(--border) !important;
+    background-color: var(--bg) !important;
     flex-shrink: 0 !important;
     gap: 0.5rem !important;
   }
@@ -90,7 +90,7 @@
     padding: 0 !important;
     margin: 0 !important;
     scrollbar-width: none !important;
-    color: var(--color-text-primary, var(--text)) !important;
+    color: var(--text) !important;
   }
 
   #mMain::-webkit-scrollbar,
@@ -111,10 +111,10 @@
     width: auto !important;
     max-width: none !important;
     height: auto !important;
-    border: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
+    border: 1px solid var(--border) !important;
     border-radius: 0.75rem !important;
-    background-color: var(--color-bg-card, var(--color-black, #141414)) !important;
-    color: var(--color-text-primary, var(--text)) !important;
+    background-color: var(--bg-card) !important;
+    color: var(--text) !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
@@ -130,9 +130,9 @@
     height: 44px !important;
     padding-inline: 0.65rem !important;
     border-radius: 0 0 0.75rem 0.75rem !important;
-    border-top: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.08))) !important;
+    border-top: 1px solid var(--border) !important;
     border-bottom: none !important;
-    background-color: var(--color-bg-card, var(--color-black, #141414)) !important;
+    background-color: var(--bg-card) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
@@ -143,7 +143,7 @@
 
   .main-section.is-focused .section-header,
   html[data-platform="mobile"] .main-section.is-focused .section-header {
-    border-top-color: var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.15))) !important;
+    border-top-color: var(--border) !important;
     border-bottom: none !important;
   }
 
@@ -188,7 +188,7 @@
   .template-bar,
   html[data-platform="mobile"] .template-bar {
     order: 2 !important;
-    border-top: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.08))) !important;
+    border-top: 1px solid var(--border) !important;
   }
 
   .view-toolbar {
@@ -272,7 +272,7 @@
     border-radius: 1rem 1rem 0 0 !important;
     overflow: hidden !important;
     pointer-events: none !important;
-    background-color: var(--color-black, #141414) !important;
+    background-color: var(--bg) !important;
     display: flex !important;
     flex-direction: column !important;
     flex-shrink: 0 !important;
@@ -284,7 +284,7 @@
     max-height: 50vh !important;
     opacity: 1 !important;
     padding: 0.6rem 0.75rem !important;
-    border-top: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
+    border-top: 1px solid var(--border) !important;
     pointer-events: auto !important;
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25) !important;
   }
@@ -346,9 +346,9 @@
     align-items: center !important;
     justify-content: space-around !important;
     border: 0 !important;
-    border-top: 1px solid var(--color-cyan, var(--color-outline, rgba(255, 255, 255, 0.1))) !important;
+    border-top: 1px solid var(--border) !important;
     border-radius: 0 !important;
-    background-color: var(--color-black, #141414) !important;
+    background-color: var(--bg) !important;
     flex-shrink: 0 !important;
   }
 

@@ -17,7 +17,7 @@
     height: 100dvh;
     padding: var(--gap-size, 4px);
     overflow: hidden;
-    background: var(--color-black, #fafafa);
+    background: var(--bg);
     gap: 0;
   }
 
@@ -150,7 +150,7 @@
     position: relative !important;
     overflow: hidden !important;
     background: var(--bg) !important;
-    border-left: none !important;
+    border-left: 1px solid var(--border) !important;
   }
 
   /* A ordem fixa de Quadro/Grafo/Calendário/Documentos/Base por `order`
@@ -261,7 +261,7 @@
     min-width: 0;
     max-width: none;
     height: auto;
-    border-left: none;
+    border-left: 1px solid var(--border);
     /* Ancora a alça de altura (posicionada em cima da borda de baixo deste
        painel, ver .desktop-panel-row-handle) — sem isto ela se posicionaria
        relativa a algum ancestral mais distante. */
@@ -421,7 +421,7 @@
     max-height: 100vh !important;
     min-width: 0 !important;
     z-index: 2500 !important;
-    border-left: none !important;
+    border-left: 1px solid var(--border) !important;
   }
 
   /* Alças de redimensionar e o grip de arrastar não fazem sentido enquanto
@@ -514,7 +514,7 @@
     left: 14px;
     height: 32px;
     padding: 0 10px;
-    background: var(--bg-card, var(--bg));
+    background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 18px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -562,7 +562,7 @@
   html[data-platform="desktop"] #btn-note-outline-toggle-desktop:hover,
   html[data-platform="desktop"] #btn-note-outline-toggle-desktop.active {
     background: var(--bg-hover);
-    color: var(--text-normal);
+    color: var(--text);
   }
 
   html[data-platform="desktop"] #tab-btn-outline {

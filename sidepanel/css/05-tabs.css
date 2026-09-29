@@ -165,7 +165,7 @@
   width: 100%;
   aspect-ratio: 1;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
   position: relative;
@@ -223,7 +223,7 @@
   padding: 0 24px 0 8px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   color: var(--text);
   outline: none;
 }
@@ -257,7 +257,7 @@
   max-height: 160px;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   background: var(--bg);
   padding: 4px;
   margin-bottom: 6px;

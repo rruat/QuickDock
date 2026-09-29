@@ -79,7 +79,7 @@
 .sync-desc-sub {
   font-size: 11px;
   line-height: 1.45;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted);
   margin-top: 6px;
 }
 .sync-skipped-msg {
@@ -106,7 +106,7 @@
   font-size: 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: var(--bg-surface);
+  background: var(--bg-secondary);
   cursor: pointer;
 }
 .sync-btn-primary {
