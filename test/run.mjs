@@ -1,4 +1,4 @@
-// ── run.mjs ────────────────────────────────────────────────────────────────
+﻿// ── run.mjs ────────────────────────────────────────────────────────────────
 // Testes de regressão do modelo de blocos.  Rode com:  node test/run.mjs
 //
 // O que se está protegendo: a nota que já está gravada no banco de alguém. O
@@ -14,6 +14,19 @@ const { parseMarkdownToBlocks, blocksToMarkdown, blocksToPlainText, normalizeBlo
 import { BLOCOS_V18, BLOCOS_NOVOS, MARKDOWN, HOSTIS, INDENTACOES, CITACAO_COM_FILHOS } from './fixtures.mjs';
 
 let passou = 0;
+async function readCssWithImports(pathUrl) {
+  const { readFile } = await import('node:fs/promises');
+  let content = await readFile(pathUrl, 'utf8');
+  const importRegex = /@import\s+['"](.+?)['"];/g;
+  if (!importRegex.test(content)) return content;
+  const matches = [...content.matchAll(/@import\s+['"](.+?)['"];/g)];
+  for (const m of matches) {
+    const subUrl = new URL(m[1], pathUrl);
+    const subContent = await readCssWithImports(subUrl);
+    content = content.replace(m[0], subContent);
+  }
+  return content;
+}
 const falhas = [];
 
 function ok(nome, condicao, detalhe = '') {
@@ -2884,7 +2897,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('touch · note-viewport.js tem scrollCursorIntoView para teclado virtual', noteViewportSource.includes('scrollCursorIntoView') && noteViewportSource.includes('visualViewport'));
 
   // 16.7: Barra Contextual Estilo Notion, Seleção de Blocos e Sheet de Modelos
-  const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const noteMobileToolbarSource = await readFile(new URL('../sidepanel/modules/note-mobile-toolbar.js', import.meta.url), 'utf8');
   ok('mobile · note-mobile-toolbar.js define mobileTemplateSheet separado de tipo', noteMobileToolbarSource.includes('mobileTemplateSheet') && noteMobileToolbarSource.includes('mobile-template-sheet-no-scrim'));
   ok('mobile · note-mobile-toolbar.js tem botão de Modelos na barra normal', noteMobileToolbarSource.includes('mobBtnTemplates') && noteMobileToolbarSource.includes('toggleMobileTemplateSheet'));
@@ -2906,7 +2919,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const errHtml   = await readFile(new URL('../404.html', import.meta.url), 'utf8');
   const sideHtml  = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
-  const styleCss  = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCss  = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const viewsJs   = await readFile(new URL('../sidepanel/modules/views.js', import.meta.url), 'utf8');
   const tplGalJs  = await readFile(new URL('../sidepanel/modules/templates-gallery.js', import.meta.url), 'utf8');
 
@@ -3042,7 +3055,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { readFile } = await import('node:fs/promises');
   const tabsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
-  const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
 
   // 19.1: Funções de árvore e persistência de pastas
   ok('pastas ui · notes-tabs.js define chave de persistência de pastas abertas', tabsSource.includes('quickdock:folders:open'));
@@ -3237,7 +3250,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const noteSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const tabsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
-  const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const backlinksSource = await readFile(new URL('../sidepanel/modules/note-backlinks.js', import.meta.url), 'utf8');
   const linkAutocompleteSource = await readFile(new URL('../sidepanel/modules/note-link-autocomplete.js', import.meta.url), 'utf8');
 
@@ -3261,7 +3274,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const viewsSource = await readFile(new URL('../sidepanel/modules/views.js', import.meta.url), 'utf8');
   const appSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
   const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
-  const styleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const storageSource = await readFile(new URL('../sidepanel/modules/storage.js', import.meta.url), 'utf8');
   const noteSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const syncControllerSource = await readFile(new URL('../sidepanel/modules/sync-controller.js', import.meta.url), 'utf8');
@@ -3436,7 +3449,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   // 22.5: Modo Integrado no Painel e Prevenção de Sobreposição de Telas
   const viewsSource = await readFile(new URL('../sidepanel/modules/views.js', import.meta.url), 'utf8');
-  const sidepanelStyleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const sidepanelStyleSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   ok('quadro · views.js suporta visão integrada board', viewsSource.includes("viewName === 'board'"));
   ok('quadro · sidepanel/index.html possui seção board-view interna', sidepanelHtmlSource.includes('id="board-view"') && sidepanelHtmlSource.includes('id="btn-board-open-tab"'));
   ok('design · style.css isola visões para evitar sobreposição de telas', sidepanelStyleSource.includes('.board-view[hidden]') && sidepanelStyleSource.includes('html.view-board .note-section'));
@@ -3485,7 +3498,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const calendarSource = await readFile(new URL('../sidepanel/modules/calendar-view.js', import.meta.url), 'utf8');
   const viewsSource = await readFile(new URL('../sidepanel/modules/views.js', import.meta.url), 'utf8');
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
-  const sidepanelStyleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const sidepanelStyleSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const appSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
 
   // 23.1: Bloco de Propriedades da Nota
@@ -3658,7 +3671,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     sidepanelHtmlSource.includes('id="btn-note-header-color"'));
 
   // 24.6: style.css — estiliza cabeçalho e os novos tipos de campo
-  const sidepanelStyleSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const sidepanelStyleSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   ok('cabeçalho · style.css estiliza note-header-bar/título/ícone/cor',
     sidepanelStyleSource.includes('.note-header-bar') &&
     sidepanelStyleSource.includes('.note-header-title') &&
@@ -3971,7 +3984,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   // 28: Obsidian Live Preview & Source-on-Cursor Parity
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
 
   // 28.1: Divisor '---' editável e navegável via cursor/backspace
   // A ativação/desativação do modo "texto cru" é decidida por onde o cursor
@@ -4067,7 +4080,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const { readFile } = await import('node:fs/promises');
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const noteDetectionSource = await readFile(new URL('../sidepanel/modules/note-detection.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const { parseMarkdownToBlocks, blocksToMarkdown } = await import('../sidepanel/modules/blocks.js');
 
   // 29.1: Tags (#tag e #tag/aninhada)
@@ -4193,7 +4206,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const tabsJsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
   const notesAppearanceSource = await readFile(new URL('../sidepanel/modules/notes-appearance.js', import.meta.url), 'utf8');
   const notesDashboardSource = await readFile(new URL('../sidepanel/modules/notes-dashboard.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
 
   // 30.1: Gestão de Abas Abertas e Botão de Fechar
   ok('abas · exporta closeTab para fechar abas individualmente',
@@ -4374,7 +4387,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const graphViewSourceMod = await readFile(new URL('../sidepanel/modules/graph-view.js', import.meta.url), 'utf8');
   const tabsJsSourceMod = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
   const notesAppearanceSourceMod = await readFile(new URL('../sidepanel/modules/notes-appearance.js', import.meta.url), 'utf8');
-  const styleCssSourceMod = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSourceMod = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
 
   ok('grafo · graph-view.js destaca nota ativa e não fecha o grafo ao clicar em outro nó',
     graphViewSourceMod.includes('getCurrentNoteId') &&
@@ -4523,7 +4536,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const containerJsSource = await readFile(new URL('../sidepanel/modules/bases/bases-view-container.js', import.meta.url), 'utf8');
   const tableViewJsSource = await readFile(new URL('../sidepanel/modules/bases/bases-table-view.js', import.meta.url), 'utf8');
   const boardBaseViewJsSource = await readFile(new URL('../sidepanel/modules/bases/bases-board-view.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const swJsSource = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const sidepanelHtml = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
@@ -4650,7 +4663,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { readFile } = await import('node:fs/promises');
   const panelsJsSource = await readFile(new URL('../sidepanel/modules/desktop-panels.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
 
   ok('desktop-panels.js · exporta toggleMaximizePanel/isPanelMaximized e mapeia os 4 botões de tela cheia (board/grafo/calendar/bases)',
     panelsJsSource.includes('export function toggleMaximizePanel') &&
@@ -4678,7 +4691,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const noteOutlineSource = await readFile(new URL('../sidepanel/modules/note-outline.js', import.meta.url), 'utf8');
   const noteMobileToolbarSourceFullscreen = await readFile(new URL('../sidepanel/modules/note-mobile-toolbar.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const indexHtmlSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   const notFoundHtmlSource = await readFile(new URL('../404.html', import.meta.url), 'utf8');
@@ -4765,7 +4778,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const { readFile } = await import('node:fs/promises');
   const spatialShellSource = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
   const notesTabsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const indexHtmlSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   const notFoundHtmlSource = await readFile(new URL('../404.html', import.meta.url), 'utf8');
@@ -4795,7 +4808,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const { readFile } = await import('node:fs/promises');
   const spatialShellSource = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
   const notesTabsSource = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
 
   ok('notes-tabs.js · exporta getOpenTabsSnapshot e dispara quickdock:notes-open-tabs-changed ao renderizar as abas',
     notesTabsSource.includes('export function getOpenTabsSnapshot') &&
@@ -4831,7 +4844,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const { readFile } = await import('node:fs/promises');
   const spatialShellSource = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
   const appJsSource = await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
 
   ok('app.js · não importa nem chama mais initDesktopPanels() (sistema antigo de 5 painéis, substituído pelo Spatial Shell no desktop)',
     !appJsSource.includes("import { initDesktopPanels }") &&
@@ -4867,7 +4880,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { readFile } = await import('node:fs/promises');
   const spatialShellSource = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
 
   ok('spatial-shell.js · implementa dragstart/dragover/drop de verdade no .section-header (o HTML já dizia "Arraste para reordenar" sem nenhum código por trás)',
     spatialShellSource.includes("headerEl?.addEventListener('dragstart'") &&
@@ -4907,7 +4920,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { readFile } = await import('node:fs/promises');
   const spatialShellSource = (await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
-  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  const styleCssSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
   const indexHtmlSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   const notFoundHtmlSource = await readFile(new URL('../404.html', import.meta.url), 'utf8');
