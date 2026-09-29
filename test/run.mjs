@@ -4064,6 +4064,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { readFile } = await import('node:fs/promises');
   const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const noteDetectionSource = await readFile(new URL('../sidepanel/modules/note-detection.js', import.meta.url), 'utf8');
   const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
   const { parseMarkdownToBlocks, blocksToMarkdown } = await import('../sidepanel/modules/blocks.js');
 
@@ -4083,10 +4084,10 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   igual('tags · título com tag preserva tipo de cabeçalho', bHead[0].type, 'heading1');
   ok('tags · tag dentro de título é formatada', bHead[0].html.includes('<span class="note-tag" data-tag="tag">#tag</span>'));
 
-  ok('tags · detector de tags presente no note.js e DETECTORS',
-    noteJsSource.includes("type: 'tag'") &&
-    noteJsSource.includes("cls = 'note-tag tag';") &&
-    noteJsSource.includes("mark.dataset.tag = m.raw.replace(/^#/, '');"));
+  ok('tags · detector de tags presente em note-detection.js e DETECTORS',
+    noteDetectionSource.includes("type: 'tag'") &&
+    noteDetectionSource.includes("cls = 'note-tag tag';") &&
+    noteDetectionSource.includes("mark.dataset.tag = m.raw.replace(/^#/, '');"));
 
   ok('tags · clique em tag dispara busca por tag na interface',
     noteJsSource.includes("const tagEl = e.target.closest('.note-tag, mark.tag');") &&
