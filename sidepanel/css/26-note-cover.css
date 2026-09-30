@@ -227,10 +227,20 @@
     display: none !important;
   }
 
+  /* A margem da página já vem do @page: a capa ocupa toda a largura útil, com
+     os cantos arredondados, e não a largura da tela menos o recuo do editor. */
   html #app #section-note .note-cover {
+    width: 100%;
     max-width: none;
     height: 60mm;
-    border-radius: 0;
+    margin: 0 0 4mm;
+    border-radius: 4mm;
     break-inside: avoid;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  html #app #section-note .note-cover-img {
+    border-radius: inherit;
   }
 }
