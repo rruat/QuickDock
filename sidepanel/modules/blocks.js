@@ -353,6 +353,7 @@ export function parseMarkdownToBlocks(markdown) {
   const blocks = [];
   const depthOf = makeDepthTracker();
   let callout = null;   // destaque em curso; vale até a citação terminar
+  let callout_aberto = false;   // o marcador acabou de abrir: linhas sem ">" ainda contam
   let m;
 
   for (let i = 0; i < lines.length; i++) {
@@ -362,8 +363,15 @@ export function parseMarkdownToBlocks(markdown) {
     // a ser uma linha comum — é o passo que faz o conteúdo dentro da citação
     // ser lido de verdade.
     const q      = QUOTE_RE.exec(semIndent);
-    const quoted = !!q;
-    const rest   = q ? q[3] : semIndent;
+    let quoted   = !!q;
+    let rest     = q ? q[3] : semIndent;
+    // Continuação preguiçosa: depois do marcador sozinho ("> [!NOTE]" ou
+    // ">[!NOTE]"), as linhas seguintes SEM ">" também são do destaque, até a
+    // primeira linha em branco — como o markdown trata um parágrafo citado.
+    if (!quoted && callout && callout_aberto && semIndent.trim() !== '') {
+      quoted = true;
+      rest = semIndent;
+    }
     // Quando a linha é citada, a indentação pode estar antes do ">" (gerada por
     // blocksToMarkdown como "  > ") ou depois do ">" (como ">   "). Priorizamos a
     // indentação externa para não perder o depth de callouts e listas citadas.
@@ -373,8 +381,10 @@ export function parseMarkdownToBlocks(markdown) {
     // a citação acabar. Ele mesmo não vira bloco nenhum — é só o rótulo.
     if (!quoted) {
       callout = null;
+      callout_aberto = false;
     } else if ((m = CALLOUT_RE.exec(rest))) {
       callout = m[1].toLowerCase();
+      callout_aberto = true;
       continue;
     }
 

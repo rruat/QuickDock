@@ -218,6 +218,14 @@ for (const { nome, blocks } of BLOCOS_V18) {
      blocks.slice(4).every(b => !b.callout));
   ok('destaque · todo bloco de destaque também é citação',
      blocks.slice(0, 4).every(b => b.quoted === true));
+  {
+    // Marcador sozinho e o texto embaixo, sem ">" nas linhas seguintes: as linhas
+    // até o primeiro branco pertencem ao destaque (continuação preguiçosa).
+    const lazy = parseMarkdownToBlocks('>[!NOTE]\ntexto a partir da linha de baixo\naqui tbm\n\nfora');
+    igual('destaque · marcador sem espaço e texto sem ">" abaixo vira destaque',
+      lazy.map(b => [b.callout ?? null, b.html]),
+      [['note', 'texto a partir da linha de baixo'], ['note', 'aqui tbm'], [null, ''], [null, 'fora']]);
+  }
   igual('destaque · a lista dentro dele continua sendo lista',
     blocks.slice(2, 4).map(b => b.type), ['bullet', 'bullet']);
 
@@ -4186,7 +4194,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     noteJsSource.includes("inlineEl.setAttribute('href', safeHref(newHref) || newHref);"));
 
   ok('live-preview · revealBlockSyntax suporta callouts editáveis (> [!NOTE] etc)',
-    noteJsSource.includes("prefixSpan.textContent = `> [!${callout.toUpperCase()}] `;") &&
+    noteJsSource.includes("prefixSpan.textContent = primeira ? `> [!${callout.toUpperCase()}]` : '> ';") &&
     noteJsSource.includes("prefixSpan.dataset.syntaxType = 'callout';") &&
     noteJsSource.includes("md-syntax-callout"));
 

@@ -342,15 +342,18 @@
 
 /* O rótulo é escrito pelo CSS, não é texto da nota: não dá pra apagar sem
    querer, não entra na contagem do cursor e não vai parar no arquivo salvo —
-   no markdown ele é o marcador "[!NOTE]", gerado na exportação. */
+   no markdown ele é o marcador "[!NOTE]", gerado na exportação. Fica numa
+   linha só dele; o texto do destaque começa na linha de baixo. */
 .note-editor-blocks .block[data-callout-first]::before {
   content: var(--callout-label);
-  margin-right: 6px;
+  display: block;
+  margin-bottom: 2px;
   font-weight: 700;
   color: var(--callout);
   user-select: none;
 }
-.note-editor-blocks .block[data-callout-first]:focus-within::before {
+.note-editor-blocks .block[data-callout-first]:focus-within::before,
+.note-editor-blocks .block[data-callout-first]:has(.md-syntax-callout-marker)::before {
   display: none !important;
 }
 
@@ -571,6 +574,9 @@
   font-weight: 700;
   color: var(--callout, var(--text-muted));
   opacity: 0.9;
+}
+.md-syntax-callout-marker {
+  display: block;
 }
 .md-syntax-link-href {
   font-family: var(--font-mono, monospace);

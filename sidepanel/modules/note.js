@@ -647,7 +647,10 @@ function convertBlockType(blockEl, newType, checked = false) {
     const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
-    if (mCall && mCall[2]) extra = mCall[2];
+    // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
+    // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
+    // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
+    if (mCall) extra = mCall[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) el.after(document.createTextNode(extra));
@@ -820,7 +823,10 @@ function sanitizeForSave(html, keepBreaks = false) {
     const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
-    if (mCall && mCall[2]) extra = mCall[2];
+    // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
+    // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
+    // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
+    if (mCall) extra = mCall[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) el.after(document.createTextNode(extra));
@@ -1667,6 +1673,12 @@ function syncDividerActiveState(block) {
   if (activeDividerBlock) activeDividerBlock.classList.add('is-active');
 }
 
+// Primeiro bloco de uma sequência do mesmo destaque (o que carrega o marcador).
+function isCalloutFirst(block) {
+  const tipo = block.dataset.callout;
+  return !!tipo && block.previousElementSibling?.dataset?.callout !== tipo;
+}
+
 export function revealBlockSyntax(block) {
   if (!block) return;
   const type = block.dataset.type;
@@ -1685,9 +1697,15 @@ export function revealBlockSyntax(block) {
   prefixSpan.contentEditable = 'true';
 
   if (callout) {
-    prefixSpan.textContent = `> [!${callout.toUpperCase()}] `;
+    // O marcador "[!NOTE]" existe só na primeira linha do destaque (é assim no
+    // markdown). As demais linhas mostram só o ">" da citação — sem isto, cada
+    // Enter dentro do destaque ganhava mais um "[!NOTE]" repetido.
+    const primeira = isCalloutFirst(block);
+    prefixSpan.textContent = primeira ? `> [!${callout.toUpperCase()}]` : '> ';
     prefixSpan.dataset.syntaxType = 'callout';
     prefixSpan.classList.add('md-syntax-callout');
+    // O marcador fica na sua própria linha, com o texto do destaque embaixo.
+    if (primeira) prefixSpan.classList.add('md-syntax-callout-marker');
   } else if (isHeading) {
     const level = Number(type.replace('heading', ''));
     prefixSpan.textContent = '#'.repeat(level) + ' ';
@@ -1698,8 +1716,25 @@ export function revealBlockSyntax(block) {
   }
 
   contentEl.prepend(prefixSpan);
-  if (!prefixSpan.nextSibling) {
+  // Bloco vazio (<br> ou nada depois do prefixo) precisa de uma âncora de texto
+  // do lado de fora do span — senão o que se digita entra DENTRO do prefixo.
+  const depois = prefixSpan.nextSibling;
+  if (!depois || depois.nodeName === 'BR') {
     prefixSpan.after(document.createTextNode(ANCORA));
+  }
+
+  // Bloco novo (Enter): o cursor estava em "início do bloco", que agora fica
+  // ANTES do prefixo recém-inserido. Move pra depois dele; do contrário o texto
+  // digitado entrava no span do prefixo (ex.: "texto> ").
+  const sel = document.getSelection();
+  if (sel && sel.isCollapsed && sel.anchorNode === contentEl && sel.anchorOffset === 0) {
+    const alvo = prefixSpan.nextSibling;
+    const r = document.createRange();
+    if (alvo?.nodeType === Node.TEXT_NODE) r.setStart(alvo, alvo.data === ANCORA ? alvo.length : 0);
+    else r.setStartAfter(prefixSpan);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
   }
 }
 
@@ -1713,7 +1748,10 @@ export function collapseBlockSyntax(block) {
     const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
-    if (mCall && mCall[2]) extra = mCall[2];
+    // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
+    // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
+    // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
+    if (mCall) extra = mCall[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) p.after(document.createTextNode(extra));
@@ -2341,14 +2379,26 @@ root.addEventListener('input', () => {
   }
 
   // Live Preview: monitorar edição do callout (> [!...])
-  if (block.dataset.callout) {
+  if (block.dataset.callout && !isCalloutFirst(block)) {
+    // Linha de continuação: o prefixo é só o ">" da citação. Se ele for apagado,
+    // a linha sai do destaque; senão nada muda (não há marcador pra validar).
+    const contentEl = getContentEl(block);
+    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    if (prefixSpan && !prefixSpan.textContent.includes('>')) {
+      prefixSpan.remove();
+      delete block.dataset.callout;
+      setBlockQuoted(block, false);
+      markCalloutEdges();
+      scheduleSave();
+    }
+  } else if (block.dataset.callout) {
     const contentEl = getContentEl(block);
     const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
     if (prefixSpan) {
       const mCallText = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(prefixSpan.textContent);
       if (mCallText && mCallText[2]) {
         const extraText = mCallText[2];
-        prefixSpan.textContent = `> [!${block.dataset.callout.toUpperCase()}] `;
+        prefixSpan.textContent = `> [!${block.dataset.callout.toUpperCase()}]`;
         let nextNode = prefixSpan.nextSibling;
         if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
           nextNode.data = extraText + nextNode.data;
