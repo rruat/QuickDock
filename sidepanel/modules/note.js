@@ -85,6 +85,7 @@ export {
   printBlocks, transformBlocks,
 };
 import { syncVisualViewport } from './note-viewport.js';
+import './note-print.js';
 import {
   ttTitleCase, ttSentenceCase, ttParaCase, ttInvertCase, ttNoAccents,
   ttCleanSpaces, applyTransformToSelection,

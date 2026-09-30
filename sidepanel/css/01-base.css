@@ -12,6 +12,8 @@ html:not([data-theme="dark"]) {
   --nav-padding: 4px;
   --nav-width: calc(var(--nav-item-size) + (var(--nav-padding) * 2) + 1px); /* 49px */
   --header-height: 49px;
+  /* Largura máxima da nota na view: uma folha A4 deitada (297mm) */
+  --note-max-width: 297mm;
   --gap-size: 4px;
 
   /* Tokens de cor — um nome por papel:

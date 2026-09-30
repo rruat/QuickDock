@@ -1,0 +1,197 @@
+/* ==========================================================================
+   25-print.css - Botão/popover de impressão da nota e o layout de papel (A4)
+   O tamanho e a orientação da página vêm de um @page escrito por
+   modules/note-print.js (Retrato por padrão, Paisagem opcional).
+   ========================================================================== */
+
+/* ── Botão no cabeçalho da nota e popover de opções ──────────────────────── */
+.note-header-print-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.note-header-print-btn:hover,
+.note-header-print-btn[aria-expanded="true"] {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.note-print-popover {
+  position: fixed;
+  z-index: 3000;
+  width: 240px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+}
+
+.note-print-popover[hidden] {
+  display: none;
+}
+
+.note-print-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.note-print-orientation {
+  flex: none;
+}
+
+.note-print-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--bg);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note-print-go .qd-icon {
+  font-size: 17px;
+}
+
+.note-print-hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* ── Saída em papel: só a nota aberta, em tema claro ─────────────────────── */
+@media print {
+  html,
+  html[data-theme="dark"],
+  html[data-theme="light"] {
+    --bg: #ffffff;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-hover: #f1f1f1;
+    --border: #d4d4d4;
+    --text: #000000;
+    --text-secondary: #333333;
+    --text-muted: #555555;
+    --accent: #000000;
+    --note-max-width: none;
+  }
+
+  html,
+  body,
+  html #app {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Tudo que é interface do app */
+  html[data-platform] #mHeader,
+  html[data-platform] #mNav,
+  html[data-platform] #mNavDivider,
+  html[data-platform] #mAside,
+  html[data-platform] #mFooter,
+  html[data-platform] .aside-indicator,
+  html[data-platform] .section-divider,
+  html[data-platform] #boot-veil,
+  html[data-platform] #resize-handle,
+  html[data-platform] #inject-toast,
+  html[data-platform] #btn-touch-select,
+  html[data-platform] .main-section:not(#section-note),
+  html #app #section-note > .section-header,
+  html[data-platform] .note-outline-sidebar,
+  html[data-platform] .note-outline-floating-toggle,
+  html[data-platform] .mobile-notion-toolbar,
+  html[data-platform] .mobile-type-sheet,
+  html[data-platform] .mobile-template-sheet,
+  html[data-platform] .note-backlinks-section,
+  html[data-platform] .note-watermark,
+  html[data-platform] .template-bar,
+  html[data-platform] .note-folder-bar,
+  html[data-platform] .note-properties-bar,
+  html[data-platform] .block-controls,
+  html[data-platform] .btn-touch-select,
+  html[data-platform] .note-print-popover,
+  html[data-platform] .note-header-print-btn,
+  html[data-platform] .note-header-outline-btn,
+  html[data-platform] .note-header-color-btn,
+  html[data-platform] .modal {
+    display: none !important;
+  }
+
+  /* A cadeia de caixas da nota vira fluxo normal, sem rolagem interna */
+  html #app #mMain,
+  html #app #mMain #section-note,
+  html #app #section-note .note-workspace-body,
+  html #app #section-note .note-editor {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    transform: none !important;
+  }
+
+  html #app #section-note .note-header-bar,
+  html #app #section-note .note-editor-blocks {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  html #app #section-note .note-editor-blocks {
+    padding-top: 6mm !important;
+    padding-bottom: 0 !important;
+    -webkit-user-modify: read-only;
+  }
+
+  /* Não cortar blocos nem deixar título sozinho no fim da página */
+  .note-editor-blocks .block {
+    break-inside: avoid;
+  }
+
+  .note-editor-blocks .block[data-type^="heading"] {
+    break-after: avoid;
+  }
+
+  .note-editor-blocks table,
+  .note-editor-blocks pre,
+  .note-editor-blocks img {
+    break-inside: avoid;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

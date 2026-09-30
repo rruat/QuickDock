@@ -570,7 +570,7 @@
   }
 
   html[data-platform="desktop"] .note-editor-blocks {
-    max-width: 760px;
+    max-width: var(--note-max-width, 297mm);
     width: 100%;
     margin: 0 auto;
     padding: 32px 52px 68px;
@@ -578,14 +578,14 @@
 
   /* Pasta, cabeçalho, propriedades e backlinks são irmãos de .note-editor-blocks
      dentro de .note-editor — sem isto, o align-items:center ali em cima os
-     encolhe pro tamanho do conteúdo em vez de esticar pra coluna de 760px,
+     encolhe pro tamanho do conteúdo em vez de esticar pra coluna de largura máxima (--note-max-width),
      deixando-os centralizados e apertados em vez de alinhados com o texto. */
   html[data-platform="desktop"] .note-folder-bar,
   html[data-platform="desktop"] .note-header-bar,
   html[data-platform="desktop"] .note-properties-bar,
   html[data-platform="desktop"] .note-backlinks-section {
     width: 100%;
-    max-width: 760px;
+    max-width: var(--note-max-width, 297mm);
     margin-left: auto;
     margin-right: auto;
     box-sizing: border-box;
