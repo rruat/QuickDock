@@ -257,8 +257,8 @@ export async function loadAllNotesMeta() {
   const notes = await (db.notes.schema.indexes.some(idx => idx.name === 'ordem')
     ? db.notes.orderBy('ordem')
     : db.notes.orderBy('order')).toArray();
-  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, pasta, properties, propertyTypes, propertySelectOptions, ordem, order, updatedAt }) => ({
-    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, pasta: pasta ?? '', properties: properties ?? {}, propertyTypes: propertyTypes ?? {}, propertySelectOptions: propertySelectOptions ?? {}, ordem: ordem ?? ordemDeIndice(order ?? 0), updatedAt,
+  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, pasta, properties, propertyTypes, propertySelectOptions, ordem, order, updatedAt, coverUrl, coverFileId }) => ({
+    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, coverUrl: coverUrl ?? null, coverFileId: coverFileId ?? null, pasta: pasta ?? '', properties: properties ?? {}, propertyTypes: propertyTypes ?? {}, propertySelectOptions: propertySelectOptions ?? {}, ordem: ordem ?? ordemDeIndice(order ?? 0), updatedAt,
   }));
 }
 
@@ -803,6 +803,8 @@ export async function gcInlineFiles() {
     for (const b of note.blocks ?? []) {
       if (b.type === 'image' && b.fileId != null) usados.add(b.fileId);
     }
+    // A capa enviada também é um arquivo inline, mas não é um bloco da nota.
+    if (note.coverFileId != null) usados.add(note.coverFileId);
   });
 
   const lixo = inlines.filter(id => !usados.has(id));

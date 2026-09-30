@@ -215,6 +215,9 @@ export class SyncEngine {
       icone: nota.icon ?? null,
       iconePreenchido: !!nota.iconFilled,
       tituloOculto: !!nota.titleHidden,
+      // Só a capa por endereço viaja: a enviada é um arquivo local (como as imagens
+      // não sincronizadas) e não tem como chegar ao outro aparelho.
+      capa: nota.coverUrl || undefined,
       ordem: nota.ordem ?? 'a0',
       pasta: nota.pasta || undefined,
       criadoEm: nota.createdAt ? (typeof nota.createdAt === 'number' ? new Date(nota.createdAt).toISOString() : nota.createdAt) : undefined,
@@ -244,7 +247,7 @@ export class SyncEngine {
     const tratadas = new Set([
       'quickdock', 'id', 'uid', 'titulo', 'title', 'cor', 'color',
       'icone', 'icon', 'iconePreenchido', 'iconFilled', 'tituloOculto',
-      'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
+      'capa', 'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
       'atualizadoEm', 'updatedAt', 'content', 'blocks', 'properties',
     ]);
     const props = { ...(meta?.properties || {}) };
@@ -581,6 +584,7 @@ export class SyncEngine {
           color: metaNota.cor ?? null,
           icon: metaNota.icone ?? null,
           iconFilled: !!metaNota.iconePreenchido,
+          coverUrl: metaNota.capa ?? null,
           titleHidden: !!metaNota.tituloOculto,
           ordem: metaNota.ordem ?? 'a0',
           properties: this._extrairPropriedadesDeMeta(metaNota),
@@ -660,6 +664,7 @@ export class SyncEngine {
             color: metaNota.cor !== undefined ? metaNota.cor : notaLocal.color,
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
+            coverUrl: metaNota.capa ?? null,
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,
             properties: this._extrairPropriedadesDeMeta(metaNota),
@@ -719,6 +724,7 @@ export class SyncEngine {
             color: metaNota.cor !== undefined ? metaNota.cor : notaLocal.color,
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
+            coverUrl: metaNota.capa ?? null,
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,
             updatedAt: metaNota.atualizadoEm ? new Date(metaNota.atualizadoEm).getTime() : undefined,

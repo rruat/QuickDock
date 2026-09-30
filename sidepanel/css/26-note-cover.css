@@ -1,0 +1,236 @@
+/* ==========================================================================
+   26-note-cover.css - Capa da nota (banner acima do título) e o popover que
+   escolhe a imagem. A lógica vive em modules/note-cover.js.
+   ========================================================================== */
+
+/* ── Banner ──────────────────────────────────────────────────────────────── */
+.note-cover {
+  position: relative;
+  flex-shrink: 0;
+  width: calc(100% - 28px);
+  max-width: var(--note-max-width, 297mm);
+  align-self: center;
+  height: clamp(120px, 20vw, 220px);
+  margin: 10px 0 4px;
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.note-cover[hidden] {
+  display: none;
+}
+
+.note-cover-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.note-cover-img[hidden] {
+  display: none;
+}
+
+.note-cover-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.note-cover-error[hidden] {
+  display: none;
+}
+
+/* O botão só aparece quando há intenção: mouse em cima ou foco no teclado. */
+.note-cover-actions {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.note-cover:hover .note-cover-actions,
+.note-cover:focus-within .note-cover-actions,
+.note-cover-error:not([hidden]) ~ .note-cover-actions {
+  opacity: 1;
+}
+
+.note-cover-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note-cover-action .qd-icon {
+  font-size: 16px;
+}
+
+.note-cover-action:hover {
+  background: var(--bg-hover);
+}
+
+/* Em celular não existe "passar o mouse": o botão fica sempre visível. */
+@media (hover: none) {
+  .note-cover-actions {
+    opacity: 1;
+  }
+}
+
+/* ── Botão no cabeçalho da nota ──────────────────────────────────────────── */
+.note-header-cover-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.note-header-cover-btn:hover,
+.note-header-cover-btn[aria-expanded="true"],
+.note-header-cover-btn.active {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* ── Popover ─────────────────────────────────────────────────────────────── */
+.note-cover-popover {
+  position: fixed;
+  z-index: 3000;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+}
+
+.note-cover-popover[hidden] {
+  display: none;
+}
+
+.note-cover-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.note-cover-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.note-cover-url {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.note-cover-url:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.note-cover-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note-cover-btn .qd-icon {
+  font-size: 17px;
+}
+
+.note-cover-btn:hover {
+  background: var(--bg-hover);
+}
+
+.note-cover-apply {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.note-cover-apply:hover {
+  background: var(--accent);
+  opacity: 0.9;
+}
+
+.note-cover-btn[hidden] {
+  display: none;
+}
+
+.note-cover-or {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.note-cover-message {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.note-cover-message[hidden] {
+  display: none;
+}
+
+.note-cover-hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* ── Papel: a capa sai na impressão, os controles não ────────────────────── */
+@media print {
+  html[data-platform] .note-cover-actions,
+  html[data-platform] .note-header-cover-btn,
+  html[data-platform] .note-cover-popover {
+    display: none !important;
+  }
+
+  html #app #section-note .note-cover {
+    max-width: none;
+    height: 60mm;
+    border-radius: 0;
+    break-inside: avoid;
+  }
+}

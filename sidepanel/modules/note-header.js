@@ -1,6 +1,7 @@
 // Cabeçalho da nota: ícone, título editável e cor.
 import { getNoteById, updateNoteMetaById } from './storage.js';
 import { openAppearancePopover } from './notes-appearance.js';
+import { renderNoteCover, clearNoteCover } from './note-cover.js';
 
 const headerIconBtn  = document.getElementById('btn-note-header-icon');
 const headerIconEl   = document.getElementById('note-header-icon');
@@ -31,6 +32,7 @@ export function renderNoteHeader(note) {
   }
 
   headerColorDot.style.background = note.color || 'var(--text-muted)';
+  renderNoteCover(note);
 }
 
 export function getHeaderNoteRef() { return headerNoteRef; }
@@ -46,6 +48,7 @@ export function clearNoteHeader() {
   headerNoteRef = null;
   if (headerTitleEl) headerTitleEl.textContent = '';
   if (headerIconEl) headerIconEl.textContent = '';
+  clearNoteCover();
 }
 
 function commitHeaderTitle() {
