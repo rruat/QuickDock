@@ -218,6 +218,11 @@ export class SyncEngine {
       // Só a capa por endereço viaja: a enviada é um arquivo local (como as imagens
       // não sincronizadas) e não tem como chegar ao outro aparelho.
       capa: nota.coverUrl || undefined,
+      // Ícone com imagem: só o endereço e o corte viajam (arquivo enviado é local).
+      iconeImagem: nota.iconImage?.url || undefined,
+      iconeCorte: nota.iconImage?.url
+        ? `${nota.iconImage.x ?? 50},${nota.iconImage.y ?? 50},${nota.iconImage.zoom ?? 1}`
+        : undefined,
       ordem: nota.ordem ?? 'a0',
       pasta: nota.pasta || undefined,
       criadoEm: nota.createdAt ? (typeof nota.createdAt === 'number' ? new Date(nota.createdAt).toISOString() : nota.createdAt) : undefined,
@@ -243,11 +248,26 @@ export class SyncEngine {
     return buildNoteFile({ meta, md: modelo.content || '' });
   }
 
+  // Ícone com imagem vindo do arquivo: link + "x,y,zoom". Sem link no arquivo, quem
+  // tem imagem enviada localmente fica com ela (só o link sincroniza).
+  _iconImageDeMeta(meta, local) {
+    if (meta?.iconeImagem) {
+      const [x, y, zoom] = String(meta.iconeCorte ?? '').split(',').map(Number);
+      return {
+        url: String(meta.iconeImagem),
+        x: Number.isFinite(x) ? x : 50,
+        y: Number.isFinite(y) ? y : 50,
+        zoom: Number.isFinite(zoom) ? zoom : 1,
+      };
+    }
+    return local?.iconImage?.fileId != null ? local.iconImage : null;
+  }
+
   _extrairPropriedadesDeMeta(meta) {
     const tratadas = new Set([
       'quickdock', 'id', 'uid', 'titulo', 'title', 'cor', 'color',
       'icone', 'icon', 'iconePreenchido', 'iconFilled', 'tituloOculto',
-      'capa', 'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
+      'capa', 'iconeImagem', 'iconeCorte', 'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
       'atualizadoEm', 'updatedAt', 'content', 'blocks', 'properties',
     ]);
     const props = { ...(meta?.properties || {}) };
@@ -585,6 +605,7 @@ export class SyncEngine {
           icon: metaNota.icone ?? null,
           iconFilled: !!metaNota.iconePreenchido,
           coverUrl: metaNota.capa ?? null,
+          iconImage: this._iconImageDeMeta(metaNota, null),
           titleHidden: !!metaNota.tituloOculto,
           ordem: metaNota.ordem ?? 'a0',
           properties: this._extrairPropriedadesDeMeta(metaNota),
@@ -665,6 +686,7 @@ export class SyncEngine {
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
             coverUrl: metaNota.capa ?? null,
+            iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,
             properties: this._extrairPropriedadesDeMeta(metaNota),
@@ -725,6 +747,7 @@ export class SyncEngine {
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
             coverUrl: metaNota.capa ?? null,
+            iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,
             updatedAt: metaNota.atualizadoEm ? new Date(metaNota.atualizadoEm).getTime() : undefined,

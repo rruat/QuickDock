@@ -2,6 +2,7 @@
 import { getNoteById, updateNoteMetaById } from './storage.js';
 import { openAppearancePopover } from './notes-appearance.js';
 import { renderNoteCover, clearNoteCover } from './note-cover.js';
+import { hasIconImage, buildIconImageNode } from './note-icon-image.js';
 
 const headerIconBtn  = document.getElementById('btn-note-header-icon');
 const headerIconEl   = document.getElementById('note-header-icon');
@@ -21,7 +22,15 @@ export function renderNoteHeader(note) {
   if (!headerIconEl || !headerTitleEl || !headerColorDot) return;
   if (!note) return;
 
-  headerIconEl.textContent = note.icon || 'description';
+  // Ícone com imagem ocupa o lugar do glifo; o texto do glifo some junto.
+  if (hasIconImage(note)) {
+    headerIconEl.textContent = '';
+    headerIconEl.appendChild(buildIconImageNode(note.iconImage, 'note-header-icon-img'));
+    headerIconEl.classList.add('has-icon-image');
+  } else {
+    headerIconEl.classList.remove('has-icon-image');
+    headerIconEl.textContent = note.icon || 'description';
+  }
   headerIconEl.classList.toggle('icon-filled', !!note.iconFilled);
   headerIconEl.style.color = note.color || '';
 
@@ -47,7 +56,7 @@ export function flushHeaderTitle() {
 export function clearNoteHeader() {
   headerNoteRef = null;
   if (headerTitleEl) headerTitleEl.textContent = '';
-  if (headerIconEl) headerIconEl.textContent = '';
+  if (headerIconEl) { headerIconEl.textContent = ''; headerIconEl.classList.remove('has-icon-image'); }
   clearNoteCover();
 }
 

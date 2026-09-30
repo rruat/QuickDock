@@ -4,6 +4,8 @@ import { updateNoteMetaById } from './storage.js';
 import { positionPopover } from './popover.js';
 import { iconSvg } from './icons.js';
 import { MATERIAL_ICONS } from './material-icons-list.js';
+import { hasIconImage, renderIconImageEditor, buildIconImageNode, forgetIconFile } from './note-icon-image.js';
+import { deleteFile } from './storage.js';
 import {
   getNotesMeta, getActiveId, setAccent, renderTabs, refreshOpenAsideRows,
 } from './notes-tabs.js';
@@ -53,6 +55,41 @@ export function renderAppearanceContent(pop, meta) {
   iconHeader.innerHTML = `<span>Ícone</span><span class="icon-catalog-header-count">${(MATERIAL_ICONS?.length || 4284).toLocaleString('pt-BR')} disponíveis</span>`;
   pop.appendChild(iconHeader);
 
+  // Imagem própria (link ou arquivo) no lugar do ícone do catálogo, com corte quadrado.
+  const imageRow = document.createElement('button');
+  imageRow.type = 'button';
+  imageRow.className = 'icon-image-row' + (hasIconImage(meta) ? ' active' : '');
+  const thumb = hasIconImage(meta) ? buildIconImageNode(meta.iconImage, 'icon-image-thumb') : null;
+  if (thumb) imageRow.appendChild(thumb);
+  else imageRow.insertAdjacentHTML('beforeend', '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add_photo_alternate</span>');
+  const imageLabel = document.createElement('span');
+  imageLabel.textContent = hasIconImage(meta) ? 'Alterar imagem do ícone' : 'Usar uma imagem (link ou arquivo)';
+  imageRow.appendChild(imageLabel);
+  imageRow.addEventListener('mousedown', e => e.stopPropagation());
+  imageRow.addEventListener('click', e => {
+    e.stopPropagation();
+    renderIconImageEditor(pop, meta, {
+      back: () => renderAppearanceContent(pop, meta),
+      save: async (iconImage) => {
+        const antigo = meta.iconImage?.fileId;
+        // Imagem e ícone do catálogo são excludentes: ficar com os dois só
+        // deixaria dúvida sobre qual aparece.
+        const patch = { iconImage, ...(iconImage ? { icon: null } : {}) };
+        await updateNoteMetaById(meta.id, patch);
+        sincronizarComNotesMeta(meta, patch);
+        if (antigo != null && antigo !== iconImage?.fileId) {
+          try { await deleteFile(antigo); } catch {}
+          forgetIconFile(antigo);
+        }
+        renderTabs();
+        refreshOpenAsideRows();
+        document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
+        renderAppearanceContent(pop, meta);
+      },
+    });
+  });
+  pop.appendChild(imageRow);
+
   // Barra de busca de ícones
   const searchWrap = document.createElement('div');
   searchWrap.className = 'icon-search-wrap';
@@ -86,8 +123,13 @@ export function renderAppearanceContent(pop, meta) {
   pop.appendChild(iconScrollContainer);
 
   const pickIcon = async (name) => {
-    await updateNoteMetaById(meta.id, { icon: name });
-    sincronizarComNotesMeta(meta, { icon: name });
+    const antigo = meta.iconImage?.fileId;
+    await updateNoteMetaById(meta.id, { icon: name, iconImage: null });
+    sincronizarComNotesMeta(meta, { icon: name, iconImage: null });
+    if (antigo != null) {
+      try { await deleteFile(antigo); } catch {}
+      forgetIconFile(antigo);
+    }
     renderTabs();
     renderAppearanceContent(pop, meta);
     refreshOpenAsideRows();
@@ -97,7 +139,7 @@ export function renderAppearanceContent(pop, meta) {
   const filledClass = meta.iconFilled ? ' icon-filled' : '';
 
   const noneIconBtn = document.createElement('button');
-  noneIconBtn.className = 'icon-swatch icon-swatch-none' + (!meta.icon ? ' active' : '');
+  noneIconBtn.className = 'icon-swatch icon-swatch-none' + (!meta.icon && !hasIconImage(meta) ? ' active' : '');
   noneIconBtn.textContent = '—';
   noneIconBtn.title = 'Nenhum ícone';
   noneIconBtn.setAttribute('aria-label', 'Nenhum ícone');
@@ -263,7 +305,7 @@ export function renderAppearanceContent(pop, meta) {
   // Ocultar o nome só faz sentido se sobrar ícone ou cor pra identificar a
   // aba — sem isso a aba ficaria completamente vazia, então a opção nem
   // aparece nesse caso (a nota volta a mostrar o nome automaticamente).
-  if (meta.icon || meta.color) {
+  if (meta.icon || meta.color || hasIconImage(meta)) {
     pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
     const hideRow = document.createElement('label');

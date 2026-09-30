@@ -925,6 +925,37 @@ for (const { nome, blocks } of BLOCOS_V18) {
     ok('sync · "capa" não vira propriedade da nota', baixada && !('capa' in (baixada.properties || {})), JSON.stringify(baixada?.properties));
   }
 
+  // 1c. Ícone com imagem: o link e o corte viajam; o arquivo enviado não
+  {
+    const adapter = new MemorySyncAdapter();
+    const storeA = new InMemoryStore();
+    const storeB = new InMemoryStore();
+    const engineA = new SyncEngine({ adapter, store: storeA, deviceName: 'Notebook' });
+    const engineB = new SyncEngine({ adapter, store: storeB, deviceName: 'Celular' });
+
+    await storeA.salvarNotaLocal({
+      uid: 'u_ico_1', title: 'Icone link', ordem: 'a0',
+      blocks: [{ id: 'b1', type: 'paragraph', html: 'x' }],
+      iconImage: { url: 'https://exemplo.com/i.png', x: 30, y: 70, zoom: 2 },
+    });
+    await storeA.salvarNotaLocal({
+      uid: 'u_ico_2', title: 'Icone arquivo', ordem: 'a1',
+      blocks: [{ id: 'b1', type: 'paragraph', html: 'x' }],
+      iconImage: { fileId: 9, x: 50, y: 50, zoom: 1 },
+    });
+    await engineA.sincronizar();
+
+    const link = await adapter.ler('notas/icone-link.md');
+    ok('sync · ícone com imagem sobe (link + corte)', link?.texto.includes('iconeImagem: "https://exemplo.com/i.png"') && link?.texto.includes('iconeCorte: 30,70,2'), link?.texto);
+    const arq = await adapter.ler('notas/icone-arquivo.md');
+    ok('sync · ícone com arquivo enviado não vai pro arquivo remoto', arq && !/iconeImagem|iconeCorte/.test(arq.texto), arq?.texto);
+
+    await engineB.sincronizar();
+    const baixada = await storeB.obterNotaPorUid('u_ico_1');
+    igual('sync · ícone com imagem chega no outro aparelho', baixada?.iconImage, { url: 'https://exemplo.com/i.png', x: 30, y: 70, zoom: 2 });
+    ok('sync · chaves do ícone não viram propriedades', baixada && !('iconeImagem' in (baixada.properties || {})) && !('iconeCorte' in (baixada.properties || {})), JSON.stringify(baixada?.properties));
+  }
+
   // 2. Nota nova lá desce
   {
     const adapter = new MemorySyncAdapter();

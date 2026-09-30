@@ -17,6 +17,7 @@ import {
 import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks } from './blocks.js';
 import { buildBackup, parseBackup } from './backup.js';
 import { iconSvg, createIcon } from './icons.js';
+import { hasIconImage, buildIconImageNode } from './note-icon-image.js';
 import { switchView, getCurrentView } from './views.js';
 import { createTutorialNote } from './notes-tutorial.js';
 export { createTutorialNote };
@@ -245,6 +246,10 @@ export function scrollTabIntoView(id) {
 // próprio: o duplo clique em qualquer parte da aba (texto, ícone ou cor)
 // é tratado no nível da própria aba, em buildTab.
 export function buildTabIndicator(meta) {
+  if (hasIconImage(meta)) {
+    return buildIconImageNode(meta.iconImage, 'note-tab-icon note-tab-icon-img');
+  }
+
   if (meta.icon) {
     const ico = createIcon(meta.icon, 'note-tab-icon' + (meta.iconFilled ? ' icon-filled' : ''));
     ico.style.color = meta.color || 'var(--text-muted)';
@@ -287,7 +292,7 @@ function buildTab(meta) {
 
   // Só oculta o nome se sobrar ícone ou cor pra identificar a aba — nunca os
   // três (ícone, cor e nome) somem ao mesmo tempo.
-  const titleHidden = !!meta.titleHidden && !!(meta.icon || meta.color);
+  const titleHidden = !!meta.titleHidden && !!(meta.icon || meta.color || hasIconImage(meta));
 
   const titleGroup = document.createElement('div');
   titleGroup.className = 'note-tab-title-group';
