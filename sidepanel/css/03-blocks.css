@@ -396,13 +396,65 @@
 }
 
 .block-checklist .block-marker.cb-wrap {
-  padding-top: 3px;
+  padding-top: 1px;
+  line-height: 1;
 }
+/* A caixa é o ícone do Google Fonts (Material Symbols), não o checkbox do
+   navegador. O <input> continua existindo — é ele que guarda o estado, recebe o
+   clique e mostra o "meio marcado" do pai — só não desenha nada por conta própria. */
 .block-checklist input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--note-accent, var(--accent));
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-block;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
+  vertical-align: middle;
+}
+.block-checklist input[type="checkbox"]::before {
+  content: 'check_box_outline_blank';
+  display: block;
+  font-family: 'Material Symbols Rounded';
+  font-size: 20px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 20px;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  color: var(--note-accent, var(--text-muted));
+  transition: color 0.12s ease;
+}
+.block-checklist input[type="checkbox"]:hover::before {
+  color: var(--note-accent, var(--text));
+}
+.block-checklist input[type="checkbox"]:checked::before {
+  content: 'check_box';
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  color: var(--note-accent, var(--accent));
+}
+.block-checklist input[type="checkbox"]:indeterminate::before {
+  content: 'indeterminate_check_box';
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  color: var(--note-accent, var(--accent));
+}
+.block-checklist input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+/* Com o cursor na linha o item mostra o markdown ("- [ ] ") no lugar da caixa. */
+.block-checklist:has(> .block-content > .md-syntax-prefix) > .block-marker {
+  display: none;
 }
 .block-checklist[data-checked="true"] .block-content {
   text-decoration: line-through;

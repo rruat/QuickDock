@@ -647,10 +647,12 @@ function convertBlockType(blockEl, newType, checked = false) {
     const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
+    const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
     // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
     // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
     // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
     if (mCall) extra = mCall[2];
+    else if (mCheck) extra = mCheck[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) el.after(document.createTextNode(extra));
@@ -823,10 +825,12 @@ function sanitizeForSave(html, keepBreaks = false) {
     const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
+    const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
     // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
     // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
     // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
     if (mCall) extra = mCall[2];
+    else if (mCheck) extra = mCheck[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) el.after(document.createTextNode(extra));
@@ -1507,6 +1511,13 @@ function refreshChecklistStates() {
 }
 
 // ── Checklist: clique direto na caixa (sem precisar de Ctrl) ──────────────────
+// O clique precisa só alternar a caixa. Sem este mousedown o navegador também
+// leva o cursor pra linha, o Live Preview trocava a caixa pelo "- [ ] " e a
+// pessoa nunca via o item marcado.
+root.addEventListener('mousedown', e => {
+  if (e.target.matches?.('.block-checklist input[type="checkbox"]')) e.preventDefault();
+});
+
 root.addEventListener('change', e => {
   if (!e.target.matches('input[type="checkbox"]')) return;
   const block = getBlockFromNode(e.target);
@@ -1685,8 +1696,11 @@ export function revealBlockSyntax(block) {
   const isHeading = HEADING_TAGS[type];
   const isQuoted = isBlockQuoted(block);
   const callout = block.dataset.callout;
+  // Checklist dentro de citação continua mostrando só o "> " (a caixa segue
+  // visível); o modo fonte "- [ ] " é do item solto.
+  const isChecklist = type === 'checklist' && !isQuoted;
 
-  if (!isHeading && !isQuoted && !callout) return;
+  if (!isHeading && !isQuoted && !callout && !isChecklist) return;
 
   const contentEl = getContentEl(block);
   if (!contentEl) return;
@@ -1710,6 +1724,9 @@ export function revealBlockSyntax(block) {
     const level = Number(type.replace('heading', ''));
     prefixSpan.textContent = '#'.repeat(level) + ' ';
     prefixSpan.dataset.syntaxType = 'heading';
+  } else if (isChecklist) {
+    prefixSpan.textContent = block.dataset.checked === 'true' ? '- [x] ' : '- [ ] ';
+    prefixSpan.dataset.syntaxType = 'checklist';
   } else if (isQuoted) {
     prefixSpan.textContent = '> ';
     prefixSpan.dataset.syntaxType = 'quote';
@@ -1748,10 +1765,12 @@ export function collapseBlockSyntax(block) {
     const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
+    const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
     // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
     // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
     // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
     if (mCall) extra = mCall[2];
+    else if (mCheck) extra = mCheck[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) p.after(document.createTextNode(extra));
@@ -2539,6 +2558,54 @@ root.addEventListener('input', () => {
       if (prefixSpan) prefixSpan.remove();
       setBlockQuoted(block, false);
       scheduleSave();
+    }
+  }
+
+  // Live Preview: monitorar edição do "- [ ] " / "- [x] " do checklist
+  if (block.dataset.type === 'checklist' && !isBlockQuoted(block)) {
+    const contentEl = getContentEl(block);
+    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    if (prefixSpan) {
+      const texto = prefixSpan.textContent;
+      const mCheck = /^([-*] \[([ xX]?)\][ \t]?)(.*)$/s.exec(texto);
+      if (mCheck) {
+        // Texto digitado colado ao prefixo volta pro corpo do item.
+        const extraText = mCheck[3];
+        if (extraText) {
+          prefixSpan.textContent = `- [${/[xX]/.test(mCheck[2]) ? 'x' : ' '}] `;
+          let nextNode = prefixSpan.nextSibling;
+          if (nextNode && nextNode.nodeType === Node.TEXT_NODE) nextNode.data = extraText + nextNode.data;
+          else { nextNode = document.createTextNode(extraText); prefixSpan.after(nextNode); }
+          const sel = document.getSelection();
+          if (sel) {
+            const r = document.createRange();
+            r.setStart(nextNode, extraText.length);
+            r.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          }
+        }
+        // Trocar o espaço por "x" (ou o contrário) marca/desmarca o item.
+        const marcado = /[xX]/.test(mCheck[2]);
+        if (marcado !== (block.dataset.checked === 'true')) {
+          marcarChecklist(block, marcado);
+          propagarParaBaixo(block, marcado);
+          propagarParaCima(block);
+          scheduleSave();
+        }
+      } else {
+        // Apagaram pedaço do "- [ ]": deixa de ser checklist e o que sobrou
+        // fica como texto comum, pra pessoa ver o que digitou.
+        const sobra = texto.replaceAll(ANCORA, '');
+        prefixSpan.remove();
+        const para = convertBlockType(block, 'paragraph');
+        const paraContent = getContentEl(para);
+        paraContent.prepend(document.createTextNode(sobra));
+        focusBlockStart(para);
+        setCaretOffset(paraContent, sobra.length);
+        scheduleSave();
+        return;
+      }
     }
   }
 
