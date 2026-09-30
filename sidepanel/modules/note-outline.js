@@ -63,7 +63,16 @@ export function irParaTitulo(alvoBruto) {
     updateActiveOutlineHeading();
   }, 600);
 
-  achado.el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  // Rola só o container do editor. scrollIntoView rolaria também os ancestrais
+  // com overflow:hidden (#mMain, a seção da view), empurrando a página pra cima
+  // e cortando o header da view.
+  if (noteEditorEl) {
+    const topo = noteEditorEl.scrollTop
+      + (achado.el.getBoundingClientRect().top - noteEditorEl.getBoundingClientRect().top);
+    noteEditorEl.scrollTo({ top: Math.max(0, topo), behavior: 'smooth' });
+  } else {
+    achado.el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
   // Um pisca-pisca curto: sem ele, num título parecido com os vizinhos, não dá
   // pra saber se a rolagem parou no lugar certo.
   achado.el.classList.add('heading-alvo');
