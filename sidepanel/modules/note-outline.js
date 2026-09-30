@@ -285,5 +285,11 @@ if (floatingOutlineToggleBtn) {
 }
 
 setOutlineSidebarOpen(outlineSidebarOpen);
-setSidebarTab(activeSidebarTab);
-setBottomTab(activeBottomTab);
+// Adiado: este módulo é importado cedo por note.js, antes do `let currentNoteId`
+// de note.js inicializar. Com a aba Backlinks salva no localStorage,
+// setSidebarTab chama refreshBacklinks(getCurrentNoteId()) já aqui no topo e
+// estourava "Cannot access 'currentNoteId' before initialization".
+queueMicrotask(() => {
+  setSidebarTab(activeSidebarTab);
+  setBottomTab(activeBottomTab);
+});

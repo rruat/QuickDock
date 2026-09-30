@@ -112,18 +112,32 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   min-height: 28px;
 }
 
-.note-bottom-tabs {
+/* Controle segmentado (Sumário | Backlinks): trilho em pílula, um segmento
+   ativo por vez. Mesmo visual no painel lateral (desktop) e no inferior. */
+.note-bottom-tabs,
+.note-sidebar-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-hover);
+}
+
+.note-bottom-tabs {
+  flex: 1;
+  min-width: 0;
 }
 
 .note-bottom-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex: 1;
+  justify-content: center;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
@@ -138,7 +152,6 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
 }
 
 .note-bottom-tab:hover {
-  background: var(--bg-hover);
   color: var(--text);
 }
 
@@ -146,7 +159,6 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   background: var(--bg-card);
   border-color: var(--border);
   color: var(--text);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .note-backlinks-toggle {
@@ -279,9 +291,6 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
 }
 
 .note-sidebar-tabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
   flex: 1;
   min-width: 0;
 }
@@ -289,13 +298,15 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
 .note-sidebar-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+  padding: 4px 6px;
+  border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -303,9 +314,23 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   min-width: 0;
 }
 
+/* Só texto (como no controle segmentado): o painel é estreito demais pra ícone
+   + rótulo + contador nos dois segmentos sem truncar. */
 .note-sidebar-tab .qd-icon {
-  font-size: 15px;
-  flex-shrink: 0;
+  display: none;
+}
+
+/* No desktop o rodapé só tem a aba Backlinks (o Sumário mora no painel lateral):
+   uma aba sozinha não precisa do trilho segmentado. */
+html[data-platform="desktop"] .note-bottom-tabs {
+  flex: 0 1 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+html[data-platform="desktop"] .note-bottom-tab {
+  flex: 0 1 auto;
 }
 
 .note-sidebar-tab-title {
@@ -315,7 +340,6 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
 }
 
 .note-sidebar-tab:hover {
-  background: var(--bg-hover);
   color: var(--text);
 }
 
@@ -323,7 +347,6 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   background: var(--bg-card);
   border-color: var(--border);
   color: var(--text);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .note-desktop-backlinks-list {
