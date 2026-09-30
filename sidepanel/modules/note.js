@@ -1108,7 +1108,7 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
 
 // ── Clique em marcação detectada (CPF, data, cálculo…) ou seleção por toque ──
 root.addEventListener('click', e => {
-  if (!isCtrlHeld && !touchSelectionActive && !isBlockSelectActive) return;
+  if (!isCtrlHeld && !touchSelectionActive && !getIsBlockSelectActive()) return;
 
   // Mesmo gesto que abre o menu de CPF/data: com Ctrl ou modo de seleção por toque, clique em link navega.
   // Sem Ctrl/modo toque o clique só posiciona o cursor — senão não dá pra editar o texto.
@@ -1161,7 +1161,7 @@ root.addEventListener('click', e => {
 
   const mark = e.target.closest('mark');
   if (!mark) {
-    if (isBlockSelectActive) {
+    if (getIsBlockSelectActive()) {
       const block = e.target.closest('.block');
       if (block && root.contains(block)) {
         e.preventDefault();
@@ -1867,13 +1867,14 @@ export function updateLivePreviewState() {
 // ── Atalhos de Markdown → tipo de bloco ───────────────────────────────────────
 const BLOCK_SHORTCUTS = [
   { re: /^(#{1,6}) (.*)$/s, type: m => `heading${m[1].length}`, prefixLen: m => m[1].length + 1 },
-  // Sem hífen na frente de propósito: "- [ ] " nunca dispara, porque "- "
-  // sozinho já vira lista de marcador antes de "[ ] " terminar de ser digitado
-  // (o atalho roda a cada tecla). "[]"/"[ ]"/"[x] " direto evita a corrida.
-  { re: /^\[([ xX]?)\] (.*)$/s, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), prefixLen: m => m[1].length + 3 },
+  // Digitado tecla por tecla, "- " já vira lista antes do "[ ]" chegar; aí o
+  // "[] " seguinte transforma o item em checkbox (ver CHECKLIST_NA_LISTA).
+  { id: 'checklist', re: /^\[([ xX]?)\] (.*)$/s, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), prefixLen: m => m[1].length + 3 },
+  // "- [ ] " / "- [] " / "- [x] " chegando de uma vez (colado ou digitado rápido).
+  { re: /^[-*] \[([ xX]?)\] (.*)$/s, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), prefixLen: m => m[0].length - m[2].length },
   { re: /^[-*] (?!\[)(.*)$/s, type: () => 'bullet', prefixLen: () => 2 },
   { re: /^\d+\. (.*)$/s, type: () => 'number', prefixLen: m => m[0].length - m[1].length },
-  { re: /^> (.*)$/s, type: () => 'quote', prefixLen: () => 2 },
+  { re: /^> (.*)$/s, type: () => 'quote', prefixLen: () => 2, soPlano: true },
   // A palavra-chave é a do markdown (inglês), igual à que vai pro arquivo.
   { re: /^\[!(note|tip|important|warning|caution)\] (.*)$/is, type: m => `callout:${m[1].toLowerCase()}`, prefixLen: m => m[0].length - m[2].length },
   { re: /^```$/, type: () => 'code', prefixLen: () => 3 },
@@ -1914,7 +1915,18 @@ function checkDividerShortcut(block) {
   return true;
 }
 
-function checkBlockShortcut(block) {
+// Dentro de uma citação, "[!NOTE]" (sem precisar do espaço) vira destaque.
+const CALLOUT_NA_CITACAO = {
+  re: /^\[!(note|tip|important|warning|caution)\][ \t]?(.*)$/is,
+  type: m => `callout:${m[1].toLowerCase()}`,
+  prefixLen: m => m[0].length - m[2].length,
+};
+
+// "- " e "1. " já viraram lista antes do resto ser digitado; "[] " / "[ ] " / "[x] "
+// logo depois transforma o item em checkbox.
+const CHECKLIST_NA_LISTA = BLOCK_SHORTCUTS.find(s => s.id === 'checklist');
+
+function checkBlockShortcut(block, profundidade = 0) {
   const content = getContentEl(block);
   if (!content) return false;
   // Citação e destaque são decoração sobre "paragraph" (convertBlockType nem
@@ -1922,20 +1934,48 @@ function checkBlockShortcut(block) {
   // DEPOIS de virar citação o texto ainda começa com "> " e a mesma regex
   // casa de novo, apagando o "> " de dentro do <span> do prefixo (que essa
   // segunda passada nem recria) e deixando o resto do texto preso lá dentro.
-  if (isBlockQuoted(block) || block.dataset.callout) return false;
-  const text = content.textContent;
-  for (const s of BLOCK_SHORTCUTS) {
+  if (block.dataset.callout) return false;
+
+  // Quem é citação/lista já passou pelo atalho do "> " / "- ": o que foi digitado
+  // DEPOIS é que ainda pode virar outra coisa (destaque, checkbox, título...).
+  // O prefixo "> " vive num <span> à parte e não entra na leitura do texto.
+  const quoted = isBlockQuoted(block);
+  const ehLista = block.dataset.type === 'bullet' || block.dataset.type === 'number';
+  const prefixoSpan = quoted ? content.querySelector(':scope > .md-syntax-prefix') : null;
+  // Âncoras invisíveis logo depois do prefixo não contam: a regex é ancorada no início.
+  const prefixoLen = prefixoSpan ? prefixoSpan.textContent.length : 0;
+  const resto = content.textContent.slice(prefixoLen);
+  const base = prefixoLen + (resto.length - resto.replace(new RegExp(`^${ANCORA}+`), '').length);
+  const text = content.textContent.slice(base);
+
+  let candidatos = BLOCK_SHORTCUTS;
+  if (ehLista) candidatos = [CHECKLIST_NA_LISTA];
+  else if (quoted) candidatos = [CALLOUT_NA_CITACAO, ...BLOCK_SHORTCUTS.filter(s => !s.soPlano)];
+
+  // Onde o cursor estava, pra devolvê-lo ao mesmo ponto do texto depois da
+  // conversão (colar/digitar rápido deixa texto depois do prefixo; sem isto o
+  // cursor ia pro começo e o Enter seguinte abria uma linha acima do texto).
+  const cursorAntes = document.activeElement === content || content.contains(document.getSelection()?.anchorNode)
+    ? getCaretOffset(content) : null;
+
+  for (const s of candidatos) {
     const m = s.re.exec(text);
     if (!m) continue;
     const type = s.type(m);
     const checked = s.checked ? s.checked(m) : false;
     const prefixLen = s.prefixLen ? s.prefixLen(m) : m[0].length;
+    const restanteDoCursor = cursorAntes == null ? 0 : Math.max(0, cursorAntes - (base + prefixLen));
 
-    if (prefixLen > 0 && prefixLen <= content.textContent.length) {
-      const r = rangeFromOffsets(content, 0, prefixLen);
+    if (prefixLen > 0 && base + prefixLen <= content.textContent.length) {
+      const r = rangeFromOffsets(content, base, base + prefixLen);
       r.deleteContents();
     }
     const newBlock = convertBlockType(block, type, checked);
+    if (type.startsWith('callout:')) {
+      // O destaque troca o prefixo "> " da citação pelo marcador "> [!NOTE]".
+      getContentEl(newBlock).querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
+      markCalloutEdges();
+    }
     revealBlockSyntax(newBlock);
     const newContent = getContentEl(newBlock);
     const prefixEl = newContent.querySelector(':scope > .md-syntax-prefix');
@@ -1968,8 +2008,18 @@ function checkBlockShortcut(block) {
     } else {
       focusBlockStart(newBlock);
     }
+    if (restanteDoCursor > 0) {
+      const novoPrefixo = getContentEl(newBlock).querySelector(':scope > .md-syntax-prefix');
+      const ateOTexto = novoPrefixo ? novoPrefixo.textContent.length + ANCORA.length : 0;
+      setCaretOffset(getContentEl(newBlock), ateOTexto + restanteDoCursor);
+    }
     renumberLists();
     closeSlashMenu();
+    // O que sobrou depois do prefixo ainda pode ser outro atalho — colar ou
+    // digitar rápido "> [!NOTE]", "- [ ] item", "> - x"... entrega tudo de uma
+    // vez, e a primeira conversão só consumia o "> " / "- ". Reanalisa o bloco
+    // novo (com limite, por segurança).
+    if (profundidade < 3) checkBlockShortcut(newBlock, profundidade + 1);
     return true;
   }
   return false;
@@ -2106,6 +2156,12 @@ function htmlOfFragment(fragment) {
   return div.innerHTML;
 }
 
+function textoSemPrefixo(content) {
+  const clone = content.cloneNode(true);
+  clone.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
+  return clone.textContent.replaceAll(ANCORA, '').trim();
+}
+
 function handleEnter(block) {
   captureUndoPoint();
   const content  = getContentEl(block);
@@ -2125,7 +2181,10 @@ function handleEnter(block) {
   // A folha de cálculo se repete no Enter como uma lista se repete, e sai pelo
   // mesmo gesto: Enter numa linha vazia.
   const repete    = isListish || type === 'calc';
-  const isEmpty   = content.textContent.trim() === '';
+  // "Vazio" ignora o prefixo do Live Preview ("> ", "> [!NOTE]") e as âncoras
+  // invisíveis: um bloco novo de citação/destaque já nasce com o prefixo
+  // revelado, e sem isto o segundo Enter nunca saía do destaque.
+  const isEmpty   = textoSemPrefixo(content) === '';
 
   if (repete && isEmpty) {
     // Indentado, o Enter num item vazio sai um nível — só no nível 0 é que
@@ -2538,6 +2597,9 @@ root.addEventListener('input', () => {
     if (checkDividerShortcut(block)) { scheduleSave(); return; }
     if (checkBlockShortcut(block))   { scheduleSave(); return; }
     checkSlashMenu(block);
+  } else if (block.dataset.type === 'bullet' || block.dataset.type === 'number') {
+    if (checkBlockShortcut(block)) { scheduleSave(); return; }
+    closeSlashMenu();
   } else {
     closeSlashMenu();
   }

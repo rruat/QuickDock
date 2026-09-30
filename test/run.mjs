@@ -1929,10 +1929,11 @@ for (const { nome, blocks } of BLOCOS_V18) {
     igual('atalhos · "[] " vira checklist',     tipoDe('[] '), 'checklist');
     igual('atalhos · "[x] " vira checklist',    tipoDe('[x] '), 'checklist');
     igual('atalhos · "[ ] " vira checklist',    tipoDe('[ ] '), 'checklist');
-    // Sem hífen na frente de propósito: "- " sozinho já é um atalho completo
-    // (vira lista), então "- [ ] " digitado tecla por tecla nunca chegaria a
-    // ser avaliado inteiro — o bloco já teria virado lista antes do "[ ]".
-    igual('atalhos · "- [x] " NÃO vira checklist (hífen já vira lista antes)', tipoDe('- [x] '), null);
+    // "- [ ] " chegando de uma vez (colado/digitado rápido) também é checkbox. Tecla
+    // por tecla, "- " vira lista e o "[] " seguinte converte o item (ver checkBlockShortcut).
+    igual('atalhos · "- [x] " vira checklist', tipoDe('- [x] '), 'checklist');
+    igual('atalhos · "- [] " vira checklist',  tipoDe('- [] '), 'checklist');
+    igual('atalhos · "- [ ] " vira checklist', tipoDe('- [ ] '), 'checklist');
     igual('atalhos · "> " vira citação',        tipoDe('> '), 'quote');
 
     // Destaque ao digitar, com a palavra-chave do markdown.
