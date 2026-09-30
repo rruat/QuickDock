@@ -116,6 +116,7 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
    ativo por vez. Mesmo visual no painel lateral (desktop) e no inferior. */
 .note-bottom-tabs,
 .note-sidebar-tabs {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0;
@@ -123,6 +124,29 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--bg-hover);
+  isolation: isolate;
+}
+
+/* Indicador: metade do trilho, desliza entre os dois segmentos. Os botões ficam
+   transparentes e só mudam a cor do texto. */
+.note-bottom-tabs::before,
+.note-sidebar-tabs::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.note-bottom-tabs:has(> :nth-child(2).active)::before,
+.note-sidebar-tabs:has(> :nth-child(2).active)::before {
+  transform: translateX(100%);
 }
 
 .note-bottom-tabs {
@@ -144,7 +168,7 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.2s ease;
 }
 
 .note-bottom-tab .qd-icon {
@@ -156,8 +180,6 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
 }
 
 .note-bottom-tab.active {
-  background: var(--bg-card);
-  border-color: var(--border);
   color: var(--text);
 }
 
@@ -309,7 +331,7 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.2s ease;
   user-select: none;
   min-width: 0;
 }
@@ -322,6 +344,12 @@ html[data-platform="mobile"] #btn-note-outline-toggle-desktop {
 
 /* No desktop o rodapé só tem a aba Backlinks (o Sumário mora no painel lateral):
    uma aba sozinha não precisa do trilho segmentado. */
+/* Um ou outro: com o painel lateral (Sumário | Backlinks) aberto, o rodapé de
+   backlinks do editor não aparece junto. Com o painel recolhido, ele volta. */
+html[data-platform="desktop"] .note-workspace-body:has(.note-outline-sidebar:not(.is-collapsed)) .note-backlinks-section {
+  display: none !important;
+}
+
 html[data-platform="desktop"] .note-bottom-tabs {
   flex: 0 1 auto;
   padding: 0;
@@ -329,8 +357,17 @@ html[data-platform="desktop"] .note-bottom-tabs {
   background: transparent;
 }
 
+html[data-platform="desktop"] .note-bottom-tabs::before {
+  display: none;
+}
+
 html[data-platform="desktop"] .note-bottom-tab {
   flex: 0 1 auto;
+}
+
+html[data-platform="desktop"] .note-bottom-tab.active {
+  background: var(--bg-card);
+  border-color: var(--border);
 }
 
 .note-sidebar-tab-title {
@@ -344,9 +381,15 @@ html[data-platform="desktop"] .note-bottom-tab {
 }
 
 .note-sidebar-tab.active {
-  background: var(--bg-card);
-  border-color: var(--border);
   color: var(--text);
+}
+
+/* `display: flex` nas listas vence o atributo [hidden] do navegador — sem isto
+   Sumário e Backlinks apareciam ao mesmo tempo no painel lateral. */
+.note-outline-list[hidden],
+.note-backlinks-list[hidden],
+.note-desktop-backlinks-list[hidden] {
+  display: none !important;
 }
 
 .note-desktop-backlinks-list {
