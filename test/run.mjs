@@ -4936,16 +4936,15 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     spatialShellSource.includes("openViewsMode === 'replace'") &&
     spatialShellSource.includes("e.shiftKey"));
 
-  ok('spatial-shell.js · setupSettingsView lê/salva o modo em localStorage e sincroniza os rádios da view Configurações',
+  ok('spatial-shell.js · setupSettingsView lê/salva o modo em localStorage e sincroniza o toggle da view Configurações',
     spatialShellSource.includes('function setupSettingsView') &&
     spatialShellSource.includes("'quickdock:spatial:open-view-mode'") &&
-    spatialShellSource.includes('settings-open-mode-add') &&
-    spatialShellSource.includes('settings-open-mode-replace'));
+    spatialShellSource.includes('settings-open-mode-add'));
 
-  ok('html · index.html, sidepanel/index.html e 404.html têm o item "Configurações" no #mNav e a view #settings-view com os dois rádios',
+  ok('html · index.html, sidepanel/index.html e 404.html têm o item "Configurações" no #mNav e a view #settings-view com o toggle de modo',
     indexHtmlSource.includes('data-nav-view="settings"') && sidepanelHtmlSource.includes('data-nav-view="settings"') && notFoundHtmlSource.includes('data-nav-view="settings"') &&
     indexHtmlSource.includes('id="settings-view"') && sidepanelHtmlSource.includes('id="settings-view"') && notFoundHtmlSource.includes('id="settings-view"') &&
-    indexHtmlSource.includes('id="settings-open-mode-add"') && indexHtmlSource.includes('id="settings-open-mode-replace"'));
+    indexHtmlSource.includes('id="settings-open-mode-add"') && indexHtmlSource.includes('type="checkbox" class="ios-toggle"'));
 
   ok('style.css · define o visual da view Configurações (.settings-body/.settings-option) e fixa "Configurações" no rodapé do #mNav',
     styleCssSource.includes('.settings-option') &&

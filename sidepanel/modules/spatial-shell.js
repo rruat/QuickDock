@@ -310,20 +310,15 @@ function setupAside() {
 
 // ── View "Configurações" (Mosaico de Views: acrescentar vs substituir) ──────
 function setupSettingsView() {
-  const addRadio = document.getElementById('settings-open-mode-add');
-  const replaceRadio = document.getElementById('settings-open-mode-replace');
-  if (!addRadio || !replaceRadio) return;
+  const addToggle = document.getElementById('settings-open-mode-add');
+  if (!addToggle) return;
 
-  addRadio.checked = openViewsMode === 'add';
-  replaceRadio.checked = openViewsMode === 'replace';
+  addToggle.checked = openViewsMode === 'add';
 
-  const applyMode = (mode) => {
-    openViewsMode = mode;
-    try { localStorage.setItem('quickdock:spatial:open-view-mode', mode); } catch {}
-  };
-
-  addRadio.addEventListener('change', () => { if (addRadio.checked) applyMode('add'); });
-  replaceRadio.addEventListener('change', () => { if (replaceRadio.checked) applyMode('replace'); });
+  addToggle.addEventListener('change', () => {
+    openViewsMode = addToggle.checked ? 'add' : 'replace';
+    try { localStorage.setItem('quickdock:spatial:open-view-mode', openViewsMode); } catch {}
+  });
 }
 
 export function renderAsideViewList() {
