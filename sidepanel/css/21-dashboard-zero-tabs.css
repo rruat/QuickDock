@@ -266,7 +266,7 @@
 /* ===== RODAPÉ DO DRAWER LATERAL (AÇÕES E VISÕES) ===== */
 .notes-aside-footer {
   border-top: 1px solid var(--border);
-  background: var(--bg-secondary);
+  background: var(--bg);
   padding: 10px 12px 14px;
   display: flex;
   flex-direction: column;

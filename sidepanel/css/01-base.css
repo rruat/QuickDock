@@ -19,19 +19,19 @@ html:not([data-theme="dark"]) {
      --border / --border-hover                       TODA borda neutra usa --border
      --text / --text-secondary / --text-muted        textos
      --accent / --accent-light / --danger            destaque e alerta */
-  --bg: #fafafa;
-  --bg-secondary: #f9f9fa;
+  --bg: #F0EEE8;
+  --bg-secondary: #E7E4DC;
   --bg-card: #ffffff;
-  --bg-hover: #ebebeb;
-  --border: #ebebeb;
-  --border-hover: #d7d7d9;
-  --text: #000000;
-  --text-secondary: #555555;
-  --text-muted: #777777;
-  --accent: #000000;
-  --accent-light: rgba(99, 102, 241, 0.15);
-  --danger: #ef4444;
-  --tab-active-border-default: #000000;
+  --bg-hover: #E2DDD3;
+  --border: #aaaaaa;
+  --border-hover: #777777;
+  --text: #1C1B18;
+  --text-secondary: #58554D;
+  --text-muted: #7E7A70;
+  --accent: #1C1B18;
+  --accent-light: rgba(160, 130, 60, 0.12);
+  --danger: #dc2626;
+  --tab-active-border-default: #1C1B18;
   --radius: 12px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -40,17 +40,19 @@ html:not([data-theme="dark"]) {
 }
 
 [data-theme="dark"] {
-  --bg: #121212;
-  --bg-secondary: #181818;
-  --bg-card: #1c1c1c;
-  --bg-hover: #262626;
-  --border: #2a2a2a;
-  --border-hover: #404040;
-  --text: #ffffff;
-  --text-secondary: #a3a3a3;
-  --text-muted: #8b8b8d;
-  --accent: #ffffff;
-  --tab-active-border-default: #808080;
+  --bg: #242321;
+  --bg-secondary: #1C1B19;
+  --bg-card: #2C2B27;
+  --bg-hover: #383632;
+  --border: #3D3B36;
+  --border-hover: #5E5B53;
+  --text: #ECEAE4;
+  --text-secondary: #ADA9A0;
+  --text-muted: #7D7A72;
+  --accent: #ECEAE4;
+  --accent-light: rgba(236, 234, 228, 0.12);
+  --danger: #f87171;
+  --tab-active-border-default: #ECEAE4;
 }
 
 /* ===== RESET E HERANÇA GLOBAL DE TIPOGRAFIA ===== */

@@ -374,14 +374,13 @@
 }
 
 #mNav ul li:hover {
-  background-color: var(--border);
+  background-color: var(--bg-hover);
   color: var(--text);
 }
 
 #mNav ul li.is-active {
   background-color: var(--text);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: var(--bg);
 }
 
 /* "Configurações" fica sempre no rodapé da barra de atividades, separado
@@ -390,6 +389,9 @@
   flex: 1 1 auto;
 }
 
+.nav-item {
+  border: 1px solid var(--border);
+}
 .nav-item-settings {
   margin-top: auto;
 }
@@ -411,8 +413,9 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   background-color: var(--bg);
+  
 }
 
 .aside-header {
@@ -423,6 +426,7 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
+  background-color: var(--bg);
   flex-shrink: 0;
 }
 
@@ -586,19 +590,19 @@
 }
 
 .aside-section-item.is-focused {
-  border-color: #94a3b8;
-  background-color: var(--border);
+  border-color: var(--border-hover);
+  background-color: var(--bg-hover);
 }
 
 .aside-section-item.is-focused .aside-item-icon {
-  background-color: #1e293b;
-  color: #ffffff;
+  background-color: var(--text);
+  color: var(--bg);
 }
 
 .aside-section-item.is-focused .aside-item-badge {
-  background-color: #1e293b;
-  color: #ffffff;
-  border-color: #1e293b;
+  background-color: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
 }
 
 .aside-item-icon {
@@ -739,7 +743,6 @@
 }
 
 .main-section.is-focused .section-header {
-  background-color: var(--bg-card);
   border-bottom-color: var(--border);
 }
 
@@ -748,8 +751,8 @@
 }
 
 .main-section.is-focused .section-icon {
-  background-color: #1e293b;
-  color: #ffffff;
+  background-color: var(--text);
+  color: var(--bg);
 }
 
 .section-focus-indicator {
@@ -760,8 +763,8 @@
   font-weight: 500;
   padding: 1px 7px;
   border-radius: 999px;
-  background-color: #f1f5f9;
-  color: #334155;
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
   border: 1px solid var(--border);
   letter-spacing: 0.02em;
   user-select: none;
@@ -774,7 +777,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background-color: #3b82f6;
+  background-color: var(--accent);
 }
 
 .main-section.is-focused .section-focus-indicator {
