@@ -362,6 +362,8 @@ function createBlockElFrom(bruto) {
   const b  = normalizeBlock(bruto);
   const el = createBlockEl(b.type, b.html ?? '', b.checked ?? false, b.rows ?? null, b.config ?? '');
   if (b.id) el.dataset.id = b.id;
+  if (b.marker) el.dataset.marker = b.marker;
+  if (b.lang) el.dataset.lang = b.lang;
   setBlockDepth(el, b.depth ?? 0);
   setBlockQuoted(el, !!b.quoted);
   setBlockCallout(el, b.callout);
@@ -648,17 +650,23 @@ function convertBlockType(blockEl, newType, checked = false) {
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
     const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
+    const mBullet = /^([-*+])[ \t]?(.*)$/s.exec(text);
+    const mNum = /^(\d+\.)[ \t]?(.*)$/s.exec(text);
     // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
     // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
     // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
     if (mCall) extra = mCall[2];
     else if (mCheck) extra = mCheck[2];
+    else if (mBullet) extra = mBullet[2];
+    else if (mNum) extra = mNum[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) el.after(document.createTextNode(extra));
   });
   oldContent.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
   const newBlock = createBlockEl(newType, oldContent.innerHTML, checked);
+  if (blockEl.dataset.marker && newType === 'bullet') newBlock.dataset.marker = blockEl.dataset.marker;
+  if (blockEl.dataset.lang && newType === 'code') newBlock.dataset.lang = blockEl.dataset.lang;
   setBlockDepth(newBlock, blockDepth(blockEl));
   setBlockQuoted(newBlock, isBlockQuoted(blockEl));
   setBlockCallout(newBlock, blockEl.dataset.callout);
@@ -818,7 +826,7 @@ root.addEventListener('blur', () => {
 function sanitizeForSave(html, keepBreaks = false) {
   const div = document.createElement('div');
   div.innerHTML = html;
-  div.querySelectorAll('mark').forEach(m => m.replaceWith(...m.childNodes));
+  div.querySelectorAll('mark:not(.md-highlight):not([data-syntax="=="])').forEach(m => m.replaceWith(...m.childNodes));
   div.querySelectorAll('.md-syntax-prefix').forEach(el => {
     const text = el.textContent;
     let extra = '';
@@ -826,16 +834,21 @@ function sanitizeForSave(html, keepBreaks = false) {
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
     const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
+    const mBullet = /^([-*+])[ \t]?(.*)$/s.exec(text);
+    const mNum = /^(\d+\.)[ \t]?(.*)$/s.exec(text);
     // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
     // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
     // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
     if (mCall) extra = mCall[2];
     else if (mCheck) extra = mCheck[2];
+    else if (mBullet) extra = mBullet[2];
+    else if (mNum) extra = mNum[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) el.after(document.createTextNode(extra));
   });
   div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());
+  div.querySelectorAll('.md-syntax-fence').forEach(el => el.remove());
   div.querySelectorAll('.md-token-open, .is-active, .md-inline-active').forEach(el => {
     el.classList.remove('md-token-open', 'is-active', 'md-inline-active');
   });
@@ -878,6 +891,8 @@ export function serializeBlockEl(block) {
   if (isBlockQuoted(block)) b.quoted = true;
   if (block.dataset.callout) b.callout = block.dataset.callout;
   if (isBlockUnderlined(block)) b.underlined = true;
+  if (type === 'bullet' && block.dataset.marker) b.marker = block.dataset.marker;
+  if (type === 'code' && block.dataset.lang) b.lang = block.dataset.lang;
   if (type === 'divider') return b;
   if (type === 'image') {
     const fileId = Number(block.dataset.fileId);
@@ -1699,8 +1714,29 @@ export function revealBlockSyntax(block) {
   // Checklist dentro de citação continua mostrando só o "> " (a caixa segue
   // visível); o modo fonte "- [ ] " é do item solto.
   const isChecklist = type === 'checklist' && !isQuoted;
+  const isBullet = type === 'bullet' && !isQuoted;
+  const isNumber = type === 'number' && !isQuoted;
+  const isCode = type === 'code';
 
-  if (!isHeading && !isQuoted && !callout && !isChecklist) return;
+  if (isCode) {
+    if (!block.querySelector(':scope > .md-syntax-fence-open')) {
+      const fenceOpen = document.createElement('div');
+      fenceOpen.className = 'md-syntax-fence md-syntax-fence-open';
+      fenceOpen.contentEditable = 'true';
+      fenceOpen.textContent = '```' + (block.dataset.lang || '');
+
+      const fenceClose = document.createElement('div');
+      fenceClose.className = 'md-syntax-fence md-syntax-fence-close';
+      fenceClose.contentEditable = 'true';
+      fenceClose.textContent = '```';
+
+      block.prepend(fenceOpen);
+      block.append(fenceClose);
+    }
+    return;
+  }
+
+  if (!isHeading && !isQuoted && !callout && !isChecklist && !isBullet && !isNumber) return;
 
   const contentEl = getContentEl(block);
   if (!contentEl) return;
@@ -1727,6 +1763,15 @@ export function revealBlockSyntax(block) {
   } else if (isChecklist) {
     prefixSpan.textContent = block.dataset.checked === 'true' ? '- [x] ' : '- [ ] ';
     prefixSpan.dataset.syntaxType = 'checklist';
+  } else if (isBullet) {
+    const m = block.dataset.marker || '-';
+    prefixSpan.textContent = `${m} `;
+    prefixSpan.dataset.syntaxType = 'bullet';
+  } else if (isNumber) {
+    const visualMarker = block.querySelector(':scope > .block-marker');
+    const numText = visualMarker?.textContent?.trim() || '1.';
+    prefixSpan.textContent = numText.endsWith('.') ? `${numText} ` : `${numText}. `;
+    prefixSpan.dataset.syntaxType = 'number';
   } else if (isQuoted) {
     prefixSpan.textContent = '> ';
     prefixSpan.dataset.syntaxType = 'quote';
@@ -1755,8 +1800,42 @@ export function revealBlockSyntax(block) {
   }
 }
 
+function formatUnparsedInlineMarkdown(contentEl) {
+  if (!contentEl) return;
+  const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    if (!node.parentElement?.closest('code, a, .md-syntax, .md-syntax-prefix')) {
+      textNodes.push(node);
+    }
+  }
+  for (const tn of textNodes) {
+    const text = tn.data;
+    if (text.includes('==') || text.includes('__') || text.includes('***') || text.includes('___') || (text.includes('_') && !text.includes(' '))) {
+      const html = parseInlineMarkdown(text);
+      if (html !== escHtml(text)) {
+        const span = document.createElement('span');
+        span.innerHTML = html;
+        tn.replaceWith(...span.childNodes);
+      }
+    }
+  }
+}
+
 export function collapseBlockSyntax(block) {
   if (!block) return;
+  if (block.dataset.type === 'code') {
+    const fenceOpen = block.querySelector(':scope > .md-syntax-fence-open');
+    if (fenceOpen) {
+      const match = /^`{3,}([a-zA-Z0-9_-]*)/.exec(fenceOpen.textContent.trim());
+      if (match) {
+        block.dataset.lang = match[1] || '';
+      }
+      fenceOpen.remove();
+    }
+    block.querySelectorAll(':scope > .md-syntax-fence-close').forEach(f => f.remove());
+  }
   const contentEl = getContentEl(block);
   if (!contentEl) return;
   contentEl.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => {
@@ -1766,16 +1845,25 @@ export function collapseBlockSyntax(block) {
     const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
     const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
     const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
+    const mBullet = /^([-*+])[ \t]?(.*)$/s.exec(text);
+    const mNum = /^(\d+\.)[ \t]?(.*)$/s.exec(text);
     // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
     // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
     // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
     if (mCall) extra = mCall[2];
     else if (mCheck) extra = mCheck[2];
+    else if (mBullet) {
+      block.dataset.marker = mBullet[1];
+      extra = mBullet[2];
+    } else if (mNum) extra = mNum[2];
     else if (mHead && mHead[2]) extra = mHead[2];
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) p.after(document.createTextNode(extra));
     p.remove();
   });
+  if (block.dataset.type !== 'code' && block.dataset.type !== 'calc' && block.dataset.type !== 'table') {
+    formatUnparsedInlineMarkdown(contentEl);
+  }
 }
 
 const INLINE_SYNTAX_MAP = {
@@ -1787,6 +1875,7 @@ const INLINE_SYNTAX_MAP = {
   STRIKE: '~~',
   DEL: '~~',
   CODE: '`',
+  MARK: '==',
 };
 
 export function revealInlineSyntax(inlineEl) {
@@ -1812,8 +1901,9 @@ export function revealInlineSyntax(inlineEl) {
     return;
   }
 
-  const openSyntax = isWiki ? '[[' : INLINE_SYNTAX_MAP[inlineEl.tagName];
-  const closeSyntax = isWiki ? ']]' : openSyntax;
+  const delimiters = getInlineDelimiters(inlineEl);
+  const openSyntax = delimiters.openSyntax;
+  const closeSyntax = delimiters.closeSyntax;
 
   if (!openSyntax) return;
 
@@ -1845,8 +1935,27 @@ export function collapseInlineSyntax(inlineEl) {
       }
     }
   }
+
+  const openSpan = inlineEl.querySelector(':scope > .md-syntax-open');
+  const closeSpan = inlineEl.querySelector(':scope > .md-syntax-close');
+  if (openSpan && closeSpan) {
+    const delimiters = getInlineDelimiters(inlineEl);
+    const expectedOpen = delimiters.openSyntax;
+    const expectedClose = delimiters.closeSyntax;
+    if (openSpan.textContent !== expectedOpen || closeSpan.textContent !== expectedClose) {
+      inlineEl.classList.remove('md-token-open', 'md-inline-active');
+      openSpan.remove();
+      closeSpan.remove();
+      inlineEl.replaceWith(...inlineEl.childNodes);
+      return;
+    }
+  }
+
   inlineEl.querySelectorAll(':scope > .md-syntax').forEach(s => s.remove());
   inlineEl.classList.remove('md-token-open');
+  if (!inlineEl.textContent.trim()) {
+    inlineEl.remove();
+  }
 }
 
 export function updateLivePreviewState() {
@@ -1891,7 +2000,7 @@ const BLOCK_SHORTCUTS = [
   { id: 'checklist', re: /^\[([ xX]?)\] (.*)$/s, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), prefixLen: m => m[1].length + 3 },
   // "- [ ] " / "- [] " / "- [x] " chegando de uma vez (colado ou digitado rápido).
   { re: /^[-*] \[([ xX]?)\] (.*)$/s, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), prefixLen: m => m[0].length - m[2].length },
-  { re: /^[-*] (?!\[)(.*)$/s, type: () => 'bullet', prefixLen: () => 2 },
+  { re: /^([-*+]) (?!\[)(.*)$/s, type: () => 'bullet', marker: m => m[1], prefixLen: () => 2 },
   { re: /^\d+\. (.*)$/s, type: () => 'number', prefixLen: m => m[0].length - m[1].length },
   { re: /^> (.*)$/s, type: () => 'quote', prefixLen: () => 2, soPlano: true },
   // A palavra-chave é a do markdown (inglês), igual à que vai pro arquivo.
@@ -1990,6 +2099,7 @@ function checkBlockShortcut(block, profundidade = 0) {
       r.deleteContents();
     }
     const newBlock = convertBlockType(block, type, checked);
+    if (s.marker) newBlock.dataset.marker = s.marker(m);
     if (type.startsWith('callout:')) {
       // O destaque troca o prefixo "> " da citação pelo marcador "> [!NOTE]".
       getContentEl(newBlock).querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
@@ -2079,9 +2189,24 @@ const INLINE_SHORTCUTS = [
     },
     text: m => (m[2] ? m[2].trim() : m[1].trim())
   },
-  { re: /\*\*([^\n]+?)\*\*$/, tag: 'strong' },
+  {
+    re: /\*\*\*([^\n]+?)\*\*\*$/,
+    tag: 'strong',
+    attrs: () => ({ 'data-syntax': '***' }),
+    html: m => `<em>${escHtml(m[1])}</em>`
+  },
+  {
+    re: /___([^\n]+?)___$/,
+    tag: 'strong',
+    attrs: () => ({ 'data-syntax': '___' }),
+    html: m => `<em>${escHtml(m[1])}</em>`
+  },
+  { re: /\*\*([^\n]+?)\*\*$/, tag: 'strong', attrs: () => ({ 'data-syntax': '**' }) },
+  { re: /__([^\n]+?)__$/, tag: 'strong', attrs: () => ({ 'data-syntax': '__' }) },
+  { re: /==([^=\n]+?)==$/, tag: 'mark', attrs: () => ({ class: 'md-highlight', 'data-syntax': '==' }) },
   { re: /~~([^\n]+?)~~$/, tag: 's' },
-  { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*$/, tag: 'em' },
+  { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*$/, tag: 'em', attrs: () => ({ 'data-syntax': '*' }) },
+  { re: /(?<![a-zA-Z0-9_])_(?![\s_])([^_\n]+?)(?<![\s_])_$/, tag: 'em', attrs: () => ({ 'data-syntax': '_' }) },
 ];
 
 // Âncora invisível. O cursor precisa cair num nó de texto DE VERDADE fora do
@@ -2094,11 +2219,15 @@ const INLINE_SHORTCUTS = [
 // Ela é temporária: some assim que a primeira letra de verdade entra ao lado
 // (limparAncoras, no início do 'input'), e sanitizeForSave a remove como rede
 // de segurança pra que nunca chegue ao banco em nenhum caminho.
-export function replaceRangeWithTag(contentEl, start, end, tag, innerText, attrs = {}) {
+export function replaceRangeWithTag(contentEl, start, end, tag, innerText, attrs = {}, innerHTML = null) {
   const range = rangeFromOffsets(contentEl, start, end);
   range.deleteContents();
   const el = document.createElement(tag);
-  el.textContent = innerText;
+  if (innerHTML != null) {
+    el.innerHTML = innerHTML;
+  } else {
+    el.textContent = innerText;
+  }
   for (const [nome, valor] of Object.entries(attrs)) el.setAttribute(nome, valor);
   range.insertNode(el);
   if (attrs.class === 'note-internal-link') atualizarLinksInternos();
@@ -2163,7 +2292,8 @@ function tryAutoFormatInline(contentEl) {
     const atributos = attrs ? attrs(m) : {};
     if (atributos === null) continue;
     const textoInterno = text ? text(m) : m[1];
-    replaceRangeWithTag(contentEl, offset - m[0].length, offset, tag, textoInterno, atributos);
+    const htmlInterno = item.html ? item.html(m) : null;
+    replaceRangeWithTag(contentEl, offset - m[0].length, offset, tag, textoInterno, atributos, htmlInterno);
     return;
   }
 }
@@ -2193,6 +2323,54 @@ function handleEnter(block) {
     block.after(newBlock);
     focusBlockStart(newBlock);
     renumberLists();
+    return;
+  }
+
+  // Bloco de código: sair ao chegar ao final do bloco com Enter ou em bloco vazio
+  if (type === 'code') {
+    const sel = document.getSelection();
+    const anchor = sel?.anchorNode;
+    const fenceClose = block.querySelector(':scope > .md-syntax-fence-close');
+    const fenceOpen = block.querySelector(':scope > .md-syntax-fence-open');
+    const isAtFenceClose = fenceClose && (fenceClose === anchor || fenceClose.contains(anchor));
+    const isAtFenceOpen = fenceOpen && (fenceOpen === anchor || fenceOpen.contains(anchor));
+
+    if (isAtFenceOpen) {
+      focusBlockStart(block);
+      return;
+    }
+
+    const isEmpty = content.textContent.trim() === '';
+    const text = content.textContent;
+    const isAtEnd = offset >= text.length;
+    const hasTrailingBlank = text.endsWith('\n') || content.innerHTML.endsWith('<br>');
+
+    if (isAtFenceClose || isEmpty || (isAtEnd && hasTrailingBlank)) {
+      if (hasTrailingBlank && text.endsWith('\n')) {
+        content.textContent = text.replace(/\n$/, '');
+      }
+      collapseBlockSyntax(block);
+      let next = block.nextElementSibling;
+      if (!next || next.dataset.type !== 'paragraph' || next.textContent.trim() !== '') {
+        const newBlock = createBlockEl('paragraph');
+        block.after(newBlock);
+        next = newBlock;
+      }
+      focusBlockStart(next);
+      renumberLists();
+      return;
+    }
+
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const brOrNl = document.createTextNode('\n');
+      range.insertNode(brOrNl);
+      range.setStartAfter(brOrNl);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
     return;
   }
 
@@ -2236,8 +2414,13 @@ function handleEnter(block) {
   afterRange.setEndAfter(content.lastChild ?? content.firstChild ?? content);
   const afterHTML = htmlOfFragment(afterRange.extractContents());
 
+  const marker = block.dataset.marker ||
+    content.querySelector(':scope > .md-syntax-prefix')?.textContent?.trim() ||
+    '-';
   const nextType = repete ? type : 'paragraph';
   const newBlock = createBlockEl(nextType, afterHTML, false);
+  if (block.dataset.marker && nextType === 'bullet') newBlock.dataset.marker = block.dataset.marker;
+  else if (nextType === 'bullet') newBlock.dataset.marker = marker;
   setBlockDepth(newBlock, blockDepth(block));
   setBlockQuoted(newBlock, isBlockQuoted(block));
   setBlockCallout(newBlock, block.dataset.callout);   // Enter continua dentro do destaque
@@ -2561,6 +2744,82 @@ root.addEventListener('input', () => {
     }
   }
 
+  // Live Preview: monitorar edição do marcador de lista não ordenada (+, -, *)
+  if (block.dataset.type === 'bullet' && !isBlockQuoted(block)) {
+    const contentEl = getContentEl(block);
+    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    if (prefixSpan) {
+      const texto = prefixSpan.textContent;
+      const mBullet = /^([-*+])[ \t]?(.*)$/s.exec(texto);
+      if (mBullet) {
+        block.dataset.marker = mBullet[1];
+        const extraText = mBullet[2];
+        if (extraText) {
+          prefixSpan.textContent = `${mBullet[1]} `;
+          let nextNode = prefixSpan.nextSibling;
+          if (nextNode && nextNode.nodeType === Node.TEXT_NODE) nextNode.data = extraText + nextNode.data;
+          else { nextNode = document.createTextNode(extraText); prefixSpan.after(nextNode); }
+          const sel = document.getSelection();
+          if (sel) {
+            const r = document.createRange();
+            r.setStart(nextNode, extraText.length);
+            r.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          }
+        }
+      } else {
+        const sobra = texto.replaceAll(ANCORA, '');
+        prefixSpan.remove();
+        const para = convertBlockType(block, 'paragraph');
+        const paraContent = getContentEl(para);
+        if (sobra) paraContent.prepend(document.createTextNode(sobra));
+        focusBlockStart(para);
+        if (sobra) setCaretOffset(paraContent, sobra.length);
+        scheduleSave();
+        return;
+      }
+    }
+  }
+
+  // Live Preview: monitorar edição do número da lista ordenada (1., 2., etc)
+  if (block.dataset.type === 'number' && !isBlockQuoted(block)) {
+    const contentEl = getContentEl(block);
+    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
+    if (prefixSpan) {
+      const texto = prefixSpan.textContent;
+      const mNum = /^(\d+)\.[ \t]?(.*)$/s.exec(texto);
+      if (mNum) {
+        const extraText = mNum[2];
+        if (extraText) {
+          prefixSpan.textContent = `${mNum[1]}. `;
+          let nextNode = prefixSpan.nextSibling;
+          if (nextNode && nextNode.nodeType === Node.TEXT_NODE) nextNode.data = extraText + nextNode.data;
+          else { nextNode = document.createTextNode(extraText); prefixSpan.after(nextNode); }
+          const sel = document.getSelection();
+          if (sel) {
+            const r = document.createRange();
+            r.setStart(nextNode, extraText.length);
+            r.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          }
+        }
+      } else {
+        const sobra = texto.replaceAll(ANCORA, '');
+        prefixSpan.remove();
+        const para = convertBlockType(block, 'paragraph');
+        const paraContent = getContentEl(para);
+        if (sobra) paraContent.prepend(document.createTextNode(sobra));
+        focusBlockStart(para);
+        if (sobra) setCaretOffset(paraContent, sobra.length);
+        renumberLists();
+        scheduleSave();
+        return;
+      }
+    }
+  }
+
   // Live Preview: monitorar edição do "- [ ] " / "- [x] " do checklist
   if (block.dataset.type === 'checklist' && !isBlockQuoted(block)) {
     const contentEl = getContentEl(block);
@@ -2624,8 +2883,9 @@ root.addEventListener('input', () => {
           shouldUnwrap = true;
         }
       } else {
-        const expectedOpen = isWiki ? '[[' : INLINE_SYNTAX_MAP[inline.tagName];
-        const expectedClose = isWiki ? ']]' : expectedOpen;
+        const delimiters = getInlineDelimiters(inline);
+        const expectedOpen = delimiters.openSyntax;
+        const expectedClose = delimiters.closeSyntax;
         if (openSpan.textContent !== expectedOpen || closeSpan.textContent !== expectedClose) {
           shouldUnwrap = true;
         }
@@ -2658,7 +2918,10 @@ root.addEventListener('input', () => {
     // texto puro.
     const contentEl = getContentEl(block);
     const firstNode = contentEl?.firstChild;
-    if (firstNode?.nodeType === Node.ELEMENT_NODE && firstNode.tagName === 'MARK') {
+    if (firstNode?.nodeType === Node.ELEMENT_NODE &&
+        firstNode.tagName === 'MARK' &&
+        !firstNode.classList.contains('md-highlight') &&
+        firstNode.getAttribute('data-syntax') !== '==') {
       unwrapMarks(contentEl);
     }
     if (checkDividerShortcut(block)) { scheduleSave(); return; }
@@ -2837,23 +3100,131 @@ root.addEventListener('keydown', e => {
               if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
 
               let nodeToSelect;
-              // Se já está como *texto*, o 2º '*' converte imediatamente para negrito <strong>
               if (/^\*([^*]+)\*$/.test(coreText)) {
+                // 2º '*': converte para negrito <strong>
                 const inner = coreText.slice(1, -1);
                 const strong = document.createElement('strong');
+                strong.setAttribute('data-syntax', '**');
                 strong.textContent = inner;
                 frag.appendChild(strong);
                 revealInlineSyntax(strong);
                 livePreviewActiveInline = strong;
                 nodeToSelect = strong;
               } else if (/^\*\*([^*]+)\*\*$/.test(coreText)) {
-                // Já é **texto**: desfaz para texto puro
+                // 3º '*': converte para negrito + itálico ***texto***
                 const inner = coreText.slice(2, -2);
+                const strong = document.createElement('strong');
+                strong.setAttribute('data-syntax', '***');
+                const em = document.createElement('em');
+                em.textContent = inner;
+                strong.appendChild(em);
+                frag.appendChild(strong);
+                revealInlineSyntax(strong);
+                livePreviewActiveInline = strong;
+                nodeToSelect = strong;
+              } else if (/^\*\*\*([^*]+)\*\*\*$/.test(coreText)) {
+                // Já é ***texto***: desfaz para texto puro
+                const inner = coreText.slice(3, -3);
                 nodeToSelect = document.createTextNode(inner);
                 frag.appendChild(nodeToSelect);
               } else {
                 // 1º '*': envolve com *texto*
                 nodeToSelect = document.createTextNode(`*${coreText}*`);
+                frag.appendChild(nodeToSelect);
+              }
+
+              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
+              range.insertNode(frag);
+
+              const newRange = document.createRange();
+              newRange.selectNode(nodeToSelect);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+              scheduleSave();
+              return;
+            }
+
+            if (e.key === '_') {
+              e.preventDefault();
+              captureUndoPoint();
+              range.deleteContents();
+
+              const frag = document.createDocumentFragment();
+              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
+
+              let nodeToSelect;
+              if (/^_([^_]+)_$/.test(coreText)) {
+                // 2º '_': converte para negrito __texto__
+                const inner = coreText.slice(1, -1);
+                const strong = document.createElement('strong');
+                strong.setAttribute('data-syntax', '__');
+                strong.textContent = inner;
+                frag.appendChild(strong);
+                revealInlineSyntax(strong);
+                livePreviewActiveInline = strong;
+                nodeToSelect = strong;
+              } else if (/^__([^_]+)__$/.test(coreText)) {
+                // 3º '_': converte para negrito + itálico ___texto___
+                const inner = coreText.slice(2, -2);
+                const strong = document.createElement('strong');
+                strong.setAttribute('data-syntax', '___');
+                const em = document.createElement('em');
+                em.textContent = inner;
+                strong.appendChild(em);
+                frag.appendChild(strong);
+                revealInlineSyntax(strong);
+                livePreviewActiveInline = strong;
+                nodeToSelect = strong;
+              } else if (/^___([^_]+)___$/.test(coreText)) {
+                // Já é ___texto___: desfaz para texto puro
+                const inner = coreText.slice(3, -3);
+                nodeToSelect = document.createTextNode(inner);
+                frag.appendChild(nodeToSelect);
+              } else {
+                // 1º '_': envolve com _texto_
+                nodeToSelect = document.createTextNode(`_${coreText}_`);
+                frag.appendChild(nodeToSelect);
+              }
+
+              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
+              range.insertNode(frag);
+
+              const newRange = document.createRange();
+              newRange.selectNode(nodeToSelect);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+              scheduleSave();
+              return;
+            }
+
+            if (e.key === '=') {
+              e.preventDefault();
+              captureUndoPoint();
+              range.deleteContents();
+
+              const frag = document.createDocumentFragment();
+              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
+
+              let nodeToSelect;
+              if (/^=([^=]+)=$/.test(coreText)) {
+                // 2º '=': converte para texto destacado ==texto==
+                const inner = coreText.slice(1, -1);
+                const mark = document.createElement('mark');
+                mark.className = 'md-highlight';
+                mark.setAttribute('data-syntax', '==');
+                mark.textContent = inner;
+                frag.appendChild(mark);
+                revealInlineSyntax(mark);
+                livePreviewActiveInline = mark;
+                nodeToSelect = mark;
+              } else if (/^==([^=]+)==$/.test(coreText)) {
+                // Já é ==texto==: desfaz para texto puro
+                const inner = coreText.slice(2, -2);
+                nodeToSelect = document.createTextNode(inner);
+                frag.appendChild(nodeToSelect);
+              } else {
+                // 1º '=': envolve com =texto=
+                nodeToSelect = document.createTextNode(`=${coreText}=`);
                 frag.appendChild(nodeToSelect);
               }
 
@@ -2941,7 +3312,6 @@ root.addEventListener('keydown', e => {
 
             // Pares literais: ", ', (, {, _
             const PAIRS = {
-              '_': [ '_', '_' ],
               '"': [ '"', '"' ],
               "'": [ "'", "'" ],
               '(': [ '(', ')' ],
@@ -3074,7 +3444,7 @@ root.addEventListener('keydown', e => {
 
   if (e.key === 'Enter' && !e.shiftKey) {
     const block = currentBlock();
-    if (!block || block.dataset.type === 'code') return;
+    if (!block) return;
     e.preventDefault();
     handleEnter(block);
     scheduleSave();
@@ -3089,6 +3459,24 @@ root.addEventListener('keydown', e => {
   // confere se ele saiu do bloco atual sem pousar no vizinho — se sim, é
   // porque pulou ele, e a gente troca o cursor perdido por uma seleção de
   // bloco de verdade (mesma que clique/arrasto usam, que Delete/Esc já tratam).
+  if (e.key === 'ArrowDown' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const sel = document.getSelection();
+    const anchor = sel?.anchorNode;
+    const block = currentBlock();
+    if (block?.dataset?.type === 'code' && block.querySelector(':scope > .md-syntax-fence-close')?.contains(anchor)) {
+      e.preventDefault();
+      collapseBlockSyntax(block);
+      let next = block.nextElementSibling;
+      if (!next) {
+        next = createBlockEl('paragraph');
+        block.after(next);
+      }
+      focusBlockStart(next);
+      scheduleSave();
+      return;
+    }
+  }
+
   if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const sel = document.getSelection();
     if (sel && sel.isCollapsed && !focusedCell()) {

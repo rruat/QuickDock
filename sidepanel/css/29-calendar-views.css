@@ -1,0 +1,510 @@
+/* ==========================================================================
+   19-calendar-views.css - Estilização das Visualizações Semana, Agenda e Spans Multi-Dias
+   Parte da arquitetura CSS modular do QuickDock
+   ========================================================================== */
+
+/* ── Seletor de Modo de Visualização (Mês / Semana / Agenda) ───────────────── */
+.calendar-mode-switcher {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.cal-mode-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.cal-mode-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.cal-mode-btn.is-active {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ── Visualização Mensal e Grade (Month & Week Views) ─────────────────────── */
+.calendar-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  padding: 8px;
+  gap: 8px;
+  min-height: 0;
+}
+
+.calendar-grid.calendar-month-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: none !important;
+  grid-auto-rows: unset !important;
+}
+
+.calendar-week-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 85px;
+}
+
+.calendar-week-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  flex: 1;
+}
+
+.calendar-week-spans {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  pointer-events: none;
+}
+
+.calendar-span-bar {
+  pointer-events: auto;
+  position: absolute;
+  height: 18px;
+  left: 2px;
+  right: 2px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  z-index: 5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.calendar-span-bar:hover {
+  border-color: var(--accent);
+  transform: translateY(-0.5px);
+}
+
+/* ── Visualização Semanal (Week View) ───────────────────────────────────────── */
+.calendar-grid.calendar-week-grid {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+  grid-template-columns: none !important;
+  grid-auto-rows: unset !important;
+}
+
+.calendar-week-header-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.calendar-week-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.calendar-week-col-header.is-today {
+  border: 1px solid var(--accent);
+  background: var(--bg-hover);
+}
+
+.week-col-name {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.week-col-num {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.calendar-week-body-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  min-height: 250px;
+}
+
+.calendar-week-col {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.calendar-week-col.is-today {
+  border-color: var(--accent);
+}
+
+.calendar-week-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.calendar-week-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-0.5px);
+}
+
+.week-card-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.week-card-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.week-card-time .qd-icon {
+  font-size: 11px;
+}
+
+/* ── Visualização em Agenda (Lista Cronológica) ────────────────────────────── */
+.calendar-agenda-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 8px 4px;
+}
+
+.calendar-agenda-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agenda-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agenda-group-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agenda-group-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.agenda-group-count {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.agenda-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agenda-item-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.agenda-item-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-0.5px);
+}
+
+.agenda-item-date {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.agenda-item-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-agenda-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  padding: 40px 16px;
+  text-align: center;
+}
+
+.calendar-agenda-empty .qd-icon {
+  font-size: 36px;
+  opacity: 0.4;
+}
+
+/* ── Gaveta de Backlog / Inbox Temporal ───────────────────────────────────── */
+.calendar-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.calendar-inbox-drawer {
+  width: 250px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.calendar-inbox-drawer[hidden] {
+  display: none !important;
+}
+
+.calendar-inbox-toggle-btn.is-active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.calendar-inbox-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.calendar-inbox-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+}
+
+.inbox-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inbox-header-title .qd-icon {
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.inbox-count-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg-hover);
+  border-radius: 10px;
+  color: var(--text-muted);
+}
+
+.calendar-inbox-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calendar-inbox-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: grab;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.calendar-inbox-item:hover {
+  border-color: var(--accent);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+}
+
+.calendar-inbox-item.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.inbox-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.inbox-item-title {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-item-created {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.inbox-item-created .qd-icon {
+  font-size: 11px;
+}
+
+.inbox-schedule-today-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+}
+
+.inbox-schedule-today-btn:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.inbox-schedule-today-btn .qd-icon {
+  font-size: 14px;
+}
+
+.calendar-inbox-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 8px;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.calendar-inbox-empty .qd-icon {
+  font-size: 24px;
+  opacity: 0.5;
+}
+
+@media (max-width: 600px) {
+  .calendar-body {
+    flex-direction: column !important;
+  }
+  .calendar-inbox-drawer {
+    width: 100%;
+    max-height: 220px;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}

@@ -750,6 +750,11 @@
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">chevron_right</span>
             </button>
           </div>
+          <div class="calendar-mode-switcher" id="calendar-mode-switcher">
+            <button type="button" class="cal-mode-btn is-active" data-mode="month" title="Visualização Mensal">Mês</button>
+            <button type="button" class="cal-mode-btn" data-mode="week" title="Visualização Semanal">Semana</button>
+            <button type="button" class="cal-mode-btn" data-mode="agenda" title="Visualização em Lista / Agenda">Agenda</button>
+          </div>
         </div>
 
         <div class="calendar-header-right">
@@ -759,6 +764,17 @@
               <option value="">Todas as categorias</option>
             </select>
           </div>
+          <div class="calendar-filter-group">
+            <span class="qd-icon material-symbols-rounded filter-icon" aria-hidden="true">schedule</span>
+            <select id="calendar-filter-source" class="calendar-select" title="Fonte temporal da data">
+              <option value="auto" selected>Híbrido (Agendadas + Criação)</option>
+              <option value="created">Data de Criação</option>
+              <option value="schedule">Apenas Agendadas</option>
+            </select>
+          </div>
+          <button id="btn-calendar-inbox-toggle" class="icon-btn calendar-inbox-toggle-btn" title="Backlog / Notas sem data" aria-label="Backlog de notas">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">inbox</span>
+          </button>
           <button id="btn-calendar-toggle-height" class="icon-btn calendar-height-btn view-height-btn" title="Alternar altura (Altura total / Metade da altura)" aria-label="Alternar altura">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_less</span>
           </button>
@@ -773,16 +789,19 @@
       </header>
 
       <div class="calendar-body">
-        <div class="calendar-weekdays">
-          <span>Dom</span>
-          <span>Seg</span>
-          <span>Ter</span>
-          <span>Qua</span>
-          <span>Qui</span>
-          <span>Sex</span>
-          <span>Sáb</span>
+        <div class="calendar-main-content">
+          <div class="calendar-weekdays">
+            <span>Dom</span>
+            <span>Seg</span>
+            <span>Ter</span>
+            <span>Qua</span>
+            <span>Qui</span>
+            <span>Sex</span>
+            <span>Sáb</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
         </div>
-        <div id="calendar-grid" class="calendar-grid"></div>
+        <aside id="calendar-inbox-drawer" class="calendar-inbox-drawer" hidden></aside>
       </div>
     </section>
 

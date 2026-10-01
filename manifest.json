@@ -16,7 +16,9 @@
     "sidePanel",
     "storage",
     "tabs",
-    "identity"
+    "identity",
+    "notifications",
+    "alarms"
   ],
   "oauth2": {
     "client_id": "324044251913-1ftlbp9ip7g9mhv3iuum47hl0tuq41md.apps.googleusercontent.com",
@@ -39,7 +41,8 @@
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "side_panel": {
     "default_path": "sidepanel/index.html"

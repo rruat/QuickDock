@@ -77,15 +77,21 @@ const INLINE_MD = [
   { re: /`([^`\n]+?)`/g, tag: 'code' },
   { re: /\[\[([^\]\n|]+)(?:\|([^\]\n]+))?\]\]/g, tag: 'wikilink' },
   { re: /\[([^\]\n]+)\]\(([^)\s]+)\)/g, tag: 'a' },
-  { re: /\*\*([^\n]+?)\*\*/g, tag: 'strong' },
+  { re: /==([^=\n]+?)==/g, tag: 'mark', syntax: '==' },
+  { re: /\*\*\*([^\n]+?)\*\*\*/g, tag: 'bolditalic', syntax: '***' },
+  { re: /___([^\n]+?)___/g, tag: 'bolditalic', syntax: '___' },
+  { re: /\*\*([^\n]+?)\*\*/g, tag: 'strong', syntax: '**' },
+  { re: /__([^\n]+?)__/g, tag: 'strong', syntax: '__' },
   { re: /~~([^\n]+?)~~/g, tag: 's' },
-  { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?!\*)/g, tag: 'em' },
+  { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?!\*)/g, tag: 'em', syntax: '*' },
+  { re: /(?<![a-zA-Z0-9_])_(?![\s_])([^_\n]+?)(?<![\s_])_(?![a-zA-Z0-9_])/g, tag: 'em', syntax: '_' },
   { re: /(?:^|(?<=[\s,.:;!?'"([{<]))#([a-zA-Z\u00C0-\u017F0-9_\-]+(?:\/[a-zA-Z\u00C0-\u017F0-9_\-]+)*)(?=$|[\s,.:;!?'")\]}>])/g, tag: 'tag' },
 ];
 
 function parseInlineMarkdown(text) {
   const matches = [];
-  for (const { re, tag } of INLINE_MD) {
+  for (const item of INLINE_MD) {
+    const { re, tag, syntax } = item;
     re.lastIndex = 0;
     let m;
     while ((m = re.exec(text)) !== null) {
@@ -96,7 +102,7 @@ function parseInlineMarkdown(text) {
       } else if (tag === 'a') {
         matches.push({ start, end, tag, content: m[1], href: m[2] });
       } else {
-        matches.push({ start, end, tag, content: m[1] ?? m[0] });
+        matches.push({ start, end, tag, content: m[1] ?? m[0], syntax });
       }
     }
   }
@@ -129,8 +135,14 @@ function parseInlineMarkdown(text) {
       } else {
         html += `#${escHtml(rawTag)}`;
       }
+    } else if (m.tag === 'bolditalic') {
+      html += `<strong data-syntax="${m.syntax || '***'}"><em>${parseInlineMarkdown(m.content)}</em></strong>`;
+    } else if (m.tag === 'mark') {
+      html += `<mark class="md-highlight" data-syntax="==">${parseInlineMarkdown(m.content)}</mark>`;
+    } else if (m.syntax && m.syntax !== '**' && m.syntax !== '*') {
+      html += `<${m.tag} data-syntax="${m.syntax}">${parseInlineMarkdown(m.content)}</${m.tag}>`;
     } else {
-      html += `<${m.tag}>${escHtml(m.content)}</${m.tag}>`;
+      html += `<${m.tag}>${parseInlineMarkdown(m.content)}</${m.tag}>`;
     }
     pos = m.end;
   }
@@ -512,10 +524,10 @@ export function parseMarkdownToBlocks(markdown) {
 
     if ((m = /^(#{1,6}) (.+)$/.exec(rest))) {
       add({ type: `heading${m[1].length}`, html: parseInlineMarkdown(m[2]) });
-    } else if ((m = /^([-*]) \[([ xX])\] (.+)$/.exec(rest))) {
+    } else if ((m = /^([-*+]) \[([ xX])\] (.+)$/.exec(rest))) {
       add({ type: 'checklist', checked: /[xX]/.test(m[2]), html: parseInlineMarkdown(m[3]) });
-    } else if ((m = /^[-*] (.+)$/.exec(rest))) {
-      add({ type: 'bullet', html: parseInlineMarkdown(m[1]) });
+    } else if ((m = /^([-*+]) (.+)$/.exec(rest))) {
+      add({ type: 'bullet', ...(m[1] !== '-' ? { marker: m[1] } : {}), html: parseInlineMarkdown(m[2]) });
     } else if ((m = /^\d+\. (.+)$/.exec(rest))) {
       add({ type: 'number', html: parseInlineMarkdown(m[1]) });
     } else if (/^(-{3,}|\*{3,}|_{3,})$/.test(rest)) {
@@ -546,7 +558,7 @@ function htmlToMarkdownInline(html) {
   return nodeToMarkdown(div);
 }
 
-function nodeToMarkdown(node) {
+function nodeToMarkdown(node, parent = null) {
   let out = '';
   for (const child of node.childNodes) {
     if (child.nodeType === Node.TEXT_NODE) {
@@ -554,10 +566,40 @@ function nodeToMarkdown(node) {
       continue;
     }
     if (child.nodeType !== Node.ELEMENT_NODE) continue;
-    const inner = nodeToMarkdown(child);
+    const inner = nodeToMarkdown(child, child);
     switch (child.tagName) {
-      case 'STRONG': case 'B':          out += `**${inner}**`; break;
-      case 'EM':     case 'I':          out += `*${inner}*`;   break;
+      case 'STRONG': case 'B': {
+        const syntax = child.getAttribute('data-syntax');
+        if (syntax === '***') {
+          out += `***${inner}***`;
+        } else if (syntax === '___') {
+          out += `___${inner}___`;
+        } else if (syntax === '__') {
+          out += `__${inner}__`;
+        } else {
+          out += `**${inner}**`;
+        }
+        break;
+      }
+      case 'EM':     case 'I': {
+        if (parent?.getAttribute?.('data-syntax') === '***' || parent?.getAttribute?.('data-syntax') === '___') {
+          out += inner;
+        } else {
+          const syntax = child.getAttribute('data-syntax');
+          out += syntax === '_' ? `_${inner}_` : `*${inner}*`;
+        }
+        break;
+      }
+      case 'MARK': {
+        const cls = child.getAttribute('class') || '';
+        const syntax = child.getAttribute('data-syntax');
+        if (cls.includes('md-highlight') || syntax === '==') {
+          out += `==${inner}==`;
+        } else {
+          out += inner; // ex.: <mark> de detecção
+        }
+        break;
+      }
       case 'S': case 'STRIKE': case 'DEL': out += `~~${inner}~~`; break;
       case 'CODE':                      out += `\`${inner}\``; break;
       case 'BR':                        out += '\n';           break;
@@ -688,7 +730,7 @@ ${pad}${q}---` : `${pad}${q}## ${text}`;
         case 'heading4': return `${pad}${q}#### ${text}`;
         case 'heading5': return `${pad}${q}##### ${text}`;
         case 'heading6': return `${pad}${q}###### ${text}`;
-        case 'bullet':   return `${pad}${q}- ${text}`;
+        case 'bullet':   return `${pad}${q}${b.marker || '-'} ${text}`;
         case 'number':   return `${pad}${q}1. ${text}`;
         case 'checklist':return `${pad}${q}- [${b.checked ? 'x' : ' '}] ${text}`;
         // Parágrafo vazio sai vazio de verdade: uma linha só com espaços

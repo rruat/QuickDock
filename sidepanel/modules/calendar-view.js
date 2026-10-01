@@ -4,19 +4,49 @@
 // Permite visualizar notas distribuídas por data (campo `data` nas propriedades),
 // filtrar por categoria, navegar entre meses e criar notas diretamente em qualquer dia.
 
-import { loadAllNotesMeta, createNoteRecord, getNoteById } from './storage.js';
+import { loadAllNotesMeta, createNoteRecord, getNoteById, updateNoteMetaById } from './storage.js';
 import { switchView, goBack } from './views.js';
 import { escHtml } from './blocks.js';
 import { isDesktopMode } from './platform.js';
 import { toggleDesktopPanel } from './desktop-panels.js';
 
-const MESES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-];
+import {
+  MESES,
+  normalizarDataString,
+  extrairDataDaNota,
+  extrairIntervaloDaNota,
+  formatarMesAno,
+  gerarMatrizCalendario,
+  gerarMatrizSemana
+} from './calendar/calendar-engine.js';
+
+export {
+  MESES,
+  normalizarDataString,
+  extrairDataDaNota,
+  extrairIntervaloDaNota,
+  formatarMesAno,
+  gerarMatrizCalendario,
+  gerarMatrizSemana
+};
+
+import { renderMonthGrid } from './calendar/calendar-month-view.js';
+import { renderWeekView } from './calendar/calendar-week-view.js';
+import { renderAgendaView } from './calendar/calendar-agenda-view.js';
+import { setupCalendarDropTargets } from './calendar/calendar-dnd.js';
+import { renderCalendarInbox, filtrarNotasSemData } from './calendar/calendar-inbox.js';
+import { extrairDataCriacaoNota } from './calendar/calendar-engine.js';
+
+export {
+  extrairDataCriacaoNota,
+  filtrarNotasSemData
+};
 
 let anoAtual = new Date().getFullYear();
 let mesAtual = new Date().getMonth(); // 0 a 11
+let diaAtual = new Date().getDate();
+let modoVisualizacao = 'month'; // 'month' | 'week' | 'agenda'
+let fonteTemporal = 'auto'; // 'auto' (padrão: agendamento com fallback para criação) | 'schedule' | 'created'
 let categoriaSelecionada = '';
 
 let containerEl = null;
@@ -24,46 +54,9 @@ let gridEl = null;
 let monthYearEl = null;
 let noteCountEl = null;
 let categorySelectEl = null;
-
-// ── Funções Puras de Cálculo de Datas (Testáveis) ──────────────────────────────
-
-/**
- * Normaliza qualquer valor para string YYYY-MM-DD segura.
- * Suporta string YYYY-MM-DD, timestamp numérico ou objeto Date.
- */
-export function normalizarDataString(val) {
-  if (!val) return null;
-  if (typeof val === 'string') {
-    const s = val.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const d = new Date(s);
-    if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const dia = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${dia}`;
-    }
-  }
-  if (typeof val === 'number') {
-    const d = new Date(val);
-    if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const dia = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${dia}`;
-    }
-  }
-  return null;
-}
-
-/**
- * Extrai a data associada a uma nota (propriedades `data`, `date`, `dueDate` ou campos diretos).
- */
-export function extrairDataDaNota(nota) {
-  if (!nota) return null;
-  const props = nota.properties || {};
-  return normalizarDataString(props.data ?? props.date ?? props.dueDate ?? nota.data ?? nota.date);
-}
+let sourceSelectEl = null;
+let inboxToggleBtn = null;
+let inboxDrawerEl = null;
 
 /**
  * Extrai a categoria da nota.
@@ -75,83 +68,6 @@ export function extrairCategoriaDaNota(nota) {
   return typeof cat === 'string' ? cat.trim() : '';
 }
 
-/**
- * Retorna o título por extenso do mês e ano.
- */
-export function formatarMesAno(ano, mes) {
-  const nomeMes = MESES[mes] ?? '';
-  return `${nomeMes} de ${ano}`;
-}
-
-/**
- * Gera a matriz de células do calendário (dias do mês anterior, atual e posterior)
- * para exibição em uma grade de 7 colunas (Domingo a Sábado).
- */
-export function gerarMatrizCalendario(ano, mes) {
-  const hoje = new Date();
-  const hojeString = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
-
-  const primeiroDiaDoMes = new Date(ano, mes, 1);
-  const diaSemanaInicio = primeiroDiaDoMes.getDay(); // 0 = Domingo, 1 = Segunda, ...
-
-  const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
-  const totalDiasMesAnterior = new Date(ano, mes, 0).getDate();
-
-  const celulas = [];
-
-  // 1. Dias do mês anterior para preencher a primeira semana
-  for (let i = diaSemanaInicio - 1; i >= 0; i--) {
-    const d = totalDiasMesAnterior - i;
-    const mesAnt = mes === 0 ? 11 : mes - 1;
-    const anoAnt = mes === 0 ? ano - 1 : ano;
-    const dataStr = `${anoAnt}-${String(mesAnt + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    celulas.push({
-      ano: anoAnt,
-      mes: mesAnt,
-      dia: d,
-      dataFormatada: dataStr,
-      outroMes: true,
-      ehHoje: dataStr === hojeString
-    });
-  }
-
-  // 2. Dias do mês corrente
-  for (let d = 1; d <= totalDiasMes; d++) {
-    const dataStr = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    celulas.push({
-      ano,
-      mes,
-      dia: d,
-      dataFormatada: dataStr,
-      outroMes: false,
-      ehHoje: dataStr === hojeString
-    });
-  }
-
-  // 3. Dias do mês seguinte para completar até múltiplo de 7 (35 ou 42 células)
-  const resto = celulas.length % 7;
-  const diasExtras = resto === 0 ? 0 : 7 - resto;
-  // Garante pelo menos 35 células para estabilidade visual
-  const totalAlvo = (celulas.length + diasExtras < 35) ? 35 : celulas.length + diasExtras;
-  const diasAAdicionar = totalAlvo - celulas.length;
-
-  for (let d = 1; d <= diasAAdicionar; d++) {
-    const mesProx = mes === 11 ? 0 : mes + 1;
-    const anoProx = mes === 11 ? ano + 1 : ano;
-    const dataStr = `${anoProx}-${String(mesProx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    celulas.push({
-      ano: anoProx,
-      mes: mesProx,
-      dia: d,
-      dataFormatada: dataStr,
-      outroMes: true,
-      ehHoje: dataStr === hojeString
-    });
-  }
-
-  return celulas;
-}
-
 // ── Inicialização da Interface ─────────────────────────────────────────────────
 
 export function initCalendarView() {
@@ -160,32 +76,69 @@ export function initCalendarView() {
   monthYearEl = document.getElementById('calendar-month-year');
   noteCountEl = document.getElementById('calendar-note-count');
   categorySelectEl = document.getElementById('calendar-filter-category');
+  sourceSelectEl = document.getElementById('calendar-filter-source');
+  inboxToggleBtn = document.getElementById('btn-calendar-inbox-toggle');
+  inboxDrawerEl = document.getElementById('calendar-inbox-drawer');
 
   if (!containerEl) return;
 
+  if (sourceSelectEl) {
+    sourceSelectEl.value = fonteTemporal;
+  }
+
+  // Filtro de fonte temporal (agendamento vs criação vs híbrido)
+  sourceSelectEl?.addEventListener('change', e => {
+    fonteTemporal = e.target.value || 'auto';
+    carregarERenderizarCalendario();
+  });
+
+  // Alternador da gaveta do Backlog / Inbox
+  inboxToggleBtn?.addEventListener('click', () => {
+    if (!inboxDrawerEl) return;
+    const estavaOculto = inboxDrawerEl.hidden;
+    inboxDrawerEl.hidden = !estavaOculto;
+    inboxToggleBtn.classList.toggle('is-active', estavaOculto);
+    if (estavaOculto) {
+      atualizarInboxDrawer();
+    }
+  });
+
   // Botões de navegação
-  // No desktop o Calendário é um painel que se liga/desliga (ver
-  // desktop-panels.js), não uma tela cheia com histórico pra "voltar" — o
-  // botão fecha o painel.
   document.getElementById('btn-calendar-back')?.addEventListener('click', () => {
     if (isDesktopMode()) toggleDesktopPanel('calendar');
     else goBack();
   });
 
   document.getElementById('btn-calendar-prev')?.addEventListener('click', () => {
-    mesAtual--;
-    if (mesAtual < 0) {
-      mesAtual = 11;
-      anoAtual--;
+    if (modoVisualizacao === 'week') {
+      diaAtual -= 7;
+      const ref = new Date(anoAtual, mesAtual, diaAtual);
+      anoAtual = ref.getFullYear();
+      mesAtual = ref.getMonth();
+      diaAtual = ref.getDate();
+    } else {
+      mesAtual--;
+      if (mesAtual < 0) {
+        mesAtual = 11;
+        anoAtual--;
+      }
     }
     carregarERenderizarCalendario();
   });
 
   document.getElementById('btn-calendar-next')?.addEventListener('click', () => {
-    mesAtual++;
-    if (mesAtual > 11) {
-      mesAtual = 0;
-      anoAtual++;
+    if (modoVisualizacao === 'week') {
+      diaAtual += 7;
+      const ref = new Date(anoAtual, mesAtual, diaAtual);
+      anoAtual = ref.getFullYear();
+      mesAtual = ref.getMonth();
+      diaAtual = ref.getDate();
+    } else {
+      mesAtual++;
+      if (mesAtual > 11) {
+        mesAtual = 0;
+        anoAtual++;
+      }
     }
     carregarERenderizarCalendario();
   });
@@ -194,7 +147,21 @@ export function initCalendarView() {
     const agora = new Date();
     anoAtual = agora.getFullYear();
     mesAtual = agora.getMonth();
+    diaAtual = agora.getDate();
     carregarERenderizarCalendario();
+  });
+
+  // Seletor de Modo (Mês, Semana, Agenda)
+  const modeBtns = document.querySelectorAll('#calendar-mode-switcher .cal-mode-btn');
+  modeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode;
+      if (mode && mode !== modoVisualizacao) {
+        modoVisualizacao = mode;
+        modeBtns.forEach(b => b.classList.toggle('is-active', b === btn));
+        carregarERenderizarCalendario();
+      }
+    });
   });
 
   // Filtro de categoria
@@ -252,8 +219,6 @@ export async function criarENavegarNotaPorData(dataStr, categoria = '') {
     document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
       detail: { id }
     }));
-    // No desktop a coluna da nota já fica sempre visível ao lado do
-    // Calendário — não existe "voltar pro editor" pra fazer ali.
     if (!isDesktopMode()) switchView('editor');
   } catch (err) {
     console.error('Falha ao criar nota no calendário:', err);
@@ -268,30 +233,50 @@ export async function carregarERenderizarCalendario() {
 
   const todasNotas = await loadAllNotesMeta();
 
-  // 1. Extrai categorias existentes para o filtro
+  const matriz = gerarMatrizCalendario(anoAtual, mesAtual);
+  const diasDoMesSet = new Set(matriz.filter(c => !c.outroMes).map(c => c.dataFormatada));
+
   const categoriasSet = new Set();
   const notasPorData = new Map(); // dataString -> Array<nota>
+  const eventosMultiDia = [];
+  const itensAgendados = [];
   let notasComDataContador = 0;
 
   for (const nota of todasNotas) {
-    const data = extrairDataDaNota(nota);
+    const data = extrairDataDaNota(nota, fonteTemporal);
     const cat = extrairCategoriaDaNota(nota);
     if (cat) categoriasSet.add(cat);
 
-    if (data) {
-      // Aplica filtro de categoria se selecionado
-      if (categoriaSelecionada && cat !== categoriaSelecionada) {
-        continue;
+    if (categoriaSelecionada && cat !== categoriaSelecionada) {
+      continue;
+    }
+
+    const intervalo = extrairIntervaloDaNota(nota);
+    if (intervalo && intervalo.start && intervalo.end && intervalo.start !== intervalo.end) {
+      eventosMultiDia.push({ note: nota, start: intervalo.start, end: intervalo.end });
+      for (const celula of matriz) {
+        if (celula.dataFormatada >= intervalo.start && celula.dataFormatada <= intervalo.end) {
+          if (!notasPorData.has(celula.dataFormatada)) notasPorData.set(celula.dataFormatada, []);
+          notasPorData.get(celula.dataFormatada).push(nota);
+        }
       }
+      if (matriz.some(c => !c.outroMes && c.dataFormatada >= intervalo.start && c.dataFormatada <= intervalo.end)) {
+        notasComDataContador++;
+      }
+      itensAgendados.push({ note: nota, date: intervalo.start, formattedDate: intervalo.start });
+    } else if (data) {
       if (!notasPorData.has(data)) {
         notasPorData.set(data, []);
       }
       notasPorData.get(data).push(nota);
-      notasComDataContador++;
+      if (diasDoMesSet.has(data)) {
+        notasComDataContador++;
+      }
+      itensAgendados.push({ note: nota, date: data, formattedDate: data });
     }
   }
 
-  // 2. Atualiza o dropdown de categorias
+  // Atualiza o dropdown de categorias
   if (categorySelectEl) {
     const categoriasOrdenadas = Array.from(categoriasSet).sort((a, b) => a.localeCompare(b));
     const valorAtual = categoriaSelecionada;
@@ -303,99 +288,90 @@ export async function carregarERenderizarCalendario() {
     categorySelectEl.innerHTML = htmlCat;
   }
 
-  // 3. Atualiza cabeçalho
+  // Atualiza cabeçalho
   if (monthYearEl) {
-    monthYearEl.textContent = formatarMesAno(anoAtual, mesAtual);
+    if (modoVisualizacao === 'week') {
+      const semana = gerarMatrizSemana(anoAtual, mesAtual, diaAtual);
+      const prim = semana[0];
+      const ult = semana[6];
+      monthYearEl.textContent = `${prim.dia} ${MESES[prim.mes].slice(0, 3)} - ${ult.dia} ${MESES[ult.mes].slice(0, 3)} de ${ult.ano}`;
+    } else if (modoVisualizacao === 'agenda') {
+      monthYearEl.textContent = 'Agenda de Notas';
+    } else {
+      monthYearEl.textContent = formatarMesAno(anoAtual, mesAtual);
+    }
   }
   if (noteCountEl) {
     noteCountEl.textContent = `${notasComDataContador} ${notasComDataContador === 1 ? 'nota' : 'notas'}`;
   }
 
-  // 4. Constrói a grade de células
-  const matriz = gerarMatrizCalendario(anoAtual, mesAtual);
-  gridEl.innerHTML = '';
-
-  for (const celula of matriz) {
-    const diaEl = document.createElement('div');
-    diaEl.className = 'calendar-day'
-      + (celula.outroMes ? ' calendar-day-other-month' : '')
-      + (celula.ehHoje ? ' calendar-day-today' : '');
-    diaEl.dataset.date = celula.dataFormatada;
-
-    // Cabeçalho do dia (número + botão de adicionar rápido)
-    const headerEl = document.createElement('div');
-    headerEl.className = 'calendar-day-header';
-
-    const numEl = document.createElement('span');
-    numEl.className = 'calendar-day-number';
-    numEl.textContent = String(celula.dia);
-
-    const btnAddEl = document.createElement('button');
-    btnAddEl.type = 'button';
-    btnAddEl.className = 'calendar-day-add-btn';
-    btnAddEl.title = `Adicionar nota em ${celula.dataFormatada}`;
-    btnAddEl.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>';
-    btnAddEl.addEventListener('click', e => {
-      e.stopPropagation();
-      criarENavegarNotaPorData(celula.dataFormatada, categoriaSelecionada);
-    });
-
-    headerEl.appendChild(numEl);
-    headerEl.appendChild(btnAddEl);
-    diaEl.appendChild(headerEl);
-
-    // Contêiner de notas do dia
-    const notasDiaEl = document.createElement('div');
-    notasDiaEl.className = 'calendar-day-notes';
-
-    const notasDesteDia = notasPorData.get(celula.dataFormatada) || [];
-    for (const nota of notasDesteDia) {
-      const chipEl = document.createElement('div');
-      chipEl.className = 'calendar-note-chip';
-      chipEl.title = nota.title || 'Sem título';
-
-      // Marcador de cor ou ícone
-      const dotEl = document.createElement('span');
-      dotEl.className = 'calendar-chip-dot';
-      if (nota.color) {
-        dotEl.style.backgroundColor = nota.color;
-      }
-
-      const titleEl = document.createElement('span');
-      titleEl.className = 'calendar-chip-title';
-      titleEl.textContent = nota.title || 'Sem título';
-
-      chipEl.appendChild(dotEl);
-      chipEl.appendChild(titleEl);
-
-      const cat = extrairCategoriaDaNota(nota);
-      if (cat) {
-        const catBadge = document.createElement('span');
-        catBadge.className = 'calendar-chip-cat';
-        catBadge.textContent = cat;
-        chipEl.appendChild(catBadge);
-      }
-
-      // Clique abre a nota no editor
-      chipEl.addEventListener('click', e => {
-        e.stopPropagation();
-        document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
-          detail: { id: nota.id, uid: nota.uid }
-        }));
-        if (!isDesktopMode()) switchView('editor');
-      });
-
-      notasDiaEl.appendChild(chipEl);
+  const callbacks = {
+    onOpenNote: (nota) => {
+      document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
+        detail: { id: nota.id, uid: nota.uid }
+      }));
+      if (!isDesktopMode()) switchView('editor');
+    },
+    onAddNote: (dataStr) => {
+      criarENavegarNotaPorData(dataStr, categoriaSelecionada);
     }
+  };
 
-    diaEl.appendChild(notasDiaEl);
+  // Alterna visibilidade dos cabeçalhos dos dias da semana (apenas no modo Mês)
+  const weekdaysEl = containerEl?.querySelector('.calendar-weekdays');
+  if (weekdaysEl) {
+    weekdaysEl.style.display = (modoVisualizacao === 'month') ? 'grid' : 'none';
+  }
 
-    // Clique na célula do dia também pode adicionar nota se vazia
-    diaEl.addEventListener('click', e => {
-      if (e.target.closest('.calendar-note-chip') || e.target.closest('.calendar-day-add-btn')) return;
-      criarENavegarNotaPorData(celula.dataFormatada, categoriaSelecionada);
-    });
+  // Renderiza conforme o modo ativo
+  if (modoVisualizacao === 'week') {
+    renderWeekView(gridEl, anoAtual, mesAtual, diaAtual, notasPorData, eventosMultiDia, callbacks);
+  } else if (modoVisualizacao === 'agenda') {
+    renderAgendaView(gridEl, itensAgendados, new Date(anoAtual, mesAtual, diaAtual), callbacks);
+  } else {
+    renderMonthGrid(gridEl, matriz, notasPorData, eventosMultiDia, callbacks);
+  }
 
-    gridEl.appendChild(diaEl);
+  // Ativa Drag and Drop nas células renderizadas
+  setupCalendarDropTargets(gridEl);
+
+  // Se a gaveta de Backlog/Inbox estiver visível, atualiza o conteúdo
+  if (inboxDrawerEl && !inboxDrawerEl.hidden) {
+    atualizarInboxDrawerComNotas(todasNotas);
   }
 }
+
+/**
+ * Atualiza o painel do Inbox / Backlog temporal com todas as notas.
+ */
+export async function atualizarInboxDrawer() {
+  if (!inboxDrawerEl) return;
+  const todasNotas = await loadAllNotesMeta();
+  atualizarInboxDrawerComNotas(todasNotas);
+}
+
+function atualizarInboxDrawerComNotas(todasNotas) {
+  if (!inboxDrawerEl) return;
+  renderCalendarInbox(inboxDrawerEl, todasNotas, {
+    onOpenNote: (nota) => {
+      document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
+        detail: { id: nota.id, uid: nota.uid }
+      }));
+      if (!isDesktopMode()) switchView('editor');
+    },
+    onAgendarNota: async (nota, dataStr) => {
+      try {
+        const idNota = nota.id || nota.uid;
+        const notaCompleta = await getNoteById(idNota);
+        const props = { ...((notaCompleta && notaCompleta.properties) || nota.properties || {}) };
+        props.data = dataStr;
+        delete props.daterange;
+        await updateNoteMetaById(idNota, { properties: props });
+        document.dispatchEvent(new CustomEvent('quickdock:refresh-calendar-view'));
+      } catch (err) {
+        console.error('Falha ao agendar nota do inbox:', err);
+      }
+    }
+  });
+}
+

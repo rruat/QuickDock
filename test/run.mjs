@@ -1,4 +1,4 @@
-﻿// ── run.mjs ────────────────────────────────────────────────────────────────
+// ── run.mjs ────────────────────────────────────────────────────────────────
 // Testes de regressão do modelo de blocos.  Rode com:  node test/run.mjs
 //
 // O que se está protegendo: a nota que já está gravada no banco de alguém. O
@@ -5022,6 +5022,356 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     styleCssSource.includes('.settings-option-title') &&
     styleCssSource.includes('.nav-item-settings'));
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SINTAXE DE FORMATAÇÃO E EDIÇÃO CONTEXTUAL (Live Preview Híbrido)
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  const { readFile } = await import('node:fs/promises');
+  const { parseMarkdownToBlocks, blocksToMarkdown } = await import('../sidepanel/modules/blocks.js');
+  const { getInlineDelimiters } = await import('../sidepanel/modules/note/note-live-preview.js');
+
+  // 1. Formatações de texto inline: __bold__, ***bold+italic***, _italic_, ==highlight==
+  const mdInput = '__negrito__ e ***negrito italico*** e _italico_ e ==destaque==';
+  const blocosInline = parseMarkdownToBlocks(mdInput);
+  ok('live preview · parse inline reconhece __texto__, ***texto***, _texto_ e ==texto==',
+    blocosInline[0].html.includes('data-syntax="__"') &&
+    blocosInline[0].html.includes('data-syntax="***"') &&
+    blocosInline[0].html.includes('data-syntax="_"') &&
+    blocosInline[0].html.includes('data-syntax="=="'));
+
+  const mdVolta = blocksToMarkdown(blocosInline);
+  igual('live preview · serialização de formatação inline preserva sintaxe original', mdVolta, mdInput);
+
+  // 2. getInlineDelimiters respeita data-syntax
+  const elBoldUnder = document.createElement('strong');
+  elBoldUnder.setAttribute('data-syntax', '__');
+  igual('live preview · getInlineDelimiters __ retorna __', getInlineDelimiters(elBoldUnder).openSyntax, '__');
+
+  const elBoldStar = document.createElement('strong');
+  elBoldStar.setAttribute('data-syntax', '**');
+  igual('live preview · getInlineDelimiters ** retorna **', getInlineDelimiters(elBoldStar).openSyntax, '**');
+
+  const elBi = document.createElement('strong');
+  elBi.setAttribute('data-syntax', '***');
+  igual('live preview · getInlineDelimiters *** retorna ***', getInlineDelimiters(elBi).openSyntax, '***');
+
+  const elItalicUnder = document.createElement('em');
+  elItalicUnder.setAttribute('data-syntax', '_');
+  igual('live preview · getInlineDelimiters _ retorna _', getInlineDelimiters(elItalicUnder).openSyntax, '_');
+
+  const elItalicStar = document.createElement('em');
+  elItalicStar.setAttribute('data-syntax', '*');
+  igual('live preview · getInlineDelimiters * retorna *', getInlineDelimiters(elItalicStar).openSyntax, '*');
+
+  const elMark = document.createElement('mark');
+  elMark.setAttribute('data-syntax', '==');
+  igual('live preview · getInlineDelimiters == retorna ==', getInlineDelimiters(elMark).openSyntax, '==');
+
+  const elBiUnder = document.createElement('strong');
+  elBiUnder.setAttribute('data-syntax', '___');
+  igual('live preview · getInlineDelimiters ___ retorna ___', getInlineDelimiters(elBiUnder).openSyntax, '___');
+
+  // 2.1 Aninhamento e combinações de sintaxes inline
+  const mdCombinado = '==**destaque negrito**== e ___negrito italico underline___ e **_negrito com italico_**';
+  const blocosCombinados = parseMarkdownToBlocks(mdCombinado);
+  ok('live preview · parse aninhado funciona para ==** e ___',
+    blocosCombinados[0].html.includes('<mark class="md-highlight"') &&
+    blocosCombinados[0].html.includes('<strong>destaque negrito</strong>') &&
+    blocosCombinados[0].html.includes('data-syntax="___"'));
+
+  const mdVoltaCombinado = blocksToMarkdown(blocosCombinados);
+  igual('live preview · serialização de sintaxes combinadas preserva marcações', mdVoltaCombinado, mdCombinado);
+
+  // 2.2 findNearestInlineFormatting resolve quando cursor está no container pai
+  const noteLivePreviewSource = await readFile(new URL('../sidepanel/modules/note/note-live-preview.js', import.meta.url), 'utf8');
+  ok('note-live-preview.js · findNearestInlineFormatting resolve elemento sob o cursor no container do bloco e suporta mark',
+    noteLivePreviewSource.includes('mark.md-highlight') &&
+    noteLivePreviewSource.includes("target.classList?.contains('block')") &&
+    noteLivePreviewSource.includes('candidate.closest'));
+
+  // 3. Listas não ordenadas preservam marcadores +, -, *
+  const mdListas = '+ Item mais\n* Item asterisco\n- Item hífen';
+  const blocosListas = parseMarkdownToBlocks(mdListas);
+  igual('live preview · lista + guarda marker "+"', blocosListas[0].marker, '+');
+  igual('live preview · lista * guarda marker "*"', blocosListas[1].marker, '*');
+  igual('live preview · lista - guarda marker padrão', blocosListas[2].marker, undefined);
+  igual('live preview · serialização de listas preserva marcadores originais', blocksToMarkdown(blocosListas), mdListas);
+
+  // 4. Integridade de código e CSS do Live Preview
+  const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const blocksCssSource = await readFile(new URL('../sidepanel/css/03-blocks.css', import.meta.url), 'utf8');
+
+  ok('note.js · revealBlockSyntax suporta code fences e marcadores de lista',
+    noteJsSource.includes("isCode = type === 'code'") &&
+    noteJsSource.includes('md-syntax-fence-open') &&
+    noteJsSource.includes('md-syntax-fence-close') &&
+    noteJsSource.includes("isBullet = type === 'bullet'") &&
+    noteJsSource.includes("isNumber = type === 'number'"));
+
+  ok('note.js · collapseBlockSyntax extrai lang e limpa fences de código',
+    noteJsSource.includes("block.dataset.type === 'code'") &&
+    noteJsSource.includes('md-syntax-fence-close'));
+
+  ok('note.js · handleEnter permite sair de blocos de código sem ficar preso',
+    noteJsSource.includes("type === 'code'") &&
+    noteJsSource.includes('isAtFenceClose') &&
+    noteJsSource.includes("createBlockEl('paragraph')"));
+
+  ok('note.js · handleEnter propaga marker de lista não ordenada',
+    noteJsSource.includes("if (block.dataset.marker && nextType === 'bullet') newBlock.dataset.marker = block.dataset.marker;"));
+
+  ok('note.js · INLINE_SHORTCUTS regex para highlight não possui escape duplo quebrado',
+    noteJsSource.includes("==([^=\\n]+?)==$"));
+
+  ok('note.js · collapseBlockSyntax re-formata markdown inline com formatUnparsedInlineMarkdown',
+    noteJsSource.includes('formatUnparsedInlineMarkdown(contentEl)'));
+
+  ok('03-blocks.css · esconde marcador de lista quando md-syntax-prefix está ativo e define estilo para fences e destaque',
+    blocksCssSource.includes('.block-list:has(> .block-content > .md-syntax-prefix) > .block-marker') &&
+    blocksCssSource.includes('.md-syntax-fence') &&
+    blocksCssSource.includes('mark.md-highlight'));
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// CALENDÁRIO PRO, LEMBRETE PERSISTENTE (TDAH) & GEOLOCALIZAÇÃO
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  const { readFile } = await import('node:fs/promises');
+  const {
+    normalizarDataString,
+    extrairDataDaNota,
+    extrairIntervaloDaNota,
+    gerarMatrizCalendario,
+    gerarMatrizSemana
+  } = await import('../sidepanel/modules/calendar/calendar-engine.js');
+
+  const {
+    agruparCelulasPorSemana,
+    calcularSpansDaSemana
+  } = await import('../sidepanel/modules/calendar/calendar-spans.js');
+
+  const {
+    PROPERTY_TYPES,
+    inferirTipoPropriedade,
+    migrarPropriedadeParaTipo
+  } = await import('../sidepanel/modules/property-types.js');
+
+  const {
+    criarLembreteTDAH,
+    deveDispararLembrete,
+    calcularProximoDisparo,
+    aplicarAcaoLembrete
+  } = await import('../sidepanel/modules/reminders/persistent-reminder.js');
+
+  const {
+    calcularDistanciaMetros,
+    estaDentroDoRaio,
+    avaliarDisparoGeocerca
+  } = await import('../sidepanel/modules/reminders/geo-math.js');
+
+  // 1. calendar-engine.js: normalização segura e matriz semanal
+  igual('calendar-engine · normalizarDataString preserva YYYY-MM-DD direto',
+    normalizarDataString('2026-10-01'), '2026-10-01');
+  igual('calendar-engine · normalizarDataString converte formato BR DD/MM/YYYY',
+    normalizarDataString('15/03/2026'), '2026-03-15');
+
+  const notaRange = { properties: { daterange: { start: '2026-10-05', end: '2026-10-09' } } };
+  igual('calendar-engine · extrairDataDaNota obtém start do daterange',
+    extrairDataDaNota(notaRange), '2026-10-05');
+  igual('calendar-engine · extrairIntervaloDaNota extrai start e end de daterange',
+    extrairIntervaloDaNota(notaRange), { start: '2026-10-05', end: '2026-10-09', allDay: true });
+
+  const notaHora = { properties: { datetime: '2026-10-05T14:30' } };
+  igual('calendar-engine · extrairIntervaloDaNota extrai startTime',
+    extrairIntervaloDaNota(notaHora), { start: '2026-10-05', end: '2026-10-05', allDay: false, startTime: '14:30' });
+
+  const semanaExemplo = gerarMatrizSemana(2026, 9, 7); // 07/10/2026 (Quarta)
+  igual('calendar-engine · gerarMatrizSemana tem 7 dias', semanaExemplo.length, 7);
+  igual('calendar-engine · primeiro dia da semana é Domingo', semanaExemplo[0].diaSemanaNome, 'Dom');
+  igual('calendar-engine · Domingo da semana do dia 07/10/2026 é dia 04/10/2026', semanaExemplo[0].dataFormatada, '2026-10-04');
+
+  // 2. calendar-spans.js: agrupamento e cálculo de spans multi-dia
+  const matrizMes = gerarMatrizCalendario(2026, 9);
+  const semanasMes = agruparCelulasPorSemana(matrizMes);
+  ok('calendar-spans · agrupa matriz em semanas de 7 dias',
+    semanasMes.length >= 5 && semanasMes.every(s => s.length === 7));
+
+  const spansSemana = calcularSpansDaSemana(semanasMes[1], [
+    { note: { id: 'n1', title: 'Sprint' }, start: '2026-10-05', end: '2026-10-09' }
+  ]);
+  ok('calendar-spans · calcula span correto dentro da semana',
+    spansSemana.length === 1 && spansSemana[0].colSpan >= 1 && spansSemana[0].level === 0);
+
+  // 3. property-types.js: novos tipos de dados
+  ok('property-types · suporta datetime, daterange, location, reminder',
+    PROPERTY_TYPES.datetime && PROPERTY_TYPES.daterange && PROPERTY_TYPES.location && PROPERTY_TYPES.reminder);
+  igual('property-types · infere daterange', inferirTipoPropriedade('periodo'), 'daterange');
+  igual('property-types · infere location', inferirTipoPropriedade('localizacao'), 'location');
+  igual('property-types · infere reminder', inferirTipoPropriedade('lembrete'), 'reminder');
+
+  const rangeObj = migrarPropriedadeParaTipo('periodo', '2026-10-01 - 2026-10-05', 'daterange');
+  igual('property-types · migrar string para daterange', rangeObj, { start: '2026-10-01', end: '2026-10-05', allDay: true });
+
+  const remObj = migrarPropriedadeParaTipo('lembrete', true, 'reminder');
+  ok('property-types · migrar booleano para reminder com intervalo default 5m',
+    remObj.active === true && remObj.intervalMinutes === 5 && remObj.completed === false);
+
+  // 4. reminders: persistent-reminder.js (Lembrete TDAH)
+  const lembreteTDAH = criarLembreteTDAH({ intervalMinutes: 5 });
+  ok('reminders · lembrete novo deve disparar imediatamente', deveDispararLembrete(lembreteTDAH, 100000));
+
+  const lembreteNotificado = aplicarAcaoLembrete(lembreteTDAH, 'notify', 100000);
+  ok('reminders · não deve disparar antes de decorrido o intervalo', !deveDispararLembrete(lembreteNotificado, 100000 + (2 * 60 * 1000)));
+  ok('reminders · deve disparar após decorrido o intervalo de 5 minutos', deveDispararLembrete(lembreteNotificado, 100000 + (5 * 60 * 1000)));
+
+  const lembreteSnooze = aplicarAcaoLembrete(lembreteNotificado, 'snooze', 100000, { minutes: 15 });
+  ok('reminders · snooze bloqueia disparo até o fim do prazo', !deveDispararLembrete(lembreteSnooze, 100000 + (10 * 60 * 1000)));
+  ok('reminders · snooze libera disparo ao término', deveDispararLembrete(lembreteSnooze, 100000 + (16 * 60 * 1000)));
+
+  const lembreteConcluido = aplicarAcaoLembrete(lembreteSnooze, 'complete');
+  ok('reminders · concluído não dispara mais', !deveDispararLembrete(lembreteConcluido, 999999999));
+
+  // 5. reminders: geo-math.js (Haversine & Geocercas)
+  // Distância entre Praça da Sé e Av. Paulista em SP (~2.7 km)
+  const distSP = calcularDistanciaMetros(-23.5505, -46.6333, -23.5615, -46.6559);
+  ok('geo-math · Haversine calcula distância coerente (~2.7 km)', distSP > 2500 && distSP < 3000);
+
+  const geocercaMercado = { lat: -23.5505, lng: -46.6333, radius: 200, triggerOn: 'enter', triggered: false, active: true };
+  const posLonge = { lat: -23.5600, lng: -46.6400 };
+  const posPerto = { lat: -23.5506, lng: -46.6334 };
+
+  const resChegada = avaliarDisparoGeocerca(posLonge, posPerto, geocercaMercado);
+  ok('geo-math · dispara gatilho ao chegar na geocerca', resChegada.deveDisparar === true && resChegada.novoEstadoTriggered === true);
+
+  const resPermanencia = avaliarDisparoGeocerca(posPerto, posPerto, { ...geocercaMercado, triggered: true });
+  ok('geo-math · não repete disparo enquanto permanecer dentro do raio', resPermanencia.deveDisparar === false);
+
+  // 6. manifest.json: permissões notifications e alarms
+  const manifestSource = await readFile(new URL('../manifest.json', import.meta.url), 'utf8');
+  ok('manifest.json · declara permissões notifications e alarms',
+    manifestSource.includes('"notifications"') && manifestSource.includes('"alarms"') && manifestSource.includes('"type": "module"'));
+
+  // 7. Submódulos visuais e de background (Fase 2)
+  const bgAlarmsSource = await readFile(new URL('../background/background-alarms.js', import.meta.url), 'utf8');
+  ok('background-alarms.js · implementa loop insistente e botões Concluir/Adiar',
+    bgAlarmsSource.includes('PREFIXO_ALARME') &&
+    bgAlarmsSource.includes('chrome.alarms.create') &&
+    bgAlarmsSource.includes('chrome.notifications.create') &&
+    bgAlarmsSource.includes('chrome.notifications.onButtonClicked'));
+
+  const bgSource = await readFile(new URL('../background.js', import.meta.url), 'utf8');
+  ok('background.js · inicializa initBackgroundAlarms',
+    bgSource.includes('initBackgroundAlarms()'));
+
+  const calMonthSource = await readFile(new URL('../sidepanel/modules/calendar/calendar-month-view.js', import.meta.url), 'utf8');
+  ok('calendar-month-view.js · renderiza grade e barras horizontais multi-dias',
+    calMonthSource.includes('renderMonthGrid') &&
+    calMonthSource.includes('calendar-span-bar') &&
+    calMonthSource.includes('calcularSpansDaSemana'));
+
+  const calWeekSource = await readFile(new URL('../sidepanel/modules/calendar/calendar-week-view.js', import.meta.url), 'utf8');
+  ok('calendar-week-view.js · renderiza colunas semanais com horários',
+    calWeekSource.includes('renderWeekView') &&
+    calWeekSource.includes('calendar-week-col') &&
+    calWeekSource.includes('week-card-time'));
+
+  const calAgendaSource = await readFile(new URL('../sidepanel/modules/calendar/calendar-agenda-view.js', import.meta.url), 'utf8');
+  ok('calendar-agenda-view.js · agrupa eventos em atrasadas, hoje, amanha e futuras',
+    calAgendaSource.includes('renderAgendaView') &&
+    calAgendaSource.includes('agenda-item-card') &&
+    calAgendaSource.includes('grupos.atrasadas') &&
+    calAgendaSource.includes('grupos.hoje'));
+
+  const reminderUiSource = await readFile(new URL('../sidepanel/modules/reminders/reminder-ui.js', import.meta.url), 'utf8');
+  ok('reminder-ui.js · renderiza controles de lembrete TDAH (ativar, soneca, concluir)',
+    reminderUiSource.includes('renderReminderWidget') &&
+    reminderUiSource.includes('reminder-active-card') &&
+    reminderUiSource.includes('reminder-interval-select'));
+
+  const geoWatcherSource = await readFile(new URL('../sidepanel/modules/reminders/geo-watcher.js', import.meta.url), 'utf8');
+  ok('geo-watcher.js · gerencia geocercas ativas com watchPosition',
+    geoWatcherSource.includes('registrarGeocerca') &&
+    geoWatcherSource.includes('desregistrarGeocerca') &&
+    geoWatcherSource.includes('avaliarDisparoGeocerca'));
+
+  const styleCssSource = await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8');
+  ok('style.css · importa 28-reminders.css e 29-calendar-views.css',
+    styleCssSource.includes('28-reminders.css') &&
+    styleCssSource.includes('29-calendar-views.css'));
+
+  // 8. Data de criação de arquivos e Backlog sem data
+  const { extrairDataCriacaoNota } = await import('../sidepanel/modules/calendar/calendar-engine.js');
+  const { filtrarNotasSemData } = await import('../sidepanel/modules/calendar/calendar-inbox.js');
+
+  const notaSemData = { id: 'n_criada', title: 'Nota Recente', createdAt: 1727740800000 }; // timestamp
+  const dataCriacaoEsperada = normalizarDataString(1727740800000);
+  igual('calendar-engine · extrairDataCriacaoNota extrai data do createdAt',
+    extrairDataCriacaoNota(notaSemData), dataCriacaoEsperada);
+
+  igual('calendar-engine · extrairDataDaNota com fonte "created" usa data de criação',
+    extrairDataDaNota(notaSemData, 'created'), dataCriacaoEsperada);
+
+  igual('calendar-engine · extrairDataDaNota com fonte "auto" faz fallback para createdAt se não agendada',
+    extrairDataDaNota(notaSemData, 'auto'), dataCriacaoEsperada);
+
+  const listaNotasMistas = [
+    notaSemData,
+    { id: 'n_agendada', title: 'Com Data', properties: { data: '2026-10-15' } }
+  ];
+  const notasNoBacklog = filtrarNotasSemData(listaNotasMistas);
+  igual('calendar-inbox · filtrarNotasSemData filtra apenas notas sem data agendada',
+    notasNoBacklog.length, 1);
+  igual('calendar-inbox · nota no backlog é a nota sem agendamento',
+    notasNoBacklog[0].id, 'n_criada');
+
+  const calDndSource = await readFile(new URL('../sidepanel/modules/calendar/calendar-dnd.js', import.meta.url), 'utf8');
+  ok('calendar-dnd.js · implementa setupCalendarDropTargets e soltura nas células',
+    calDndSource.includes('setupCalendarDropTargets') &&
+    calDndSource.includes('is-drag-over') &&
+    calDndSource.includes('updateNoteMetaById'));
+
+  const storageSource = await readFile(new URL('../sidepanel/modules/storage.js', import.meta.url), 'utf8');
+  ok('storage.js · loadAllNotesMeta expõe createdAt',
+    storageSource.includes('createdAt: createdAt ?? updatedAt'));
+
+  // 9. Integração UI: Drawer de Inbox, Filtro Temporal e Propriedades Estendidas
+  const indexHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  ok('index.html · contém seletor de fonte temporal, botão do inbox e gaveta do backlog',
+    indexHtmlSource.includes('id="calendar-filter-source"') &&
+    indexHtmlSource.includes('id="btn-calendar-inbox-toggle"') &&
+    indexHtmlSource.includes('id="calendar-inbox-drawer"'));
+
+  const calViewSource = await readFile(new URL('../sidepanel/modules/calendar-view.js', import.meta.url), 'utf8');
+  ok('calendar-view.js · gerencia alternância de fonte temporal e gaveta do inbox',
+    calViewSource.includes('calendar-filter-source') &&
+    calViewSource.includes('btn-calendar-inbox-toggle') &&
+    calViewSource.includes('calendar-inbox-drawer') &&
+    calViewSource.includes('atualizarInboxDrawer'));
+
+  const calCssSource = await readFile(new URL('../sidepanel/css/29-calendar-views.css', import.meta.url), 'utf8');
+  ok('29-calendar-views.css · define estilos da gaveta de backlog e itens arrastáveis',
+    calCssSource.includes('.calendar-inbox-drawer') &&
+    calCssSource.includes('.calendar-inbox-panel') &&
+    calCssSource.includes('.calendar-inbox-item'));
+
+  const notePropsSource = await readFile(new URL('../sidepanel/modules/note-properties.js', import.meta.url), 'utf8');
+  ok('note-properties.js · renderiza campos datetime, daterange, location e reminder',
+    notePropsSource.includes('renderPropertyDateTime') &&
+    notePropsSource.includes('renderPropertyDateRange') &&
+    notePropsSource.includes('renderPropertyLocation') &&
+    notePropsSource.includes('renderPropertyReminder'));
+
+  // 10. Correção de layout: Grade mensal com semanas em linhas (não colunas únicas) e fonte 'auto'
+  ok('29-calendar-views.css · calendar-month-grid usa flex column e calendar-week-days usa 7 colunas',
+    calCssSource.includes('.calendar-grid.calendar-month-grid') &&
+    calCssSource.includes('flex-direction: column !important') &&
+    calCssSource.includes('.calendar-week-days'));
+
+  ok('calendar-view.js e index.html · definem fonte temporal híbrida ("auto") como padrão',
+    calViewSource.includes("let fonteTemporal = 'auto'") &&
+    indexHtmlSource.includes('value="auto" selected'));
+}
+
 
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);

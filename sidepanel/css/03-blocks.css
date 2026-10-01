@@ -452,8 +452,8 @@
   outline-offset: 1px;
   border-radius: 4px;
 }
-/* Com o cursor na linha o item mostra o markdown ("- [ ] ") no lugar da caixa. */
-.block-checklist:has(> .block-content > .md-syntax-prefix) > .block-marker {
+/* Com o cursor na linha o item de lista mostra o markdown ("- [ ] ", "- ", "1. ") no lugar do marcador. */
+.block-list:has(> .block-content > .md-syntax-prefix) > .block-marker {
   display: none;
 }
 .block-checklist[data-checked="true"] .block-content {
@@ -636,6 +636,32 @@
   color: var(--text-muted);
   opacity: 0.85;
   text-decoration: none !important;
+}
+
+/* Obsidian Live Preview: Delimitadores de bloco de código (``` e ```lang) */
+.md-syntax-fence {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  color: var(--text-muted);
+  opacity: 0.65;
+  user-select: text;
+  display: block;
+  line-height: 1.4;
+}
+.md-syntax-fence-open {
+  margin-bottom: 2px;
+}
+.md-syntax-fence-close {
+  margin-top: 2px;
+}
+
+/* Formatação de texto destacado (==texto==) */
+.note-editor-blocks mark.md-highlight,
+.note-editor-blocks mark[data-syntax="=="] {
+  background: var(--highlight-bg, rgba(250, 204, 21, 0.35));
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
 }
 
 /* Tags (#tag e #tag/aninhada no estilo Obsidian) */

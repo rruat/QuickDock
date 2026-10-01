@@ -67,6 +67,14 @@
     user-select: none;
   }
 
+  html[data-platform="desktop"] #mAside.mode-notes .notes-aside-header {
+    border-top-right-radius: 0.75rem;
+  }
+
+  html[data-platform="desktop"] #mAside.mode-notes .notes-aside-footer {
+    border-bottom-right-radius: 0.75rem;
+  }
+
   /* Alterna o sub-painel do #mAside conforme o item ativo do #mNav: modo
      notas mostra o Explorador de Notas (acima); modo views mostra a lista
      de views abertas/disponíveis e o cabeçalho "VIEWS" com seus botões. */

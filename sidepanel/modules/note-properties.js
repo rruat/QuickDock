@@ -85,6 +85,14 @@ function renderPropertyValue(tipo, chave, valor, opcoes, salvar) {
       label.appendChild(input);
       return label;
     }
+    case 'datetime':
+      return renderPropertyDateTime(chave, valor, salvar);
+    case 'daterange':
+      return renderPropertyDateRange(chave, valor, salvar);
+    case 'location':
+      return renderPropertyLocation(chave, valor, salvar);
+    case 'reminder':
+      return renderPropertyReminder(chave, valor, salvar);
     case 'list':
       return renderPropertyList(chave, Array.isArray(valor) ? valor : [], salvar);
     case 'select':
@@ -99,6 +107,125 @@ function renderPropertyValue(tipo, chave, valor, opcoes, salvar) {
       return input;
     }
   }
+}
+
+function renderPropertyDateTime(chave, valor, salvar) {
+  const input = document.createElement('input');
+  input.type = 'datetime-local';
+  input.className = 'property-input property-input-datetime';
+  input.value = typeof valor === 'string' ? valor.slice(0, 16) : '';
+  input.addEventListener('change', e => salvar(chave, e.target.value));
+  return input;
+}
+
+function renderPropertyDateRange(chave, valor, salvar) {
+  const wrap = document.createElement('div');
+  wrap.className = 'property-daterange-wrap';
+  const startInput = document.createElement('input');
+  startInput.type = 'date';
+  startInput.className = 'property-input property-input-date';
+  startInput.value = (valor && valor.start) ? valor.start.slice(0, 10) : '';
+
+  const sep = document.createElement('span');
+  sep.className = 'property-daterange-sep';
+  sep.textContent = '→';
+
+  const endInput = document.createElement('input');
+  endInput.type = 'date';
+  endInput.className = 'property-input property-input-date';
+  endInput.value = (valor && valor.end) ? valor.end.slice(0, 10) : '';
+
+  const commit = () => {
+    salvar(chave, {
+      start: startInput.value,
+      end: endInput.value || startInput.value,
+      allDay: true
+    });
+  };
+  startInput.addEventListener('change', commit);
+  endInput.addEventListener('change', commit);
+
+  wrap.append(startInput, sep, endInput);
+  return wrap;
+}
+
+function renderPropertyLocation(chave, valor, salvar) {
+  const wrap = document.createElement('div');
+  wrap.className = 'property-location-wrap';
+  const valObj = (valor && typeof valor === 'object') ? valor : { name: String(valor || ''), radius: 150 };
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'property-input property-location-name';
+  nameInput.value = valObj.name || '';
+  nameInput.placeholder = 'Nome do local (ex: Casa)...';
+
+  const btnGps = document.createElement('button');
+  btnGps.type = 'button';
+  btnGps.className = 'property-location-gps-btn';
+  btnGps.title = 'Capturar minha posição GPS atual';
+  btnGps.innerHTML = '<span class="qd-icon material-symbols-rounded">my_location</span>';
+
+  nameInput.addEventListener('change', () => {
+    salvar(chave, { ...valObj, name: nameInput.value.trim() });
+  });
+
+  btnGps.addEventListener('click', () => {
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      btnGps.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          btnGps.disabled = false;
+          salvar(chave, {
+            ...valObj,
+            name: nameInput.value.trim() || 'Minha Posição',
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            radius: valObj.radius || 150
+          });
+        },
+        err => {
+          btnGps.disabled = false;
+          alert('Não foi possível obter a localização: ' + err.message);
+        }
+      );
+    }
+  });
+
+  wrap.append(nameInput, btnGps);
+  return wrap;
+}
+
+function renderPropertyReminder(chave, valor, salvar) {
+  const wrap = document.createElement('div');
+  wrap.className = 'property-reminder-wrap';
+  const valObj = (valor && typeof valor === 'object') ? valor : { active: true, intervalMinutes: 5 };
+
+  const selInterval = document.createElement('select');
+  selInterval.className = 'property-select property-reminder-select';
+  [3, 5, 10, 15, 30].forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = String(m);
+    opt.textContent = `A cada ${m} min`;
+    if (valObj.intervalMinutes === m) opt.selected = true;
+    selInterval.appendChild(opt);
+  });
+
+  selInterval.addEventListener('change', () => {
+    const min = Number(selInterval.value);
+    salvar(chave, { ...valObj, active: true, intervalMinutes: min });
+  });
+
+  const check = document.createElement('input');
+  check.type = 'checkbox';
+  check.checked = valObj.active !== false && !valObj.completed;
+  check.title = 'Ativar/Desativar lembrete';
+  check.addEventListener('change', () => {
+    salvar(chave, { ...valObj, active: check.checked });
+  });
+
+  wrap.append(check, selInterval);
+  return wrap;
 }
 
 // Lista de "chips" (tags) com input para adicionar via Enter/vírgula e Backspace

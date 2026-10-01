@@ -336,7 +336,7 @@ function findDetectionMatches(text) {
 
 // Remove marcações antigas de um bloco, deixando só o texto/formatação real.
 export function unwrapMarks(el) {
-  el.querySelectorAll('mark').forEach(mark => mark.replaceWith(...mark.childNodes));
+  el.querySelectorAll('mark:not(.md-highlight):not([data-syntax="=="])').forEach(mark => mark.replaceWith(...mark.childNodes));
   el.normalize();
 }
 
@@ -346,7 +346,11 @@ export function applyDetectionMarks(el) {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   const textNodes = [];
   let node;
-  while ((node = walker.nextNode())) textNodes.push(node);
+  while ((node = walker.nextNode())) {
+    if (!node.parentElement?.closest('code, mark.md-highlight, mark[data-syntax="=="]')) {
+      textNodes.push(node);
+    }
+  }
 
   for (const textNode of textNodes) {
     const text = textNode.data;

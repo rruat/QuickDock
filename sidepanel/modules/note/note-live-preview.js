@@ -12,6 +12,7 @@ export const INLINE_SYNTAX_MAP = {
   STRIKE: '~~',
   DEL: '~~',
   CODE: '`',
+  MARK: '==',
 };
 
 /**
@@ -30,7 +31,20 @@ export function getInlineDelimiters(inlineEl) {
     return { openSyntax: '[', closeSyntax: ']', isWiki: false, isWebLink: true };
   }
 
-  const openSyntax = isWiki ? '[[' : (INLINE_SYNTAX_MAP[inlineEl.tagName] || '');
+  const isBoldItalic = inlineEl.dataset?.syntax === '***' ||
+    inlineEl.dataset?.syntax === '___' ||
+    inlineEl.getAttribute?.('data-syntax') === '***' ||
+    inlineEl.getAttribute?.('data-syntax') === '___' ||
+    ((inlineEl.tagName === 'STRONG' || inlineEl.tagName === 'B') && inlineEl.querySelector?.(':scope > em, :scope > i')) ||
+    ((inlineEl.tagName === 'EM' || inlineEl.tagName === 'I') && inlineEl.querySelector?.(':scope > strong, :scope > b'));
+
+  if (isBoldItalic) {
+    const syn = inlineEl.dataset?.syntax || inlineEl.getAttribute?.('data-syntax') || '***';
+    return { openSyntax: syn, closeSyntax: syn, isWiki: false, isWebLink: false };
+  }
+
+  const customSyntax = inlineEl.dataset?.syntax || inlineEl.getAttribute?.('data-syntax');
+  const openSyntax = isWiki ? '[[' : (customSyntax || INLINE_SYNTAX_MAP[inlineEl.tagName] || '');
   const closeSyntax = isWiki ? ']]' : openSyntax;
 
   return { openSyntax, closeSyntax, isWiki, isWebLink: false };
@@ -55,7 +69,7 @@ export function extractExtraPrefixText(text) {
 
 /**
  * Identifica o elemento inline formatado mais próximo do nó do cursor
- * (strong, em, s, code, link ou link interno).
+ * (strong, em, mark, s, code, link ou link interno).
  * @param {Node} node
  * @param {HTMLElement} root
  * @returns {HTMLElement|null}
@@ -65,7 +79,28 @@ export function findNearestInlineFormatting(node, root) {
   const target = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
   if (!target || !root.contains(target)) return null;
 
-  return target.closest('strong, b, em, i, s, strike, del, code, a.note-internal-link, a[href]');
+  const selector = 'strong, b, em, i, mark.md-highlight, mark[data-syntax="=="], s, strike, del, code, a.note-internal-link, a[href]';
+
+  const strongEl = target.closest('strong, b');
+  const emEl = target.closest('em, i');
+  if (strongEl && emEl && root.contains(strongEl) && root.contains(emEl)) {
+    return strongEl.contains(emEl) ? strongEl : emEl;
+  }
+
+  const direct = target.closest(selector);
+  if (direct && root.contains(direct)) return direct;
+
+  const sel = (typeof document !== 'undefined') ? document.getSelection() : null;
+  if (sel && sel.isCollapsed && (target.classList?.contains('block') || target.classList?.contains('block-content'))) {
+    const offset = sel.anchorOffset;
+    const candidate = target.childNodes?.[offset] || target.childNodes?.[offset - 1] || (target.childNodes?.length === 1 ? target.firstChild : null);
+    if (candidate && candidate.nodeType === Node.ELEMENT_NODE) {
+      const match = candidate.closest?.(selector) || (candidate.matches?.(selector) ? candidate : null);
+      if (match && root.contains(match)) return match;
+    }
+  }
+
+  return null;
 }
 
 /**
