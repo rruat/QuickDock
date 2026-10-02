@@ -20,7 +20,15 @@ export function deveDispararLembrete(lembrete, agoraMs = Date.now()) {
     return false;
   }
 
-  // Primeiro disparo
+  // Se tem data e hora agendada no futuro, aguarda até o momento exato
+  if (lembrete.datetime) {
+    const targetMs = new Date(lembrete.datetime).getTime();
+    if (!isNaN(targetMs) && agoraMs < targetMs) {
+      return false;
+    }
+  }
+
+  // Primeiro disparo após o horário agendado (ou imediato se não tiver datetime)
   if (!lembrete.lastNotified) {
     return true;
   }
@@ -42,6 +50,13 @@ export function calcularProximoDisparo(lembrete, agoraMs = Date.now()) {
 
   if (typeof lembrete.snoozeUntil === 'number' && agoraMs < lembrete.snoozeUntil) {
     return lembrete.snoozeUntil;
+  }
+
+  if (lembrete.datetime && !lembrete.lastNotified) {
+    const targetMs = new Date(lembrete.datetime).getTime();
+    if (!isNaN(targetMs) && targetMs > agoraMs) {
+      return targetMs;
+    }
   }
 
   if (!lembrete.lastNotified) {

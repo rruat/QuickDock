@@ -159,5 +159,20 @@ export function initBackgroundAlarms() {
       });
       return true;
     }
+    if (msg?.type === 'TRIGGER_TEST_NOTIFICATION') {
+      const { title, message } = msg;
+      if (chrome.notifications) {
+        chrome.notifications.create(`test_${Date.now()}`, {
+          type: 'basic',
+          iconUrl: 'icons/128.png',
+          title: title || '⏰ Teste de Alarme QuickDock',
+          message: message || 'Lembrete insistente funcionando!',
+          priority: 2,
+          requireInteraction: true
+        });
+      }
+      sendResponse({ ok: true });
+      return true;
+    }
   });
 }

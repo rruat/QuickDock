@@ -17,6 +17,7 @@ import { initBasesView } from './modules/bases-view.js';
 import { initJsonView } from './modules/json-view.js';
 import { initResponsiveHeaders } from './modules/responsive-header.js';
 import { initSpatialShell } from './modules/spatial-shell.js';
+import { initReminderRunner } from './modules/reminders/reminder-runner.js';
 
 // Aplica a identificação de plataforma (extension, mobile, desktop) imediatamente
 applyPlatform();
@@ -239,6 +240,7 @@ async function init() {
     // desenhando/restaurando o layout de painéis de verdade.
     initResponsiveHeaders();
     initSpatialShell();
+    initReminderRunner();
 
     const btnHeaderTheme = document.getElementById('btn-header-theme');
     if (btnHeaderTheme) {

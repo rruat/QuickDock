@@ -6,6 +6,7 @@ import { updateNoteMetaById } from '../storage.js';
 import { registrarGeocerca, desregistrarGeocerca } from './geo-watcher.js';
 import { buscarLocaisPorTexto, obterEnderecoPorCoordenadas, obterPosicaoGpsAltaPrecisao } from './location-service.js';
 import { createMapPicker } from './map-picker.js';
+import { testarAlarmeTDAH } from './reminder-runner.js';
 
 let activeSectionType = null; // 'location' | 'reminder' | null
 let currentMapPicker = null;
@@ -541,15 +542,24 @@ function renderReminderSection(container, note, onSaved) {
     });
   });
 
-  container.querySelector('#sec-btn-test-alarm')?.addEventListener('click', () => {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission();
+  container.querySelector('#sec-btn-test-alarm')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#sec-btn-test-alarm');
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.innerHTML = '<span class="qd-icon material-symbols-rounded">check_circle</span> Alarme e Som Disparados!';
+      btn.style.borderColor = 'var(--color-success, #10b981)';
+      btn.style.color = 'var(--color-success, #10b981)';
     }
-    chrome.runtime?.sendMessage?.({
-      type: 'TRIGGER_TEST_NOTIFICATION',
-      title: '⏰ Teste de Alarme TDAH',
-      message: note.title ? `Nota: "${note.title}"` : 'QuickDock: Lembrete insistente funcionando!'
-    });
+
+    await testarAlarmeTDAH(note);
+
+    setTimeout(() => {
+      if (btn) {
+        btn.innerHTML = textoOriginal;
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+    }, 2800);
   });
 
   container.querySelectorAll('.btn-collapse-section').forEach(b => b.addEventListener('click', closeNoteSection));

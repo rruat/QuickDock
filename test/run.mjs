@@ -5510,6 +5510,34 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     propsSource.includes('renderPropertyReminder') &&
     propsSource.includes('valObj.datetime') &&
     propsSource.includes('property-location-chip'));
+
+  // 14. Testes de Sintetizador de Som e Runner Contínuo de Alarmes
+  ok('background-alarms.js · processa mensagem TRIGGER_TEST_NOTIFICATION',
+    bgAlarmsUpdatedSource.includes('TRIGGER_TEST_NOTIFICATION'));
+
+  const now = Date.now();
+  const futureLembrete = { active: true, datetime: new Date(now + 60000).toISOString(), intervalMinutes: 5 };
+  const pastLembrete = { active: true, datetime: new Date(now - 1000).toISOString(), intervalMinutes: 5 };
+  
+  ok('persistent-reminder.js · não dispara antes do horário agendado',
+    deveDispararLembrete(futureLembrete) === false);
+  ok('persistent-reminder.js · dispara quando o horário agendado é atingido',
+    deveDispararLembrete(pastLembrete) === true);
+
+  const reminderSoundSource = await readFile(new URL('../sidepanel/modules/reminders/reminder-sound.js', import.meta.url), 'utf8');
+  ok('reminder-sound.js · sintetizador de áudio Web Audio API implementado',
+    reminderSoundSource.includes('tocarSomAlarmeTDAH') &&
+    reminderSoundSource.includes('createOscillator'));
+
+  const reminderRunnerSource = await readFile(new URL('../sidepanel/modules/reminders/reminder-runner.js', import.meta.url), 'utf8');
+  ok('reminder-runner.js · exporta funções de teste e ciclo in-app',
+    reminderRunnerSource.includes('testarAlarmeTDAH') &&
+    reminderRunnerSource.includes('exibirAlarmeVisualToast') &&
+    reminderRunnerSource.includes('initReminderRunner'));
+
+  ok('note-expandable-section.js · botão de teste aciona testarAlarmeTDAH com feedback instantâneo',
+    expandableSectionSource.includes('testarAlarmeTDAH') &&
+    expandableSectionSource.includes('sec-btn-test-alarm'));
 }
 
 
