@@ -5,7 +5,7 @@
 import { positionPopover } from '../popover.js';
 import { updateNoteMetaById } from '../storage.js';
 import { registrarGeocerca, desregistrarGeocerca } from './geo-watcher.js';
-import { buscarLocaisPorTexto, obterEnderecoPorCoordenadas } from './location-service.js';
+import { buscarLocaisPorTexto, obterEnderecoPorCoordenadas, obterPosicaoGpsAltaPrecisao } from './location-service.js';
 import { createMapPicker } from './map-picker.js';
 
 let activeLocationPopover = null;
@@ -271,34 +271,27 @@ export function openLocationPopover(anchorEl, note, onSaved) {
   });
 
   // Capturar GPS Atual
-  pop.querySelector('#btn-get-gps')?.addEventListener('click', () => {
-    if (!navigator.geolocation) {
-      alert('Geolocalização não é suportada pelo seu navegador.');
-      return;
-    }
+  pop.querySelector('#btn-get-gps')?.addEventListener('click', async () => {
     const gpsBtn = pop.querySelector('#btn-get-gps');
-    gpsBtn.disabled = true;
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        gpsBtn.disabled = false;
-        currentLat = pos.coords.latitude;
-        currentLng = pos.coords.longitude;
-        activeMapPicker?.panToLocation(currentLat, currentLng, 16);
-        atualizarLinkGoogleMaps(currentLat, currentLng);
+    if (gpsBtn) gpsBtn.disabled = true;
+    try {
+      const pos = await obterPosicaoGpsAltaPrecisao(12000);
+      currentLat = pos.lat;
+      currentLng = pos.lng;
+      activeMapPicker?.panToLocation(currentLat, currentLng, 16);
+      atualizarLinkGoogleMaps(currentLat, currentLng);
 
-        try {
-          const info = await obterEnderecoPorCoordenadas(currentLat, currentLng);
-          if (info && !nameInput.value.trim()) {
-            nameInput.value = info.name;
-          }
-        } catch (_) {}
-      },
-      (err) => {
-        gpsBtn.disabled = false;
-        alert('Não foi possível obter sua posição GPS: ' + err.message);
-      },
-      { timeout: 10000, enableHighAccuracy: true }
-    );
+      try {
+        const info = await obterEnderecoPorCoordenadas(currentLat, currentLng);
+        if (info && !nameInput.value.trim()) {
+          nameInput.value = info.name;
+        }
+      } catch (_) {}
+    } catch (err) {
+      alert('Não foi possível obter sua posição GPS: ' + (err.message || 'permissão negada'));
+    } finally {
+      if (gpsBtn) gpsBtn.disabled = false;
+    }
   });
 
   pop.querySelector('.location-close-btn')?.addEventListener('click', closeLocationPopover);

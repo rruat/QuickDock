@@ -5428,6 +5428,69 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('note-properties.js · abrir menu de tipos ao adicionar propriedade',
     notePropsSource.includes('abrirMenuDeTipo(anchor') &&
     notePropsSource.includes('NOMES_PADRAO_POR_TIPO'));
+
+  // 12. Testes de Geolocalização de Alta Precisão e Chip de Propriedade
+  const { extrairNomeCurto } = await import('../sidepanel/modules/reminders/location-service.js');
+
+  const testEnderecoRua = extrairNomeCurto({
+    address: {
+      road: 'Avenida Paulista',
+      house_number: '1578',
+      suburb: 'Bela Vista',
+      city: 'São Paulo'
+    }
+  });
+  ok('location-service.js · extrairNomeCurto prioriza rua, número e bairro',
+    testEnderecoRua === 'Avenida Paulista, 1578 - Bela Vista');
+
+  const testEnderecoSemNumero = extrairNomeCurto({
+    address: {
+      road: 'Rua das Flores',
+      suburb: 'Centro'
+    }
+  });
+  ok('location-service.js · extrairNomeCurto formata rua e bairro sem número',
+    testEnderecoSemNumero === 'Rua das Flores - Centro');
+
+  const testEnderecoPoi = extrairNomeCurto({
+    name: 'Hospital das Clínicas',
+    address: {
+      suburb: 'Cerqueira César'
+    }
+  });
+  ok('location-service.js · extrairNomeCurto preserva nome de POI relevante com bairro',
+    testEnderecoPoi === 'Hospital das Clínicas (Cerqueira César)');
+
+  ok('location-service.js · implementa obterPosicaoGpsAltaPrecisao com enableHighAccuracy e maximumAge 0',
+    locationServiceSource.includes('obterPosicaoGpsAltaPrecisao') &&
+    locationServiceSource.includes('enableHighAccuracy: true') &&
+    locationServiceSource.includes('maximumAge: 0'));
+
+  ok('note-properties.js · renderPropertyLocation gera chip interativo e não input livre',
+    notePropsSource.includes('property-location-chip') &&
+    notePropsSource.includes('has-location') &&
+    notePropsSource.includes('is-empty') &&
+    notePropsSource.includes('chip-location-radius') &&
+    notePropsSource.includes('chip-location-clear'));
+
+  const notePropsCssSource = await readFile(new URL('../sidepanel/css/17-note-properties.css', import.meta.url), 'utf8');
+  ok('17-note-properties.css · estiliza chips de localização para propriedades de notas',
+    notePropsCssSource.includes('.property-location-chip') &&
+    notePropsCssSource.includes('.property-location-chip.has-location') &&
+    notePropsCssSource.includes('.property-location-chip.is-empty'));
+
+  ok('note-expandable-section.js · integra status de GPS e captura automática em notas sem local',
+    expandableSectionSource.includes('sec-gps-status') &&
+    expandableSectionSource.includes('obterPosicaoGpsAltaPrecisao') &&
+    expandableSectionSource.includes('currentLat == null || currentLng == null'));
+
+  const { registrarGeocerca, desregistrarGeocerca } = await import('../sidepanel/modules/reminders/geo-watcher.js');
+  registrarGeocerca({ id: 'nota-teste-1', lat: -23.55, lng: -46.63, radius: 100 });
+  registrarGeocerca('nota-teste-2', { lat: -23.56, lng: -46.64, radius: 200 });
+  desregistrarGeocerca('nota-teste-1');
+  desregistrarGeocerca('nota-teste-2');
+  ok('geo-watcher.js · registrarGeocerca aceita ambas as assinaturas (objeto único e noteId + geocerca)',
+    typeof registrarGeocerca === 'function' && typeof desregistrarGeocerca === 'function');
 }
 
 

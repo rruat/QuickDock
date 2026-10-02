@@ -14,7 +14,7 @@ export async function buscarLocaisPorTexto(query) {
 
   const url = `${NOMINATIM_BASE}/search?format=json&q=${encodeURIComponent(q)}&limit=5&addressdetails=1`;
   const res = await fetch(url, {
-    headers: { 'Accept': 'application/json' }
+    headers: { 'Accept': 'application/json', 'User-Agent': 'QuickDock/2.1' }
   });
 
   if (!res.ok) {
@@ -48,7 +48,7 @@ export async function obterEnderecoPorCoordenadas(lat, lng) {
 
   const url = `${NOMINATIM_BASE}/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
   const res = await fetch(url, {
-    headers: { 'Accept': 'application/json' }
+    headers: { 'Accept': 'application/json', 'User-Agent': 'QuickDock/2.1' }
   });
 
   if (!res.ok) {
@@ -67,27 +67,68 @@ export async function obterEnderecoPorCoordenadas(lat, lng) {
 }
 
 /**
- * Extrai um nome curto e legível para a UI a partir do payload do Nominatim.
+ * Obtém a posição GPS atual do dispositivo com alta precisão e sem cache antigo.
+ * @param {number} [timeoutMs=12000]
+ * @returns {Promise<{lat: number, lng: number, accuracy: number}>}
  */
-function extrairNomeCurto(item) {
+export function obterPosicaoGpsAltaPrecisao(timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      return reject(new Error('Geolocalização não disponível no navegador'));
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        });
+      },
+      err => reject(err),
+      {
+        enableHighAccuracy: true,
+        timeout: timeoutMs,
+        maximumAge: 0
+      }
+    );
+  });
+}
+
+/**
+ * Extrai o nome da rua, número e bairro legível para a UI a partir do payload do Nominatim.
+ */
+export function extrairNomeCurto(item) {
   if (!item) return 'Local selecionado';
   const addr = item.address || {};
 
-  // 1. Nome de ponto de interesse ou edifício
-  const poi = addr.shop || addr.amenity || addr.building || addr.office || addr.leisure;
+  // 1. Identificar rua/via de circulação
+  const rua = addr.road || addr.street || addr.pedestrian || addr.footway || addr.avenue || addr.highway || addr.path;
+  const numero = addr.house_number || '';
+  const bairro = addr.suburb || addr.neighbourhood || addr.quarter || '';
+  const cidade = addr.city || addr.town || addr.municipality || addr.village || '';
+
+  // 2. Se temos a rua identificada:
+  if (rua) {
+    let endereco = rua;
+    if (numero) endereco += `, ${numero}`;
+    if (bairro) endereco += ` - ${bairro}`;
+    else if (cidade) endereco += ` - ${cidade}`;
+    return endereco;
+  }
+
+  // 3. Se é ponto de interesse com nome real (não tags genéricas como 'yes')
+  const poi = (typeof item.name === 'string' && item.name.length > 2 && item.name !== 'yes') ? item.name : null;
   if (poi) {
-    return poi.charAt(0).toUpperCase() + poi.slice(1);
+    if (bairro || cidade) return `${poi} (${bairro || cidade})`;
+    return poi;
   }
 
-  // 2. Rua e número
-  if (addr.road) {
-    return addr.house_number ? `${addr.road}, ${addr.house_number}` : addr.road;
-  }
-
-  // 3. Nome do item ou primeiro pedaço do display_name
-  if (item.name) return item.name;
+  // 4. Primeiro pedaço significativo do display_name
   if (item.display_name) {
-    return item.display_name.split(',')[0].trim();
+    const partes = item.display_name.split(',').map(p => p.trim()).filter(Boolean);
+    if (partes.length >= 2) return `${partes[0]}, ${partes[1]}`;
+    return partes[0] || 'Local marcado no mapa';
   }
 
   return 'Local marcado no mapa';

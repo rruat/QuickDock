@@ -157,62 +157,70 @@ function renderPropertyLocation(chave, valor, salvar) {
   wrap.className = 'property-location-wrap';
   const valObj = (valor && typeof valor === 'object') ? valor : { name: String(valor || ''), radius: 150 };
 
-  const nameInput = document.createElement('input');
-  nameInput.type = 'text';
-  nameInput.className = 'property-input property-location-name';
-  nameInput.value = valObj.name || '';
-  nameInput.placeholder = 'Nome do local (ex: Casa)...';
+  const hasLocation = Boolean(valObj.lat != null || (valObj.name && valObj.name.trim() !== ''));
 
-  const btnMap = document.createElement('button');
-  btnMap.type = 'button';
-  btnMap.className = 'property-location-map-btn icon-btn';
-  btnMap.title = 'Abrir Mapa e Buscar Endereço';
-  btnMap.innerHTML = '<span class="qd-icon material-symbols-rounded">map</span>';
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = `property-location-chip ${hasLocation ? 'has-location' : 'is-empty'}`;
+  chip.title = hasLocation
+    ? `${valObj.name || 'Local marcado'} — Clique para abrir no mapa`
+    : 'Clique para definir localização no mapa';
 
-  const btnGps = document.createElement('button');
-  btnGps.type = 'button';
-  btnGps.className = 'property-location-gps-btn icon-btn';
-  btnGps.title = 'Capturar minha posição GPS atual';
-  btnGps.innerHTML = '<span class="qd-icon material-symbols-rounded">my_location</span>';
+  if (hasLocation) {
+    const icon = document.createElement('span');
+    icon.className = 'chip-icon qd-icon material-symbols-rounded';
+    icon.textContent = 'location_on';
 
-  nameInput.addEventListener('change', () => {
-    salvar(chave, { ...valObj, name: nameInput.value.trim() });
-  });
+    const label = document.createElement('span');
+    label.className = 'chip-location-name';
+    label.textContent = valObj.name || (valObj.lat ? `${valObj.lat.toFixed(4)}, ${valObj.lng.toFixed(4)}` : 'Local marcado');
 
-  btnMap.addEventListener('click', async e => {
+    const radiusTag = document.createElement('span');
+    radiusTag.className = 'chip-location-radius';
+    radiusTag.textContent = `${valObj.radius || 150}m`;
+
+    const clearBtn = document.createElement('span');
+    clearBtn.className = 'chip-location-clear qd-icon material-symbols-rounded';
+    clearBtn.textContent = 'close';
+    clearBtn.title = 'Remover localização';
+    clearBtn.setAttribute('role', 'button');
+    clearBtn.setAttribute('tabindex', '0');
+
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      salvar(chave, { name: '', lat: null, lng: null, radius: 150 });
+    });
+
+    chip.append(icon, label, radiusTag, clearBtn);
+  } else {
+    const icon = document.createElement('span');
+    icon.className = 'chip-icon qd-icon material-symbols-rounded';
+    icon.textContent = 'add_location_alt';
+
+    const label = document.createElement('span');
+    label.className = 'chip-location-name';
+    label.textContent = 'Definir local';
+
+    chip.append(icon, label);
+  }
+
+  chip.addEventListener('click', async e => {
     e.stopPropagation();
     const currentNoteId = getCurrentNoteId();
     if (!currentNoteId) return;
     const note = await getNoteById(currentNoteId);
     if (!note) return;
+
     openNoteSection('location', note, novaLoc => {
-      if (novaLoc) salvar(chave, novaLoc);
+      if (novaLoc) {
+        salvar(chave, novaLoc);
+      } else if (novaLoc === null) {
+        salvar(chave, { name: '', lat: null, lng: null, radius: 150 });
+      }
     });
   });
 
-  btnGps.addEventListener('click', () => {
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      btnGps.disabled = true;
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          btnGps.disabled = false;
-          salvar(chave, {
-            ...valObj,
-            name: nameInput.value.trim() || 'Minha Posição',
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            radius: valObj.radius || 150
-          });
-        },
-        err => {
-          btnGps.disabled = false;
-          alert('Não foi possível obter a localização: ' + err.message);
-        }
-      );
-    }
-  });
-
-  wrap.append(nameInput, btnMap, btnGps);
+  wrap.appendChild(chip);
   return wrap;
 }
 
@@ -792,3 +800,13 @@ if (btnAddProperty) {
     iniciarNovaPropriedade(note, btnAddProperty);
   });
 }
+
+document.addEventListener('quickdock:note-properties-updated', async e => {
+  const noteId = e.detail?.noteId;
+  const currentNoteId = getCurrentNoteId();
+  if (noteId && currentNoteId && noteId === currentNoteId) {
+    const note = await getNoteById(noteId);
+    if (note) renderPropertiesBar(note);
+  }
+});
+

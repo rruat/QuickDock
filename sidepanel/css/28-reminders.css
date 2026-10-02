@@ -680,3 +680,69 @@
   color: var(--accent) !important;
   border-color: var(--accent) !important;
 }
+
+/* ── Feedback de Status do GPS e Geocodificação ──────────────────────────── */
+.location-gps-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  margin-top: 2px;
+  transition: all 0.2s ease;
+}
+
+.location-gps-status.is-searching {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.location-gps-status.is-searching .spin {
+  animation: spin-pulse 1s linear infinite;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.location-gps-status.is-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--text);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.location-gps-status.is-success .qd-icon {
+  color: #10b981;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.location-gps-status.is-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--text);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.location-gps-status.is-warning .qd-icon {
+  color: #f59e0b;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.location-gps-status.is-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.location-gps-status.is-error .qd-icon {
+  color: #ef4444;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+@keyframes spin-pulse {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+

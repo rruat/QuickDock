@@ -4,7 +4,7 @@
 
 import { updateNoteMetaById } from '../storage.js';
 import { registrarGeocerca, desregistrarGeocerca } from './geo-watcher.js';
-import { buscarLocaisPorTexto, obterEnderecoPorCoordenadas } from './location-service.js';
+import { buscarLocaisPorTexto, obterEnderecoPorCoordenadas, obterPosicaoGpsAltaPrecisao } from './location-service.js';
 import { createMapPicker } from './map-picker.js';
 
 let activeSectionType = null; // 'location' | 'reminder' | null
@@ -81,7 +81,9 @@ function renderLocationSection(container, note, onSaved) {
   const props = { ...(note.properties || {}) };
   const loc = (props.location && typeof props.location === 'object')
     ? props.location
-    : { name: '', lat: null, lng: null, radius: 150 };
+    : (props.localizacao && typeof props.localizacao === 'object')
+      ? props.localizacao
+      : { name: '', lat: null, lng: null, radius: 150 };
 
   let currentLat = loc.lat ?? null;
   let currentLng = loc.lng ?? null;
@@ -105,10 +107,13 @@ function renderLocationSection(container, note, onSaved) {
         <button type="button" id="sec-btn-search" class="calendar-action-btn primary" title="Buscar no mapa">
           <span class="qd-icon material-symbols-rounded">search</span>
         </button>
-        <button type="button" id="sec-btn-gps" class="icon-btn gps-action-btn" title="Usar minha posição GPS atual">
+        <button type="button" id="sec-btn-gps" class="icon-btn gps-action-btn" title="Capturar minha posição GPS de alta precisão">
           <span class="qd-icon material-symbols-rounded">my_location</span>
         </button>
       </div>
+
+      <!-- Feedback de status GPS / Geocodificação -->
+      <div id="sec-gps-status" class="location-gps-status" hidden></div>
 
       <!-- Atalhos de locais -->
       <div class="location-presets-row">
@@ -134,8 +139,8 @@ function renderLocationSection(container, note, onSaved) {
       <!-- Campos de nome e raio -->
       <div class="location-fields-grid">
         <div class="reminder-field">
-          <label for="sec-location-name" class="reminder-field-label">Nome do local</label>
-          <input type="text" id="sec-location-name" class="property-input" placeholder="Ex: Minha Casa, Escritório..." value="${loc.name || ''}">
+          <label for="sec-location-name" class="reminder-field-label">Nome do local / Rua</label>
+          <input type="text" id="sec-location-name" class="property-input" placeholder="Ex: Rua das Flores, 123..." value="${loc.name || ''}">
         </div>
 
         <div class="reminder-field">
@@ -197,6 +202,7 @@ function renderLocationSection(container, note, onSaved) {
   const gmapsLink = container.querySelector('#sec-link-gmaps');
   const tdahToggle = container.querySelector('#sec-tdah-toggle');
   const intervalSelect = container.querySelector('#sec-interval-select');
+  const statusEl = container.querySelector('#sec-gps-status');
 
   const atualizarGmaps = (lat, lng) => {
     if (lat && lng) {
@@ -215,14 +221,64 @@ function renderLocationSection(container, note, onSaved) {
       currentLat = lat;
       currentLng = lng;
       atualizarGmaps(lat, lng);
+      if (statusEl) {
+        statusEl.hidden = false;
+        statusEl.className = 'location-gps-status is-searching';
+        statusEl.innerHTML = '<span class="qd-icon material-symbols-rounded spin">sync</span><span>Identificando rua do ponto selecionado...</span>';
+      }
       try {
         const info = await obterEnderecoPorCoordenadas(lat, lng);
-        if (info && (!nameInput.value.trim() || nameInput.value.startsWith('Local marcado'))) {
+        if (info && info.name) {
           nameInput.value = info.name;
+          if (statusEl) {
+            statusEl.className = 'location-gps-status is-success';
+            statusEl.innerHTML = `<span class="qd-icon material-symbols-rounded">check_circle</span><span>Endereço identificado: <strong>${info.name}</strong></span>`;
+          }
         }
-      } catch (_) {}
+      } catch (_) {
+        if (statusEl) statusEl.hidden = true;
+      }
     }
   });
+
+  // Se a nota não possuir localização gravada, captura automaticamente a posição GPS atual com alta precisão
+  if (currentLat == null || currentLng == null) {
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.className = 'location-gps-status is-searching';
+      statusEl.innerHTML = '<span class="qd-icon material-symbols-rounded spin">sync</span><span>Obtendo sua localização GPS atual de alta precisão...</span>';
+    }
+    obterPosicaoGpsAltaPrecisao(12000).then(async pos => {
+      if (activeSectionType !== 'location') return;
+      currentLat = pos.lat;
+      currentLng = pos.lng;
+      currentMapPicker?.panToLocation(currentLat, currentLng, 17);
+      atualizarGmaps(currentLat, currentLng);
+      try {
+        const info = await obterEnderecoPorCoordenadas(currentLat, currentLng);
+        if (info && info.name) {
+          if (!nameInput.value.trim() || nameInput.value === 'Local Marcado') {
+            nameInput.value = info.name;
+          }
+          if (statusEl) {
+            statusEl.className = 'location-gps-status is-success';
+            statusEl.innerHTML = `<span class="qd-icon material-symbols-rounded">check_circle</span><span>Local atual: <strong>${info.name}</strong> (precisão: ±${Math.round(pos.accuracy)}m)</span>`;
+          }
+          return;
+        }
+      } catch (_) {}
+      if (statusEl) {
+        statusEl.className = 'location-gps-status is-success';
+        statusEl.innerHTML = `<span class="qd-icon material-symbols-rounded">check_circle</span><span>Posição GPS capturada (precisão: ±${Math.round(pos.accuracy)}m)</span>`;
+      }
+    }).catch(err => {
+      if (activeSectionType !== 'location') return;
+      if (statusEl) {
+        statusEl.className = 'location-gps-status is-warning';
+        statusEl.innerHTML = '<span class="qd-icon material-symbols-rounded">info</span><span>GPS não disponível automaticamente. Você pode clicar no mapa ou pesquisar um endereço.</span>';
+      }
+    });
+  }
 
   radiusRange.addEventListener('input', () => {
     currentRadius = Number(radiusRange.value);
@@ -276,18 +332,47 @@ function renderLocationSection(container, note, onSaved) {
   searchBtn.addEventListener('click', executarBusca);
   searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); executarBusca(); } });
 
-  container.querySelector('#sec-btn-gps')?.addEventListener('click', () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(async pos => {
-      currentLat = pos.coords.latitude;
-      currentLng = pos.coords.longitude;
-      currentMapPicker?.panToLocation(currentLat, currentLng, 16);
+  // Botão de capturar GPS manual com alta precisão
+  container.querySelector('#sec-btn-gps')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#sec-btn-gps');
+    if (btn) btn.disabled = true;
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.className = 'location-gps-status is-searching';
+      statusEl.innerHTML = '<span class="qd-icon material-symbols-rounded spin">sync</span><span>Obtendo localização GPS com alta precisão...</span>';
+    }
+    try {
+      const pos = await obterPosicaoGpsAltaPrecisao(12000);
+      currentLat = pos.lat;
+      currentLng = pos.lng;
+      currentMapPicker?.panToLocation(currentLat, currentLng, 17);
       atualizarGmaps(currentLat, currentLng);
       try {
         const info = await obterEnderecoPorCoordenadas(currentLat, currentLng);
-        if (info && !nameInput.value.trim()) nameInput.value = info.name;
-      } catch (_) {}
-    });
+        if (info && info.name) {
+          nameInput.value = info.name;
+          if (statusEl) {
+            statusEl.className = 'location-gps-status is-success';
+            statusEl.innerHTML = `<span class="qd-icon material-symbols-rounded">check_circle</span><span>Localização atual: <strong>${info.name}</strong></span>`;
+          }
+        } else if (statusEl) {
+          statusEl.className = 'location-gps-status is-success';
+          statusEl.innerHTML = `<span class="qd-icon material-symbols-rounded">check_circle</span><span>Posição GPS detectada (precisão: ±${Math.round(pos.accuracy)}m)</span>`;
+        }
+      } catch (_) {
+        if (statusEl) {
+          statusEl.className = 'location-gps-status is-success';
+          statusEl.innerHTML = `<span class="qd-icon material-symbols-rounded">check_circle</span><span>Posição GPS detectada (precisão: ±${Math.round(pos.accuracy)}m)</span>`;
+        }
+      }
+    } catch (err) {
+      if (statusEl) {
+        statusEl.className = 'location-gps-status is-error';
+        statusEl.innerHTML = `<span class="qd-icon material-symbols-rounded">error</span><span>Não foi possível obter GPS: ${err.message || 'permissão negada'}</span>`;
+      }
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   });
 
   container.querySelectorAll('.btn-collapse-section').forEach(b => b.addEventListener('click', closeNoteSection));
@@ -318,12 +403,16 @@ function renderLocationSection(container, note, onSaved) {
       intervalMinutes
     };
 
-    props.location = novaLocation;
+    if (props.localizacao && !props.location) {
+      props.localizacao = novaLocation;
+    } else {
+      props.location = novaLocation;
+    }
     note.properties = { ...props };
     await updateNoteMetaById(note.id, { properties: note.properties });
 
-    if (currentLat && currentLng) {
-      registrarGeocerca({
+    if (currentLat != null && currentLng != null) {
+      registrarGeocerca(note.id, {
         id: note.id,
         noteId: note.id,
         name: nome,

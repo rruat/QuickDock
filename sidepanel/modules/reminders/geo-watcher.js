@@ -13,12 +13,14 @@ const geocercasAtivas = new Map(); // noteId -> geocerca
  * @param {string} noteId
  * @param {Object} geocerca { name, lat, lng, radius, triggerOn, triggered, active }
  */
-export function registrarGeocerca(noteId, geocerca) {
+export function registrarGeocerca(arg1, arg2) {
+  const noteId = typeof arg1 === 'string' ? arg1 : (arg1?.noteId || arg1?.id);
+  const geocerca = (typeof arg1 === 'object' && !arg2) ? arg1 : arg2;
   if (!noteId || !geocerca || geocerca.active === false || geocerca.lat == null) {
-    geocercasAtivas.delete(noteId);
+    if (noteId) geocercasAtivas.delete(noteId);
     return;
   }
-  geocercasAtivas.set(noteId, { ...geocerca });
+  geocercasAtivas.set(noteId, { ...geocerca, noteId });
   iniciarMonitoramentoSeNecessario();
 }
 
