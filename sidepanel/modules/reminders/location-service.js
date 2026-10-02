@@ -71,10 +71,10 @@ export async function obterEnderecoPorCoordenadas(lat, lng) {
  * @param {number} [timeoutMs=12000]
  * @returns {Promise<{lat: number, lng: number, accuracy: number}>}
  */
-export function obterPosicaoGpsAltaPrecisao(timeoutMs = 12000) {
+export function obterPosicaoGpsAltaPrecisao(timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      return reject(new Error('Geolocalização não disponível no navegador'));
+      return reject(new Error('Geolocalização não disponível no navegador (requer HTTPS ou localhost)'));
     }
 
     navigator.geolocation.getCurrentPosition(
@@ -85,7 +85,24 @@ export function obterPosicaoGpsAltaPrecisao(timeoutMs = 12000) {
           accuracy: pos.coords.accuracy
         });
       },
-      err => reject(err),
+      err => {
+        // Fallback: se alta precisão (satélite) falhou ou esgotou o tempo (ex: ambiente interno/PWA), tenta via rede/WiFi
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            resolve({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy
+            });
+          },
+          err2 => reject(err2 || err),
+          {
+            enableHighAccuracy: false,
+            timeout: 8000,
+            maximumAge: 30000
+          }
+        );
+      },
       {
         enableHighAccuracy: true,
         timeout: timeoutMs,
