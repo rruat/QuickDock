@@ -60,8 +60,31 @@ export function renderNoteHeader(note) {
       const badgeRem = document.createElement('button');
       badgeRem.type = 'button';
       badgeRem.className = 'note-header-badge badge-reminder';
-      badgeRem.title = 'Lembrete TDAH ativo · Clique para expandir opções';
-      badgeRem.innerHTML = `<span class="qd-icon material-symbols-rounded">alarm</span><span>A cada ${rem.intervalMinutes || 5}m</span>`;
+
+      let labelTexto = `A cada ${rem.intervalMinutes || 5}m`;
+      if (rem.datetime) {
+        const dt = new Date(rem.datetime);
+        if (!isNaN(dt.getTime())) {
+          const hoje = new Date();
+          const ehHoje = dt.toDateString() === hoje.toDateString();
+          const amanha = new Date(hoje);
+          amanha.setDate(hoje.getDate() + 1);
+          const ehAmanha = dt.toDateString() === amanha.toDateString();
+          const horaFmt = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          if (ehHoje) {
+            labelTexto = `Hoje às ${horaFmt}`;
+          } else if (ehAmanha) {
+            labelTexto = `Amanhã às ${horaFmt}`;
+          } else {
+            const dataFmt = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            labelTexto = `${dataFmt} às ${horaFmt}`;
+          }
+          labelTexto += ` (${rem.intervalMinutes || 5}m)`;
+        }
+      }
+
+      badgeRem.title = `Lembrete agendado: ${labelTexto} · Clique para editar`;
+      badgeRem.innerHTML = `<span class="qd-icon material-symbols-rounded">alarm</span><span>${labelTexto}</span>`;
       badgeRem.addEventListener('click', e => {
         e.stopPropagation();
         toggleNoteSection('reminder', note, () => renderNoteHeader(note));

@@ -5491,6 +5491,25 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   desregistrarGeocerca('nota-teste-2');
   ok('geo-watcher.js · registrarGeocerca aceita ambas as assinaturas (objeto único e noteId + geocerca)',
     typeof registrarGeocerca === 'function' && typeof desregistrarGeocerca === 'function');
+
+  // 13. Testes de Lembretes com Data e Hora
+  const bgAlarmsUpdatedSource = await readFile(new URL('../background/background-alarms.js', import.meta.url), 'utf8');
+  ok('background-alarms.js · suporta agendamento futuro com timestamp exato',
+    bgAlarmsUpdatedSource.includes('isTimestamp') &&
+    bgAlarmsUpdatedSource.includes('when:') &&
+    bgAlarmsUpdatedSource.includes('SCHEDULE_TDAH_REMINDER'));
+
+  const headerSource = await readFile(new URL('../sidepanel/modules/note-header.js', import.meta.url), 'utf8');
+  ok('note-header.js · formata badge de lembrete com data e hora agendada',
+    headerSource.includes('rem.datetime') &&
+    headerSource.includes('badge-reminder') &&
+    headerSource.includes('Hoje às'));
+
+  const propsSource = await readFile(new URL('../sidepanel/modules/note-properties.js', import.meta.url), 'utf8');
+  ok('note-properties.js · renderPropertyReminder usa chip interativo com suporte a datetime',
+    propsSource.includes('renderPropertyReminder') &&
+    propsSource.includes('valObj.datetime') &&
+    propsSource.includes('property-location-chip'));
 }
 
 

@@ -519,6 +519,12 @@ function renderReminderSection(container, note, onSaved) {
   const datetimeInput = container.querySelector('#sec-rem-datetime-input');
   const intervalSelect = container.querySelector('#sec-rem-interval-select');
 
+  datetimeInput.addEventListener('input', () => {
+    if (datetimeInput.value) {
+      activeToggle.checked = true;
+    }
+  });
+
   container.querySelectorAll('.sec-quick-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       activeToggle.checked = true;
@@ -536,6 +542,9 @@ function renderReminderSection(container, note, onSaved) {
   });
 
   container.querySelector('#sec-btn-test-alarm')?.addEventListener('click', () => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     chrome.runtime?.sendMessage?.({
       type: 'TRIGGER_TEST_NOTIFICATION',
       title: '⏰ Teste de Alarme TDAH',
@@ -559,29 +568,37 @@ function renderReminderSection(container, note, onSaved) {
   });
 
   container.querySelector('#sec-btn-rem-save')?.addEventListener('click', async () => {
-    const isActive = activeToggle.checked;
     const dt = datetimeInput.value;
+    const isActive = activeToggle.checked || Boolean(dt);
     const intervalMinutes = Number(intervalSelect.value) || 5;
 
     const novoReminder = {
       active: isActive,
-      datetime: dt,
+      datetime: dt || '',
       intervalMinutes,
       persistent: true,
       completed: false
     };
 
-    props.reminder = novoReminder;
+    if (props.lembrete && !props.reminder) {
+      props.lembrete = novoReminder;
+    } else {
+      props.reminder = novoReminder;
+    }
     note.properties = { ...props };
     await updateNoteMetaById(note.id, { properties: note.properties });
 
-    if (isActive && dt) {
+    if (isActive) {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
       chrome.runtime?.sendMessage?.({
         type: 'SCHEDULE_TDAH_REMINDER',
         noteId: note.id,
         title: note.title || 'Sem título',
-        datetime: dt,
-        intervalMinutes
+        datetime: dt || null,
+        intervalMinutes,
+        immediate: !dt
       });
     } else {
       chrome.runtime?.sendMessage?.({ type: 'CANCEL_TDAH_REMINDER', noteId: note.id });

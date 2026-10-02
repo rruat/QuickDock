@@ -9,12 +9,18 @@ const PREFIXO_ALARME = 'qd_tdah_rem_';
  * @param {string} noteId
  * @param {number} delayMinutes
  */
-export function agendarAlarmeTDAH(noteId, delayMinutes = 5) {
+export function agendarAlarmeTDAH(noteId, delayOrTimestamp = 5, isTimestamp = false) {
   if (!chrome.alarms) return;
   const name = `${PREFIXO_ALARME}${noteId}`;
-  chrome.alarms.create(name, {
-    delayInMinutes: Math.max(0.5, delayMinutes)
-  });
+  if (isTimestamp) {
+    chrome.alarms.create(name, {
+      when: Math.max(Date.now() + 1000, Number(delayOrTimestamp))
+    });
+  } else {
+    chrome.alarms.create(name, {
+      delayInMinutes: Math.max(0.5, Number(delayOrTimestamp) || 5)
+    });
+  }
 }
 
 /**
@@ -68,7 +74,7 @@ export function initBackgroundAlarms() {
 
       dispararNotificacaoTDAH(noteId, rem.title, rem.intervalMinutes || 5);
       // Mantém o loop persistente: agenda o próximo disparo caso o usuário feche sem concluir
-      agendarAlarmeTDAH(noteId, rem.intervalMinutes || 5);
+      agendarAlarmeTDAH(noteId, rem.intervalMinutes || 5, false);
     });
   });
 
@@ -92,7 +98,7 @@ export function initBackgroundAlarms() {
     } else if (btnIdx === 1) {
       // Adiar 10 minutos
       chrome.notifications.clear(notifId);
-      agendarAlarmeTDAH(noteId, 10);
+      agendarAlarmeTDAH(noteId, 10, false);
     }
   });
 
@@ -110,15 +116,32 @@ export function initBackgroundAlarms() {
   // 4. Mensagens vindas do painel lateral
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === 'SCHEDULE_TDAH_REMINDER') {
-      const { noteId, title, intervalMinutes, immediate } = msg;
+      const { noteId, title, datetime, intervalMinutes, immediate } = msg;
+      const parsedInterval = Number(intervalMinutes) || 5;
       chrome.storage.local.get(['qd_reminders'], data => {
         const reminders = data.qd_reminders || {};
-        reminders[noteId] = { title, intervalMinutes, active: true, completed: false };
+        reminders[noteId] = {
+          title,
+          datetime: datetime || null,
+          intervalMinutes: parsedInterval,
+          active: true,
+          completed: false
+        };
         chrome.storage.local.set({ qd_reminders: reminders }, () => {
           if (immediate) {
-            dispararNotificacaoTDAH(noteId, title, intervalMinutes);
+            dispararNotificacaoTDAH(noteId, title, parsedInterval);
+            agendarAlarmeTDAH(noteId, parsedInterval, false);
+          } else if (datetime) {
+            const targetMs = new Date(datetime).getTime();
+            if (!isNaN(targetMs) && targetMs > Date.now()) {
+              agendarAlarmeTDAH(noteId, targetMs, true);
+            } else {
+              dispararNotificacaoTDAH(noteId, title, parsedInterval);
+              agendarAlarmeTDAH(noteId, parsedInterval, false);
+            }
+          } else {
+            agendarAlarmeTDAH(noteId, parsedInterval, false);
           }
-          agendarAlarmeTDAH(noteId, intervalMinutes);
           sendResponse({ ok: true });
         });
       });

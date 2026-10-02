@@ -227,48 +227,86 @@ function renderPropertyLocation(chave, valor, salvar) {
 function renderPropertyReminder(chave, valor, salvar) {
   const wrap = document.createElement('div');
   wrap.className = 'property-reminder-wrap';
-  const valObj = (valor && typeof valor === 'object') ? valor : { active: true, intervalMinutes: 5 };
+  const valObj = (valor && typeof valor === 'object') ? valor : { active: false, intervalMinutes: 5 };
 
-  const check = document.createElement('input');
-  check.type = 'checkbox';
-  check.checked = valObj.active !== false && !valObj.completed;
-  check.title = 'Ativar/Desativar lembrete persistente';
-  check.addEventListener('change', () => {
-    salvar(chave, { ...valObj, active: check.checked });
-  });
+  const hasReminder = Boolean(valObj.active && !valObj.completed);
 
-  const selInterval = document.createElement('select');
-  selInterval.className = 'property-select property-reminder-select';
-  [3, 5, 10, 15, 30].forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = String(m);
-    opt.textContent = `A cada ${m} min`;
-    if (valObj.intervalMinutes === m) opt.selected = true;
-    selInterval.appendChild(opt);
-  });
+  let labelTexto = 'Definir lembrete';
+  if (hasReminder) {
+    labelTexto = `A cada ${valObj.intervalMinutes || 5}m`;
+    if (valObj.datetime) {
+      const dt = new Date(valObj.datetime);
+      if (!isNaN(dt.getTime())) {
+        const hoje = new Date();
+        const ehHoje = dt.toDateString() === hoje.toDateString();
+        const amanha = new Date(hoje);
+        amanha.setDate(hoje.getDate() + 1);
+        const ehAmanha = dt.toDateString() === amanha.toDateString();
+        const horaFmt = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        if (ehHoje) {
+          labelTexto = `Hoje às ${horaFmt}`;
+        } else if (ehAmanha) {
+          labelTexto = `Amanhã às ${horaFmt}`;
+        } else {
+          const dataFmt = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          labelTexto = `${dataFmt} às ${horaFmt}`;
+        }
+      }
+    }
+  }
 
-  selInterval.addEventListener('change', () => {
-    const min = Number(selInterval.value);
-    salvar(chave, { ...valObj, active: true, intervalMinutes: min });
-  });
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = `property-location-chip ${hasReminder ? 'has-location' : 'is-empty'}`;
+  chip.title = hasReminder
+    ? `Lembrete ativo: ${labelTexto} · Clique para editar`
+    : 'Clique para definir data/hora e alarme persistente';
 
-  const btnConfig = document.createElement('button');
-  btnConfig.type = 'button';
-  btnConfig.className = 'icon-btn property-reminder-config-btn';
-  btnConfig.title = 'Configurações do alarme TDAH';
-  btnConfig.innerHTML = '<span class="qd-icon material-symbols-rounded">tune</span>';
-  btnConfig.addEventListener('click', async e => {
+  const icon = document.createElement('span');
+  icon.className = 'chip-icon qd-icon material-symbols-rounded';
+  icon.textContent = hasReminder ? 'alarm' : 'notification_add';
+
+  const label = document.createElement('span');
+  label.className = 'chip-location-name';
+  label.textContent = labelTexto;
+
+  chip.append(icon, label);
+
+  if (hasReminder) {
+    const repTag = document.createElement('span');
+    repTag.className = 'chip-location-radius';
+    repTag.textContent = `${valObj.intervalMinutes || 5}m`;
+    chip.appendChild(repTag);
+
+    const clearBtn = document.createElement('span');
+    clearBtn.className = 'chip-location-clear qd-icon material-symbols-rounded';
+    clearBtn.textContent = 'close';
+    clearBtn.title = 'Remover lembrete';
+    clearBtn.setAttribute('role', 'button');
+    clearBtn.setAttribute('tabindex', '0');
+    clearBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      salvar(chave, { active: false, datetime: '', intervalMinutes: 5, completed: true });
+    });
+    chip.appendChild(clearBtn);
+  }
+
+  chip.addEventListener('click', async e => {
     e.stopPropagation();
     const currentNoteId = getCurrentNoteId();
     if (!currentNoteId) return;
     const note = await getNoteById(currentNoteId);
     if (!note) return;
     openNoteSection('reminder', note, novoRem => {
-      if (novoRem) salvar(chave, novoRem);
+      if (novoRem) {
+        salvar(chave, novoRem);
+      } else if (novoRem === null) {
+        salvar(chave, { active: false, datetime: '', intervalMinutes: 5, completed: true });
+      }
     });
   });
 
-  wrap.append(check, selInterval, btnConfig);
+  wrap.appendChild(chip);
   return wrap;
 }
 
