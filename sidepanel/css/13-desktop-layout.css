@@ -590,6 +590,7 @@
      deixando-os centralizados e apertados em vez de alinhados com o texto. */
   html[data-platform="desktop"] .note-folder-bar,
   html[data-platform="desktop"] .note-header-bar,
+  html[data-platform="desktop"] .note-expandable-section,
   html[data-platform="desktop"] .note-properties-bar,
   html[data-platform="desktop"] .note-backlinks-section {
     width: 100%;
