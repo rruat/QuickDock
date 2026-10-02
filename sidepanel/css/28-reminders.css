@@ -577,6 +577,9 @@
 }
 
 /* ── Seção Expansível Integrada na Nota (Mobile & Desktop) ─────────────────── */
+/* ==========================================================================
+   ÁREA INTEGRADA DE CARDS EXPANSÍVEIS (SEM MODAIS, SEM SCRIM, SEM POPUPS)
+   ========================================================================== */
 .note-expandable-section {
   display: none;
   width: 100%;
@@ -586,90 +589,32 @@
 .note-expandable-section.is-open {
   display: flex;
   flex-direction: column;
-  background: transparent;
-  border-top: 1px dashed var(--border);
-  border-bottom: 1px solid var(--border);
-  border-left: none;
-  border-right: none;
-  border-radius: 0;
-  padding: 8px 14px 10px 30px;
-  margin: 2px 0 6px 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 6px 14px 10px 30px;
+  width: calc(100% - 44px);
+  box-sizing: border-box;
   gap: 8px;
-  box-shadow: none;
-  animation: expand-section-in 0.14s ease-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  animation: expand-card-in 0.16s ease-out;
 }
 
 @media (max-width: 600px) {
-  .note-expandable-section.is-open:not(.is-mobile-bottom-sheet) {
-    padding: 8px 14px 10px 14px;
+  .note-expandable-section.is-open {
+    margin: 6px 10px 8px 10px;
+    width: calc(100% - 20px);
+    padding: 10px 12px;
+    border-radius: 8px;
   }
 }
 
-/* ==========================================================================
-   BOTTOM SHEET NO MOBILE PARA LEMBRETES TDAH & LOCALIZAÇÃO
-   ========================================================================== */
-.note-section-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.48);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  z-index: 9998;
-  opacity: 1;
-  animation: backdrop-fade-in 0.2s ease-out;
-}
-
-.note-section-backdrop[hidden] {
-  display: none !important;
-}
-
-.note-expandable-section.is-mobile-bottom-sheet {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  top: auto !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  max-height: 85vh !important;
-  background: var(--bg) !important;
-  border-radius: 20px 20px 0 0 !important;
-  border: 1px solid var(--border) !important;
-  border-bottom: none !important;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.38) !important;
-  z-index: 9999 !important;
-  padding: 10px 16px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
-  margin: 0 !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
-  animation: sheet-slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-.note-expandable-section.is-mobile-bottom-sheet .bottom-sheet-drag-pill {
-  width: 40px;
-  height: 4.5px;
-  background: var(--text-muted);
-  opacity: 0.4;
-  border-radius: 99px;
-  margin: 2px auto 12px;
-  cursor: grab;
-}
-
-.note-expandable-section.is-mobile-bottom-sheet .expandable-section-header {
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 12px;
-}
-
-.note-expandable-section.is-mobile-bottom-sheet .expandable-section-title {
-  font-size: 13.5px;
-  font-weight: 600;
-}
-
-@keyframes expand-section-in {
+@keyframes expand-card-in {
   from {
     opacity: 0;
-    transform: translateY(-2px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;

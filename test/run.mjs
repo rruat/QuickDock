@@ -5548,6 +5548,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     notePropsSourceAtualizado.includes("tipo: 'location'") &&
     notePropsSourceAtualizado.includes("tipo: 'date'"));
 
+  const rootHtmlAtualizado = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  ok('index.html (root) · sincronizado com container para barra de chips sugeridos',
+    rootHtmlAtualizado.includes('id="note-properties-suggested"') &&
+    rootHtmlAtualizado.includes('class="note-properties-suggested-bar"'));
+
   const sidepanelHtmlAtualizado = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   ok('sidepanel/index.html · contém container para barra de chips sugeridos',
     sidepanelHtmlAtualizado.includes('id="note-properties-suggested"') &&
@@ -5560,17 +5565,17 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     notePropsCssAtualizado.includes('.property-suggested-chip.is-present'));
 
   const expandableSourceAtualizado = await readFile(new URL('../sidepanel/modules/reminders/note-expandable-section.js', import.meta.url), 'utf8');
-  ok('note-expandable-section.js · exporta isMobileScreen e suporta is-mobile-bottom-sheet',
-    expandableSourceAtualizado.includes('isMobileScreen') &&
-    expandableSourceAtualizado.includes('is-mobile-bottom-sheet') &&
-    expandableSourceAtualizado.includes('note-section-backdrop') &&
-    expandableSourceAtualizado.includes('bottom-sheet-drag-pill'));
+  ok('note-expandable-section.js · opera como card expansível inline integrado sem scrim/backdrop nem bottom-sheet',
+    !expandableSourceAtualizado.includes('is-mobile-bottom-sheet') &&
+    !expandableSourceAtualizado.includes('getOrCreateBackdrop') &&
+    expandableSourceAtualizado.includes('renderReminderSection') &&
+    expandableSourceAtualizado.includes('renderLocationSection'));
 
   const remindersCssAtualizado = await readCssWithImports(new URL('../sidepanel/css/28-reminders.css', import.meta.url));
-  ok('28-reminders.css · define bottom sheet docked e backdrop para mobile',
-    remindersCssAtualizado.includes('.note-expandable-section.is-mobile-bottom-sheet') &&
-    remindersCssAtualizado.includes('.note-section-backdrop') &&
-    remindersCssAtualizado.includes('.bottom-sheet-drag-pill'));
+  ok('28-reminders.css · card expansível integrado inline sem modal/scrim',
+    remindersCssAtualizado.includes('.note-expandable-section.is-open') &&
+    !remindersCssAtualizado.includes('.note-section-backdrop') &&
+    !remindersCssAtualizado.includes('.note-expandable-section.is-mobile-bottom-sheet'));
 }
 
 
