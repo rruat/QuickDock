@@ -461,6 +461,10 @@ export function renderSuggestedChipsBar(note) {
 
   const chipsList = document.createElement('div');
   chipsList.className = 'suggested-chips-scroll';
+  chipsList.addEventListener('wheel', e => {
+    if (e.deltaY === 0) return;
+    chipsList.scrollLeft += e.deltaY;
+  }, { passive: true });
 
   for (const sug of PROPRIEDADES_SUGERIDAS) {
     const chip = document.createElement('button');

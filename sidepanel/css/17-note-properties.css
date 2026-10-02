@@ -110,6 +110,7 @@
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
 }
 
 .note-properties-suggested-bar::-webkit-scrollbar {
@@ -121,6 +122,7 @@
   align-items: center;
   gap: 6px;
   width: 100%;
+  min-width: 0;
 }
 
 .suggested-chips-label {
@@ -138,7 +140,19 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-bottom: 2px;
+}
+
+.suggested-chips-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .property-suggested-chip {
@@ -155,6 +169,7 @@
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }

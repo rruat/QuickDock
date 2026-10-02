@@ -199,7 +199,7 @@ function onMobileTouchStart(e) {
   if (e.target.closest('input, textarea')) return;
   if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
   if (document.activeElement && document.activeElement.isContentEditable && e.target.closest('[contenteditable="true"]')) return;
-  if (e.target.closest('#board-container, #graph-canvas-container, .kanban-board, .table-container')) {
+  if (e.target.closest('#board-container, #graph-canvas-container, .kanban-board, .table-container, .note-properties-suggested-bar, .suggested-chips-scroll, .suggested-chips-container, .property-chip-list')) {
     if (!e.target.closest('.section-header')) return;
   }
 

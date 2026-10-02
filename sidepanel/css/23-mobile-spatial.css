@@ -418,4 +418,82 @@
   .gallery-back-btn {
     display: none !important;
   }
+
+  /* Chips no mobile: layout horizontal com rolagem em vez de empilhados */
+  .note-properties-suggested-bar,
+  html[data-platform="mobile"] .note-properties-suggested-bar {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+    padding: 4px 4px 6px !important;
+  }
+
+  .note-properties-suggested-bar::-webkit-scrollbar,
+  html[data-platform="mobile"] .note-properties-suggested-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .suggested-chips-container,
+  html[data-platform="mobile"] .suggested-chips-container {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  .suggested-chips-label,
+  html[data-platform="mobile"] .suggested-chips-label {
+    flex-shrink: 0 !important;
+  }
+
+  .suggested-chips-scroll,
+  html[data-platform="mobile"] .suggested-chips-scroll {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    padding-bottom: 2px !important;
+  }
+
+  .suggested-chips-scroll::-webkit-scrollbar,
+  html[data-platform="mobile"] .suggested-chips-scroll::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .property-suggested-chip,
+  html[data-platform="mobile"] .property-suggested-chip {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  .property-chip-list,
+  html[data-platform="mobile"] .property-chip-list {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+    padding-bottom: 2px !important;
+  }
+
+  .property-chip-list::-webkit-scrollbar,
+  html[data-platform="mobile"] .property-chip-list::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .property-chip,
+  html[data-platform="mobile"] .property-chip {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
 }
