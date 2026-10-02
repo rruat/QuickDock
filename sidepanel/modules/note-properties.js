@@ -7,11 +7,24 @@ import { openLocationPopover } from './reminders/location-popover.js';
 import { openReminderPopover } from './reminders/reminder-popover.js';
 import { openNoteSection } from './reminders/note-expandable-section.js';
 
-const propertiesBarEl     = document.getElementById('note-properties-bar');
-const propertiesToggleBtn = document.getElementById('btn-properties-toggle');
-const propertiesCountEl   = document.getElementById('note-properties-count');
-const propertiesListEl    = document.getElementById('note-properties-list');
-const btnAddProperty      = document.getElementById('btn-add-property');
+const propertiesBarEl       = document.getElementById('note-properties-bar');
+const propertiesToggleBtn   = document.getElementById('btn-properties-toggle');
+const propertiesCountEl     = document.getElementById('note-properties-count');
+const propertiesSuggestedEl = document.getElementById('note-properties-suggested');
+const propertiesListEl      = document.getElementById('note-properties-list');
+const btnAddProperty        = document.getElementById('btn-add-property');
+
+export const PROPRIEDADES_SUGERIDAS = [
+  { tipo: 'reminder',  nome: 'Lembrete',    icon: 'alarm',           label: 'Lembrete' },
+  { tipo: 'location',  nome: 'Localização', icon: 'location_on',     label: 'Localização' },
+  { tipo: 'date',      nome: 'Data',        icon: 'calendar_today',  label: 'Data' },
+  { tipo: 'datetime',  nome: 'Horário',     icon: 'schedule',        label: 'Horário' },
+  { tipo: 'list',      nome: 'Tags',        icon: 'label',           label: 'Tags' },
+  { tipo: 'select',    nome: 'Status',      icon: 'flag',            label: 'Status' },
+  { tipo: 'checkbox',  nome: 'Concluído',   icon: 'check_box',       label: 'Concluído' },
+  { tipo: 'text',      nome: 'Texto',       icon: 'notes',           label: 'Texto' },
+  { tipo: 'number',    nome: 'Número',      icon: 'tag',             label: 'Número' }
+];
 
 let propertiesExpanded = typeof localStorage !== 'undefined'
   ? localStorage.getItem('quickdock:properties:expanded') === 'true'
@@ -429,9 +442,148 @@ function abrirMenuDeTipo(anchorEl, tipoAtual, onEscolher) {
   menu.style.zIndex = '99999';
 }
 
+export function renderSuggestedChipsBar(note) {
+  const container = document.getElementById('note-properties-suggested') || propertiesSuggestedEl;
+  if (!container) return;
+  container.innerHTML = '';
+  if (!note) return;
+
+  const props = note.properties || {};
+  const tipos = note.propertyTypes || {};
+
+  const wrap = document.createElement('div');
+  wrap.className = 'suggested-chips-container';
+
+  const label = document.createElement('span');
+  label.className = 'suggested-chips-label';
+  label.textContent = 'Sugeridos:';
+  wrap.appendChild(label);
+
+  const chipsList = document.createElement('div');
+  chipsList.className = 'suggested-chips-scroll';
+
+  for (const sug of PROPRIEDADES_SUGERIDAS) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'property-suggested-chip';
+    chip.dataset.tipo = sug.tipo;
+
+    let jaExiste = false;
+    let chaveExistente = null;
+
+    if (sug.tipo === 'reminder') {
+      jaExiste = Boolean(props.reminder || props.lembrete || props['Lembrete']);
+      chaveExistente = props.reminder ? 'reminder' : (props.lembrete ? 'lembrete' : (props['Lembrete'] ? 'Lembrete' : null));
+    } else if (sug.tipo === 'location') {
+      jaExiste = Boolean(props.location || props.localizacao || props['Localização']);
+      chaveExistente = props.location ? 'location' : (props.localizacao ? 'localizacao' : (props['Localização'] ? 'Localização' : null));
+    } else {
+      if (sug.nome in props) {
+        jaExiste = true;
+        chaveExistente = sug.nome;
+      } else {
+        const match = Object.keys(props).find(k => tipos[k] === sug.tipo);
+        if (match) {
+          jaExiste = true;
+          chaveExistente = match;
+        }
+      }
+    }
+
+    if (jaExiste) {
+      chip.classList.add('is-present');
+      chip.title = `Propriedade "${sug.label}" já adicionada · Clique para abrir`;
+      chip.innerHTML = `
+        <span class="qd-icon material-symbols-rounded chip-icon">${sug.icon}</span>
+        <span class="chip-text">${sug.label}</span>
+        <span class="qd-icon material-symbols-rounded chip-status-icon">check</span>
+      `;
+    } else {
+      chip.title = `Adicionar propriedade "${sug.label}"`;
+      chip.innerHTML = `
+        <span class="qd-icon material-symbols-rounded chip-icon">${sug.icon}</span>
+        <span class="chip-text">${sug.label}</span>
+        <span class="qd-icon material-symbols-rounded chip-status-icon">add</span>
+      `;
+    }
+
+    chip.addEventListener('click', async e => {
+      e.stopPropagation();
+
+      if (jaExiste) {
+        if (sug.tipo === 'reminder') {
+          openNoteSection('reminder', note, () => renderPropertiesBar(note));
+          return;
+        }
+        if (sug.tipo === 'location') {
+          openNoteSection('location', note, () => renderPropertiesBar(note));
+          return;
+        }
+        propertiesExpanded = true;
+        try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
+        renderPropertiesBar(note);
+
+        setTimeout(() => {
+          const row = propertiesListEl?.querySelector(`[data-prop-key="${chaveExistente}"]`);
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            row.classList.add('is-highlighted');
+            setTimeout(() => row.classList.remove('is-highlighted'), 1500);
+            const input = row.querySelector('input, select');
+            input?.focus();
+          }
+        }, 50);
+        return;
+      }
+
+      // Adiciona propriedade sugerida com 1 clique
+      propertiesExpanded = true;
+      try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
+
+      const nomeBase = sug.nome;
+      let nome = nomeBase;
+      let counter = 2;
+      const currentProps = note.properties || {};
+      while (nome in currentProps) {
+        nome = `${nomeBase} ${counter++}`;
+      }
+
+      note.properties = { ...currentProps, [nome]: VALOR_PADRAO_POR_TIPO[sug.tipo] ?? '' };
+      note.propertyTypes = { ...(note.propertyTypes || {}), [nome]: sug.tipo };
+      if (sug.tipo === 'select') {
+        note.propertySelectOptions = { ...(note.propertySelectOptions || {}), [nome]: SELECT_OPCOES_PADRAO };
+      }
+
+      await updateNoteMetaById(note.id, {
+        properties: note.properties,
+        propertyTypes: note.propertyTypes,
+        ...(note.propertySelectOptions ? { propertySelectOptions: note.propertySelectOptions } : {})
+      });
+
+      document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+        detail: { noteId: note.id, properties: note.properties }
+      }));
+
+      renderPropertiesBar(note);
+
+      if (sug.tipo === 'reminder') {
+        openNoteSection('reminder', note, () => renderPropertiesBar(note));
+      } else if (sug.tipo === 'location') {
+        openNoteSection('location', note, () => renderPropertiesBar(note));
+      }
+    });
+
+    chipsList.appendChild(chip);
+  }
+
+  wrap.appendChild(chipsList);
+  container.appendChild(wrap);
+}
+
 export function renderPropertiesBar(note) {
   if (!propertiesBarEl || !propertiesListEl || !note) {
     if (propertiesBarEl) propertiesBarEl.hidden = true;
+    if (propertiesSuggestedEl) propertiesSuggestedEl.innerHTML = '';
     return;
   }
   propertiesBarEl.hidden = false;
@@ -441,6 +593,9 @@ export function renderPropertiesBar(note) {
   const opcoesSelect = { ...(note.propertySelectOptions || {}) };
   const chaves = Object.keys(props);
   const total = chaves.length;
+
+  // Renderiza a barra de chips sugeridos
+  renderSuggestedChipsBar(note);
 
   // Nota sem nenhuma propriedade não carrega a caixa inteira por padrão — só
   // um link discreto pra criar a primeira. É o mesmo tanto faz de uma nota
@@ -462,7 +617,7 @@ export function renderPropertiesBar(note) {
     const ghost = document.createElement('button');
     ghost.type = 'button';
     ghost.className = 'note-properties-ghost-add';
-    ghost.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span><span>Adicionar propriedade</span>';
+    ghost.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span><span>Adicionar propriedade personalizada</span>';
     ghost.addEventListener('click', () => iniciarNovaPropriedade(note));
     propertiesListEl.hidden = false;
     propertiesListEl.appendChild(ghost);

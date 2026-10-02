@@ -5538,6 +5538,39 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('note-expandable-section.js · botão de teste aciona testarAlarmeTDAH com feedback instantâneo',
     expandableSectionSource.includes('testarAlarmeTDAH') &&
     expandableSectionSource.includes('sec-btn-test-alarm'));
+
+  // 15. Testes de Barra de Chips Sugeridos (Desktop) e BottomSheet de Lembretes (Mobile)
+  const notePropsSourceAtualizado = await readFile(new URL('../sidepanel/modules/note-properties.js', import.meta.url), 'utf8');
+  ok('note-properties.js · define PROPRIEDADES_SUGERIDAS e renderSuggestedChipsBar',
+    notePropsSourceAtualizado.includes('PROPRIEDADES_SUGERIDAS') &&
+    notePropsSourceAtualizado.includes('renderSuggestedChipsBar') &&
+    notePropsSourceAtualizado.includes("tipo: 'reminder'") &&
+    notePropsSourceAtualizado.includes("tipo: 'location'") &&
+    notePropsSourceAtualizado.includes("tipo: 'date'"));
+
+  const sidepanelHtmlAtualizado = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  ok('sidepanel/index.html · contém container para barra de chips sugeridos',
+    sidepanelHtmlAtualizado.includes('id="note-properties-suggested"') &&
+    sidepanelHtmlAtualizado.includes('class="note-properties-suggested-bar"'));
+
+  const notePropsCssAtualizado = await readCssWithImports(new URL('../sidepanel/css/17-note-properties.css', import.meta.url));
+  ok('17-note-properties.css · estiliza chips sugeridos e scroll horizontal',
+    notePropsCssAtualizado.includes('.note-properties-suggested-bar') &&
+    notePropsCssAtualizado.includes('.property-suggested-chip') &&
+    notePropsCssAtualizado.includes('.property-suggested-chip.is-present'));
+
+  const expandableSourceAtualizado = await readFile(new URL('../sidepanel/modules/reminders/note-expandable-section.js', import.meta.url), 'utf8');
+  ok('note-expandable-section.js · exporta isMobileScreen e suporta is-mobile-bottom-sheet',
+    expandableSourceAtualizado.includes('isMobileScreen') &&
+    expandableSourceAtualizado.includes('is-mobile-bottom-sheet') &&
+    expandableSourceAtualizado.includes('note-section-backdrop') &&
+    expandableSourceAtualizado.includes('bottom-sheet-drag-pill'));
+
+  const remindersCssAtualizado = await readCssWithImports(new URL('../sidepanel/css/28-reminders.css', import.meta.url));
+  ok('28-reminders.css · define bottom sheet docked e backdrop para mobile',
+    remindersCssAtualizado.includes('.note-expandable-section.is-mobile-bottom-sheet') &&
+    remindersCssAtualizado.includes('.note-section-backdrop') &&
+    remindersCssAtualizado.includes('.bottom-sheet-drag-pill'));
 }
 
 

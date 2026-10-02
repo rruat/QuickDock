@@ -31,6 +31,30 @@ export function getSectionContainer() {
   return el;
 }
 
+export function isMobileScreen() {
+  if (typeof window === 'undefined') return false;
+  if (typeof document !== 'undefined' && document.documentElement) {
+    if (document.documentElement.dataset.platform === 'mobile' || document.documentElement.classList.contains('platform-mobile')) {
+      return true;
+    }
+  }
+  return window.innerWidth <= 600 || (window.matchMedia?.('(pointer: coarse)').matches && window.innerWidth <= 768);
+}
+
+function getOrCreateBackdrop() {
+  if (typeof document === 'undefined') return null;
+  let backdrop = document.getElementById('note-section-backdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.id = 'note-section-backdrop';
+    backdrop.className = 'bottom-sheet-backdrop note-section-backdrop';
+    backdrop.hidden = true;
+    backdrop.addEventListener('click', closeNoteSection);
+    document.body.appendChild(backdrop);
+  }
+  return backdrop;
+}
+
 export function closeNoteSection() {
   if (currentMapPicker) {
     currentMapPicker.destroy();
@@ -39,8 +63,12 @@ export function closeNoteSection() {
   const el = getSectionContainer();
   el.hidden = true;
   el.innerHTML = '';
-  el.classList.remove('is-open', 'section-location', 'section-reminder');
+  el.classList.remove('is-open', 'section-location', 'section-reminder', 'is-mobile-bottom-sheet');
   activeSectionType = null;
+  if (typeof document !== 'undefined') {
+    const backdrop = document.getElementById('note-section-backdrop');
+    if (backdrop) backdrop.hidden = true;
+  }
   document.getElementById('btn-note-header-reminder')?.classList.remove('section-active');
   document.getElementById('btn-note-header-location')?.classList.remove('section-active');
 }
@@ -66,6 +94,15 @@ export function openNoteSection(type, note, onSaved) {
   container.classList.add('is-open', `section-${type}`);
   activeSectionType = type;
 
+  const isMobile = isMobileScreen();
+  if (isMobile) {
+    container.classList.add('is-mobile-bottom-sheet');
+    const backdrop = getOrCreateBackdrop();
+    if (backdrop) backdrop.hidden = false;
+  } else {
+    container.classList.remove('is-mobile-bottom-sheet');
+  }
+
   if (type === 'location') {
     renderLocationSection(container, note, onSaved);
     document.getElementById('btn-note-header-location')?.classList.add('section-active');
@@ -74,8 +111,10 @@ export function openNoteSection(type, note, onSaved) {
     document.getElementById('btn-note-header-reminder')?.classList.add('section-active');
   }
 
-  // Rola suavemente até a seção se estiver fora do campo de visão
-  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (!isMobile) {
+    // Rola suavemente até a seção se estiver fora do campo de visão no desktop
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 
 function renderLocationSection(container, note, onSaved) {
@@ -90,14 +129,17 @@ function renderLocationSection(container, note, onSaved) {
   let currentLng = loc.lng ?? null;
   let currentRadius = loc.radius || 150;
 
+  const isSheet = container.classList.contains('is-mobile-bottom-sheet');
+
   container.innerHTML = `
+    ${isSheet ? '<div class="bottom-sheet-drag-pill" aria-hidden="true"></div>' : ''}
     <div class="expandable-section-header">
       <div class="expandable-section-title">
         <span class="qd-icon material-symbols-rounded">location_on</span>
         <span>Localização & Mapa Interativo</span>
       </div>
-      <button type="button" class="icon-btn btn-collapse-section" title="Recolher seção">
-        <span class="qd-icon material-symbols-rounded">expand_less</span>
+      <button type="button" class="icon-btn btn-collapse-section" title="${isSheet ? 'Fechar' : 'Recolher seção'}">
+        <span class="qd-icon material-symbols-rounded">${isSheet ? 'expand_more' : 'expand_less'}</span>
       </button>
     </div>
 
@@ -443,14 +485,17 @@ function renderReminderSection(container, note, onSaved) {
 
   let currentDatetime = rem.datetime || '';
 
+  const isSheet = container.classList.contains('is-mobile-bottom-sheet');
+
   container.innerHTML = `
+    ${isSheet ? '<div class="bottom-sheet-drag-pill" aria-hidden="true"></div>' : ''}
     <div class="expandable-section-header">
       <div class="expandable-section-title">
         <span class="qd-icon material-symbols-rounded">alarm</span>
         <span>Lembrete TDAH (Alarme Persistente)</span>
       </div>
-      <button type="button" class="icon-btn btn-collapse-section" title="Recolher seção">
-        <span class="qd-icon material-symbols-rounded">expand_less</span>
+      <button type="button" class="icon-btn btn-collapse-section" title="${isSheet ? 'Fechar' : 'Recolher seção'}">
+        <span class="qd-icon material-symbols-rounded">${isSheet ? 'expand_more' : 'expand_less'}</span>
       </button>
     </div>
 
@@ -509,12 +554,26 @@ function renderReminderSection(container, note, onSaved) {
           ${rem.datetime || rem.active ? `
             <button type="button" id="sec-btn-rem-remove" class="preset-btn test-btn remove">Remover</button>
           ` : ''}
-          <button type="button" class="preset-btn btn-collapse-section">Recolher</button>
+          <button type="button" class="preset-btn btn-collapse-section">${isSheet ? 'Fechar' : 'Recolher'}</button>
           <button type="button" id="sec-btn-rem-save" class="calendar-action-btn primary">Salvar Lembrete</button>
         </div>
       </div>
     </div>
   `;
+
+  const dragPill = container.querySelector('.bottom-sheet-drag-pill');
+  if (dragPill) {
+    let startY = 0;
+    dragPill.addEventListener('touchstart', e => {
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    dragPill.addEventListener('touchend', e => {
+      const endY = e.changedTouches[0].clientY;
+      if (endY - startY > 40) {
+        closeNoteSection();
+      }
+    }, { passive: true });
+  }
 
   const activeToggle = container.querySelector('#sec-rem-active-toggle');
   const datetimeInput = container.querySelector('#sec-rem-datetime-input');

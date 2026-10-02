@@ -600,9 +600,70 @@
 }
 
 @media (max-width: 600px) {
-  .note-expandable-section.is-open {
+  .note-expandable-section.is-open:not(.is-mobile-bottom-sheet) {
     padding: 8px 14px 10px 14px;
   }
+}
+
+/* ==========================================================================
+   BOTTOM SHEET NO MOBILE PARA LEMBRETES TDAH & LOCALIZAÇÃO
+   ========================================================================== */
+.note-section-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 9998;
+  opacity: 1;
+  animation: backdrop-fade-in 0.2s ease-out;
+}
+
+.note-section-backdrop[hidden] {
+  display: none !important;
+}
+
+.note-expandable-section.is-mobile-bottom-sheet {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: 85vh !important;
+  background: var(--bg) !important;
+  border-radius: 20px 20px 0 0 !important;
+  border: 1px solid var(--border) !important;
+  border-bottom: none !important;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.38) !important;
+  z-index: 9999 !important;
+  padding: 10px 16px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+  margin: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  animation: sheet-slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.note-expandable-section.is-mobile-bottom-sheet .bottom-sheet-drag-pill {
+  width: 40px;
+  height: 4.5px;
+  background: var(--text-muted);
+  opacity: 0.4;
+  border-radius: 99px;
+  margin: 2px auto 12px;
+  cursor: grab;
+}
+
+.note-expandable-section.is-mobile-bottom-sheet .expandable-section-header {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.note-expandable-section.is-mobile-bottom-sheet .expandable-section-title {
+  font-size: 13.5px;
+  font-weight: 600;
 }
 
 @keyframes expand-section-in {
