@@ -444,7 +444,12 @@
   border: none;
 }
 
+#interactive-map-picker,
 .interactive-map {
+  width: 100%;
+  height: 200px;
+  min-height: 200px;
+  display: block;
   cursor: crosshair;
   z-index: 1;
 }
