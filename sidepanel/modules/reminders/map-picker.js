@@ -13,11 +13,22 @@ export async function ensureLeafletLoaded() {
   return new Promise((resolve) => {
     try {
       const script = document.createElement('script');
-      script.src = (typeof chrome !== 'undefined' && chrome?.runtime?.getURL)
-        ? chrome.runtime.getURL('sidepanel/vendor/leaflet/leaflet.js')
-        : 'vendor/leaflet/leaflet.js';
+      let scriptSrc = 'vendor/leaflet/leaflet.js';
+      if (typeof chrome !== 'undefined' && chrome?.runtime?.getURL) {
+        scriptSrc = chrome.runtime.getURL('vendor/leaflet/leaflet.js');
+      } else {
+        const isSidepanel = typeof location !== 'undefined' && location.pathname.includes('/sidepanel/');
+        scriptSrc = isSidepanel ? '../vendor/leaflet/leaflet.js' : 'vendor/leaflet/leaflet.js';
+      }
+      script.src = scriptSrc;
       script.onload = () => resolve(window.L || null);
-      script.onerror = () => resolve(null);
+      script.onerror = () => {
+        const fallback = document.createElement('script');
+        fallback.src = scriptSrc.includes('../') ? 'vendor/leaflet/leaflet.js' : '../vendor/leaflet/leaflet.js';
+        fallback.onload = () => resolve(window.L || null);
+        fallback.onerror = () => resolve(null);
+        document.head.appendChild(fallback);
+      };
       (document.head || document.documentElement).appendChild(script);
     } catch (_) {
       resolve(null);
