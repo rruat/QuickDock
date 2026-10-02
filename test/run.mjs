@@ -5413,6 +5413,18 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     indexHtmlSource.includes('vendor/leaflet/leaflet.css') &&
     indexHtmlSource.includes('vendor/leaflet/leaflet.js'));
 
+  const expandableSectionSource = await readFile(new URL('../sidepanel/modules/reminders/note-expandable-section.js', import.meta.url), 'utf8');
+  ok('note-expandable-section.js · implementa seção expansível integrada para mobile e desktop',
+    expandableSectionSource.includes('openNoteSection') &&
+    expandableSectionSource.includes('toggleNoteSection') &&
+    expandableSectionSource.includes('closeNoteSection') &&
+    expandableSectionSource.includes('renderLocationSection') &&
+    expandableSectionSource.includes('renderReminderSection'));
+
+  const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  ok('sidepanel/index.html · contém container para seção expansível',
+    sidepanelHtmlSource.includes('id="note-expandable-section"'));
+
   ok('note-properties.js · abrir menu de tipos ao adicionar propriedade',
     notePropsSource.includes('abrirMenuDeTipo(anchor') &&
     notePropsSource.includes('NOMES_PADRAO_POR_TIPO'));

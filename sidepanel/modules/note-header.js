@@ -3,6 +3,7 @@ import { getNoteById, updateNoteMetaById } from './storage.js';
 import { openAppearancePopover } from './notes-appearance.js';
 import { renderNoteCover, clearNoteCover } from './note-cover.js';
 import { hasIconImage, buildIconImageNode } from './note-icon-image.js';
+import { toggleNoteSection, closeNoteSection, openNoteSection } from './reminders/note-expandable-section.js';
 import { openReminderPopover, closeReminderPopoverIfOutside } from './reminders/reminder-popover.js';
 import { openLocationPopover, closeLocationPopoverIfOutside } from './reminders/location-popover.js';
 
@@ -59,11 +60,11 @@ export function renderNoteHeader(note) {
       const badgeRem = document.createElement('button');
       badgeRem.type = 'button';
       badgeRem.className = 'note-header-badge badge-reminder';
-      badgeRem.title = 'Lembrete TDAH ativo · Clique para configurar';
+      badgeRem.title = 'Lembrete TDAH ativo · Clique para expandir opções';
       badgeRem.innerHTML = `<span class="qd-icon material-symbols-rounded">alarm</span><span>A cada ${rem.intervalMinutes || 5}m</span>`;
       badgeRem.addEventListener('click', e => {
         e.stopPropagation();
-        openReminderPopover(badgeRem, note, () => renderNoteHeader(note));
+        toggleNoteSection('reminder', note, () => renderNoteHeader(note));
       });
       headerBadgesEl.appendChild(badgeRem);
       headerReminderBtn?.classList.add('is-active');
@@ -75,11 +76,11 @@ export function renderNoteHeader(note) {
       const badgeLoc = document.createElement('button');
       badgeLoc.type = 'button';
       badgeLoc.className = 'note-header-badge badge-location';
-      badgeLoc.title = `Localização: ${loc.name || 'Ponto no Mapa'} (${loc.radius || 150}m) · Clique para ver mapa`;
+      badgeLoc.title = `Localização: ${loc.name || 'Ponto no Mapa'} (${loc.radius || 150}m) · Clique para expandir mapa`;
       badgeLoc.innerHTML = `<span class="qd-icon material-symbols-rounded">location_on</span><span>${loc.name || 'Local'} (${loc.radius || 150}m)</span>`;
       badgeLoc.addEventListener('click', e => {
         e.stopPropagation();
-        openLocationPopover(badgeLoc, note, () => renderNoteHeader(note));
+        toggleNoteSection('location', note, () => renderNoteHeader(note));
       });
       headerBadgesEl.appendChild(badgeLoc);
       headerLocationBtn?.classList.add('is-active');
@@ -103,8 +104,9 @@ export function clearNoteHeader() {
   if (headerTitleEl) headerTitleEl.textContent = '';
   if (headerIconEl) { headerIconEl.textContent = ''; headerIconEl.classList.remove('has-icon-image'); }
   if (headerBadgesEl) headerBadgesEl.innerHTML = '';
-  headerReminderBtn?.classList.remove('is-active');
-  headerLocationBtn?.classList.remove('is-active');
+  headerReminderBtn?.classList.remove('is-active', 'section-active');
+  headerLocationBtn?.classList.remove('is-active', 'section-active');
+  closeNoteSection();
   clearNoteCover();
 }
 
@@ -175,7 +177,7 @@ document.addEventListener('quickdock:note-appearance-updated', async e => {
 headerReminderBtn?.addEventListener('click', e => {
   e.stopPropagation();
   if (headerNoteRef) {
-    openReminderPopover(headerReminderBtn, headerNoteRef, () => {
+    toggleNoteSection('reminder', headerNoteRef, () => {
       renderNoteHeader(headerNoteRef);
     });
   }
@@ -185,7 +187,7 @@ headerReminderBtn?.addEventListener('click', e => {
 headerLocationBtn?.addEventListener('click', e => {
   e.stopPropagation();
   if (headerNoteRef) {
-    openLocationPopover(headerLocationBtn, headerNoteRef, () => {
+    toggleNoteSection('location', headerNoteRef, () => {
       renderNoteHeader(headerNoteRef);
     });
   }

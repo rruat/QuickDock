@@ -574,3 +574,95 @@
   align-items: center;
   gap: 4px;
 }
+
+/* ── Seção Expansível Integrada na Nota (Mobile & Desktop) ─────────────────── */
+.note-expandable-section {
+  display: none;
+}
+
+.note-expandable-section.is-open {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 6px 12px 14px 12px;
+  gap: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+  animation: expand-section-in 0.16s ease-out;
+}
+
+@keyframes expand-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.expandable-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.expandable-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.expandable-section-title .qd-icon {
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.expandable-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.location-fields-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .location-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.expandable-section-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-header-action-btn.section-active {
+  background: var(--accent-light, rgba(59, 130, 246, 0.14)) !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}

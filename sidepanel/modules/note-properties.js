@@ -5,6 +5,7 @@ import { PROPERTY_TYPES, inferirTipoPropriedade, migrarPropriedadeParaTipo } fro
 import { getCurrentNoteId } from './note.js';
 import { openLocationPopover } from './reminders/location-popover.js';
 import { openReminderPopover } from './reminders/reminder-popover.js';
+import { openNoteSection } from './reminders/note-expandable-section.js';
 
 const propertiesBarEl     = document.getElementById('note-properties-bar');
 const propertiesToggleBtn = document.getElementById('btn-properties-toggle');
@@ -184,7 +185,7 @@ function renderPropertyLocation(chave, valor, salvar) {
     if (!currentNoteId) return;
     const note = await getNoteById(currentNoteId);
     if (!note) return;
-    openLocationPopover(btnMap, note, novaLoc => {
+    openNoteSection('location', note, novaLoc => {
       if (novaLoc) salvar(chave, novaLoc);
     });
   });
@@ -254,7 +255,7 @@ function renderPropertyReminder(chave, valor, salvar) {
     if (!currentNoteId) return;
     const note = await getNoteById(currentNoteId);
     if (!note) return;
-    openReminderPopover(btnConfig, note, novoRem => {
+    openNoteSection('reminder', note, novoRem => {
       if (novoRem) salvar(chave, novoRem);
     });
   });
