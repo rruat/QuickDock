@@ -5396,6 +5396,23 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     locationPopSource.includes('location-map-frame') &&
     locationPopSource.includes('google.com/maps'));
 
+  const mapPickerSource = await readFile(new URL('../sidepanel/modules/reminders/map-picker.js', import.meta.url), 'utf8');
+  ok('map-picker.js · implementa controlador de mapa interativo com pino e geocerca',
+    mapPickerSource.includes('createMapPicker') &&
+    mapPickerSource.includes('interactive-map-pin') &&
+    mapPickerSource.includes('onLocationSelect') &&
+    mapPickerSource.includes('updateRadius'));
+
+  const locationServiceSource = await readFile(new URL('../sidepanel/modules/reminders/location-service.js', import.meta.url), 'utf8');
+  ok('location-service.js · serviço modular de busca e geocodificação reversa',
+    locationServiceSource.includes('buscarLocaisPorTexto') &&
+    locationServiceSource.includes('obterEnderecoPorCoordenadas') &&
+    locationServiceSource.includes('extrairNomeCurto'));
+
+  ok('index.html · carrega assets locais do Leaflet',
+    indexHtmlSource.includes('vendor/leaflet/leaflet.css') &&
+    indexHtmlSource.includes('vendor/leaflet/leaflet.js'));
+
   ok('note-properties.js · abrir menu de tipos ao adicionar propriedade',
     notePropsSource.includes('abrirMenuDeTipo(anchor') &&
     notePropsSource.includes('NOMES_PADRAO_POR_TIPO'));

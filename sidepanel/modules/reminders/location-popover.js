@@ -1,14 +1,21 @@
 // ── location-popover.js ──────────────────────────────────────────────────
-// Popover com Maps e busca de endereços para associar geolocalização à nota.
-// Integra OpenStreetMap (Nominatim + Embed interativo) e Google Maps.
+// Popover com Mapa Interativo Leaflet e geocodificação para notas.
+// Integra OpenStreetMap (nominatim.openstreetmap.org) e Google Maps.
 
 import { positionPopover } from '../popover.js';
 import { updateNoteMetaById } from '../storage.js';
 import { registrarGeocerca, desregistrarGeocerca } from './geo-watcher.js';
+import { buscarLocaisPorTexto, obterEnderecoPorCoordenadas } from './location-service.js';
+import { createMapPicker } from './map-picker.js';
 
 let activeLocationPopover = null;
+let activeMapPicker = null;
 
 export function closeLocationPopover() {
+  if (activeMapPicker) {
+    activeMapPicker.destroy();
+    activeMapPicker = null;
+  }
   if (activeLocationPopover) {
     activeLocationPopover.remove();
     activeLocationPopover = null;
@@ -22,7 +29,7 @@ export function closeLocationPopoverIfOutside(target) {
 }
 
 /**
- * Abre o popover de Localização & Maps ancorado em um elemento.
+ * Abre o popover de Localização & Mapa Interativo ancorado em um elemento.
  * @param {HTMLElement} anchorEl
  * @param {Object} note
  * @param {Function} [onSaved]
@@ -49,20 +56,11 @@ export function openLocationPopover(anchorEl, note, onSaved) {
   let currentRadius = loc.radius || 150;
   let currentName = loc.name || '';
 
-  const gerarIframeUrl = (lat, lng) => {
-    const delta = 0.005;
-    const left = lng - delta;
-    const right = lng + delta;
-    const bottom = lat - delta;
-    const top = lat + delta;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${lat}%2C${lng}`;
-  };
-
   pop.innerHTML = `
     <div class="reminder-popover-header">
       <div class="popover-title-row">
         <span class="qd-icon material-symbols-rounded">location_on</span>
-        <span class="popover-title">Localização & Mapa</span>
+        <span class="popover-title">Selecionar no Mapa</span>
       </div>
       <button type="button" class="icon-btn location-close-btn" title="Fechar">
         <span class="qd-icon material-symbols-rounded">close</span>
@@ -70,12 +68,6 @@ export function openLocationPopover(anchorEl, note, onSaved) {
     </div>
 
     <div class="location-popover-body">
-      <!-- Dica explicativa -->
-      <div class="reminder-info-box">
-        <span class="qd-icon material-symbols-rounded">pin_drop</span>
-        <span>Pesquise qualquer endereço (ex: sua casa ou mercado). Quando você se aproximar do local, o alarme insistente tocará até você concluir!</span>
-      </div>
-
       <!-- Busca de endereço -->
       <div class="location-search-row">
         <input type="text" id="location-search-input" class="property-input" placeholder="Buscar endereço (ex: Rua, Bairro, Casa)...">
@@ -98,11 +90,22 @@ export function openLocationPopover(anchorEl, note, onSaved) {
       <!-- Resultados da busca -->
       <div id="location-search-results" class="location-search-results" hidden></div>
 
+      <!-- Container do Mapa Interativo Leaflet -->
+      <div class="location-map-container">
+        <div id="interactive-map-picker" class="location-map-frame interactive-map"></div>
+      </div>
+
+      <!-- Banner explicativo de interação -->
+      <div class="location-hint-banner">
+        <span class="qd-icon material-symbols-rounded">touch_app</span>
+        <span>Clique no mapa ou arraste o alfinete 📍 para marcar o ponto exato.</span>
+      </div>
+
       <!-- Detalhes do local selecionado -->
       <div class="location-fields-section">
         <div class="reminder-field">
           <label for="location-name-input" class="reminder-field-label">Nome do local</label>
-          <input type="text" id="location-name-input" class="property-input" placeholder="Ex: Casa, Trabalho, Mercado..." value="${currentName}">
+          <input type="text" id="location-name-input" class="property-input" placeholder="Ex: Minha Casa, Supermercado..." value="${currentName}">
         </div>
 
         <div class="reminder-field">
@@ -138,18 +141,6 @@ export function openLocationPopover(anchorEl, note, onSaved) {
         </div>
       </div>
 
-      <!-- Pré-visualização do Mapa -->
-      <div id="location-map-container" class="location-map-container">
-        ${currentLat && currentLng ? `
-          <iframe class="location-map-frame" src="${gerarIframeUrl(currentLat, currentLng)}" loading="lazy"></iframe>
-        ` : `
-          <div class="location-map-placeholder">
-            <span class="qd-icon material-symbols-rounded">map</span>
-            <span>Busque um endereço ou clique em GPS para exibir o mapa</span>
-          </div>
-        `}
-      </div>
-
       <!-- Links e Ações -->
       <div class="location-footer-row">
         <a id="link-google-maps" class="location-gmaps-link" ${currentLat && currentLng ? `href="https://www.google.com/maps/search/?api=1&query=${currentLat},${currentLng}" target="_blank"` : 'style="display:none;"'}>
@@ -179,12 +170,41 @@ export function openLocationPopover(anchorEl, note, onSaved) {
   const nameInput = pop.querySelector('#location-name-input');
   const radiusRange = pop.querySelector('#location-radius-range');
   const radiusBadge = pop.querySelector('#radius-val-badge');
-  const mapContainer = pop.querySelector('#location-map-container');
   const gmapsLink = pop.querySelector('#link-google-maps');
   const tdahToggle = pop.querySelector('#location-tdah-toggle');
   const intervalSelect = pop.querySelector('#location-interval-select');
+  const mapElement = pop.querySelector('#interactive-map-picker');
 
-  // Atalhos rápidos
+  const atualizarLinkGoogleMaps = (lat, lng) => {
+    if (lat && lng) {
+      gmapsLink.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      gmapsLink.style.display = 'inline-flex';
+    } else {
+      gmapsLink.style.display = 'none';
+    }
+  };
+
+  // Inicializa mapa interativo Leaflet
+  activeMapPicker = createMapPicker(mapElement, {
+    lat: currentLat,
+    lng: currentLng,
+    radius: currentRadius,
+    onLocationSelect: async (selectedLat, selectedLng) => {
+      currentLat = selectedLat;
+      currentLng = selectedLng;
+      atualizarLinkGoogleMaps(selectedLat, selectedLng);
+
+      // Geocodificação reversa automática ao clicar ou arrastar no mapa
+      try {
+        const info = await obterEnderecoPorCoordenadas(selectedLat, selectedLng);
+        if (info && (!nameInput.value.trim() || nameInput.value.startsWith('Local marcado'))) {
+          nameInput.value = info.name;
+        }
+      } catch (_) {}
+    }
+  });
+
+  // Atalhos de locais comuns
   pop.querySelectorAll('.loc-preset').forEach(btn => {
     btn.addEventListener('click', () => {
       const label = btn.dataset.label;
@@ -194,24 +214,14 @@ export function openLocationPopover(anchorEl, note, onSaved) {
     });
   });
 
+  // Slider de Raio
   radiusRange.addEventListener('input', () => {
     currentRadius = Number(radiusRange.value);
     radiusBadge.textContent = `${currentRadius}m`;
+    activeMapPicker?.updateRadius(currentRadius);
   });
 
-  const atualizarMapa = (lat, lng, nome) => {
-    currentLat = lat;
-    currentLng = lng;
-    if (nome && !nameInput.value) {
-      nameInput.value = nome;
-      currentName = nome;
-    }
-    mapContainer.innerHTML = `<iframe class="location-map-frame" src="${gerarIframeUrl(lat, lng)}" loading="lazy"></iframe>`;
-    gmapsLink.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-    gmapsLink.style.display = 'inline-flex';
-  };
-
-  // Busca de Endereço via Nominatim (OpenStreetMap)
+  // Executa busca via Nominatim
   const executarBusca = async () => {
     const q = searchInput.value.trim();
     if (!q) return;
@@ -219,12 +229,9 @@ export function openLocationPopover(anchorEl, note, onSaved) {
     resultsDiv.innerHTML = '<div class="location-search-loading">Buscando no mapa...</div>';
 
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&addressdetails=1`;
-      const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      const itens = await resp.json();
-
-      if (!itens || itens.length === 0) {
-        resultsDiv.innerHTML = '<div class="location-search-empty">Nenhum local encontrado. Tente com outro termo.</div>';
+      const itens = await buscarLocaisPorTexto(q);
+      if (!itens.length) {
+        resultsDiv.innerHTML = '<div class="location-search-empty">Nenhum local encontrado. Tente outro termo.</div>';
         return;
       }
 
@@ -233,38 +240,37 @@ export function openLocationPopover(anchorEl, note, onSaved) {
         const itemBtn = document.createElement('button');
         itemBtn.type = 'button';
         itemBtn.className = 'location-result-item';
-        const display = item.display_name || item.name;
         itemBtn.innerHTML = `
           <span class="qd-icon material-symbols-rounded">pin_drop</span>
           <div class="result-text">
-            <span class="result-name">${item.name || display.split(',')[0]}</span>
-            <span class="result-desc">${display}</span>
+            <span class="result-name">${item.name}</span>
+            <span class="result-desc">${item.displayName}</span>
           </div>
         `;
         itemBtn.addEventListener('click', () => {
           resultsDiv.hidden = true;
-          const lat = parseFloat(item.lat);
-          const lng = parseFloat(item.lon);
-          const nomeCurto = item.name || display.split(',')[0];
-          nameInput.value = nomeCurto;
-          atualizarMapa(lat, lng, nomeCurto);
+          currentLat = item.lat;
+          currentLng = item.lng;
+          nameInput.value = item.name;
+          activeMapPicker?.panToLocation(item.lat, item.lng, 16);
+          atualizarLinkGoogleMaps(item.lat, item.lng);
         });
         resultsDiv.appendChild(itemBtn);
       });
-    } catch (err) {
+    } catch (_) {
       resultsDiv.innerHTML = '<div class="location-search-empty">Erro ao buscar local. Verifique sua conexão.</div>';
     }
   };
 
   searchBtn.addEventListener('click', executarBusca);
-  searchInput.addEventListener('keydown', e => {
+  searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       executarBusca();
     }
   });
 
-  // GPS Atual
+  // Capturar GPS Atual
   pop.querySelector('#btn-get-gps')?.addEventListener('click', () => {
     if (!navigator.geolocation) {
       alert('Geolocalização não é suportada pelo seu navegador.');
@@ -273,13 +279,21 @@ export function openLocationPopover(anchorEl, note, onSaved) {
     const gpsBtn = pop.querySelector('#btn-get-gps');
     gpsBtn.disabled = true;
     navigator.geolocation.getCurrentPosition(
-      pos => {
+      async (pos) => {
         gpsBtn.disabled = false;
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        atualizarMapa(lat, lng, nameInput.value || 'Minha Posição');
+        currentLat = pos.coords.latitude;
+        currentLng = pos.coords.longitude;
+        activeMapPicker?.panToLocation(currentLat, currentLng, 16);
+        atualizarLinkGoogleMaps(currentLat, currentLng);
+
+        try {
+          const info = await obterEnderecoPorCoordenadas(currentLat, currentLng);
+          if (info && !nameInput.value.trim()) {
+            nameInput.value = info.name;
+          }
+        } catch (_) {}
       },
-      err => {
+      (err) => {
         gpsBtn.disabled = false;
         alert('Não foi possível obter sua posição GPS: ' + err.message);
       },
@@ -289,7 +303,7 @@ export function openLocationPopover(anchorEl, note, onSaved) {
 
   pop.querySelector('.location-close-btn')?.addEventListener('click', closeLocationPopover);
 
-  // Remover
+  // Remover Local
   pop.querySelector('#btn-remove-location')?.addEventListener('click', async () => {
     delete props.location;
     delete props.localizacao;
@@ -303,7 +317,7 @@ export function openLocationPopover(anchorEl, note, onSaved) {
     onSaved?.(null);
   });
 
-  // Salvar
+  // Salvar Local
   pop.querySelector('#btn-save-location')?.addEventListener('click', async () => {
     const nome = nameInput.value.trim() || 'Local';
     const persistentTdah = tdahToggle ? tdahToggle.checked : true;
