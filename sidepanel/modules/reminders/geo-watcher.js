@@ -91,11 +91,26 @@ export function processarNovaPosicao(posAtual) {
         detail: { noteId, geocerca, posAtual }
       }));
 
+      const verbo = geocerca.triggerOn === 'exit' ? 'Você saiu de' : 'Você chegou em';
+      const tituloAlarme = `📍 ${verbo} ${geocerca.name || 'Local Marcado'}`;
+
+      // Ativa o loop insistente TDAH se configurado (padrão ativo)
+      if (geocerca.persistentTdah !== false) {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+          chrome.runtime.sendMessage({
+            type: 'SCHEDULE_TDAH_REMINDER',
+            noteId,
+            title: tituloAlarme,
+            intervalMinutes: geocerca.intervalMinutes || 5,
+            immediate: true
+          });
+        }
+      }
+
       // Notificação nativa se disponível
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        const verbo = geocerca.triggerOn === 'exit' ? 'Você saiu de' : 'Você chegou em';
-        new Notification(`Lembrete por Local: ${geocerca.name || 'Destino'}`, {
-          body: `${verbo} ${geocerca.name}. Verifique suas anotações no QuickDock!`,
+        new Notification(tituloAlarme, {
+          body: `Lembrete ativo no QuickDock!`,
           icon: 'icons/128.png'
         });
       }

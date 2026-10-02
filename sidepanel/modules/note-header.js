@@ -3,12 +3,17 @@ import { getNoteById, updateNoteMetaById } from './storage.js';
 import { openAppearancePopover } from './notes-appearance.js';
 import { renderNoteCover, clearNoteCover } from './note-cover.js';
 import { hasIconImage, buildIconImageNode } from './note-icon-image.js';
+import { openReminderPopover, closeReminderPopoverIfOutside } from './reminders/reminder-popover.js';
+import { openLocationPopover, closeLocationPopoverIfOutside } from './reminders/location-popover.js';
 
-const headerIconBtn  = document.getElementById('btn-note-header-icon');
-const headerIconEl   = document.getElementById('note-header-icon');
-const headerTitleEl  = document.getElementById('note-header-title');
-const headerColorBtn = document.getElementById('btn-note-header-color');
-const headerColorDot = document.getElementById('note-header-color-dot');
+const headerIconBtn      = document.getElementById('btn-note-header-icon');
+const headerIconEl       = document.getElementById('note-header-icon');
+const headerTitleEl      = document.getElementById('note-header-title');
+const headerColorBtn     = document.getElementById('btn-note-header-color');
+const headerColorDot     = document.getElementById('note-header-color-dot');
+const headerReminderBtn  = document.getElementById('btn-note-header-reminder');
+const headerLocationBtn  = document.getElementById('btn-note-header-location');
+const headerBadgesEl     = document.getElementById('note-header-badges');
 
 let headerTitleDebounce = null;
 // A nota mostrada agora no cabeçalho — guardada à parte pra comparar o valor
@@ -42,6 +47,46 @@ export function renderNoteHeader(note) {
 
   headerColorDot.style.background = note.color || 'var(--text-muted)';
   renderNoteCover(note);
+
+  // Renderiza badges de Lembrete TDAH e Localização Maps
+  if (headerBadgesEl) {
+    headerBadgesEl.innerHTML = '';
+    const props = note.properties || {};
+    const rem = props.reminder || props.lembrete;
+    const loc = props.location || props.localizacao;
+
+    if (rem && rem.active && !rem.completed) {
+      const badgeRem = document.createElement('button');
+      badgeRem.type = 'button';
+      badgeRem.className = 'note-header-badge badge-reminder';
+      badgeRem.title = 'Lembrete TDAH ativo · Clique para configurar';
+      badgeRem.innerHTML = `<span class="qd-icon material-symbols-rounded">alarm</span><span>A cada ${rem.intervalMinutes || 5}m</span>`;
+      badgeRem.addEventListener('click', e => {
+        e.stopPropagation();
+        openReminderPopover(badgeRem, note, () => renderNoteHeader(note));
+      });
+      headerBadgesEl.appendChild(badgeRem);
+      headerReminderBtn?.classList.add('is-active');
+    } else {
+      headerReminderBtn?.classList.remove('is-active');
+    }
+
+    if (loc && (loc.name || loc.lat)) {
+      const badgeLoc = document.createElement('button');
+      badgeLoc.type = 'button';
+      badgeLoc.className = 'note-header-badge badge-location';
+      badgeLoc.title = `Localização: ${loc.name || 'Ponto no Mapa'} (${loc.radius || 150}m) · Clique para ver mapa`;
+      badgeLoc.innerHTML = `<span class="qd-icon material-symbols-rounded">location_on</span><span>${loc.name || 'Local'} (${loc.radius || 150}m)</span>`;
+      badgeLoc.addEventListener('click', e => {
+        e.stopPropagation();
+        openLocationPopover(badgeLoc, note, () => renderNoteHeader(note));
+      });
+      headerBadgesEl.appendChild(badgeLoc);
+      headerLocationBtn?.classList.add('is-active');
+    } else {
+      headerLocationBtn?.classList.remove('is-active');
+    }
+  }
 }
 
 export function getHeaderNoteRef() { return headerNoteRef; }
@@ -57,6 +102,9 @@ export function clearNoteHeader() {
   headerNoteRef = null;
   if (headerTitleEl) headerTitleEl.textContent = '';
   if (headerIconEl) { headerIconEl.textContent = ''; headerIconEl.classList.remove('has-icon-image'); }
+  if (headerBadgesEl) headerBadgesEl.innerHTML = '';
+  headerReminderBtn?.classList.remove('is-active');
+  headerLocationBtn?.classList.remove('is-active');
   clearNoteCover();
 }
 
@@ -122,3 +170,29 @@ document.addEventListener('quickdock:note-appearance-updated', async e => {
     renderNoteHeader(headerNoteRef);
   }
 });
+
+// Botão de Lembrete TDAH no cabeçalho da nota
+headerReminderBtn?.addEventListener('click', e => {
+  e.stopPropagation();
+  if (headerNoteRef) {
+    openReminderPopover(headerReminderBtn, headerNoteRef, () => {
+      renderNoteHeader(headerNoteRef);
+    });
+  }
+});
+
+// Botão de Localização & Maps no cabeçalho da nota
+headerLocationBtn?.addEventListener('click', e => {
+  e.stopPropagation();
+  if (headerNoteRef) {
+    openLocationPopover(headerLocationBtn, headerNoteRef, () => {
+      renderNoteHeader(headerNoteRef);
+    });
+  }
+});
+
+document.addEventListener('pointerdown', e => {
+  closeReminderPopoverIfOutside(e.target);
+  closeLocationPopoverIfOutside(e.target);
+});
+

@@ -110,11 +110,14 @@ export function initBackgroundAlarms() {
   // 4. Mensagens vindas do painel lateral
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === 'SCHEDULE_TDAH_REMINDER') {
-      const { noteId, title, intervalMinutes } = msg;
+      const { noteId, title, intervalMinutes, immediate } = msg;
       chrome.storage.local.get(['qd_reminders'], data => {
         const reminders = data.qd_reminders || {};
         reminders[noteId] = { title, intervalMinutes, active: true, completed: false };
         chrome.storage.local.set({ qd_reminders: reminders }, () => {
+          if (immediate) {
+            dispararNotificacaoTDAH(noteId, title, intervalMinutes);
+          }
           agendarAlarmeTDAH(noteId, intervalMinutes);
           sendResponse({ ok: true });
         });

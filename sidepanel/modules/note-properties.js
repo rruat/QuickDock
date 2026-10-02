@@ -3,6 +3,8 @@
 import { getNoteById, updateNoteMetaById } from './storage.js';
 import { PROPERTY_TYPES, inferirTipoPropriedade, migrarPropriedadeParaTipo } from './property-types.js';
 import { getCurrentNoteId } from './note.js';
+import { openLocationPopover } from './reminders/location-popover.js';
+import { openReminderPopover } from './reminders/reminder-popover.js';
 
 const propertiesBarEl     = document.getElementById('note-properties-bar');
 const propertiesToggleBtn = document.getElementById('btn-properties-toggle');
@@ -160,14 +162,31 @@ function renderPropertyLocation(chave, valor, salvar) {
   nameInput.value = valObj.name || '';
   nameInput.placeholder = 'Nome do local (ex: Casa)...';
 
+  const btnMap = document.createElement('button');
+  btnMap.type = 'button';
+  btnMap.className = 'property-location-map-btn icon-btn';
+  btnMap.title = 'Abrir Mapa e Buscar Endereço';
+  btnMap.innerHTML = '<span class="qd-icon material-symbols-rounded">map</span>';
+
   const btnGps = document.createElement('button');
   btnGps.type = 'button';
-  btnGps.className = 'property-location-gps-btn';
+  btnGps.className = 'property-location-gps-btn icon-btn';
   btnGps.title = 'Capturar minha posição GPS atual';
   btnGps.innerHTML = '<span class="qd-icon material-symbols-rounded">my_location</span>';
 
   nameInput.addEventListener('change', () => {
     salvar(chave, { ...valObj, name: nameInput.value.trim() });
+  });
+
+  btnMap.addEventListener('click', async e => {
+    e.stopPropagation();
+    const currentNoteId = getCurrentNoteId();
+    if (!currentNoteId) return;
+    const note = await getNoteById(currentNoteId);
+    if (!note) return;
+    openLocationPopover(btnMap, note, novaLoc => {
+      if (novaLoc) salvar(chave, novaLoc);
+    });
   });
 
   btnGps.addEventListener('click', () => {
@@ -192,7 +211,7 @@ function renderPropertyLocation(chave, valor, salvar) {
     }
   });
 
-  wrap.append(nameInput, btnGps);
+  wrap.append(nameInput, btnMap, btnGps);
   return wrap;
 }
 
@@ -200,6 +219,14 @@ function renderPropertyReminder(chave, valor, salvar) {
   const wrap = document.createElement('div');
   wrap.className = 'property-reminder-wrap';
   const valObj = (valor && typeof valor === 'object') ? valor : { active: true, intervalMinutes: 5 };
+
+  const check = document.createElement('input');
+  check.type = 'checkbox';
+  check.checked = valObj.active !== false && !valObj.completed;
+  check.title = 'Ativar/Desativar lembrete persistente';
+  check.addEventListener('change', () => {
+    salvar(chave, { ...valObj, active: check.checked });
+  });
 
   const selInterval = document.createElement('select');
   selInterval.className = 'property-select property-reminder-select';
@@ -216,15 +243,23 @@ function renderPropertyReminder(chave, valor, salvar) {
     salvar(chave, { ...valObj, active: true, intervalMinutes: min });
   });
 
-  const check = document.createElement('input');
-  check.type = 'checkbox';
-  check.checked = valObj.active !== false && !valObj.completed;
-  check.title = 'Ativar/Desativar lembrete';
-  check.addEventListener('change', () => {
-    salvar(chave, { ...valObj, active: check.checked });
+  const btnConfig = document.createElement('button');
+  btnConfig.type = 'button';
+  btnConfig.className = 'icon-btn property-reminder-config-btn';
+  btnConfig.title = 'Configurações do alarme TDAH';
+  btnConfig.innerHTML = '<span class="qd-icon material-symbols-rounded">tune</span>';
+  btnConfig.addEventListener('click', async e => {
+    e.stopPropagation();
+    const currentNoteId = getCurrentNoteId();
+    if (!currentNoteId) return;
+    const note = await getNoteById(currentNoteId);
+    if (!note) return;
+    openReminderPopover(btnConfig, note, novoRem => {
+      if (novoRem) salvar(chave, novoRem);
+    });
   });
 
-  wrap.append(check, selInterval);
+  wrap.append(check, selInterval, btnConfig);
   return wrap;
 }
 
@@ -581,15 +616,64 @@ export function renderPropertiesBar(note) {
 }
 
 const SELECT_OPCOES_PADRAO = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
-const VALOR_PADRAO_POR_TIPO = { text: '', list: [], number: '', checkbox: false, date: '', select: '' };
+const VALOR_PADRAO_POR_TIPO = {
+  text: '',
+  list: [],
+  number: '',
+  checkbox: false,
+  date: '',
+  datetime: '',
+  daterange: { start: '', end: '', allDay: true },
+  location: { name: '', radius: 150 },
+  reminder: { active: true, intervalMinutes: 5 },
+  select: ''
+};
 
-// Abre a linha de "nome + tipo" no fim da lista — mesmo ponto de entrada
-// usado pelo botão "+ Propriedade" e pelo atalho de "---" no início da nota.
-export function iniciarNovaPropriedade(note) {
-  pendingNewProperty = { tipo: 'text' };
+const NOMES_PADRAO_POR_TIPO = {
+  reminder: 'Lembrete',
+  location: 'Localização',
+  date: 'Data',
+  datetime: 'Horário',
+  daterange: 'Período',
+  text: 'Texto',
+  number: 'Número',
+  checkbox: 'Concluído',
+  list: 'Tags',
+  select: 'Status'
+};
+
+// Abre o menu de tipos de propriedade ao clicar em "+ Propriedade"
+export function iniciarNovaPropriedade(note, anchorEl = btnAddProperty) {
   propertiesExpanded = true;
   try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
   renderPropertiesBar(note);
+
+  const anchor = anchorEl || btnAddProperty || propertiesBarEl;
+  if (anchor) {
+    abrirMenuDeTipo(anchor, '', async (tipoId) => {
+      const nomeBase = NOMES_PADRAO_POR_TIPO[tipoId] || 'Propriedade';
+      let nome = nomeBase;
+      let counter = 2;
+      const props = note.properties || {};
+      while (nome in props) {
+        nome = `${nomeBase} ${counter++}`;
+      }
+      note.properties = { ...props, [nome]: VALOR_PADRAO_POR_TIPO[tipoId] ?? '' };
+      note.propertyTypes = { ...(note.propertyTypes || {}), [nome]: tipoId };
+      if (tipoId === 'select') {
+        note.propertySelectOptions = { ...(note.propertySelectOptions || {}), [nome]: SELECT_OPCOES_PADRAO };
+      }
+      await updateNoteMetaById(note.id, {
+        properties: note.properties,
+        propertyTypes: note.propertyTypes,
+        ...(note.propertySelectOptions ? { propertySelectOptions: note.propertySelectOptions } : {}),
+      });
+      document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+        detail: { noteId: note.id, properties: note.properties }
+      }));
+      renderPropertiesBar(note);
+    });
+  }
 }
 
 // Linha transitória: só vira propriedade de verdade ao confirmar (Enter com
@@ -704,6 +788,6 @@ if (btnAddProperty) {
     const note = await getNoteById(currentNoteId);
     if (!note) return;
     closePropertiesMenu();
-    iniciarNovaPropriedade(note);
+    iniciarNovaPropriedade(note, btnAddProperty);
   });
 }

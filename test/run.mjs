@@ -5370,6 +5370,35 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('calendar-view.js e index.html · definem fonte temporal híbrida ("auto") como padrão',
     calViewSource.includes("let fonteTemporal = 'auto'") &&
     indexHtmlSource.includes('value="auto" selected'));
+
+  // 11. Botões rápidos no cabeçalho, popover com mapa visual e menu de tipos
+  ok('index.html · contém botões de Lembrete, Localização e container de badges',
+    indexHtmlSource.includes('id="btn-note-header-reminder"') &&
+    indexHtmlSource.includes('id="btn-note-header-location"') &&
+    indexHtmlSource.includes('id="note-header-badges"'));
+
+  const noteHeaderSource = await readFile(new URL('../sidepanel/modules/note-header.js', import.meta.url), 'utf8');
+  ok('note-header.js · conecta botões de cabeçalho e renderiza badges',
+    noteHeaderSource.includes('openReminderPopover') &&
+    noteHeaderSource.includes('openLocationPopover') &&
+    noteHeaderSource.includes('note-header-badge'));
+
+  const reminderPopSource = await readFile(new URL('../sidepanel/modules/reminders/reminder-popover.js', import.meta.url), 'utf8');
+  ok('reminder-popover.js · implementa interface amigável de Lembrete TDAH',
+    reminderPopSource.includes('openReminderPopover') &&
+    reminderPopSource.includes('reminder-active-toggle') &&
+    reminderPopSource.includes('TRIGGER_TEST_NOTIFICATION'));
+
+  const locationPopSource = await readFile(new URL('../sidepanel/modules/reminders/location-popover.js', import.meta.url), 'utf8');
+  ok('location-popover.js · implementa busca Nominatim, mapa interativo e Google Maps',
+    locationPopSource.includes('openLocationPopover') &&
+    locationPopSource.includes('nominatim.openstreetmap.org') &&
+    locationPopSource.includes('location-map-frame') &&
+    locationPopSource.includes('google.com/maps'));
+
+  ok('note-properties.js · abrir menu de tipos ao adicionar propriedade',
+    notePropsSource.includes('abrirMenuDeTipo(anchor') &&
+    notePropsSource.includes('NOMES_PADRAO_POR_TIPO'));
 }
 
 

@@ -124,3 +124,362 @@
 .reminder-btn-action .qd-icon {
   font-size: 15px;
 }
+
+/* ── Botões de Ação no Cabeçalho da Nota ──────────────────────────────────── */
+.note-header-action-btn {
+  color: var(--text-muted);
+  transition: all 0.12s ease;
+}
+
+.note-header-action-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.note-header-action-btn.is-active {
+  color: var(--accent);
+}
+
+/* ── Badges no Cabeçalho da Nota ─────────────────────────────────────────── */
+.note-header-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 6px 16px;
+}
+
+.note-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.note-header-badge:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--accent);
+  transform: translateY(-0.5px);
+}
+
+.note-header-badge .qd-icon {
+  font-size: 13px;
+}
+
+.note-header-badge.badge-reminder {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #d97706;
+}
+
+.note-header-badge.badge-location {
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #2563eb;
+}
+
+/* ── Popovers de Lembrete e Localização ───────────────────────────────────── */
+.reminder-popover,
+.location-popover {
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.reminder-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.popover-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.popover-title-row .qd-icon {
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.reminder-close-btn,
+.location-close-btn {
+  padding: 2px;
+}
+
+.reminder-popover-body,
+.location-popover-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reminder-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.reminder-toggle-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.reminder-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.15s ease;
+}
+
+.reminder-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reminder-field-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.reminder-quick-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.preset-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 10.5px;
+  font-family: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.preset-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.reminder-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.reminder-info-box .qd-icon {
+  font-size: 14px;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.reminder-popover-actions,
+.location-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  gap: 6px;
+}
+
+.preset-btn.test-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.preset-btn.test-btn.remove {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* ── Localização & Mapa ───────────────────────────────────────────────────── */
+.location-search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.location-search-row .property-input {
+  flex: 1;
+}
+
+.gps-action-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px;
+}
+
+.location-search-results {
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.location-search-loading,
+.location-search-empty {
+  padding: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.location-result-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.12s ease;
+}
+
+.location-result-item:last-child {
+  border-bottom: none;
+}
+
+.location-result-item:hover {
+  background: var(--bg-hover);
+}
+
+.location-result-item .qd-icon {
+  font-size: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.result-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.result-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-desc {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.radius-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.radius-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.location-map-container {
+  width: 100%;
+  height: 140px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.location-map-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.location-map-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.location-map-placeholder .qd-icon {
+  font-size: 28px;
+  opacity: 0.5;
+}
+
+.location-gmaps-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.location-gmaps-link:hover {
+  text-decoration: underline;
+}
+
+.location-gmaps-link .qd-icon {
+  font-size: 13px;
+}
+
+.location-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
