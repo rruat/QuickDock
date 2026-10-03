@@ -5578,6 +5578,197 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     !remindersCssAtualizado.includes('.note-expandable-section.is-mobile-bottom-sheet'));
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BLOCO DE CÓDIGO & DESTAQUE DE SINTAXE (PROGRAMMING CODE HIGHLIGHTING)
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  const { readFile } = await import('node:fs/promises');
+  const {
+    highlightCode, normalizeLang, detectLanguage, getLanguageDisplayName,
+    getCodeCaretOffset, setCodeCaretOffset,
+  } = await import('../sidepanel/modules/code-highlighter.js');
+  const { parseMarkdownToBlocks, blocksToMarkdown } = await import('../sidepanel/modules/blocks.js');
+
+  // 1. Normalização de apelidos de linguagem
+  igual('highlighter · normaliza apelidos de js/ts', normalizeLang('js'), 'javascript');
+  igual('highlighter · normaliza tsx', normalizeLang('tsx'), 'typescript');
+  igual('highlighter · normaliza py', normalizeLang('py'), 'python');
+  igual('highlighter · normaliza sh', normalizeLang('sh'), 'shell');
+  igual('highlighter · normaliza c++', normalizeLang('c++'), 'cpp');
+  igual('highlighter · normaliza c#', normalizeLang('c#'), 'csharp');
+  igual('highlighter · normaliza jsonc', normalizeLang('jsonc'), 'json');
+  igual('highlighter · normaliza yaml', normalizeLang('yaml'), 'shell');
+  igual('highlighter · display name formatado', getLanguageDisplayName('js'), 'JavaScript');
+  igual('highlighter · display name python', getLanguageDisplayName('python'), 'Python');
+
+  // 2. Destaque de sintaxe em JavaScript/TypeScript
+  const jsCode = 'const valor = 42;\nfunction somar(a, b) {\n  // comentário\n  return a + b;\n}';
+  const jsHighlighted = highlightCode(jsCode, 'javascript');
+  ok('highlighter · destaca keywords em JS', jsHighlighted.includes('class="tok-kw">const</span>') && jsHighlighted.includes('class="tok-kw">return</span>'));
+  ok('highlighter · destaca números em JS', jsHighlighted.includes('class="tok-num">42</span>'));
+  ok('highlighter · destaca funções em JS', jsHighlighted.includes('class="tok-fn">somar</span>'));
+  ok('highlighter · destaca comentários em JS', jsHighlighted.includes('class="tok-com">// comentário</span>'));
+  ok('highlighter · quebras de linha viram <br>', jsHighlighted.includes('<br>'));
+
+  // 3. Destaque de sintaxe em Python
+  const pyCode = 'def calcular(x):\n  # doc\n  return f"total: {x}"';
+  const pyHighlighted = highlightCode(pyCode, 'python');
+  ok('highlighter · destaca def e return em Python', pyHighlighted.includes('class="tok-kw">def</span>') && pyHighlighted.includes('class="tok-kw">return</span>'));
+  ok('highlighter · destaca comentário em Python', pyHighlighted.includes('class="tok-com"># doc</span>'));
+  ok('highlighter · destaca string formatada em Python', pyHighlighted.includes('class="tok-str">'));
+
+  // 4. Destaque em HTML e SQL (incluindo insensibilidade a maiúsculas/minúsculas)
+  const htmlCode = '<!doctype html><div class="card">\n  <!-- aviso -->\n  <span>OK</span>\n</div>';
+  const htmlHighlighted = highlightCode(htmlCode, 'html');
+  ok('highlighter · destaca doctype insensível a maiúsculas/minúsculas', htmlHighlighted.includes('class="tok-kw">&lt;!doctype html&gt;</span>'));
+  ok('highlighter · destaca tags HTML', htmlHighlighted.includes('class="tok-tag">&lt;div</span>') || htmlHighlighted.includes('class="tok-tag">&lt;div'));
+  ok('highlighter · destaca atributos HTML', htmlHighlighted.includes('class="tok-attr">class</span>'));
+  ok('highlighter · destaca comentário HTML', htmlHighlighted.includes('class="tok-com">&lt;!-- aviso --&gt;</span>'));
+
+  const sqlCodeUpper = 'SELECT id, nome FROM usuarios WHERE ativo = true;';
+  const sqlHighlightedUpper = highlightCode(sqlCodeUpper, 'sql');
+  ok('highlighter · destaca SELECT e WHERE em SQL maiúsculo', sqlHighlightedUpper.includes('class="tok-kw">SELECT</span>') && sqlHighlightedUpper.includes('class="tok-kw">WHERE</span>'));
+
+  const sqlCodeLower = 'select id, nome from usuarios where ativo = true;';
+  const sqlHighlightedLower = highlightCode(sqlCodeLower, 'sql');
+  ok('highlighter · destaca palavras-chave em SQL minúsculo',
+    sqlHighlightedLower.includes('class="tok-kw">select</span>') &&
+    sqlHighlightedLower.includes('class="tok-kw">from</span>') &&
+    sqlHighlightedLower.includes('class="tok-kw">where</span>'));
+
+  // 4.1 Destaque em CSS (garantindo que cores hexadecimais viram tok-num e não tok-tag)
+  const cssCode = 'body { color: #fff; background: #1a1a1a; width: 10px; } .card { display: flex; }';
+  const cssHighlighted = highlightCode(cssCode, 'css');
+  ok('highlighter · destaca propriedades CSS', cssHighlighted.includes('class="tok-prop">color</span>') && cssHighlighted.includes('class="tok-prop">background</span>'));
+  ok('highlighter · cores hex em CSS são tok-num e não colidem com tok-tag',
+    cssHighlighted.includes('class="tok-num">#fff</span>') &&
+    cssHighlighted.includes('class="tok-num">#1a1a1a</span>') &&
+    !cssHighlighted.includes('class="tok-tag">#fff</span>'));
+  ok('highlighter · classes em CSS são tok-tag', cssHighlighted.includes('class="tok-tag">.card</span>'));
+
+  // 5. Segurança contra XSS (Sanitização e escape estrito)
+  // 4.2 Destaque em comandos de terminal, Bash e PowerShell
+  const shellCode = 'docker run -d -p 8080:3000 --name quickdock quickdock:latest\n$ git commit -m "teste"\nGet-ChildItem -Path .\n# comentario';
+  const shellHighlighted = highlightCode(shellCode, 'bash');
+  ok('highlighter · destaca comandos executáveis de terminal (docker, git)',
+    shellHighlighted.includes('class="tok-kw">docker</span>') &&
+    shellHighlighted.includes('class="tok-kw">git</span>'));
+  ok('highlighter · destaca subcomandos de terminal (run, commit)',
+    shellHighlighted.includes('class="tok-fn">run</span>') &&
+    shellHighlighted.includes('class="tok-fn">commit</span>'));
+  ok('highlighter · destaca flags e parâmetros CLI (-d, -p, --name)',
+    shellHighlighted.includes('class="tok-attr">-d</span>') &&
+    shellHighlighted.includes('class="tok-attr">-p</span>') &&
+    shellHighlighted.includes('class="tok-attr">--name</span>'));
+  ok('highlighter · destaca prompt de linha de comando ($)',
+    shellHighlighted.includes('class="tok-prompt">$ '));
+  ok('highlighter · destaca portas e números no terminal',
+    shellHighlighted.includes('class="tok-num">8080</span>'));
+  ok('highlighter · destaca comandos do PowerShell',
+    shellHighlighted.includes('class="tok-kw">Get-ChildItem</span>'));
+
+  // 5. Segurança contra XSS (Sanitização e escape estrito)
+  const xssCode = '<script>alert("xss")</script>';
+  const safeHighlighted = highlightCode(xssCode, 'javascript');
+  ok('highlighter (segurança) · nunca renderiza tags de script brutas', !safeHighlighted.includes('<script>') && !safeHighlighted.includes('</script>'));
+  ok('highlighter (segurança) · escapa entidades HTML adequadamente', safeHighlighted.includes('&lt;') && safeHighlighted.includes('&gt;'));
+
+  // 6. Detecção automática de linguagem quando ausente
+  igual('highlighter · auto-detecta HTML', detectLanguage('<!DOCTYPE html><html></html>'), 'html');
+  igual('highlighter · auto-detecta Python', detectLanguage('def main():\n  print("oi")'), 'python');
+  igual('highlighter · auto-detecta SQL', detectLanguage('SELECT * FROM tabela'), 'sql');
+  igual('highlighter · auto-detecta CSS', detectLanguage('.header { color: #fff; margin: 0; }'), 'css');
+  igual('highlighter · auto-detecta JavaScript', detectLanguage('const a = 10; function run() { console.log(a); }'), 'javascript');
+  igual('highlighter · auto-detecta Markdown', detectLanguage('# Título principal\n- Item de lista'), 'markdown');
+  igual('highlighter · auto-detecta comandos de terminal (docker run)', detectLanguage('docker run -d -p 8080:3000 app'), 'shell');
+  igual('highlighter · auto-detecta prompt de terminal ($ npm)', detectLanguage('$ npm install express'), 'shell');
+  igual('highlighter · auto-detecta PowerShell', detectLanguage('Get-ChildItem -Path .'), 'shell');
+  igual('highlighter · display name para bash', getLanguageDisplayName('bash'), 'Bash');
+  igual('highlighter · display name para terminal', getLanguageDisplayName('terminal'), 'Terminal');
+  igual('highlighter · display name para powershell', getLanguageDisplayName('powershell'), 'PowerShell');
+  igual('highlighter · display name para cmd', getLanguageDisplayName('cmd'), 'CMD');
+
+  // 7. Preservação de linguagem no Markdown (Roundtrip)
+  const mdOriginal = '```python\ndef test():\n  return 1\n```';
+  const blocosParsed = parseMarkdownToBlocks(mdOriginal);
+  igual('blocks.js · parseMarkdownToBlocks extrai e preserva dataset.lang', blocosParsed[0].lang, 'python');
+  const mdSerializado = blocksToMarkdown(blocosParsed);
+  igual('blocks.js · blocksToMarkdown grava cerca com lang', mdSerializado, mdOriginal);
+
+  // 7.1 Casos de Borda: entrada vazia, comentários com keywords, aspas não fechadas
+  igual('highlighter (borda) · entrada vazia retorna string vazia', highlightCode(''), '');
+  igual('highlighter (borda) · null/undefined retorna string vazia', highlightCode(null), '');
+  const comCode = '// const x = 1;\n/* function test() { return true; } */';
+  const comHighlight = highlightCode(comCode, 'js');
+  ok('highlighter (borda) · palavras-chave dentro de comentários não viram tok-kw',
+    !comHighlight.includes('tok-kw') && comHighlight.includes('tok-com'));
+  const unclosedStr = 'const msg = "string sem fechar;\nconst a = 1;';
+  const unclosedHighlight = highlightCode(unclosedStr, 'js');
+  ok('highlighter (borda) · aspas não fechadas não quebram o parser e linha seguinte funciona',
+    unclosedHighlight.includes('tok-kw">const</span>'));
+
+  // 7.2 Funções de posicionamento de cursor exportadas com segurança
+  igual('highlighter · getCodeCaretOffset não quebra em ambiente sem DOM', getCodeCaretOffset(null), null);
+  igual('highlighter · setCodeCaretOffset não quebra com argumentos vazios', setCodeCaretOffset(null, null), undefined);
+
+  // 8. Integridade de CSS e Service Worker
+  const baseCssSource = await readFile(new URL('../sidepanel/css/01-base.css', import.meta.url), 'utf8');
+  const blocksCssSource = await readFile(new URL('../sidepanel/css/03-blocks.css', import.meta.url), 'utf8');
+  const noteJsSource = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const swSource = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+
+  ok('01-base.css · define tokens de cor para sintaxe (--code-kw, --code-str, etc.)',
+    baseCssSource.includes('--code-kw:') &&
+    baseCssSource.includes('--code-str:') &&
+    baseCssSource.includes('--code-fn:') &&
+    baseCssSource.includes('--code-num:') &&
+    baseCssSource.includes('--code-com:'));
+
+  ok('03-blocks.css · define classes de token e cabeçalho do bloco de código com botão de cópia',
+    blocksCssSource.includes('.tok-kw') &&
+    blocksCssSource.includes('.tok-fn') &&
+    blocksCssSource.includes('.tok-str') &&
+    blocksCssSource.includes('.code-block-header') &&
+    blocksCssSource.includes('.code-copy-btn'));
+
+  ok('note.js · integra highlightCode e updateCodeBlockHighlight nos blocos de código',
+    noteJsSource.includes('updateCodeBlockHighlight') &&
+    noteJsSource.includes('code-copy-btn') &&
+    noteJsSource.includes('scheduleCodeHighlight'));
+
+  ok('note.js · scheduleCodeHighlight fica no escopo do módulo acessível por keydown (Tab e Enter)',
+    noteJsSource.indexOf('function scheduleCodeHighlight') !== -1 &&
+    noteJsSource.indexOf("root.addEventListener('input'") !== -1 &&
+    noteJsSource.indexOf('function scheduleCodeHighlight') < noteJsSource.indexOf("root.addEventListener('input'"));
+
+  ok('sw.js · pré-cacheia code-highlighter.js',
+    swSource.includes("'sidepanel/modules/code-highlighter.js'"));
+
+  const printCssSource = await readFile(new URL('../sidepanel/css/25-print.css', import.meta.url), 'utf8');
+
+  ok('01-base.css · tokens de código se adaptam a tema claro e escuro sem criar --code-bg ou --code-border',
+    !baseCssSource.includes('--code-bg') &&
+    !baseCssSource.includes('--code-border') &&
+    !baseCssSource.includes('--code-fg') &&
+    baseCssSource.includes('--code-kw: #cf222e;') &&
+    baseCssSource.includes('--code-kw: #ff79c6;') &&
+    baseCssSource.includes('--code-fn: #50fa7b;') &&
+    baseCssSource.includes('--code-str: #f1fa8c;'));
+
+  ok('03-blocks.css · bloco de código não altera background e usa tokens de sistema para container',
+    blocksCssSource.includes('background: var(--bg-secondary);') &&
+    !blocksCssSource.includes('var(--code-bg)') &&
+    blocksCssSource.includes('border: 1px solid var(--border);') &&
+    blocksCssSource.includes('border-color: var(--border-hover);') &&
+    !blocksCssSource.includes('rgba(125, 125, 125, 0.2);') &&
+    blocksCssSource.includes('color-mix(in srgb, var(--border) 50%, transparent);'));
+
+  ok('25-print.css · garante tokens legíveis de sintaxe para saída em papel claro',
+    printCssSource.includes('--code-kw: #cf222e;') &&
+    printCssSource.includes('--code-str: #0a3069;') &&
+    printCssSource.includes('--code-punc: #24292f;'));
+}
+
 
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);

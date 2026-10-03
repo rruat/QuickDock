@@ -39,6 +39,20 @@ html:not([data-theme="dark"]) {
   --radius-md: 8px;
   --font: 'Google Sans Flex', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Cascadia Code', Consolas, 'Courier New', Courier, monospace;
+
+  /* Cores de sintaxe de código de programação (Light Mode) */
+  --code-kw: #cf222e;
+  --code-fn: #8250df;
+  --code-str: #0a3069;
+  --code-num: #0550ae;
+  --code-com: #6e7781;
+  --code-op: #cf222e;
+  --code-type: #953800;
+  --code-lit: #0550ae;
+  --code-tag: #116329;
+  --code-attr: #8250df;
+  --code-prop: #0550ae;
+  --code-punc: #24292f;
 }
 
 [data-theme="dark"] {
@@ -55,6 +69,20 @@ html:not([data-theme="dark"]) {
   --accent-light: rgba(236, 234, 228, 0.12);
   --danger: #f87171;
   --tab-active-border-default: #ECEAE4;
+
+  /* Cores de sintaxe de código de programação — Tema Dracula VSCode (Dark Mode) */
+  --code-kw: #ff79c6;
+  --code-fn: #50fa7b;
+  --code-str: #f1fa8c;
+  --code-num: #bd93f9;
+  --code-com: #6272a4;
+  --code-op: #ff79c6;
+  --code-type: #8be9fd;
+  --code-lit: #bd93f9;
+  --code-tag: #ff79c6;
+  --code-attr: #50fa7b;
+  --code-prop: #8be9fd;
+  --code-punc: #f8f8f2;
 }
 
 /* ===== RESET E HERANÇA GLOBAL DE TIPOGRAFIA ===== */
