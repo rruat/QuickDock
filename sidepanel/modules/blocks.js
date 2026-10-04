@@ -455,7 +455,7 @@ export function parseMarkdownToBlocks(markdown) {
       } else if (marca === 'base' || marca === 'database') {
         add({ type: 'base', config: corpo.join('\n') });
       } else {
-        add({ type: 'code', html: corpo.map(escHtml).join('<br>') });
+        add({ type: 'code', html: corpo.map(escHtml).join('<br>'), ...(marca ? { lang: marca } : {}) });
       }
       continue;
     }
@@ -669,7 +669,7 @@ export function blocksToMarkdown(blocks, opts = {}) {
       if (b.type === 'code') {
         const corpo = htmlToPlainText((b.html ?? '').replace(/<br\s*\/?>/gi, '\n'));
         return [
-          `${pad}${q}\`\`\``,
+          `${pad}${q}\`\`\`${b.lang || ''}`,
           ...corpo.split('\n').map(l => `${pad}${q}${l}`),
           `${pad}${q}\`\`\``,
         ].join('\n');

@@ -20,6 +20,10 @@ import { iconSvg, createIcon } from './icons.js';
 import { buildEmbeddedBaseBlock } from './bases/bases-embedded.js';
 import { onViewChange } from './views.js';
 import {
+  highlightCode, updateCodeBlockHighlight, renderCodeBlockHeader,
+  getCodeBlockText, handleCodeBlockCopy, getCodeCaretOffset, setCodeCaretOffset,
+} from './code-highlighter.js';
+import {
   noteSection, noteWorkspaceBodyEl, noteEditorEl, root, indicator, btnTouchSelect,
 } from './note-state.js';
 import {
@@ -300,11 +304,16 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
   } else if (type === 'code') {
     el = document.createElement('div');
     el.className = 'block block-code';
+    el.dataset.type = 'code';
     const content = document.createElement('span');
     content.className = 'block-content';
     content.contentEditable = 'true';
-    content.innerHTML = innerHTML;
+    content.innerHTML = innerHTML || '';
     el.appendChild(content);
+    renderCodeBlockHeader(el, el.dataset.lang || '');
+    if (innerHTML) {
+      updateCodeBlockHighlight(el);
+    }
 
   } else if (type === 'divider') {
     el = document.createElement('div');
@@ -364,6 +373,7 @@ function createBlockElFrom(bruto) {
   if (b.id) el.dataset.id = b.id;
   if (b.marker) el.dataset.marker = b.marker;
   if (b.lang) el.dataset.lang = b.lang;
+  if (b.type === 'code') updateCodeBlockHighlight(el);
   setBlockDepth(el, b.depth ?? 0);
   setBlockQuoted(el, !!b.quoted);
   setBlockCallout(el, b.callout);
@@ -667,6 +677,7 @@ function convertBlockType(blockEl, newType, checked = false) {
   const newBlock = createBlockEl(newType, oldContent.innerHTML, checked);
   if (blockEl.dataset.marker && newType === 'bullet') newBlock.dataset.marker = blockEl.dataset.marker;
   if (blockEl.dataset.lang && newType === 'code') newBlock.dataset.lang = blockEl.dataset.lang;
+  if (newType === 'code') updateCodeBlockHighlight(newBlock);
   setBlockDepth(newBlock, blockDepth(blockEl));
   setBlockQuoted(newBlock, isBlockQuoted(blockEl));
   setBlockCallout(newBlock, blockEl.dataset.callout);
@@ -849,6 +860,8 @@ function sanitizeForSave(html, keepBreaks = false) {
   });
   div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());
   div.querySelectorAll('.md-syntax-fence').forEach(el => el.remove());
+  div.querySelectorAll('.code-block-header').forEach(el => el.remove());
+  div.querySelectorAll('span[class*="tok-"]').forEach(s => s.replaceWith(...s.childNodes));
   div.querySelectorAll('.md-token-open, .is-active, .md-inline-active').forEach(el => {
     el.classList.remove('md-token-open', 'is-active', 'md-inline-active');
   });
@@ -1235,6 +1248,24 @@ root.addEventListener('click', e => {
   handleTableButtonClick(btn);
 });
 
+// ── Bloco de código: copiar código ───────────────────────────────────────────
+root.addEventListener('mousedown', e => {
+  if (e.target.closest('.code-copy-btn')) {
+    e.preventDefault();
+  }
+}, true);
+
+root.addEventListener('click', e => {
+  const copyBtn = e.target.closest('.code-copy-btn');
+  if (copyBtn) {
+    const block = copyBtn.closest('.block-code');
+    if (block) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleCodeBlockCopy(copyBtn, block);
+    }
+  }
+});
 
 // ── Cálculo: clique no resultado copia ────────────────────────────────────────
 // O mousedown é cancelado em captura pra que o cursor não saia de onde estava:
@@ -1835,6 +1866,7 @@ export function collapseBlockSyntax(block) {
       fenceOpen.remove();
     }
     block.querySelectorAll(':scope > .md-syntax-fence-close').forEach(f => f.remove());
+    updateCodeBlockHighlight(block);
   }
   const contentEl = getContentEl(block);
   if (!contentEl) return;
@@ -2005,7 +2037,7 @@ const BLOCK_SHORTCUTS = [
   { re: /^> (.*)$/s, type: () => 'quote', prefixLen: () => 2, soPlano: true },
   // A palavra-chave é a do markdown (inglês), igual à que vai pro arquivo.
   { re: /^\[!(note|tip|important|warning|caution)\] (.*)$/is, type: m => `callout:${m[1].toLowerCase()}`, prefixLen: m => m[0].length - m[2].length },
-  { re: /^```$/, type: () => 'code', prefixLen: () => 3 },
+  { re: /^```([a-zA-Z0-9_-]*)$/, type: () => 'code', lang: m => m[1], prefixLen: m => m[0].length },
 ];
 
 function checkDividerShortcut(block) {
@@ -2100,6 +2132,10 @@ function checkBlockShortcut(block, profundidade = 0) {
     }
     const newBlock = convertBlockType(block, type, checked);
     if (s.marker) newBlock.dataset.marker = s.marker(m);
+    if (s.lang) {
+      newBlock.dataset.lang = s.lang(m);
+      updateCodeBlockHighlight(newBlock);
+    }
     if (type.startsWith('callout:')) {
       // O destaque troca o prefixo "> " da citação pelo marcador "> [!NOTE]".
       getContentEl(newBlock).querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
@@ -2346,8 +2382,12 @@ function handleEnter(block) {
     const hasTrailingBlank = text.endsWith('\n') || content.innerHTML.endsWith('<br>');
 
     if (isAtFenceClose || isEmpty || (isAtEnd && hasTrailingBlank)) {
-      if (hasTrailingBlank && text.endsWith('\n')) {
-        content.textContent = text.replace(/\n$/, '');
+      if (hasTrailingBlank) {
+        if (text.endsWith('\n')) {
+          content.textContent = text.replace(/\n$/, '');
+        } else if (content.lastChild?.nodeName === 'BR') {
+          content.lastChild.remove();
+        }
       }
       collapseBlockSyntax(block);
       let next = block.nextElementSibling;
@@ -2370,6 +2410,8 @@ function handleEnter(block) {
       range.collapse(true);
       sel.removeAllRanges();
       sel.addRange(range);
+      scheduleCodeHighlight(block);
+      scheduleSave();
     }
     return;
   }
@@ -2551,6 +2593,34 @@ root.addEventListener('beforeinput', () => {
 // vez. É o que decide pra onde vai a próxima imagem colada.
 root.addEventListener('mousedown', () => setActiveArea('note'), true);
 root.addEventListener('focusin',   () => setActiveArea('note'));
+
+let codeHighlightTimer = null;
+function scheduleCodeHighlight(block) {
+  clearTimeout(codeHighlightTimer);
+  codeHighlightTimer = setTimeout(() => {
+    if (!block || !root.contains(block) || block.dataset.type !== 'code') return;
+    const content = getContentEl(block);
+    if (!content) return;
+
+    const fenceOpen = block.querySelector(':scope > .md-syntax-fence-open');
+    if (fenceOpen) {
+      const match = /^`{3,}([a-zA-Z0-9_-]*)/.exec(fenceOpen.textContent.trim());
+      if (match) {
+        block.dataset.lang = match[1] || '';
+      }
+    }
+
+    const sel = document.getSelection();
+    const isContentFocused = sel && sel.rangeCount > 0 && content.contains(sel.anchorNode);
+    const caret = isContentFocused ? getCodeCaretOffset(content) : null;
+
+    updateCodeBlockHighlight(block);
+
+    if (isContentFocused && caret !== null) {
+      setCodeCaretOffset(content, caret);
+    }
+  }, 200);
+}
 
 root.addEventListener('input', () => {
   const block = currentBlock();
@@ -2938,6 +3008,12 @@ root.addEventListener('input', () => {
   // pela formatação inline — asterisco ali é multiplicação, não itálico.
   if (block.dataset.type === 'calc') {
     recalcCalcSheets();
+    scheduleSave();
+    return;
+  }
+
+  if (block.dataset.type === 'code') {
+    scheduleCodeHighlight(block);
     scheduleSave();
     return;
   }
@@ -3438,6 +3514,17 @@ root.addEventListener('keydown', e => {
     if (cell) {
       e.preventDefault();
       moveCell(cell, e.shiftKey ? -1 : 1);
+      return;
+    }
+    const block = currentBlock();
+    if (block?.dataset?.type === 'code') {
+      e.preventDefault();
+      if (!e.shiftKey) {
+        captureUndoPoint();
+        document.execCommand('insertText', false, '  ');
+        scheduleCodeHighlight(block);
+        scheduleSave();
+      }
       return;
     }
   }

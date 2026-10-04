@@ -542,18 +542,91 @@
 }
 
 .block-code {
+  position: relative;
   background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  margin: 2px 0;
+  padding: 8px 12px;
+  margin: 4px 0;
+  transition: border-color 0.15s ease;
+}
+.block-code:focus-within,
+.block-code.is-active {
+  border-color: var(--border-hover);
+}
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  font-size: 11px;
+  user-select: none;
+}
+.code-block-header:empty,
+.block-code:has(.md-syntax-fence-open) .code-block-header {
+  display: none;
+}
+.code-lang-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.code-copy-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 2px 7px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+.code-copy-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+.code-copy-btn.copied {
+  color: var(--color-success, #10b981);
+  border-color: var(--color-success, #10b981);
+}
+.code-copy-icon {
+  display: inline-block;
+  vertical-align: middle;
 }
 .block-code .block-content {
   display: block;
   font-family: var(--font-mono, monospace);
   font-size: 12px;
+  line-height: 1.5;
   white-space: pre-wrap;
+  tab-size: 2;
   outline: none;
 }
+
+/* Tokens de destaque de sintaxe em código de programação */
+.tok-kw   { color: var(--code-kw); font-weight: 600; }
+.tok-fn   { color: var(--code-fn); }
+.tok-str  { color: var(--code-str); }
+.tok-num  { color: var(--code-num); }
+.tok-com  { color: var(--code-com); font-style: italic; opacity: 0.85; }
+.tok-op   { color: var(--code-op); }
+.tok-type { color: var(--code-type); }
+.tok-lit  { color: var(--code-lit); font-weight: 500; }
+.tok-tag  { color: var(--code-tag); font-weight: 600; }
+.tok-attr { color: var(--code-attr); }
+.tok-prop { color: var(--code-prop); }
+.tok-punc { color: var(--code-punc); }
+.tok-prompt { color: var(--code-com); opacity: 0.85; font-weight: 600; user-select: none; }
 
 .block-divider {
   position: relative;

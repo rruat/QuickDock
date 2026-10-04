@@ -87,6 +87,20 @@
     --text-muted: #555555;
     --accent: #000000;
     --note-max-width: none;
+
+    /* Cores de sintaxe de código em impressão: alto contraste para papel branco */
+    --code-kw: #cf222e;
+    --code-fn: #8250df;
+    --code-str: #0a3069;
+    --code-num: #0550ae;
+    --code-com: #6e7781;
+    --code-op: #cf222e;
+    --code-type: #953800;
+    --code-lit: #0550ae;
+    --code-tag: #116329;
+    --code-attr: #8250df;
+    --code-prop: #0550ae;
+    --code-punc: #24292f;
   }
 
   html,
