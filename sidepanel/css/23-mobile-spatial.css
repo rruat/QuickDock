@@ -849,26 +849,97 @@
     display: none !important;
   }
 
+  /* ── Barra de Pasta e Metadados da Nota no Mobile ── */
   .note-folder-bar,
   html[data-platform="mobile"] .note-folder-bar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     padding: 8px 18px 2px 18px !important;
   }
 
+  .note-appearance-mobile-btn,
+  html[data-platform="mobile"] .note-appearance-mobile-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 11px !important;
+    color: var(--text-muted) !important;
+    padding: 2px 8px !important;
+    border-radius: 6px !important;
+    background: var(--bg-hover) !important;
+    border: 1px solid var(--border) !important;
+    cursor: pointer !important;
+  }
+
+  /* ── Barra de Cabeçalho da Nota no Mobile (Estilo Obsidian Mobile) ── */
   .note-header-bar,
   html[data-platform="mobile"] .note-header-bar {
-    padding: 6px 18px 4px 18px !important;
-    gap: 8px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 2px 18px 4px 18px !important;
+    gap: 6px !important;
     border: none !important;
     background: transparent !important;
   }
 
+  /* O título ganha 100% da largura, sem disputar espaço com nenhum botão */
   .note-header-title,
   html[data-platform="mobile"] .note-header-title {
-    font-size: 1.65rem !important;
+    order: 2 !important;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    display: block !important;
+    font-size: 1.85rem !important;
     font-weight: 700 !important;
     letter-spacing: -0.02em !important;
     line-height: 1.25 !important;
     color: var(--text) !important;
+    padding: 4px 0 !important;
+    margin: 4px 0 2px 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-sizing: border-box !important;
+    min-height: 2.4rem !important;
+    outline: none !important;
+  }
+
+  /* Oculta botões que disputavam espaço com o título no mobile (imprimir, cor, outline, lembrete/local inativos) */
+  #btn-note-print,
+  .note-header-print-btn,
+  #btn-note-outline-toggle-desktop,
+  .note-header-outline-btn,
+  #btn-note-header-reminder,
+  #btn-note-header-location,
+  #btn-note-header-color,
+  html[data-platform="mobile"] #btn-note-print,
+  html[data-platform="mobile"] .note-header-print-btn,
+  html[data-platform="mobile"] #btn-note-outline-toggle-desktop,
+  html[data-platform="mobile"] .note-header-outline-btn,
+  html[data-platform="mobile"] #btn-note-header-reminder,
+  html[data-platform="mobile"] #btn-note-header-location,
+  html[data-platform="mobile"] #btn-note-header-color {
+    display: none !important;
+  }
+
+  /* Se a nota não tem ícone customizado, não exibe botão de ícone vazio competindo com a margem */
+  .note-header-icon-btn:not(.has-custom-icon),
+  html[data-platform="mobile"] .note-header-icon-btn:not(.has-custom-icon) {
+    display: none !important;
+  }
+
+  /* Se a nota tem ícone customizado, ele fica na linha superior (order: 1), estilo Notion */
+  .note-header-icon-btn.has-custom-icon,
+  html[data-platform="mobile"] .note-header-icon-btn.has-custom-icon {
+    order: 1 !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 8px !important;
+    margin: 0 0 2px 0 !important;
+    padding: 0 !important;
+    align-self: flex-start !important;
   }
 
   .note-editor-blocks,

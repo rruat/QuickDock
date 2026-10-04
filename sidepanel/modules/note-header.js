@@ -15,6 +15,7 @@ const headerColorDot     = document.getElementById('note-header-color-dot');
 const headerReminderBtn  = document.getElementById('btn-note-header-reminder');
 const headerLocationBtn  = document.getElementById('btn-note-header-location');
 const headerBadgesEl     = document.getElementById('note-header-badges');
+const mobileAppearanceBtn = document.getElementById('btn-note-appearance-mobile');
 
 let headerTitleDebounce = null;
 // A nota mostrada agora no cabeçalho — guardada à parte pra comparar o valor
@@ -39,6 +40,16 @@ export function renderNoteHeader(note) {
   }
   headerIconEl.classList.toggle('icon-filled', !!note.iconFilled);
   headerIconEl.style.color = note.color || '';
+
+  const hasCustomIcon = Boolean(note.icon || hasIconImage(note));
+  headerIconBtn?.classList.toggle('has-custom-icon', hasCustomIcon);
+
+  if (mobileAppearanceBtn) {
+    const iconSpan = mobileAppearanceBtn.querySelector('.qd-icon');
+    if (iconSpan) {
+      iconSpan.style.color = note.color || '';
+    }
+  }
 
   // Não sobrescreve o texto se a pessoa estiver com o cursor ali agora —
   // re-renderizar por baixo da digitação faria o cursor pular de lugar.
@@ -179,6 +190,10 @@ headerIconBtn?.addEventListener('click', e => {
 headerColorBtn?.addEventListener('click', e => {
   e.stopPropagation();
   if (headerNoteRef) openAppearancePopover(headerColorBtn, headerNoteRef);
+});
+mobileAppearanceBtn?.addEventListener('click', e => {
+  e.stopPropagation();
+  if (headerNoteRef) openAppearancePopover(mobileAppearanceBtn, headerNoteRef);
 });
 
 // A aba (ou a aside) pode mudar título/ícone/cor desta mesma nota por fora do
