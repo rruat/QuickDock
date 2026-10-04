@@ -73,13 +73,15 @@ export async function refreshBacklinks(noteId = getCurrentNoteId()) {
     if (backlinksSection) backlinksSection.hidden = false;
     if (backlinksCountEl) backlinksCountEl.textContent = countStr;
     if (desktopBacklinksCountEl) desktopBacklinksCountEl.textContent = countStr;
+    const mobileTabBadge = document.getElementById('mobile-tab-backlinks-count');
+    if (mobileTabBadge) mobileTabBadge.textContent = countStr;
 
     const populateBacklinks = (containerEl) => {
       if (!containerEl) return;
       containerEl.innerHTML = '';
       if (backlinks.length === 0) {
         const empty = document.createElement('div');
-        empty.className = 'backlinks-empty';
+        empty.className = 'backlinks-empty mobile-backlinks-empty';
         empty.textContent = 'Nenhuma outra nota menciona esta.';
         containerEl.appendChild(empty);
         return;
@@ -88,16 +90,20 @@ export async function refreshBacklinks(noteId = getCurrentNoteId()) {
       for (const bl of backlinks) {
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = 'backlink-item';
+        item.className = 'backlink-item mobile-backlink-card';
         item.innerHTML = `
           <span class="backlink-icon material-symbols-rounded qd-icon">description</span>
-          <span class="backlink-title">${escHtml(bl.title)}</span>
-          ${bl.pasta ? `<span class="backlink-folder">${escHtml(bl.pasta)}</span>` : ''}
+          <span class="backlink-title mobile-backlink-title">${escHtml(bl.title)}</span>
+          ${bl.pasta ? `<span class="backlink-folder mobile-backlink-folder">${escHtml(bl.pasta)}</span>` : ''}
         `;
         item.addEventListener('click', () => {
           document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
             detail: { id: bl.id }
           }));
+          document.getElementById('mobileRightDrawer')?.classList.remove('is-open-mobile');
+          const scrim = document.getElementById('mobileDrawerScrim');
+          const leftOpen = document.getElementById('mAside')?.classList.contains('is-open-mobile');
+          if (!leftOpen && scrim) scrim.classList.remove('is-active');
         });
         containerEl.appendChild(item);
       }
@@ -105,6 +111,7 @@ export async function refreshBacklinks(noteId = getCurrentNoteId()) {
 
     populateBacklinks(backlinksListEl);
     populateBacklinks(desktopBacklinksListEl);
+    populateBacklinks(document.getElementById('mobile-backlinks-container'));
   } catch (err) {
     console.warn('Erro ao carregar backlinks:', err);
   }

@@ -888,6 +888,7 @@ export function closeNotesAsideDrawer() {
   const mAside = document.getElementById('mAside');
   if (mAside) {
     mAside.classList.remove('is-open-mobile');
+    document.getElementById('mobileDrawerScrim')?.classList.remove('is-active');
     return;
   }
 

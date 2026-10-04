@@ -18,6 +18,11 @@ import { initJsonView } from './modules/json-view.js';
 import { initResponsiveHeaders } from './modules/responsive-header.js';
 import { initSpatialShell } from './modules/spatial-shell.js';
 import { initReminderRunner } from './modules/reminders/reminder-runner.js';
+import { initMobileInspector, switchInspectorTab } from './modules/note-mobile-inspector.js';
+
+if (typeof window !== 'undefined') {
+  window.quickdockSwitchInspectorTab = switchInspectorTab;
+}
 
 // Aplica a identificação de plataforma (extension, mobile, desktop) imediatamente
 applyPlatform();
@@ -241,6 +246,7 @@ async function init() {
     initResponsiveHeaders();
     initSpatialShell();
     initReminderRunner();
+    initMobileInspector();
 
     const btnHeaderTheme = document.getElementById('btn-header-theme');
     if (btnHeaderTheme) {

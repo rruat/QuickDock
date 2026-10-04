@@ -28,40 +28,119 @@
     display: none !important;
   }
 
-  /* 2. Header compacto e responsivo */
+  /* 2. Header compacto e responsivo estilo Obsidian Mobile */
   #mHeader,
   html[data-platform="mobile"] #mHeader {
     order: 1 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    padding: 0.5rem 0.75rem !important;
-    height: auto !important;
+    padding: 0.35rem 0.5rem !important;
+    height: 48px !important;
     min-height: 48px !important;
     border-bottom: 1px solid var(--border) !important;
     background-color: var(--bg) !important;
     flex-shrink: 0 !important;
-    gap: 0.5rem !important;
+    gap: 0.4rem !important;
+  }
+
+  .header-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.3rem !important;
+    flex-shrink: 0 !important;
   }
 
   .header-left #mMenu,
-  .search-shortcut-badge {
+  .search-shortcut-badge,
+  .desktop-only-btn {
     display: none !important;
   }
 
   .header-left #mLogo {
     margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .header-left #mLogo .header-brand-title {
+    display: none !important;
   }
 
   .header-center {
     flex: 1 !important;
     min-width: 0 !important;
     max-width: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .mobile-header-btn {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    border-radius: 8px !important;
+    display: grid !important;
+    place-items: center !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text) !important;
+    cursor: pointer !important;
+  }
+
+  .mobile-header-btn:active {
+    background: var(--bg-hover) !important;
+  }
+
+  .mobile-header-note-info {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    max-width: min(55vw, 240px) !important;
+    height: 32px !important;
+    padding: 0 10px !important;
+    background: var(--bg-hover) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 999px !important;
+    cursor: pointer !important;
+    user-select: none !important;
+  }
+
+  .mobile-header-note-title {
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 180px !important;
+  }
+
+  .mobile-search-badge {
+    font-size: 15px !important;
+    color: var(--text-muted) !important;
+    flex-shrink: 0 !important;
   }
 
   .smart-search-bar {
+    display: none !important;
     height: 32px !important;
     padding: 0 0.6rem !important;
+  }
+
+  #mHeader.is-search-active .smart-search-bar {
+    display: flex !important;
+    position: absolute !important;
+    top: 6px !important;
+    left: 48px !important;
+    right: 48px !important;
+    z-index: 10 !important;
+  }
+
+  #mHeader.is-search-active .mobile-header-note-info {
+    display: none !important;
   }
 
   .smart-search-input {
@@ -75,6 +154,13 @@
     right: 12px !important;
     max-height: 70vh !important;
     z-index: 999 !important;
+  }
+
+  .header-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.2rem !important;
+    flex-shrink: 0 !important;
   }
 
   /* 3. Main como container de Carrossel Infinito de Views */
@@ -270,62 +356,39 @@
     display: none !important;
   }
 
-  /* 5. Aside como container em fluxo (Push Sheet sem scrim) */
+  /* 5. Aside como Left Drawer estilo Obsidian Mobile (slide-over da esquerda com scrim) */
   #mAside,
   html[data-platform="mobile"] #mAside {
-    order: 3 !important;
-    width: 100% !important;
-    max-height: 0 !important;
-    opacity: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    border-radius: 1rem 1rem 0 0 !important;
-    overflow: hidden !important;
-    pointer-events: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: min(85vw, 320px) !important;
+    max-width: 85vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    z-index: 1100 !important;
+    transform: translate3d(-100%, 0, 0) !important;
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease !important;
     background-color: var(--bg) !important;
+    border-right: 1px solid var(--border) !important;
+    border-top: none !important;
+    border-radius: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    flex-shrink: 0 !important;
-    transition: max-height 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease, padding 240ms ease !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+    opacity: 1 !important;
   }
 
   #mAside.is-open-mobile,
   html[data-platform="mobile"] #mAside.is-open-mobile {
-    max-height: 50vh !important;
-    opacity: 1 !important;
-    padding: 0.6rem 0.75rem !important;
-    border-top: 1px solid var(--border) !important;
+    transform: translate3d(0, 0, 0) !important;
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.45) !important;
     pointer-events: auto !important;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25) !important;
-  }
-
-  /* A regra global de 09-sync-responsive.css ("#app:has(.docs-section.is-
-     collapsed) .note-section { height: calc(100vh - 38px) !important }") vale
-     pro empilhamento vertical da extensão e tem mais especificidade que o
-     `height: auto` acima. Sem este reset, o card de notas fica mais alto que o
-     #mMain e o header (rodapé do card) some sob a bottom bar. */
-  #app:has(.docs-section.is-collapsed) #mMain > .note-section,
-  html[data-platform="mobile"] #app:has(.docs-section.is-collapsed) #mMain > .note-section {
-    height: auto !important;
-    max-height: none !important;
-  }
-
-  .aside-header {
-    height: 40px !important;
-    padding-inline: 0.25rem !important;
-    margin-bottom: 0.25rem !important;
-  }
-
-  .aside-close-mobile {
-    display: grid !important;
-  }
-
-  .aside-section-list {
-    padding: 0.25rem 0 !important;
-    max-height: calc(50vh - 50px) !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
   }
 
   #mAside.mode-notes .notes-aside-drawer,
@@ -333,26 +396,431 @@
     display: flex !important;
     flex-direction: column !important;
     width: 100% !important;
-    max-height: calc(50vh - 40px) !important;
-    overflow-y: auto !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    background: var(--bg) !important;
   }
 
-  #mAside:not(.mode-notes) .notes-aside-drawer,
-  html[data-platform="mobile"] #mAside:not(.mode-notes) .notes-aside-drawer {
+  #mAside .notes-list-scroll,
+  html[data-platform="mobile"] #mAside .notes-list-scroll {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 8px 10px 24px 10px !important;
+  }
+
+  #mAside .notes-aside-header,
+  html[data-platform="mobile"] #mAside .notes-aside-header {
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 12px !important;
+    border-bottom: 1px solid var(--border) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-shrink: 0 !important;
+  }
+
+  #mAside .notes-search-bar,
+  html[data-platform="mobile"] #mAside .notes-search-bar {
+    margin: 8px 10px 4px 10px !important;
+    flex-shrink: 0 !important;
+  }
+
+  #mAside .notes-list-toolbar,
+  html[data-platform="mobile"] #mAside .notes-list-toolbar {
+    padding: 4px 10px 8px 10px !important;
+    flex-shrink: 0 !important;
+  }
+
+  #mAside .notes-aside-footer,
+  html[data-platform="mobile"] #mAside .notes-aside-footer {
+    border-top: 1px solid var(--border) !important;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) 12px !important;
+    flex-shrink: 0 !important;
+    background: var(--bg-card) !important;
+  }
+
+  /* Oculta seção de backlinks redundante no corpo do editor em mobile: agora vive no Right Drawer */
+  #note-backlinks-section,
+  html[data-platform="mobile"] #note-backlinks-section {
     display: none !important;
   }
 
-  #mAside.mode-notes #asideSectionList,
-  #mAside.mode-notes > .aside-header,
-  html[data-platform="mobile"] #mAside.mode-notes #asideSectionList,
-  html[data-platform="mobile"] #mAside.mode-notes > .aside-header {
-    display: none !important;
+  /* 7. Right Drawer estilo Obsidian Mobile (Sumário, Backlinks, Constelações) */
+  #mobileRightDrawer,
+  html[data-platform="mobile"] #mobileRightDrawer {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    width: min(85vw, 340px) !important;
+    max-width: 85vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    z-index: 1100 !important;
+    transform: translate3d(100%, 0, 0) !important;
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease !important;
+    background-color: var(--bg) !important;
+    border-left: 1px solid var(--border) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
   }
 
-  #mAside.mode-views #asideSectionList,
-  html[data-platform="mobile"] #mAside.mode-views #asideSectionList {
-    max-height: calc(50vh - 50px) !important;
-    overflow-y: auto !important;
+  #mobileRightDrawer.is-open-mobile,
+  html[data-platform="mobile"] #mobileRightDrawer.is-open-mobile {
+    transform: translate3d(0, 0, 0) !important;
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.45) !important;
+    pointer-events: auto !important;
+  }
+
+  .mobile-right-header {
+    height: 48px;
+    min-height: 48px;
+    padding: 0 8px 0 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+
+  .mobile-right-tabs {
+    display: flex;
+    align-items: center;
+    background: var(--bg-hover);
+    border-radius: 999px;
+    padding: 2px;
+    gap: 2px;
+    flex: 1;
+    margin-right: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .mobile-right-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-right-tab {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 8px;
+    border: none;
+    background: transparent;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 180ms ease;
+  }
+
+  .mobile-right-tab .material-symbols-rounded {
+    font-size: 15px;
+  }
+
+  .mobile-right-tab.active {
+    background: var(--bg-card);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .mobile-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    background: var(--border);
+    color: var(--text-muted);
+  }
+
+  .mobile-right-tab.active .mobile-tab-badge {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .mobile-right-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-right-panel {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px;
+  }
+
+  .mobile-right-panel.active {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-outline-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mobile-outline-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 140ms ease;
+    width: 100%;
+  }
+
+  .mobile-outline-item:hover,
+  .mobile-outline-item:active {
+    background: var(--bg-hover);
+  }
+
+  .mobile-outline-item.active {
+    background: var(--accent-light, rgba(99, 102, 241, 0.12));
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .mobile-outline-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 18px;
+  }
+
+  .mobile-outline-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-outline-empty,
+  .mobile-backlinks-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 16px;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .mobile-outline-empty .material-symbols-rounded,
+  .mobile-backlinks-empty .material-symbols-rounded {
+    font-size: 36px;
+    opacity: 0.5;
+  }
+
+  .mobile-backlinks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .mobile-backlink-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: all 150ms ease;
+    width: 100%;
+  }
+
+  .mobile-backlink-card:active {
+    transform: scale(0.98);
+    background: var(--bg-hover);
+  }
+
+  .mobile-backlink-icon {
+    font-size: 18px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .mobile-backlink-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mobile-backlink-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-backlink-folder {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-graph-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+  }
+
+  .mobile-graph-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .mobile-graph-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .mobile-graph-full-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 0.74rem;
+    cursor: pointer;
+  }
+
+  .mobile-graph-full-btn .material-symbols-rounded {
+    font-size: 14px;
+  }
+
+  .mobile-graph-canvas-box {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  #mobile-graph-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+  }
+
+  .mobile-graph-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 16px;
+  }
+
+  .mobile-graph-empty .material-symbols-rounded {
+    font-size: 32px;
+    opacity: 0.5;
+  }
+
+  .mobile-graph-neighbors-section {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mobile-graph-neighbors-title {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .mobile-graph-neighbors-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+  }
+
+  /* 8. Scrim / Backdrop escuro para os drawers */
+  .mobile-drawer-scrim {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+    z-index: 1050 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 240ms ease !important;
+  }
+
+  .mobile-drawer-scrim.is-active {
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 
   /* 6. Nav como Bottom Bar */
@@ -497,3 +965,16 @@
     white-space: nowrap !important;
   }
 }
+
+/* ========================================================
+   ISOLAMENTO DESKTOP: ELEMENTOS EXCLUSIVOS DO MODO MOBILE
+   ======================================================== */
+@media (min-width: 769px) {
+  html:not([data-platform="mobile"]) .mobile-only-btn,
+  html:not([data-platform="mobile"]) .mobile-only-flex,
+  html:not([data-platform="mobile"]) #mobileRightDrawer,
+  html:not([data-platform="mobile"]) .mobile-drawer-scrim {
+    display: none !important;
+  }
+}
+

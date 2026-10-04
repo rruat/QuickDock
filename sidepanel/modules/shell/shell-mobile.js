@@ -3,6 +3,7 @@
 // para Mobile (Layout Spatial Shell em telas estreitas e PWA mobile).
 
 import { isMobileMode } from '../platform.js';
+import { loadAllNotesMeta } from '../storage.js';
 import { SHELL_VIEWS } from './shell-views.js';
 
 let _getOpenViewIds = () => [];
@@ -24,6 +25,7 @@ export function initShellMobile(options = {}) {
   if (typeof options.getOpenViewIds === 'function') _getOpenViewIds = options.getOpenViewIds;
   if (typeof options.getFocusedViewId === 'function') _getFocusedViewId = options.getFocusedViewId;
   if (typeof options.setFocusedViewId === 'function') _setFocusedViewId = options.setFocusedViewId;
+  setupMobileObsidianUI();
 }
 
 function triggerWallHaptic() {
@@ -205,6 +207,12 @@ function onMobileTouchStart(e) {
 
   if (!e.touches || e.touches.length === 0) return;
 
+  // Se o toque começou na borda da tela (gesto de abrir gavetas) ou se alguma gaveta já está aberta, não arrasta o carrossel
+  const touchStartX = e.touches[0].clientX;
+  if (touchStartX <= 35 || touchStartX >= window.innerWidth - 35) return;
+  if (document.getElementById('mAside')?.classList.contains('is-open-mobile')) return;
+  if (document.getElementById('mobileRightDrawer')?.classList.contains('is-open-mobile')) return;
+
   const focusedViewId = _getFocusedViewId();
   if (focusedViewId) {
     const idx = sections.findIndex(s => s.dataset.id === focusedViewId);
@@ -370,6 +378,172 @@ function onMobileTouchEnd() {
   }
 }
 
+export function openMobileLeftDrawer() {
+  const mAside = document.getElementById('mAside');
+  const scrim = document.getElementById('mobileDrawerScrim');
+  const rightDrawer = document.getElementById('mobileRightDrawer');
+
+  rightDrawer?.classList.remove('is-open-mobile');
+  if (mAside) {
+    mAside.classList.add('is-open-mobile');
+  }
+  if (scrim) {
+    scrim.classList.add('is-active');
+  }
+  triggerSnapHaptic();
+}
+
+export function closeMobileLeftDrawer() {
+  const mAside = document.getElementById('mAside');
+  const scrim = document.getElementById('mobileDrawerScrim');
+  const rightDrawer = document.getElementById('mobileRightDrawer');
+
+  if (mAside) {
+    mAside.classList.remove('is-open-mobile');
+  }
+  const isRightOpen = rightDrawer?.classList.contains('is-open-mobile');
+  if (!isRightOpen && scrim) {
+    scrim.classList.remove('is-active');
+  }
+}
+
+export function toggleMobileLeftDrawer(force) {
+  const mAside = document.getElementById('mAside');
+  if (!mAside) return;
+  const isCurrentlyOpen = mAside.classList.contains('is-open-mobile');
+  const shouldOpen = force !== undefined ? Boolean(force) : !isCurrentlyOpen;
+  if (shouldOpen) openMobileLeftDrawer();
+  else closeMobileLeftDrawer();
+}
+
+export function openMobileRightDrawer(tab) {
+  const mAside = document.getElementById('mAside');
+  const scrim = document.getElementById('mobileDrawerScrim');
+  const rightDrawer = document.getElementById('mobileRightDrawer');
+
+  mAside?.classList.remove('is-open-mobile');
+  if (rightDrawer) {
+    rightDrawer.classList.add('is-open-mobile');
+  }
+  if (scrim) {
+    scrim.classList.add('is-active');
+  }
+  triggerSnapHaptic();
+
+  document.dispatchEvent(new CustomEvent('quickdock:open-mobile-inspector', {
+    detail: { tab: tab || 'outline' }
+  }));
+}
+
+export function closeMobileRightDrawer() {
+  const mAside = document.getElementById('mAside');
+  const scrim = document.getElementById('mobileDrawerScrim');
+  const rightDrawer = document.getElementById('mobileRightDrawer');
+
+  if (rightDrawer) {
+    rightDrawer.classList.remove('is-open-mobile');
+  }
+  const isLeftOpen = mAside?.classList.contains('is-open-mobile');
+  if (!isLeftOpen && scrim) {
+    scrim.classList.remove('is-active');
+  }
+}
+
+export function toggleMobileRightDrawer(force) {
+  const rightDrawer = document.getElementById('mobileRightDrawer');
+  if (!rightDrawer) return;
+  const isCurrentlyOpen = rightDrawer.classList.contains('is-open-mobile');
+  const shouldOpen = force !== undefined ? Boolean(force) : !isCurrentlyOpen;
+  if (shouldOpen) openMobileRightDrawer();
+  else closeMobileRightDrawer();
+}
+
+export function closeAllMobileDrawers() {
+  closeMobileLeftDrawer();
+  closeMobileRightDrawer();
+  document.getElementById('mobileDrawerScrim')?.classList.remove('is-active');
+}
+
+export async function updateMobileHeaderNoteTitle(noteId) {
+  const titleEl = document.getElementById('mobile-header-note-title');
+  if (!titleEl) return;
+
+  if (noteId == null) {
+    const headerTitleEl = document.getElementById('note-header-title');
+    const text = headerTitleEl?.textContent?.trim();
+    titleEl.textContent = text || 'Sem título';
+    return;
+  }
+
+  try {
+    const notas = await loadAllNotesMeta();
+    const meta = notas.find(n => n.id === noteId);
+    titleEl.textContent = meta?.title || 'Sem título';
+  } catch (_) {
+    titleEl.textContent = 'Sem título';
+  }
+}
+
+export function setupMobileObsidianUI() {
+  const btnLeft = document.getElementById('btn-mobile-left-drawer');
+  if (btnLeft) {
+    btnLeft.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMobileLeftDrawer();
+    });
+  }
+
+  const btnRight = document.getElementById('btn-mobile-right-drawer');
+  if (btnRight) {
+    btnRight.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMobileRightDrawer();
+    });
+  }
+
+  const scrim = document.getElementById('mobileDrawerScrim');
+  if (scrim) {
+    scrim.addEventListener('click', () => {
+      closeAllMobileDrawers();
+    });
+  }
+
+  const noteInfoPill = document.getElementById('mobile-header-note-info');
+  const headerEl = document.getElementById('mHeader');
+  const searchInput = document.getElementById('smartSearchInput');
+
+  if (noteInfoPill && headerEl && searchInput) {
+    noteInfoPill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      headerEl.classList.toggle('is-search-active');
+      if (headerEl.classList.contains('is-search-active')) {
+        searchInput.focus();
+        document.dispatchEvent(new CustomEvent('quickdock:open-omnibar'));
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!headerEl.classList.contains('is-search-active')) return;
+      if (!headerEl.contains(e.target)) {
+        headerEl.classList.remove('is-search-active');
+      }
+    });
+  }
+
+  document.addEventListener('quickdock:active-note-changed', (e) => {
+    updateMobileHeaderNoteTitle(e.detail?.id);
+  });
+
+  document.addEventListener('quickdock:note-title-committed', (e) => {
+    const titleEl = document.getElementById('mobile-header-note-title');
+    if (titleEl && e.detail?.title !== undefined) {
+      titleEl.textContent = e.detail.title || 'Sem título';
+    }
+  });
+
+  updateMobileHeaderNoteTitle();
+}
+
 export function setupMobileTouchGestures() {
   const mainEl = document.getElementById('mMain');
   if (!mainEl) return;
@@ -382,4 +556,68 @@ export function setupMobileTouchGestures() {
   mainEl.addEventListener('touchmove', onMobileTouchMove, { passive: true });
   mainEl.addEventListener('touchend', onMobileTouchEnd, { passive: true });
   mainEl.addEventListener('touchcancel', onMobileTouchEnd, { passive: true });
+
+  // Gestos de borda (Edge Swipe) no padrão Obsidian Mobile
+  let edgeStartX = 0;
+  let edgeStartY = 0;
+  let isEdgeCandidate = false;
+  let edgeAction = null;
+
+  document.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 768 && !isMobileMode()) return;
+    if (!e.touches || e.touches.length === 0) return;
+
+    const x = e.touches[0].clientX;
+    const y = e.touches[0].clientY;
+    edgeStartX = x;
+    edgeStartY = y;
+    isEdgeCandidate = false;
+    edgeAction = null;
+
+    const mAside = document.getElementById('mAside');
+    const rightDrawer = document.getElementById('mobileRightDrawer');
+    const isLeftOpen = mAside?.classList.contains('is-open-mobile');
+    const isRightOpen = rightDrawer?.classList.contains('is-open-mobile');
+
+    if (isLeftOpen) {
+      isEdgeCandidate = true;
+      edgeAction = 'close-left';
+    } else if (isRightOpen) {
+      isEdgeCandidate = true;
+      edgeAction = 'close-right';
+    } else if (x <= 35) {
+      isEdgeCandidate = true;
+      edgeAction = 'open-left';
+    } else if (x >= window.innerWidth - 35) {
+      isEdgeCandidate = true;
+      edgeAction = 'open-right';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!isEdgeCandidate || !e.touches || e.touches.length === 0) return;
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const dx = currentX - edgeStartX;
+    const dy = currentY - edgeStartY;
+
+    if (Math.abs(dy) > Math.abs(dx) + 8) {
+      isEdgeCandidate = false;
+      return;
+    }
+
+    if (edgeAction === 'open-left' && dx > 40) {
+      isEdgeCandidate = false;
+      openMobileLeftDrawer();
+    } else if (edgeAction === 'open-right' && dx < -40) {
+      isEdgeCandidate = false;
+      openMobileRightDrawer();
+    } else if (edgeAction === 'close-left' && dx < -35) {
+      isEdgeCandidate = false;
+      closeMobileLeftDrawer();
+    } else if (edgeAction === 'close-right' && dx > 35) {
+      isEdgeCandidate = false;
+      closeMobileRightDrawer();
+    }
+  }, { passive: true });
 }

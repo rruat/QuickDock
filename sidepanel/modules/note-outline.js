@@ -54,6 +54,7 @@ export function irParaTitulo(alvoBruto) {
   };
   markList(desktopOutlineListEl);
   markList(mobileOutlineListEl);
+  markList(document.getElementById('mobile-outline-container'));
 
   // Trava temporariamente o scrollspy para a rolagem suave não sobrescrever com o título anterior
   isProgrammaticScroll = true;
@@ -104,6 +105,8 @@ export function renderOutline() {
 
   if (desktopOutlineCountEl) desktopOutlineCountEl.textContent = countStr;
   if (mobileOutlineCountEl) mobileOutlineCountEl.textContent = countStr;
+  const mobileTabBadge = document.getElementById('mobile-tab-outline-count');
+  if (mobileTabBadge) mobileTabBadge.textContent = countStr;
   if (floatingOutlineBadge) {
     floatingOutlineBadge.textContent = countStr;
     floatingOutlineBadge.hidden = headings.length === 0;
@@ -114,7 +117,7 @@ export function renderOutline() {
     listEl.innerHTML = '';
     if (headings.length === 0) {
       const empty = document.createElement('div');
-      empty.className = 'outline-empty';
+      empty.className = 'outline-empty mobile-outline-empty';
       empty.innerHTML = `
         <span class="qd-icon material-symbols-rounded">notes</span>
         <span>Nenhum título na nota</span>
@@ -126,15 +129,19 @@ export function renderOutline() {
     for (const h of headings) {
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = `outline-item outline-level-${h.nivel}`;
+      item.className = `outline-item mobile-outline-item outline-level-${h.nivel}`;
       item.dataset.slug = h.slug;
       item.style.paddingLeft = `${Math.max(8, (h.nivel - 1) * 12 + 8)}px`;
       item.innerHTML = `
-        <span class="outline-badge">H${h.nivel}</span>
-        <span class="outline-text" title="${escHtml(h.texto)}">${escHtml(h.texto)}</span>
+        <span class="outline-badge mobile-outline-badge">H${h.nivel}</span>
+        <span class="outline-text mobile-outline-text" title="${escHtml(h.texto)}">${escHtml(h.texto)}</span>
       `;
       item.addEventListener('click', () => {
         irParaTitulo(h.slug);
+        document.getElementById('mobileRightDrawer')?.classList.remove('is-open-mobile');
+        const scrim = document.getElementById('mobileDrawerScrim');
+        const leftOpen = document.getElementById('mAside')?.classList.contains('is-open-mobile');
+        if (!leftOpen && scrim) scrim.classList.remove('is-active');
       });
       listEl.appendChild(item);
     }
@@ -142,6 +149,7 @@ export function renderOutline() {
 
   populateList(desktopOutlineListEl);
   populateList(mobileOutlineListEl);
+  populateList(document.getElementById('mobile-outline-container'));
   updateActiveOutlineHeading();
 }
 
@@ -189,6 +197,7 @@ export function updateActiveOutlineHeading() {
 
   markList(desktopOutlineListEl);
   markList(mobileOutlineListEl);
+  markList(document.getElementById('mobile-outline-container'));
 }
 
 if (noteEditorEl) {

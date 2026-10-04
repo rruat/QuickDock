@@ -32,6 +32,9 @@
 
     <header id="mHeader">
       <div class="header-left">
+        <button id="btn-mobile-left-drawer" class="aside-btn mobile-header-btn mobile-only-btn" title="Árvore de Pastas e Notas" aria-label="Abrir árvore de pastas e notas" type="button">
+          <span class="material-symbols-rounded">menu</span>
+        </button>
         <div id="mLogo" class="header-brand" title="QuickDock">
           <img class="header-brand-icon" src="../icons/icon.svg" width="20" height="20" alt="QuickDock" />
           <span class="header-brand-title">QuickDock</span>
@@ -39,6 +42,10 @@
       </div>
 
       <div class="header-center">
+        <div id="mobile-header-note-info" class="mobile-header-note-info mobile-only-flex" title="Buscar ou alternar notas (Ctrl+K)">
+          <span id="mobile-header-note-title" class="mobile-header-note-title">Sem título</span>
+          <span class="material-symbols-rounded mobile-search-badge">search</span>
+        </div>
         <div id="smartSearchBar" class="smart-search-bar" role="search">
           <span class="material-symbols-rounded search-icon">search</span>
           <input type="text" id="smartSearchInput" class="smart-search-input" placeholder="Buscar notas, tags, comandos... (Ctrl + K)" autocomplete="off" spellcheck="false" />
@@ -57,11 +64,14 @@
       </div>
 
       <div class="header-right">
-        <button id="btn-header-theme" class="aside-btn" title="Alternar tema claro/escuro" type="button">
+        <button id="btn-header-theme" class="aside-btn desktop-only-btn" title="Alternar tema claro/escuro" type="button">
           <span class="material-symbols-rounded">dark_mode</span>
         </button>
-        <button id="btn-header-sync" class="aside-btn" title="Sincronização" type="button">
+        <button id="btn-header-sync" class="aside-btn desktop-only-btn" title="Sincronização" type="button">
           <span class="material-symbols-rounded">sync</span>
+        </button>
+        <button id="btn-mobile-right-drawer" class="aside-btn mobile-header-btn mobile-only-btn" title="Sumário, Backlinks e Constelações" aria-label="Abrir sumário, backlinks e constelações" type="button">
+          <span class="material-symbols-rounded">dock_to_left</span>
         </button>
       </div>
     </header>
@@ -1141,6 +1151,70 @@
     <button id="btn-touch-select" class="btn-touch-select" title="Alternar modo de seleção por toque" aria-label="Alternar modo de seleção por toque" aria-pressed="false">
       <span class="qd-icon material-symbols-rounded" aria-hidden="true">touch_app</span>
     </button>
+
+    <!-- Scrim / Backdrop para drawers mobile (estilo Obsidian) -->
+    <div id="mobileDrawerScrim" class="mobile-drawer-scrim" aria-hidden="true"></div>
+
+    <!-- Inspetor Lateral Direito Mobile: Sumário, Backlinks e Constelações (estilo Obsidian) -->
+    <aside id="mobileRightDrawer" class="mobile-right-drawer" aria-label="Inspetor da Nota">
+      <header class="mobile-right-header">
+        <div class="mobile-right-tabs" role="tablist">
+          <button id="mobile-tab-outline" class="mobile-right-tab active" type="button" role="tab" aria-selected="true" data-tab="outline" title="Sumário da nota">
+            <span class="material-symbols-rounded">format_list_bulleted</span>
+            <span>Sumário</span>
+            <span id="mobile-tab-outline-count" class="mobile-tab-badge">0</span>
+          </button>
+          <button id="mobile-tab-backlinks" class="mobile-right-tab" type="button" role="tab" aria-selected="false" data-tab="backlinks" title="Backlinks da nota">
+            <span class="material-symbols-rounded">link</span>
+            <span>Backlinks</span>
+            <span id="mobile-tab-backlinks-count" class="mobile-tab-badge">0</span>
+          </button>
+          <button id="mobile-tab-graph" class="mobile-right-tab" type="button" role="tab" aria-selected="false" data-tab="graph" title="Constelações locais">
+            <span class="material-symbols-rounded">hub</span>
+            <span>Constelações</span>
+          </button>
+        </div>
+        <button id="btn-close-mobile-right" class="icon-btn mobile-right-close" type="button" title="Fechar painel" aria-label="Fechar painel">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </header>
+
+      <div class="mobile-right-body">
+        <!-- Painel 1: Sumário (Outline) -->
+        <div id="mobile-panel-outline" class="mobile-right-panel active" role="tabpanel" aria-labelledby="mobile-tab-outline">
+          <div id="mobile-outline-container" class="mobile-outline-container"></div>
+        </div>
+
+        <!-- Painel 2: Backlinks -->
+        <div id="mobile-panel-backlinks" class="mobile-right-panel" role="tabpanel" aria-labelledby="mobile-tab-backlinks" hidden>
+          <div id="mobile-backlinks-container" class="mobile-backlinks-container"></div>
+        </div>
+
+        <!-- Painel 3: Constelações (Grafo Local) -->
+        <div id="mobile-panel-graph" class="mobile-right-panel" role="tabpanel" aria-labelledby="mobile-tab-graph" hidden>
+          <div class="mobile-graph-wrapper">
+            <div class="mobile-graph-header">
+              <span class="mobile-graph-title">Grafo Local</span>
+              <button id="btn-mobile-open-full-graph" class="mobile-graph-full-btn" type="button" title="Abrir grafo completo">
+                <span class="material-symbols-rounded">open_in_full</span>
+                <span>Grafo Completo</span>
+              </button>
+            </div>
+            <div class="mobile-graph-canvas-box">
+              <canvas id="mobile-graph-canvas"></canvas>
+              <div id="mobile-graph-empty" class="mobile-graph-empty" hidden>
+                <span class="material-symbols-rounded">hub</span>
+                <span>Nenhuma conexão para esta nota</span>
+              </div>
+            </div>
+            <div class="mobile-graph-neighbors-section">
+              <div class="mobile-graph-neighbors-title">Notas Conectadas</div>
+              <div id="mobile-graph-neighbors-list" class="mobile-graph-neighbors-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
 
   </div>
 
