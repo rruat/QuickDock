@@ -163,7 +163,7 @@
     flex-shrink: 0 !important;
   }
 
-  /* 3. Main como container de Carrossel Infinito de Views */
+  /* 3. Main como container de Página Única Imersiva (Obsidian Mobile) */
   #mMain,
   html[data-platform="mobile"] #mMain {
     order: 2 !important;
@@ -171,12 +171,14 @@
     display: block !important;
     flex: 1 1 0px !important;
     width: 100% !important;
+    height: 100% !important;
     min-height: 0 !important;
     overflow: hidden !important;
     padding: 0 !important;
     margin: 0 !important;
     scrollbar-width: none !important;
     color: var(--text) !important;
+    background-color: var(--bg) !important;
   }
 
   #mMain::-webkit-scrollbar,
@@ -184,74 +186,54 @@
     display: none !important;
   }
 
-  /* 4. Cada Seção como um Card do Carrossel Infinito */
+  /* 4. Cada Seção como Página Única Edge-to-Edge sem bordas de card */
   .main-section,
   #mMain > .main-section,
   html[data-platform="mobile"] .main-section,
   html[data-platform="mobile"] #mMain > .main-section {
     position: absolute !important;
-    top: 8px !important;
-    bottom: 8px !important;
-    left: 12px !important;
-    right: 12px !important;
-    width: auto !important;
+    inset: 0 !important;
+    width: 100% !important;
     max-width: none !important;
-    height: auto !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.75rem !important;
-    background-color: var(--bg-card) !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background-color: var(--bg) !important;
     color: var(--text) !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
     margin: 0 !important;
+    padding: 0 !important;
     box-sizing: border-box !important;
-    will-change: transform;
+    box-shadow: none !important;
+    transform: none !important;
+    will-change: auto;
     touch-action: pan-y;
   }
 
+  .main-section:not(.is-focused),
+  #mMain > .main-section:not(.is-focused),
+  html[data-platform="mobile"] .main-section:not(.is-focused),
+  html[data-platform="mobile"] #mMain > .main-section:not(.is-focused) {
+    display: none !important;
+  }
+
+  /* Oculta cabeçalho interno das seções (antigo header de mosaico/janela) no mobile */
   .section-header,
   html[data-platform="mobile"] .section-header {
-    order: 99 !important;
-    height: 44px !important;
-    padding-inline: 0.65rem !important;
-    border-radius: 0 0 0.75rem 0.75rem !important;
-    border-top: 1px solid var(--border) !important;
-    border-bottom: none !important;
-    background-color: var(--bg-card) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    flex-shrink: 0 !important;
-    touch-action: none !important;
-    cursor: default !important;
+    display: none !important;
   }
 
-  .main-section.is-focused .section-header,
-  html[data-platform="mobile"] .main-section.is-focused .section-header {
-    border-top-color: var(--border) !important;
-    border-bottom: none !important;
-  }
-
-  /* Barra Contextual Estilo Notion: logo acima do header da view, que fica
-     no rodapé (order 99). */
+  /* Barra Contextual Estilo Notion: no rodapé da página em edição */
   .mobile-notion-toolbar,
   html[data-platform="mobile"] .mobile-notion-toolbar {
-    order: 98 !important;
+    order: 99 !important;
     border-top: 1px solid var(--border) !important;
     border-bottom: none !important;
     border-radius: 0 !important;
+    background-color: var(--bg) !important;
     flex-shrink: 0 !important;
-  }
-
-  .section-header .section-btn,
-  .section-header .section-close,
-  html[data-platform="mobile"] .section-header .section-btn,
-  html[data-platform="mobile"] .section-header .section-close {
-    width: 32px !important;
-    height: 32px !important;
-    display: grid !important;
-    place-items: center !important;
   }
 
   .section-body,
@@ -823,51 +805,65 @@
     pointer-events: auto !important;
   }
 
-  /* 6. Nav como Bottom Bar */
+  /* 6. Oculta Activity Bar (#mNav) no mobile para sensação de página única em branco */
   #mNav,
   html[data-platform="mobile"] #mNav {
-    order: 4 !important;
-    width: 100% !important;
-    height: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
-    padding: 0 !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-around !important;
-    border: 0 !important;
-    border-top: 1px solid var(--border) !important;
-    border-radius: 0 !important;
-    background-color: var(--bg) !important;
-    flex-shrink: 0 !important;
-  }
-
-  #mNav > .nav-logo,
-  #mNav > .nav-divider {
     display: none !important;
   }
 
-  #mNav ul {
-    flex-direction: row !important;
-    width: 100% !important;
-    height: 100% !important;
-    justify-content: space-around !important;
-    align-items: center !important;
-    gap: 0 !important;
-    margin: 0 !important;
+  /* Oculta marca d'água de inicialização no mobile para uma folha de papel limpa */
+  .note-watermark,
+  html[data-platform="mobile"] .note-watermark {
+    display: none !important;
+  }
+
+  /* Estilização da Folha de Nota Contínua Edge-to-Edge (Obsidian Mobile) */
+  .note-editor,
+  html[data-platform="mobile"] .note-editor {
+    border: none !important;
+    border-top: none !important;
+    background: var(--bg) !important;
     padding: 0 !important;
+    margin: 0 !important;
   }
 
-  #mNav ul li {
-    width: 44px !important;
-    height: 40px !important;
-    border-radius: 0.5rem !important;
-    display: grid !important;
-    place-items: center !important;
+  .note-folder-bar,
+  html[data-platform="mobile"] .note-folder-bar {
+    padding: 8px 18px 2px 18px !important;
   }
 
-  .nav-item-settings {
-    margin-top: 0 !important;
+  .note-header-bar,
+  html[data-platform="mobile"] .note-header-bar {
+    padding: 6px 18px 4px 18px !important;
+    gap: 8px !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .note-header-title,
+  html[data-platform="mobile"] .note-header-title {
+    font-size: 1.65rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.25 !important;
+    color: var(--text) !important;
+  }
+
+  .note-editor-blocks,
+  html[data-platform="mobile"] .note-editor-blocks {
+    padding: 12px 18px calc(80px + env(safe-area-inset-bottom, 24px)) 18px !important;
+    max-width: 100% !important;
+    background: var(--bg) !important;
+  }
+
+  .note-properties-bar,
+  html[data-platform="mobile"] .note-properties-bar {
+    padding: 2px 18px 6px 18px !important;
+  }
+
+  /* Visões no Drawer Esquerdo */
+  .aside-footer-views {
+    margin-bottom: 8px !important;
   }
 
   /* Ajuste para estado vazio no mobile */
@@ -973,7 +969,8 @@
   html:not([data-platform="mobile"]) .mobile-only-btn,
   html:not([data-platform="mobile"]) .mobile-only-flex,
   html:not([data-platform="mobile"]) #mobileRightDrawer,
-  html:not([data-platform="mobile"]) .mobile-drawer-scrim {
+  html:not([data-platform="mobile"]) .mobile-drawer-scrim,
+  html:not([data-platform="mobile"]) .aside-footer-views {
     display: none !important;
   }
 }

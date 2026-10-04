@@ -153,6 +153,15 @@ export function initSpatialShell() {
     }
     openOrFocusView('notes');
   });
+  document.addEventListener('quickdock:open-view', e => {
+    const asideEl = document.getElementById('mAside');
+    if (asideEl && (window.innerWidth <= 768 || isMobileMode())) {
+      asideEl.classList.remove('is-open-mobile');
+      document.getElementById('mobileDrawerScrim')?.classList.remove('is-active');
+    }
+    const viewId = e.detail?.view;
+    if (viewId) openOrFocusView(viewId);
+  });
   document.addEventListener('click', (e) => {
     const asideEl = document.getElementById('mAside');
     if (!asideEl || !asideEl.classList.contains('is-open-mobile')) return;
@@ -616,6 +625,7 @@ function applyViewVisibility() {
     settings: document.querySelector('.settings-view') || document.getElementById('settings-view')
   };
 
+  const isMobile = window.innerWidth <= 768 || isMobileMode();
   for (const [id, el] of Object.entries(viewMap)) {
     if (!el) continue;
     const isSectionOpen = openViewIds.includes(id);
@@ -624,7 +634,11 @@ function applyViewVisibility() {
     if (id === 'docs') el.classList.toggle('is-collapsed', !isSectionOpen);
 
     if (isSectionOpen) {
-      el.style.setProperty('display', 'flex', 'important');
+      if (!isMobile || focusedViewId === id) {
+        el.style.setProperty('display', 'flex', 'important');
+      } else {
+        el.style.setProperty('display', 'none', 'important');
+      }
     } else {
       el.style.setProperty('display', 'none', 'important');
     }

@@ -1486,6 +1486,39 @@ function initDesktopNotesAsideDrawer() {
     return b;
   };
 
+  // 1. Visões do Espaço (visível no mobile para navegação entre views)
+  const secViews = document.createElement('div');
+  secViews.className = 'aside-footer-section aside-footer-views';
+
+  const titleViews = document.createElement('div');
+  titleViews.className = 'aside-footer-title';
+  titleViews.textContent = 'Visões';
+  secViews.appendChild(titleViews);
+
+  const gridViews = document.createElement('div');
+  gridViews.className = 'aside-footer-grid';
+
+  const viewItems = [
+    { id: 'notes', icon: 'description', label: 'Notas' },
+    { id: 'bases', icon: 'table_rows', label: 'Bases' },
+    { id: 'board', icon: 'space_dashboard', label: 'Espaço' },
+    { id: 'graph', icon: 'hub', label: 'Constelações' },
+    { id: 'calendar', icon: 'calendar_today', label: 'Calendário' },
+    { id: 'docs', icon: 'attach_file', label: 'Documentos' },
+    { id: 'templates', icon: 'auto_stories', label: 'Modelos' },
+    { id: 'json', icon: 'data_object', label: 'JSON Studio' },
+  ];
+
+  viewItems.forEach(v => {
+    gridViews.appendChild(createFooterBtn(v.icon, v.label, () => {
+      closeNotesAsideDrawer();
+      document.dispatchEvent(new CustomEvent('quickdock:open-view', { detail: { view: v.id } }));
+    }));
+  });
+
+  secViews.appendChild(gridViews);
+  footer.appendChild(secViews);
+
   // 2. Ações & Ajustes
   const secActions = document.createElement('div');
   secActions.className = 'aside-footer-section';

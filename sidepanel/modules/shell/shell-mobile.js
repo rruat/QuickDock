@@ -89,6 +89,7 @@ export function updateMobileCarouselPositions(animated = false) {
         sec.style.removeProperty('opacity');
         sec.style.removeProperty('z-index');
         sec.style.removeProperty('pointer-events');
+        sec.style.removeProperty('display');
       });
     }
     return;
@@ -107,19 +108,22 @@ export function updateMobileCarouselPositions(animated = false) {
   }
 
   sections.forEach((sec, idx) => {
-    sec.style.transition = animated ? 'transform 260ms cubic-bezier(0.25, 1, 0.5, 1), opacity 260ms ease' : 'none';
+    sec.style.removeProperty('transition');
+    sec.style.removeProperty('transform');
     if (idx === mobileActiveIndex) {
-      sec.style.transform = 'translate3d(0, 0, 0)';
-      sec.style.opacity = '1';
-      sec.style.pointerEvents = 'auto';
-      sec.style.zIndex = '2';
-      sec.style.visibility = 'visible';
+      sec.style.setProperty('display', 'flex', 'important');
+      sec.style.setProperty('opacity', '1');
+      sec.style.setProperty('pointer-events', 'auto');
+      sec.style.setProperty('z-index', '1');
+      sec.style.setProperty('visibility', 'visible');
+      sec.classList.add('is-focused');
     } else {
-      sec.style.transform = 'translate3d(100vw, 0, 0)';
-      sec.style.opacity = '0';
-      sec.style.pointerEvents = 'none';
-      sec.style.zIndex = '1';
-      sec.style.visibility = 'hidden';
+      sec.style.setProperty('display', 'none', 'important');
+      sec.style.setProperty('opacity', '0');
+      sec.style.setProperty('pointer-events', 'none');
+      sec.style.setProperty('z-index', '0');
+      sec.style.setProperty('visibility', 'hidden');
+      sec.classList.remove('is-focused');
     }
   });
 
@@ -138,57 +142,10 @@ export function transitionToMobileCard(targetId, preferredDirection = 'auto') {
   const targetIndex = sections.findIndex(s => s.dataset.id === targetId);
   if (targetIndex === -1) return;
 
-  if (targetIndex === mobileActiveIndex) {
-    updateMobileCarouselPositions(false);
-    return;
-  }
-
-  if (mobileIsAnimating) {
-    mobileActiveIndex = targetIndex;
-    updateMobileCarouselPositions(false);
-    return;
-  }
-
-  const currentCard = sections[mobileActiveIndex] || sections[0];
-  const targetCard = sections[targetIndex];
-
-  let isForward = true;
-  if (preferredDirection === 'forward') {
-    isForward = true;
-  } else if (preferredDirection === 'backward') {
-    isForward = false;
-  } else {
-    isForward = targetIndex > mobileActiveIndex || (mobileActiveIndex === sections.length - 1 && targetIndex === 0);
-  }
-
-  const cardWidth = window.innerWidth;
-  const enterX = isForward ? cardWidth : -cardWidth;
-  const exitX = isForward ? -cardWidth : cardWidth;
-
-  mobileIsAnimating = true;
-
-  targetCard.style.transition = 'none';
-  targetCard.style.transform = `translate3d(${enterX}px, 0, 0)`;
-  targetCard.style.visibility = 'visible';
-  targetCard.style.opacity = '1';
-  targetCard.style.zIndex = '2';
-  targetCard.style.pointerEvents = 'none';
-
-  void targetCard.offsetWidth; // Força reflow
-
-  currentCard.style.transition = 'transform 260ms cubic-bezier(0.25, 1, 0.5, 1), opacity 260ms ease';
-  targetCard.style.transition = 'transform 260ms cubic-bezier(0.25, 1, 0.5, 1), opacity 260ms ease';
-
-  currentCard.style.transform = `translate3d(${exitX}px, 0, 0)`;
-  targetCard.style.transform = 'translate3d(0, 0, 0)';
-
-  setTimeout(() => {
-    mobileActiveIndex = targetIndex;
-    _setFocusedViewId(targetId);
-    mobileIsAnimating = false;
-    updateMobileCarouselPositions(false);
-    window.dispatchEvent(new CustomEvent('resize'));
-  }, 270);
+  mobileActiveIndex = targetIndex;
+  _setFocusedViewId(targetId);
+  updateMobileCarouselPositions(false);
+  window.dispatchEvent(new CustomEvent('resize'));
 }
 
 function onMobileTouchStart(e) {
@@ -551,11 +508,6 @@ export function setupMobileTouchGestures() {
   window.addEventListener('resize', () => {
     updateMobileCarouselPositions(false);
   });
-
-  mainEl.addEventListener('touchstart', onMobileTouchStart, { passive: true });
-  mainEl.addEventListener('touchmove', onMobileTouchMove, { passive: true });
-  mainEl.addEventListener('touchend', onMobileTouchEnd, { passive: true });
-  mainEl.addEventListener('touchcancel', onMobileTouchEnd, { passive: true });
 
   // Gestos de borda (Edge Swipe) no padrão Obsidian Mobile
   let edgeStartX = 0;
