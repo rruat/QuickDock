@@ -216,7 +216,18 @@
   #mMain > .main-section:not(.is-focused),
   html[data-platform="mobile"] .main-section:not(.is-focused),
   html[data-platform="mobile"] #mMain > .main-section:not(.is-focused) {
-    display: none !important;
+    display: none;
+  }
+
+  .main-section.is-focused,
+  #mMain > .main-section.is-focused,
+  html[data-platform="mobile"] .main-section.is-focused,
+  html[data-platform="mobile"] #mMain > .main-section.is-focused {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    z-index: 1 !important;
   }
 
   /* Oculta cabeçalho interno das seções (antigo header de mosaico/janela) no mobile */
@@ -825,6 +836,17 @@
     background: var(--bg) !important;
     padding: 0 !important;
     margin: 0 !important;
+    flex: 1 1 0px !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  .note-outline-sidebar,
+  .note-outline-floating-toggle,
+  #btn-note-outline-toggle-desktop {
+    display: none !important;
   }
 
   .note-folder-bar,

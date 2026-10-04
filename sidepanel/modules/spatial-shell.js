@@ -41,7 +41,7 @@ export const SHELL_VIEWS = [
 ];
 
 let openViewIds = [];
-let focusedViewId = null;
+let focusedViewId = 'notes';
 let layoutMode = 'side-by-side'; // 'side-by-side' ou 'stacked'
 let searchActiveIdx = -1;
 let searchCandidates = [];
@@ -114,6 +114,9 @@ export function initSpatialShell() {
 
   if (openViewIds.length === 0) {
     openViewIds = ['notes'];
+  }
+  if (!focusedViewId || !openViewIds.includes(focusedViewId)) {
+    focusedViewId = openViewIds[0] || 'notes';
   }
 
   // Garante que todas as seções de view de primeiro nível no mMain tenham a classe main-section
@@ -626,6 +629,9 @@ function applyViewVisibility() {
   };
 
   const isMobile = window.innerWidth <= 768 || isMobileMode();
+  if (!focusedViewId || !openViewIds.includes(focusedViewId)) {
+    focusedViewId = openViewIds[0] || 'notes';
+  }
   for (const [id, el] of Object.entries(viewMap)) {
     if (!el) continue;
     const isSectionOpen = openViewIds.includes(id);

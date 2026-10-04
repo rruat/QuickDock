@@ -48,10 +48,10 @@ function triggerSnapHaptic() {
 function getOpenMobileSections() {
   const mainEl = document.getElementById('mMain');
   if (!mainEl) return [];
-  const openIds = _getOpenViewIds();
+  const openIds = typeof _getOpenViewIds === 'function' ? _getOpenViewIds() : ['notes'];
   return openIds
     .map(id => mainEl.querySelector(`:scope > [data-id="${id}"]`))
-    .filter(sec => sec && !sec.hidden && sec.style.display !== 'none');
+    .filter(Boolean);
 }
 
 export function syncMobileActiveViewUI(activeId) {
@@ -98,7 +98,10 @@ export function updateMobileCarouselPositions(animated = false) {
   const sections = getOpenMobileSections();
   if (sections.length === 0) return;
 
-  const focusedViewId = _getFocusedViewId();
+  let focusedViewId = typeof _getFocusedViewId === 'function' ? _getFocusedViewId() : null;
+  if (!focusedViewId && sections[0]?.dataset?.id) {
+    focusedViewId = sections[0].dataset.id;
+  }
   if (focusedViewId) {
     const idx = sections.findIndex(s => s.dataset.id === focusedViewId);
     if (idx !== -1) mobileActiveIndex = idx;
