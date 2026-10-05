@@ -130,19 +130,63 @@
 }
 
 /* ── Estilo de Seleção Interativa de Blocos (Estilo WhatsApp) ─────────────── */
+body.is-print-mode {
+  --note-gutter-x: 54px !important;
+  overflow-x: hidden !important;
+}
+
+body.is-print-mode #section-note {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+body.is-print-mode .note-workspace-body,
+body.is-print-mode .note-editor {
+  overflow-x: hidden !important;
+}
+
 body.is-print-mode .note-cover {
-  margin-left: 54px !important;
-  width: calc(100% - 78px) !important;
+  margin: 10px auto 4px auto !important;
+  width: calc(100% - 108px) !important;
+  max-width: calc(var(--note-max-width, 297mm) - 108px) !important;
 }
 
 body.is-print-mode .note-header-bar,
 body.is-print-mode .note-properties-bar,
-body.is-print-mode .note-backlinks-section {
-  padding-left: 54px !important;
-}
-
+body.is-print-mode .note-backlinks-section,
 body.is-print-mode .note-editor-blocks {
   padding-left: 54px !important;
+  padding-right: 54px !important;
+  box-sizing: border-box !important;
+}
+
+/* Ocultar gaveta de configurações, chips, opções, botão adicionar propriedade e painéis laterais */
+body.is-print-mode .note-property-section .section-body,
+body.is-print-mode .property-drawer,
+body.is-print-mode .property-drawer-content,
+body.is-print-mode .property-options-btn,
+body.is-print-mode .property-drag-handle,
+body.is-print-mode .note-properties-footer,
+body.is-print-mode #btn-add-property,
+body.is-print-mode .note-properties-suggested-bar,
+body.is-print-mode .note-header-icon-chevron,
+body.is-print-mode .note-icon-expansion,
+body.is-print-mode .note-cover-expansion,
+body.is-print-mode #note-icon-panel,
+body.is-print-mode #mobileRightDrawer,
+body.is-print-mode .mobile-drawer-scrim,
+body.is-print-mode .note-outline-sidebar,
+body.is-print-mode .note-outline-floating-toggle,
+body.is-print-mode .desktop-panel-column,
+body.is-print-mode .desktop-panel-handle,
+body.is-print-mode .main-section:not(#section-note) {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* No modo seleção de impressão, seções de propriedades nunca mostram bordas de expansão */
+body.is-print-mode .section.note-property-section {
+  border: 1px solid transparent !important;
 }
 
 /* Calha de checkboxes independente (Estilo WhatsApp) */
@@ -150,7 +194,9 @@ body.is-print-mode .note-editor-blocks {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: visible !important;
   pointer-events: none;
   z-index: 100;
 }
@@ -347,8 +393,38 @@ body.is-print-mode .print-selectable-item.print-excluded.print-hover {
   html[data-platform] .note-header-color-btn,
   html[data-platform] #btn-note-header-reminder,
   html[data-platform] #btn-note-header-location,
-  html[data-platform] .modal {
+  html[data-platform] .modal,
+  #mobileRightDrawer,
+  .mobile-right-drawer,
+  .mobile-drawer-scrim,
+  .desktop-panel-column,
+  .desktop-panel-handle,
+  .note-property-section .section-body,
+  .property-drawer,
+  .property-drawer-content,
+  .property-options-btn,
+  .property-drag-handle,
+  .note-properties-footer,
+  #btn-add-property,
+  .note-properties-suggested-bar,
+  .note-header-icon-chevron,
+  .note-icon-expansion,
+  .note-cover-expansion,
+  #note-icon-panel {
     display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Propriedades limpas no papel impresso */
+  .section.note-property-section {
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .note-property-trigger {
+    background: transparent !important;
+    padding: 2px 0 !important;
+    min-height: 24px !important;
   }
 
   /* A cadeia de caixas da nota vira fluxo normal, sem rolagem interna */

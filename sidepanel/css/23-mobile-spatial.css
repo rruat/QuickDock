@@ -406,6 +406,7 @@
     box-shadow: none !important;
     pointer-events: none !important;
     opacity: 1 !important;
+    visibility: hidden !important;
   }
 
   #mAside.is-open-mobile,
@@ -413,6 +414,7 @@
     transform: translate3d(0, 0, 0) !important;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2) !important;
     pointer-events: auto !important;
+    visibility: visible !important;
   }
 
   #mAside.mode-notes .notes-aside-drawer,
@@ -498,6 +500,7 @@
     overflow: hidden !important;
     box-shadow: none !important;
     pointer-events: none !important;
+    visibility: hidden !important;
   }
 
   #mobileRightDrawer.is-open-mobile,
@@ -505,6 +508,7 @@
     transform: translate3d(0, 0, 0) !important;
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2) !important;
     pointer-events: auto !important;
+    visibility: visible !important;
   }
 
   .mobile-right-header {

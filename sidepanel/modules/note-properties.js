@@ -61,6 +61,17 @@ const NOMES_PADRAO_POR_TIPO = {
 // para preservar o estado de expansão durante re-renderizações e edições
 const openPropertyKeys = new Set();
 
+export function closeAllPropertySections() {
+  openPropertyKeys.clear();
+  propertiesListEl?.querySelectorAll('.note-property-section.is-open').forEach(s => {
+    s.classList.remove('is-open');
+  });
+}
+
+window.addEventListener('quickdock:close-all-property-menus', () => {
+  closeAllPropertySections();
+});
+
 let activePropertiesMenu = null;
 function closePropertiesMenu() {
   if (activePropertiesMenu) {
@@ -788,8 +799,9 @@ export function renderPropertiesBar(note) {
 
     trigger.append(dragHandle, typeBtn, propLabel, valueWrap, optionsBtn);
 
-    // Clicar no gatilho alterna abertura da seção (se não for no editor de valor)
+    // Clicar no gatilho alterna abertura da seção (se não for no editor de valor e não estiver em modo impressão)
     trigger.addEventListener('click', e => {
+      if (document.body.classList.contains('is-print-mode')) return;
       if (e.target.closest('.note-property-value-wrap')) return;
       const isOpen = section.classList.toggle('is-open');
       if (isOpen) {

@@ -192,6 +192,8 @@ export function enterPrintMode() {
   // Fecha outros menus antes de entrar
   window.dispatchEvent(new CustomEvent('quickdock:close-cover-menu'));
   window.dispatchEvent(new CustomEvent('quickdock:close-icon-menu'));
+  window.dispatchEvent(new CustomEvent('quickdock:close-all-property-menus'));
+  document.querySelectorAll('.note-property-section.is-open').forEach(s => s.classList.remove('is-open'));
 
   // Dispara evento para salvar qualquer edição de texto pendente antes de travar o editor
   document.dispatchEvent(new CustomEvent('quickdock:flush-pending-save'));
