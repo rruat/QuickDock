@@ -6,7 +6,6 @@
 const STORAGE_KEY = 'quickdock:note-print-orientation';
 
 const headerBar = document.getElementById('note-header-bar');
-const colorBtn = document.getElementById('btn-note-header-color');
 
 let orientation = 'portrait';
 try {

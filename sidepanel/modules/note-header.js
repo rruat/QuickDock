@@ -10,8 +10,6 @@ import { openLocationPopover, closeLocationPopoverIfOutside } from './reminders/
 const headerIconBtn      = document.getElementById('btn-note-header-icon');
 const headerIconEl       = document.getElementById('note-header-icon');
 const headerTitleEl      = document.getElementById('note-header-title');
-const headerColorBtn     = document.getElementById('btn-note-header-color');
-const headerColorDot     = document.getElementById('note-header-color-dot');
 const headerReminderBtn  = document.getElementById('btn-note-header-reminder');
 const headerLocationBtn  = document.getElementById('btn-note-header-location');
 const headerBadgesEl     = document.getElementById('note-header-badges');
@@ -76,14 +74,6 @@ export function renderNoteHeader(note) {
     headerTitleEl.textContent = note.title || '';
   }
 
-  if (headerColorDot) {
-    if (note.color) {
-      headerColorDot.style.background = note.color;
-      headerColorDot.hidden = false;
-    } else {
-      headerColorDot.hidden = true;
-    }
-  }
   renderNoteCover(note);
 
   // Renderiza badges de Lembrete de Foco e Localização Maps
@@ -165,9 +155,7 @@ export function clearNoteHeader() {
   if (headerIconEl) { headerIconEl.textContent = ''; headerIconEl.classList.remove('has-icon-image'); }
   const labelEl = document.getElementById('note-header-icon-label');
   if (labelEl) labelEl.textContent = 'Ícone & Aparência';
-  if (headerColorDot) headerColorDot.hidden = true;
   headerIconBtn?.classList.remove('has-custom-icon', 'section-active');
-  headerColorBtn?.classList.remove('section-active');
   document.querySelector('.note-editor')?.classList.remove('has-custom-icon');
   if (mobileAppearanceBtn) {
     mobileAppearanceBtn.hidden = false;
@@ -221,12 +209,6 @@ if (headerTitleEl) {
 
 // Ícone, cor e aparência da nota expandem o menu de opções conectado diretamente ao elemento
 headerIconBtn?.addEventListener('click', e => {
-  e.stopPropagation();
-  if (headerNoteRef) {
-    toggleIconPanel(headerNoteRef, () => renderNoteHeader(headerNoteRef));
-  }
-});
-headerColorBtn?.addEventListener('click', e => {
   e.stopPropagation();
   if (headerNoteRef) {
     toggleIconPanel(headerNoteRef, () => renderNoteHeader(headerNoteRef));

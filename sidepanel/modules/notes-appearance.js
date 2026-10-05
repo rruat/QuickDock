@@ -341,8 +341,8 @@ function closeAppearancePopover() {
 // popover ao clicar fora — sem expor o elemento em si pra fora do módulo.
 export function closeAppearancePopoverIfOutside(target) {
   if (appearancePopoverEl && !appearancePopoverEl.contains(target)
-    && target.id !== 'btn-note-header-icon' && target.id !== 'btn-note-header-color'
-    && !target.closest('#btn-note-header-icon') && !target.closest('#btn-note-header-color')) {
+    && target.id !== 'btn-note-header-icon'
+    && !target.closest('#btn-note-header-icon')) {
     closeAppearancePopover();
   }
 }
@@ -924,7 +924,6 @@ export function closeIconPanel() {
   const iconBtn = document.getElementById('btn-note-header-icon');
   iconBtn?.classList.remove('section-active', 'is-active');
   iconBtn?.setAttribute('aria-expanded', 'false');
-  document.getElementById('btn-note-header-color')?.classList.remove('section-active', 'is-active');
   document.getElementById('btn-note-appearance-mobile')?.classList.remove('section-active', 'is-active');
 }
 

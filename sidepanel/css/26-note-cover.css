@@ -238,6 +238,10 @@
   transform: translateY(0);
 }
 
+.note-inline-expansion:not(.is-open) .note-inline-expansion-inner {
+  border: none !important;
+}
+
 /* Conexão visual com a Capa da Nota */
 .note-cover.is-configuring {
   border-bottom-left-radius: 0;

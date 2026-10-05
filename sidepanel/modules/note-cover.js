@@ -6,7 +6,6 @@ import { updateNoteMetaById, saveFile, loadFileBlob, deleteFile } from './storag
 import { noteEditorEl } from './note-state.js';
 
 const headerBar = document.getElementById('note-header-bar');
-const colorBtn = document.getElementById('btn-note-header-color');
 
 export const MAX_BYTES = 10 * 1024 * 1024;
 

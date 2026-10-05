@@ -139,10 +139,10 @@ body:not(.booting) .note-editor-blocks {
   align-items: center;
   width: 100%;
   min-height: 38px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   gap: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-md, 8px);
   color: var(--text);
   cursor: pointer;
@@ -155,7 +155,7 @@ body:not(.booting) .note-editor-blocks {
 
 .note-header-icon-btn:hover {
   background: var(--bg-hover);
-  border-color: var(--border-hover, var(--border));
+  border-color: transparent;
 }
 
 .note-header-icon-btn .note-header-icon-preview {
@@ -177,15 +177,6 @@ body:not(.booting) .note-editor-blocks {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.note-header-color-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  display: inline-block;
 }
 
 .note-header-icon-chevron {
