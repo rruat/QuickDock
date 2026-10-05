@@ -908,9 +908,11 @@
     outline: none !important;
   }
 
-  /* Oculta botões que disputavam espaço com o título no mobile (imprimir, cor, outline, lembrete/local inativos) */
+  /* Oculta botões que disputavam espaço com o título no mobile (imprimir, capa, cor, outline, lembrete/local inativos) */
   #btn-note-print,
   .note-header-print-btn,
+  #btn-note-cover,
+  .note-header-cover-btn,
   #btn-note-outline-toggle-desktop,
   .note-header-outline-btn,
   #btn-note-header-reminder,
@@ -918,6 +920,8 @@
   #btn-note-header-color,
   html[data-platform="mobile"] #btn-note-print,
   html[data-platform="mobile"] .note-header-print-btn,
+  html[data-platform="mobile"] #btn-note-cover,
+  html[data-platform="mobile"] .note-header-cover-btn,
   html[data-platform="mobile"] #btn-note-outline-toggle-desktop,
   html[data-platform="mobile"] .note-header-outline-btn,
   html[data-platform="mobile"] #btn-note-header-reminder,

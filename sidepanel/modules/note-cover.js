@@ -7,12 +7,13 @@
 
 import { updateNoteMetaById, saveFile, loadFileBlob, deleteFile } from './storage.js';
 import { noteEditorEl } from './note-state.js';
+import { toggleNoteSection, openNoteSection } from './reminders/note-expandable-section.js';
 
 const headerBar = document.getElementById('note-header-bar');
 const colorBtn = document.getElementById('btn-note-header-color');
 
 // Teto pra imagem enviada: a capa é decoração, não precisa de foto em tamanho cheio.
-const MAX_BYTES = 10 * 1024 * 1024;
+export const MAX_BYTES = 10 * 1024 * 1024;
 
 let noteRef = null;       // nota mostrada agora (o mesmo objeto que o cabeçalho recebe)
 let objectUrl = null;     // URL temporária da capa enviada, revogada ao trocar
@@ -34,7 +35,7 @@ function revokeObjectUrl() {
 }
 
 // Só http/https: nada de javascript:, data: ou file: digitado como "endereço".
-function normalizeUrl(raw) {
+export function normalizeUrl(raw) {
   const text = (raw || '').trim();
   if (!text) return null;
   try {
@@ -45,7 +46,7 @@ function normalizeUrl(raw) {
   }
 }
 
-function hasCover(note) {
+export function hasCover(note) {
   return !!note && (!!note.coverUrl || note.coverFileId != null);
 }
 
@@ -56,14 +57,14 @@ let dragStartPos = 50;
 let currentPos = 50;
 let repositionBarEl = null;
 
-function getNoteCoverPos(note) {
+export function getNoteCoverPos(note) {
   if (!note) return 50;
   if (typeof note.coverPosition === 'number') return note.coverPosition;
   if (typeof note.coverPositionY === 'number') return note.coverPositionY;
   return 50;
 }
 
-function startReposition() {
+export function startReposition() {
   if (!noteRef || isRepositioning) return;
   isRepositioning = true;
   currentPos = getNoteCoverPos(noteRef);
@@ -72,7 +73,7 @@ function startReposition() {
   if (repositionBarEl) repositionBarEl.hidden = false;
 }
 
-function stopReposition() {
+export function stopReposition() {
   isRepositioning = false;
   isDragging = false;
   coverEl?.classList.remove('is-repositioning', 'is-dragging');
@@ -166,17 +167,21 @@ function syncButtons() {
 }
 
 // ── Gravação ──────────────────────────────────────────────────────────────────
-async function applyCover(patch) {
-  if (!noteRef) return;
-  const id = noteRef.id;
-  const antigoArquivo = noteRef.coverFileId;
+export async function applyCover(patch, targetNote = null) {
+  const current = targetNote || noteRef;
+  if (!current) return;
+  const id = current.id;
+  const antigoArquivo = current.coverFileId;
   await updateNoteMetaById(id, patch);
   // O arquivo anterior só é apagado depois de a troca estar gravada.
   if (antigoArquivo != null && antigoArquivo !== patch.coverFileId) {
     try { await deleteFile(antigoArquivo); } catch {}
   }
-  Object.assign(noteRef, patch);
-  await renderNoteCover(noteRef);
+  Object.assign(current, patch);
+  if (noteRef && noteRef.id === id) {
+    Object.assign(noteRef, patch);
+    await renderNoteCover(noteRef);
+  }
   // Mesmo aviso que ícone/cor usam: quem mostra a nota em outro lugar se atualiza.
   document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: id } }));
 }
@@ -206,8 +211,8 @@ async function applyFile(file) {
   closePopover();
 }
 
-async function removeCover() {
-  await applyCover({ coverUrl: null, coverFileId: null });
+export async function removeCover(targetNote = null) {
+  await applyCover({ coverUrl: null, coverFileId: null }, targetNote);
   closePopover();
 }
 
@@ -327,7 +332,9 @@ function buildCover() {
   imgEl.addEventListener('load', () => { errorEl.hidden = true; imgEl.hidden = false; });
   el.querySelector('.note-cover-change').addEventListener('click', (e) => {
     e.stopPropagation();
-    openPopover(e.currentTarget);
+    if (noteRef) {
+      openNoteSection('appearance', noteRef);
+    }
   });
   el.querySelector('.note-cover-reposition').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -394,8 +401,9 @@ function mount() {
     headerBar.insertBefore(openBtn, colorBtn || null);
     openBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!popoverEl.hidden) { closePopover(); return; }
-      openPopover(openBtn);
+      if (noteRef) {
+        toggleNoteSection('appearance', noteRef);
+      }
     });
   }
   syncButtons();

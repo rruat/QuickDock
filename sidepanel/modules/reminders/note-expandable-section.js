@@ -7,6 +7,7 @@ import { registrarGeocerca, desregistrarGeocerca } from './geo-watcher.js';
 import { buscarLocaisPorTexto, obterEnderecoPorCoordenadas, obterPosicaoGpsAltaPrecisao } from './location-service.js';
 import { createMapPicker } from './map-picker.js';
 import { testarAlarmeFoco, testarAlarmeTDAH } from './reminder-runner.js';
+import { renderAppearanceSection } from '../notes-appearance.js';
 
 let activeSectionType = null; // 'location' | 'reminder' | null
 let currentMapPicker = null;
@@ -39,7 +40,7 @@ export function closeNoteSection() {
   const el = getSectionContainer();
   el.hidden = true;
   el.innerHTML = '';
-  el.classList.remove('is-open', 'section-location', 'section-reminder');
+  el.classList.remove('is-open', 'section-location', 'section-reminder', 'section-appearance');
   activeSectionType = null;
   if (typeof document !== 'undefined') {
     const backdrop = document.getElementById('note-section-backdrop');
@@ -47,6 +48,10 @@ export function closeNoteSection() {
   }
   document.getElementById('btn-note-header-reminder')?.classList.remove('section-active');
   document.getElementById('btn-note-header-location')?.classList.remove('section-active');
+  document.getElementById('btn-note-header-icon')?.classList.remove('section-active');
+  document.getElementById('btn-note-header-color')?.classList.remove('section-active');
+  document.getElementById('btn-note-appearance-mobile')?.classList.remove('section-active');
+  document.getElementById('btn-note-cover')?.classList.remove('section-active');
 }
 
 export function isNoteSectionOpen() {
@@ -76,6 +81,12 @@ export function openNoteSection(type, note, onSaved) {
   } else if (type === 'reminder') {
     renderReminderSection(container, note, onSaved);
     document.getElementById('btn-note-header-reminder')?.classList.add('section-active');
+  } else if (type === 'appearance') {
+    renderAppearanceSection(container, note, onSaved, closeNoteSection);
+    document.getElementById('btn-note-header-icon')?.classList.add('section-active');
+    document.getElementById('btn-note-header-color')?.classList.add('section-active');
+    document.getElementById('btn-note-appearance-mobile')?.classList.add('section-active');
+    document.getElementById('btn-note-cover')?.classList.add('section-active');
   }
 
   // Rola suavemente até o card expansível se estiver fora do campo de visão

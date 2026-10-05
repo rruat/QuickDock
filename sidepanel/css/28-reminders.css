@@ -890,4 +890,115 @@
   background: var(--bg-hover);
 }
 
+/* ── Seção Expansível Integrada de Aparência da Nota (Desktop & Mobile) ───────── */
+.note-expandable-section.section-appearance {
+  border-left-color: var(--accent);
+}
+
+.appearance-expandable-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.appearance-section-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.appearance-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+.appearance-card-header .qd-icon {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.appearance-cover-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.appearance-cover-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.appearance-cover-status .qd-icon {
+  font-size: 15px;
+  color: #10b981;
+}
+
+.appearance-cover-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.appearance-cover-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.appearance-cover-input-group .property-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  height: 28px;
+}
+
+.appearance-cover-error-msg {
+  font-size: 11px;
+  color: #ef4444;
+  padding: 2px 4px;
+}
+
+.appearance-cover-btn-file {
+  position: relative;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-header-icon-btn.section-active,
+.note-header-color-btn.section-active,
+.note-folder-btn.section-active {
+  background: var(--accent-light, rgba(59, 130, 246, 0.14)) !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 1px !important;
+}
+
+
 

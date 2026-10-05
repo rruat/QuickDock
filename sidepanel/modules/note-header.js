@@ -144,11 +144,13 @@ export function clearNoteHeader() {
   headerNoteRef = null;
   if (headerTitleEl) headerTitleEl.textContent = '';
   if (headerIconEl) { headerIconEl.textContent = ''; headerIconEl.classList.remove('has-icon-image'); }
-  headerIconBtn?.classList.remove('has-custom-icon');
+  headerIconBtn?.classList.remove('has-custom-icon', 'section-active');
+  headerColorBtn?.classList.remove('section-active');
   document.querySelector('.note-editor')?.classList.remove('has-custom-icon');
   if (mobileAppearanceBtn) {
     mobileAppearanceBtn.hidden = false;
     mobileAppearanceBtn.style.removeProperty('display');
+    mobileAppearanceBtn.classList.remove('section-active');
   }
   if (headerBadgesEl) headerBadgesEl.innerHTML = '';
   headerReminderBtn?.classList.remove('is-active', 'section-active');
@@ -194,19 +196,24 @@ if (headerTitleEl) {
   });
 }
 
-// Ícone e cor do cabeçalho abrem o mesmo popover que o menu "⋯" da aba já
-// usa — mesmo conteúdo, mesmo estado, só um segundo ponto de entrada.
+// Ícone, cor e aparência da nota expandem a seção integrada (sem popovers)
 headerIconBtn?.addEventListener('click', e => {
   e.stopPropagation();
-  if (headerNoteRef) openAppearancePopover(headerIconBtn, headerNoteRef);
+  if (headerNoteRef) {
+    toggleNoteSection('appearance', headerNoteRef, () => renderNoteHeader(headerNoteRef));
+  }
 });
 headerColorBtn?.addEventListener('click', e => {
   e.stopPropagation();
-  if (headerNoteRef) openAppearancePopover(headerColorBtn, headerNoteRef);
+  if (headerNoteRef) {
+    toggleNoteSection('appearance', headerNoteRef, () => renderNoteHeader(headerNoteRef));
+  }
 });
 mobileAppearanceBtn?.addEventListener('click', e => {
   e.stopPropagation();
-  if (headerNoteRef) openAppearancePopover(mobileAppearanceBtn, headerNoteRef);
+  if (headerNoteRef) {
+    toggleNoteSection('appearance', headerNoteRef, () => renderNoteHeader(headerNoteRef));
+  }
 });
 
 // A aba (ou a aside) pode mudar título/ícone/cor desta mesma nota por fora do
