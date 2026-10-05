@@ -111,6 +111,12 @@
     }
 
     /* Estilo da Capa */
+    .capa-image-wrap {
+      position: relative;
+      width: 100%;
+      height: 180px;
+    }
+
     .capa-img {
       width: 100%;
       height: 180px;
@@ -129,6 +135,7 @@
       padding: 0;
       position: relative;
       border-radius: 8px;
+      overflow: hidden;
     }
 
     .capa-label {
@@ -143,6 +150,134 @@
       font-size: 12px;
       font-weight: 500;
       border: 1px solid var(--border);
+    }
+
+    /* Estilo do Espaço / Placeholder da Capa (quando nota nova ou sem capa) */
+    .section.is-empty .capa-trigger {
+      min-height: 96px;
+      height: 96px;
+      border: 1.5px dashed var(--border);
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .section.is-empty:hover .capa-trigger {
+      border-color: var(--accent);
+      background: var(--bg-hover);
+      transform: translateY(-1px);
+    }
+
+    .section.is-open.is-empty .capa-trigger {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .capa-placeholder-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+    }
+
+    .capa-placeholder-icon-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .section.is-empty:hover .capa-placeholder-icon-badge {
+      color: var(--text);
+      border-color: var(--accent);
+      background: var(--bg-card);
+    }
+
+    .capa-placeholder-texts {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+      text-align: left;
+    }
+
+    .capa-placeholder-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .capa-placeholder-subtitle {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .capa-placeholder-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .capa-btn-quick-upload {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .capa-btn-quick-upload:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+
+    .mockup-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .mockup-toggle-btn {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .mockup-toggle-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
     }
 
     /* Estilo do Ícone */
@@ -343,14 +478,55 @@
 <body>
 
   <div class="note-container">
+    <div class="mockup-toolbar">
+      <button class="mockup-toggle-btn" id="btn-toggle-capa-state" type="button" title="Alternar entre estado de nota nova com espaço para capa e nota com capa carregada">
+        <span class="material-symbols-rounded" style="font-size:16px">refresh</span>
+        <span id="label-toggle-capa">Alternar para: Nota Nova (Espaço para Capa)</span>
+      </button>
+    </div>
+
     <!-- Seção 1: Capa -->
     <div class="section" id="sec-capa">
       <div class="section-trigger capa-trigger">
-        <img class="capa-img" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhwKvmT4N-YuYqEySQd27XSxp60dQL0dm0lopF_5FsT0aNQM3fjNygLbYarIaK1kGKtwWWzRWRIPN54qnc7Jd7VZ1SQHtaApfnz0LoDXUKgdOdeUJDWh456-FRmaHDnVX8MgDANRmY_HiZX2bGfGTgjbrG2OOIcsVWZuAJSLvUKTZnuOh6Ym4N15KEftyY/w1200/4K%20Black%20Hole%20Wallpaper.png" alt="Capa">
-        <span class="capa-label">Capa (clique para abrir opções)</span>
+        <div class="capa-image-wrap" id="capa-image-container">
+          <img class="capa-img" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhwKvmT4N-YuYqEySQd27XSxp60dQL0dm0lopF_5FsT0aNQM3fjNygLbYarIaK1kGKtwWWzRWRIPN54qnc7Jd7VZ1SQHtaApfnz0LoDXUKgdOdeUJDWh456-FRmaHDnVX8MgDANRmY_HiZX2bGfGTgjbrG2OOIcsVWZuAJSLvUKTZnuOh6Ym4N15KEftyY/w1200/4K%20Black%20Hole%20Wallpaper.png" alt="Capa">
+          <span class="capa-label">Capa (clique para abrir opções)</span>
+        </div>
+        <div class="capa-placeholder-wrap" id="capa-placeholder-container" style="display: none;">
+          <div class="capa-placeholder-icon-badge">
+            <span class="material-symbols-rounded">add_photo_alternate</span>
+          </div>
+          <div class="capa-placeholder-texts">
+            <span class="capa-placeholder-title">Adicionar Capa</span>
+            <span class="capa-placeholder-subtitle">Clique para escolher imagem ou arraste um arquivo aqui</span>
+          </div>
+          <div class="capa-placeholder-actions">
+            <button class="capa-btn-quick-upload" type="button">
+              <span class="material-symbols-rounded" style="font-size:16px">upload_file</span>
+              <span>Arquivo</span>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="section-body">
-        <div>CONFIGURAÇÕES DA CAPA</div>
+        <div>
+          <div class="drawer-section">
+            <span class="drawer-title">Configurações da Capa</span>
+            <div class="chips-grid">
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">view_headline</span>Compacta (120px)</button>
+              <button class="chip-btn active"><span class="material-symbols-rounded" style="font-size:14px">crop_landscape</span>Padrão (180px)</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">wallpaper</span>Grande (260px)</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">panorama</span>Banner (340px)</button>
+            </div>
+          </div>
+          <div class="drawer-section" style="margin-top: 8px;">
+            <span class="drawer-title">Link da Imagem</span>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="property-input" style="flex: 1; border: 1px solid var(--border);" placeholder="https://exemplo.com/imagem.png">
+              <button class="chip-btn" style="background: var(--text); color: var(--bg); font-weight: 600;">Aplicar</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -462,9 +638,29 @@
     document.querySelectorAll('.section').forEach(section => {
       const trigger = section.querySelector('.section-trigger');
       trigger.addEventListener('click', (e) => {
-        if (e.target.closest('input') || e.target.closest('select')) return;
+        if (e.target.closest('input') || e.target.closest('select') || e.target.closest('button')) return;
         section.classList.toggle('is-open');
       });
+    });
+
+    // Alternar entre Estado 1 (Com Capa) e Estado 2 (Nota Nova / Espaço para Capa) no Mockup
+    const toggleCapaBtn = document.getElementById('btn-toggle-capa-state');
+    const labelToggleCapa = document.getElementById('label-toggle-capa');
+    const secCapa = document.getElementById('sec-capa');
+    const capaImgContainer = document.getElementById('capa-image-container');
+    const capaPlaceholder = document.getElementById('capa-placeholder-container');
+
+    toggleCapaBtn?.addEventListener('click', () => {
+      const isEmpty = secCapa.classList.toggle('is-empty');
+      if (isEmpty) {
+        capaImgContainer.style.display = 'none';
+        capaPlaceholder.style.display = 'flex';
+        labelToggleCapa.textContent = 'Alternar para: Com Capa Carregada';
+      } else {
+        capaImgContainer.style.display = 'block';
+        capaPlaceholder.style.display = 'none';
+        labelToggleCapa.textContent = 'Alternar para: Nota Nova (Espaço para Capa)';
+      }
     });
   </script>
 

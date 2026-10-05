@@ -275,7 +275,7 @@ export function enterPrintMode() {
 
   // 1. Capa
   const coverEl = document.querySelector('.note-cover');
-  if (coverEl && !coverEl.hidden) {
+  if (coverEl && !coverEl.hidden && !coverEl.classList.contains('is-empty')) {
     const handle = createHandle('Capa');
     gutterEl.appendChild(handle);
     const itemObj = { el: coverEl, handle, selected: true, type: 'cover' };

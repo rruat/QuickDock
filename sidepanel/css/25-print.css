@@ -160,8 +160,15 @@ body.is-print-mode .note-editor-blocks {
   box-sizing: border-box !important;
 }
 
+body.is-print-mode .note-cover.is-empty,
+body.is-print-mode .note-cover-section.is-empty,
+body.is-print-mode .capa-placeholder-wrap {
+  display: none !important;
+}
+
 /* Ocultar gaveta de configurações, chips, opções, botão adicionar propriedade e painéis laterais */
 body.is-print-mode .note-property-section .section-body,
+body.is-print-mode .note-cover-section .section-body,
 body.is-print-mode .property-drawer,
 body.is-print-mode .property-drawer-content,
 body.is-print-mode .property-options-btn,

@@ -4,22 +4,226 @@
    ========================================================================== */
 
 /* ── Banner ──────────────────────────────────────────────────────────────── */
+/* ── Container da Capa como Seção (.section.note-cover-section) ── */
+.note-cover-section,
 .note-cover {
   position: relative;
   flex-shrink: 0;
   width: calc(100% - 2 * var(--note-gutter-x, 20px));
   max-width: calc(var(--note-max-width, 297mm) - 2 * var(--note-gutter-x, 20px));
   align-self: center;
-  height: clamp(120px, 20vw, 220px);
+  height: auto !important;
   margin: 10px auto 4px auto;
-  border-radius: var(--radius-md);
-  background: var(--bg-hover);
-  overflow: hidden;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid transparent;
+  background: transparent;
+  transition: border-color 0.18s ease, background 0.18s ease;
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+.note-cover-section.is-open {
+  border-color: var(--border);
+  background: var(--bg-card);
 }
 
 .note-cover[hidden] {
-  display: none;
+  display: none !important;
+}
+
+/* Gatilho principal da seção da capa */
+.note-cover-section .section-trigger.capa-trigger {
+  position: relative;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  box-sizing: border-box;
+  display: block;
+  user-select: none;
+  border-radius: var(--radius-md, 8px);
+}
+
+/* ── ESTADO 1: Placeholder quando NÃO TEM capa (ou nota nova) ── */
+.note-cover-section.is-empty .section-trigger.capa-trigger {
+  min-height: 96px;
+  border: 1.5px dashed var(--border);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.note-cover-section.is-empty:hover .section-trigger.capa-trigger,
+.note-cover-section.is-empty.is-dragover .section-trigger.capa-trigger {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+.note-cover-section.is-empty.is-dragover .section-trigger.capa-trigger {
+  border-style: solid;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+.note-cover-section.is-open.is-empty .section-trigger.capa-trigger {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.capa-placeholder-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.capa-placeholder-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.note-cover-section.is-empty:hover .capa-placeholder-icon-badge,
+.note-cover-section.is-empty.is-dragover .capa-placeholder-icon-badge {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--bg-card);
+}
+
+.capa-placeholder-icon-badge .qd-icon {
+  font-size: 24px;
+}
+
+.capa-placeholder-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  text-align: left;
+}
+
+.capa-placeholder-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.capa-placeholder-subtitle {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.capa-placeholder-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capa-btn-quick-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.capa-btn-quick-upload:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.capa-btn-quick-upload .qd-icon {
+  font-size: 16px;
+}
+
+/* ── ESTADO 2: Quando TEM capa ativa ── */
+.note-cover-section.has-cover .capa-placeholder-wrap {
+  display: none !important;
+}
+
+.note-cover-section.is-empty .capa-image-wrap {
+  display: none !important;
+}
+
+.capa-image-wrap {
+  position: relative;
+  width: 100%;
+  height: clamp(120px, 20vw, 220px);
+  background: var(--bg-hover);
+  overflow: hidden;
+  border-radius: var(--radius-md, 8px);
+}
+
+.note-cover-section.is-open .capa-image-wrap {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.capa-label {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(240, 238, 232, 0.9);
+  color: var(--text);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── CORPO EXPANSÍVEL INLINE (.section-body) ── */
+.note-cover-section .section-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease-out;
+  background: var(--bg-card);
+  color: var(--text);
+}
+
+.note-cover-section.is-open .section-body {
+  grid-template-rows: 1fr;
+  border-top: 1px dashed var(--border);
+}
+
+.note-cover-drawer-content {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 14px;
+  transition: padding 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-cover-section.is-open .note-cover-drawer-content {
+  padding: 14px;
 }
 
 .note-cover-img {
@@ -30,7 +234,7 @@
 }
 
 .note-cover-img[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .note-cover-error {
@@ -46,7 +250,7 @@
 }
 
 .note-cover-error[hidden] {
-  display: none;
+  display: none !important;
 }
 
 /* O botão só aparece quando há intenção: mouse em cima ou foco no teclado. */
@@ -58,10 +262,13 @@
   gap: 6px;
   opacity: 0;
   transition: opacity 0.15s ease;
+  z-index: 3;
 }
 
 .note-cover:hover .note-cover-actions,
 .note-cover:focus-within .note-cover-actions,
+.note-cover-section:hover .note-cover-actions,
+.note-cover-section:focus-within .note-cover-actions,
 .note-cover-error:not([hidden]) ~ .note-cover-actions {
   opacity: 1;
 }

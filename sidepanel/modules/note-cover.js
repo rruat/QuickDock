@@ -111,32 +111,36 @@ export async function applyCoverHeight(heightKey, targetNote = null) {
 }
 
 export function isCoverMenuOpen() {
-  return coverPanelEl && coverPanelEl.classList.contains('is-open');
+  return !!coverEl?.classList.contains('is-open');
 }
 
 export function closeCoverMenu() {
+  if (coverEl) {
+    coverEl.classList.remove('is-open', 'is-configuring');
+  }
   if (coverPanelEl) {
     coverPanelEl.classList.remove('is-open');
     coverPanelEl.setAttribute('aria-hidden', 'true');
   }
-  coverEl?.classList.remove('is-configuring');
   openBtn?.classList.remove('section-active', 'is-active');
   openBtn?.setAttribute('aria-expanded', 'false');
 }
 
 export function openCoverMenu() {
-  if (!coverPanelEl) return;
+  if (!coverEl) return;
   window.dispatchEvent(new CustomEvent('quickdock:close-icon-menu'));
   window.dispatchEvent(new CustomEvent('quickdock:close-note-section'));
 
-  coverPanelEl.classList.add('is-open');
-  coverPanelEl.setAttribute('aria-hidden', 'false');
-  coverEl?.classList.add('is-configuring');
+  coverEl.classList.add('is-open', 'is-configuring');
+  if (coverPanelEl) {
+    coverPanelEl.classList.add('is-open');
+    coverPanelEl.setAttribute('aria-hidden', 'false');
+  }
   openBtn?.classList.add('section-active', 'is-active');
   openBtn?.setAttribute('aria-expanded', 'true');
 
   renderCoverDetailsContent();
-  coverPanelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  coverEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 export function toggleCoverMenu() {
@@ -152,12 +156,6 @@ function renderCoverDetailsContent() {
   if (!coverPanelEl || !noteRef) return;
   const has = hasCover(noteRef);
   const currentKey = getNoteCoverHeightKey(noteRef);
-  const heightPx = getNoteCoverHeight(noteRef);
-
-  const titleEl = coverPanelEl.querySelector('#note-cover-panel-title');
-  if (titleEl) {
-    titleEl.textContent = has ? `Opções da Capa (${heightPx}px)` : 'Adicionar Capa à Nota';
-  }
 
   const bodyEl = coverPanelEl.querySelector('#note-cover-body');
   if (!bodyEl) return;
@@ -209,7 +207,7 @@ function renderCoverDetailsContent() {
       <div class="note-cover-menu-error" hidden></div>
     </div>
 
-    <!-- 4. Remover Capa -->
+    <!-- 4. Remover Capa (se tiver capa ativa) -->
     ${has ? `
       <div class="note-cover-menu-footer">
         <button type="button" class="calendar-action-btn danger btn-menu-remove-cover" title="Remover capa desta nota">
@@ -285,7 +283,6 @@ function renderCoverDetailsContent() {
   bodyEl.querySelector('.btn-menu-remove-cover')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     await removeCover(noteRef);
-    closeCoverMenu();
   });
 }
 
@@ -302,46 +299,70 @@ export async function renderNoteCover(note) {
   if (!coverEl) return;
   if (isRepositioning) stopReposition();
 
+  if (!note) {
+    clearNoteCover();
+    return;
+  }
+
+  const has = hasCover(note);
   const height = getNoteCoverHeight(note);
-  coverEl.style.height = `${height}px`;
+  const pos = getNoteCoverPos(note);
+
+  // A seção fica visível para a nota ativa:
+  // Se tiver capa -> mostra o banner da imagem
+  // Se não tiver capa (ex: nota nova) -> mostra o espaço de design para receber capa
+  coverEl.hidden = false;
+  coverEl.classList.toggle('is-empty', !has);
+  coverEl.classList.toggle('has-cover', has);
+
+  const imageWrap = coverEl.querySelector('#note-cover-image-wrap');
+  const placeholderWrap = coverEl.querySelector('#note-cover-placeholder');
+
+  if (imageWrap) imageWrap.style.height = `${height}px`;
 
   renderCoverDetailsContent();
 
-  const pos = getNoteCoverPos(note);
-  const key = hasCover(note) ? `${note.id}|${note.coverUrl ?? ''}|${note.coverFileId ?? ''}|${pos}|${height}` : null;
-  if (key === renderedKey && (key === null || !coverEl.hidden)) {
-    if (imgEl) imgEl.style.objectPosition = `50% ${pos}%`;
+  if (!has) {
+    revokeObjectUrl();
+    if (imgEl) imgEl.removeAttribute('src');
+    if (placeholderWrap) placeholderWrap.hidden = false;
+    if (imageWrap) imageWrap.hidden = true;
+    syncButtons();
+    return;
+  }
+
+  if (placeholderWrap) placeholderWrap.hidden = true;
+  if (imageWrap) imageWrap.hidden = false;
+  if (errorEl) errorEl.hidden = true;
+  if (imgEl) {
+    imgEl.hidden = false;
+    imgEl.style.objectPosition = `50% ${pos}%`;
+  }
+
+  const key = `${note.id}|${note.coverUrl ?? ''}|${note.coverFileId ?? ''}|${pos}|${height}`;
+  if (key === renderedKey && imgEl?.getAttribute('src')) {
     syncButtons();
     return;
   }
   renderedKey = key;
 
   const token = ++renderToken;
-
-  if (!hasCover(note)) {
-    revokeObjectUrl();
-    imgEl.removeAttribute('src');
-    coverEl.hidden = true;
-    syncButtons();
-    return;
-  }
-
-  coverEl.hidden = false;
-  if (errorEl) errorEl.hidden = true;
-  imgEl.hidden = false;
-  imgEl.style.objectPosition = `50% ${pos}%`;
-
   if (note.coverUrl) {
     revokeObjectUrl();
-    imgEl.src = note.coverUrl;
-  } else {
+    if (imgEl) imgEl.src = note.coverUrl;
+  } else if (note.coverFileId != null) {
     const blob = await loadFileBlob(note.coverFileId);
     if (token !== renderToken) return;
-    if (!blob) { showError('A imagem da capa não foi encontrada neste aparelho.'); syncButtons(); return; }
+    if (!blob) {
+      showError('A imagem da capa não foi encontrada neste aparelho.');
+      syncButtons();
+      return;
+    }
     revokeObjectUrl();
     objectUrl = URL.createObjectURL(blob);
-    imgEl.src = objectUrl;
+    if (imgEl) imgEl.src = objectUrl;
   }
+
   syncButtons();
 }
 
@@ -350,7 +371,11 @@ export function clearNoteCover() {
   renderedKey = null;
   stopReposition();
   closeCoverMenu();
-  if (coverEl) coverEl.hidden = true;
+  if (coverEl) {
+    coverEl.hidden = true;
+    coverEl.classList.add('is-empty');
+    coverEl.classList.remove('has-cover', 'is-open', 'is-configuring');
+  }
   revokeObjectUrl();
 }
 
@@ -387,43 +412,79 @@ export async function removeCover(targetNote = null) {
 function buildCover() {
   const el = document.createElement('div');
   el.id = 'note-cover';
-  el.className = 'note-cover';
+  el.className = 'section note-cover note-cover-section is-empty';
   el.hidden = true;
   el.innerHTML = `
-    <img class="note-cover-img" alt="" referrerpolicy="no-referrer" decoding="async">
-    <div class="note-cover-error" hidden></div>
-    <div class="note-cover-actions">
-      <button type="button" class="note-cover-action note-cover-change">
-        <span class="qd-icon material-symbols-rounded" aria-hidden="true">tune</span>
-        <span>Ajustar capa</span>
-      </button>
-      <button type="button" class="note-cover-action note-cover-reposition" title="Reposicionar verticalmente a capa">
-        <span class="qd-icon material-symbols-rounded" aria-hidden="true">drag_pan</span>
-        <span>Reposicionar</span>
-      </button>
-    </div>
-    <div class="note-cover-reposition-bar" hidden>
-      <span class="note-cover-reposition-hint">Arraste a imagem verticalmente</span>
-      <div class="note-cover-reposition-btns">
-        <button type="button" class="note-cover-action note-cover-reposition-save">
-          <span class="qd-icon material-symbols-rounded" aria-hidden="true">check</span>
-          <span>Salvar</span>
-        </button>
-        <button type="button" class="note-cover-action note-cover-reposition-cancel">
-          <span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>
-          <span>Cancelar</span>
-        </button>
+    <!-- Gatilho principal da seção da capa -->
+    <div class="section-trigger capa-trigger" role="button" tabindex="0" title="Configurar capa da nota" aria-label="Capa da nota">
+      <!-- 1. Placeholder quando NÃO TEM capa (nota nova) -->
+      <div class="capa-placeholder-wrap" id="note-cover-placeholder">
+        <div class="capa-placeholder-icon-badge">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">add_photo_alternate</span>
+        </div>
+        <div class="capa-placeholder-texts">
+          <span class="capa-placeholder-title">Adicionar Capa</span>
+          <span class="capa-placeholder-subtitle">Clique para opções ou arraste uma foto aqui</span>
+        </div>
+        <div class="capa-placeholder-actions">
+          <button type="button" class="capa-btn-quick-upload" title="Escolher arquivo do computador">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">upload_file</span>
+            <span>Arquivo</span>
+          </button>
+          <input type="file" accept="image/*" class="capa-placeholder-file-input" hidden>
+        </div>
+      </div>
+
+      <!-- 2. Banner com imagem quando TEM capa -->
+      <div class="capa-image-wrap" id="note-cover-image-wrap" hidden>
+        <img class="note-cover-img capa-img" alt="" referrerpolicy="no-referrer" decoding="async">
+        <div class="note-cover-error" hidden></div>
+        <span class="capa-label">Capa</span>
+        <div class="note-cover-actions">
+          <button type="button" class="note-cover-action note-cover-change" title="Opções da capa">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">tune</span>
+            <span>Ajustar capa</span>
+          </button>
+          <button type="button" class="note-cover-action note-cover-reposition" title="Reposicionar verticalmente a capa">
+            <span class="qd-icon material-symbols-rounded" aria-hidden="true">drag_pan</span>
+            <span>Reposicionar</span>
+          </button>
+        </div>
+        <div class="note-cover-reposition-bar" hidden>
+          <span class="note-cover-reposition-hint">Arraste a imagem verticalmente</span>
+          <div class="note-cover-reposition-btns">
+            <button type="button" class="note-cover-action note-cover-reposition-save">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">check</span>
+              <span>Salvar</span>
+            </button>
+            <button type="button" class="note-cover-action note-cover-reposition-cancel">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>
+              <span>Cancelar</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Gaveta de opções inline (.section-body) -->
+    <div class="section-body note-cover-section-body" id="note-cover-panel" aria-hidden="true">
+      <div class="property-drawer-content note-cover-drawer-content" id="note-cover-body"></div>
+    </div>
   `;
+
   imgEl = el.querySelector('.note-cover-img');
   errorEl = el.querySelector('.note-cover-error');
   repositionBarEl = el.querySelector('.note-cover-reposition-bar');
+  const triggerEl = el.querySelector('.capa-trigger');
+  const quickUploadBtn = el.querySelector('.capa-btn-quick-upload');
+  const quickFileInput = el.querySelector('.capa-placeholder-file-input');
+  const imageWrap = el.querySelector('#note-cover-image-wrap');
 
   imgEl.addEventListener('error', () => {
     if (imgEl.getAttribute('src')) showError('Não foi possível carregar a imagem da capa.');
   });
   imgEl.addEventListener('load', () => { if (errorEl) errorEl.hidden = true; imgEl.hidden = false; });
+
   el.querySelector('.note-cover-change').addEventListener('click', (e) => {
     e.stopPropagation();
     toggleCoverMenu();
@@ -441,19 +502,75 @@ function buildCover() {
     cancelReposition();
   });
 
-  el.addEventListener('pointerdown', (e) => {
+  quickUploadBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    quickFileInput?.click();
+  });
+
+  quickFileInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !noteRef) return;
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > MAX_BYTES) return;
+    const fileId = await saveFile(file, noteRef.id, { inline: true });
+    await applyCover({ coverFileId: fileId, coverUrl: null }, noteRef);
+  });
+
+  // Drag and Drop de imagem
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    el.classList.add('is-dragover');
+  });
+
+  el.addEventListener('dragleave', (e) => {
+    if (!el.contains(e.relatedTarget)) {
+      el.classList.remove('is-dragover');
+    }
+  });
+
+  el.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    el.classList.remove('is-dragover');
+    const file = e.dataTransfer?.files?.[0];
+    if (!file || !noteRef) return;
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > MAX_BYTES) return;
+    const fileId = await saveFile(file, noteRef.id, { inline: true });
+    await applyCover({ coverFileId: fileId, coverUrl: null }, noteRef);
+  });
+
+  // Clique no gatilho abre ou fecha as opções
+  triggerEl.addEventListener('click', (e) => {
+    if (isRepositioning) return;
+    if (e.target.closest('.note-cover-action')) return;
+    if (e.target.closest('.capa-btn-quick-upload')) return;
+    if (e.target.closest('input')) return;
+    toggleCoverMenu();
+  });
+
+  triggerEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (e.target.closest('button') || e.target.closest('input')) return;
+      e.preventDefault();
+      toggleCoverMenu();
+    }
+  });
+
+  // Eventos de arrastar para reposicionar
+  imageWrap.addEventListener('pointerdown', (e) => {
     if (!isRepositioning) return;
     if (e.target.closest('.note-cover-reposition-btns')) return;
     isDragging = true;
     dragStartY = e.clientY;
     dragStartPos = currentPos;
     el.classList.add('is-dragging');
-    try { el.setPointerCapture(e.pointerId); } catch {}
+    try { imageWrap.setPointerCapture(e.pointerId); } catch {}
   });
 
-  el.addEventListener('pointermove', (e) => {
+  imageWrap.addEventListener('pointermove', (e) => {
     if (!isDragging) return;
-    const height = el.clientHeight || 180;
+    const height = imageWrap.clientHeight || 180;
     const deltaY = e.clientY - dragStartY;
     const deltaPercent = (deltaY / height) * 100;
     currentPos = Math.max(0, Math.min(100, Math.round(dragStartPos - deltaPercent)));
@@ -464,49 +581,20 @@ function buildCover() {
     if (!isDragging) return;
     isDragging = false;
     el.classList.remove('is-dragging');
-    try { el.releasePointerCapture(e.pointerId); } catch {}
+    try { imageWrap.releasePointerCapture(e.pointerId); } catch {}
   };
-  el.addEventListener('pointerup', stopPointerDrag);
-  el.addEventListener('pointercancel', stopPointerDrag);
+  imageWrap.addEventListener('pointerup', stopPointerDrag);
+  imageWrap.addEventListener('pointercancel', stopPointerDrag);
 
   return el;
-}
-
-function buildCoverPanel() {
-  const panel = document.createElement('div');
-  panel.id = 'note-cover-panel';
-  panel.className = 'note-inline-expansion note-cover-expansion';
-  panel.setAttribute('aria-hidden', 'true');
-  panel.innerHTML = `
-    <div class="note-inline-expansion-inner">
-      <div class="note-expansion-header">
-        <div class="note-expansion-title">
-          <span class="qd-icon material-symbols-rounded">tune</span>
-          <span id="note-cover-panel-title">Opções da Capa</span>
-        </div>
-        <button type="button" class="icon-btn btn-close-expansion" title="Recolher opções da capa" aria-label="Recolher opções">
-          <span class="qd-icon material-symbols-rounded">expand_less</span>
-        </button>
-      </div>
-      <div class="note-expansion-body" id="note-cover-body"></div>
-    </div>
-  `;
-
-  panel.querySelector('.btn-close-expansion')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeCoverMenu();
-  });
-
-  return panel;
 }
 
 function mount() {
   if (!noteEditorEl) return;
   coverEl = buildCover();
+  coverPanelEl = coverEl.querySelector('#note-cover-panel');
+  openBtn = document.getElementById('btn-note-cover');
   noteEditorEl.insertBefore(coverEl, noteEditorEl.firstChild);
-
-  coverPanelEl = buildCoverPanel();
-  noteEditorEl.insertBefore(coverPanelEl, coverEl.nextSibling);
 
   syncButtons();
 

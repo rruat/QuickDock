@@ -318,6 +318,36 @@
     opacity: 0.6 !important;
   }
 
+  /* Seção de capa da nota no mobile:
+     ocupa a largura interna, gaveta fechada por padrão (0fr), expandindo suavemente apenas com .is-open */
+  .note-cover-section,
+  html[data-platform="mobile"] .note-cover-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 8px 0 4px 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .note-cover-section .section-body,
+  html[data-platform="mobile"] .note-cover-section .section-body {
+    order: unset !important;
+    display: grid !important;
+    grid-template-rows: 0fr !important;
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+    background: var(--bg-card) !important;
+    color: var(--text) !important;
+    transition: grid-template-rows 0.25s ease-out !important;
+  }
+
+  .note-cover-section.is-open .section-body,
+  html[data-platform="mobile"] .note-cover-section.is-open .section-body {
+    grid-template-rows: 1fr !important;
+    border-top: 1px dashed var(--border) !important;
+  }
+
   .template-bar,
   html[data-platform="mobile"] .template-bar {
     order: 2 !important;
