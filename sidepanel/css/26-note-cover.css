@@ -179,181 +179,111 @@
   color: var(--text);
 }
 
-/* ── Popover ─────────────────────────────────────────────────────────────── */
-.note-cover-popover {
-  position: fixed;
-  z-index: 3000;
-  width: 300px;
-  max-width: calc(100vw - 16px);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text);
-}
-
-.note-cover-popover[hidden] {
-  display: none;
-}
-
-.note-cover-title {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.note-cover-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-}
-
-.note-cover-url {
-  width: 100%;
-  padding: 7px 9px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 12.5px;
-}
-
-.note-cover-url:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.note-cover-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  color: var(--text);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.note-cover-btn .qd-icon {
-  font-size: 17px;
-}
-
-.note-cover-btn:hover {
-  background: var(--bg-hover);
-}
-
-.note-cover-apply {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--bg);
-}
-
-.note-cover-apply:hover {
-  background: var(--accent);
-  opacity: 0.9;
-}
-
-.note-cover-btn[hidden] {
-  display: none;
-}
-
-.note-cover-or {
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.note-cover-message {
-  font-size: 12px;
-  color: var(--danger);
-}
-
-.note-cover-message[hidden] {
-  display: none;
-}
-
-.note-cover-hint {
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--text-muted);
-}
-
-/* ── Menu de Configuração Conectado Diretamente à Capa ───────────────────── */
-.note-cover.is-configuring {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  box-shadow: 0 0 0 2px var(--accent, #6366f1);
-}
-
-.note-cover-inline-menu {
-  position: relative;
+/* ── Sessões Expansíveis em Linha (Padrão <details> / Fluxo Natural) ─────── */
+details.note-section-details {
+  display: block;
   width: calc(100% - 28px);
   max-width: var(--note-max-width, 297mm);
   align-self: center;
-  margin: -4px 0 16px;
-  padding: 14px 18px;
-  background: var(--bg-card);
+  margin: 6px 0 10px;
   border: 1px solid var(--border);
-  border-top: 1px dashed var(--border);
-  border-bottom-left-radius: var(--radius-md);
-  border-bottom-right-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  z-index: 10;
-  animation: coverMenuExpand 0.18s ease-out;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text);
+  box-sizing: border-box;
 }
 
-@keyframes coverMenuExpand {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+details.note-section-details[open] {
+  border-color: var(--border-hover, var(--border));
 }
 
-.note-cover-inline-menu[hidden] {
-  display: none !important;
-}
-
-.note-cover-menu-header {
+details.note-section-details > summary.note-section-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--bg-hover);
+  color: var(--text);
+  border-radius: var(--radius-md);
+  outline: none;
+  list-style: none;
+}
+
+details.note-section-details[open] > summary.note-section-summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   border-bottom: 1px solid var(--border);
 }
 
-.note-cover-menu-title {
+details.note-section-details > summary.note-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+details.note-section-details > summary.note-section-summary:hover {
+  background: var(--bg-card-hover, var(--bg-hover));
+}
+
+.note-summary-left {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
 }
 
-.note-cover-menu-title .qd-icon {
+.note-summary-left .qd-icon {
   font-size: 18px;
   color: var(--accent, #6366f1);
 }
 
-.note-cover-menu-body {
+.note-summary-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.note-summary-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.note-summary-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.note-summary-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  display: inline-block;
+}
+
+.note-summary-chevron {
+  font-size: 18px;
+  transition: transform 0.18s ease;
+}
+
+details.note-section-details[open] > summary.note-section-summary .note-summary-chevron {
+  transform: rotate(180deg);
+}
+
+.note-section-body {
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  background: var(--bg-card);
 }
 
 .note-cover-menu-section {
@@ -442,13 +372,14 @@
   }
 }
 
-/* ── Papel: a capa sai na impressão, os controles não ────────────────────── */
+/* ── Papel: a capa sai na impressão, as sessões de configuração não ──────── */
 @media print {
   html[data-platform] .note-cover-actions,
   html[data-platform] .note-cover-reposition-bar,
   html[data-platform] .note-header-cover-btn,
-  html[data-platform] .note-cover-popover,
-  html[data-platform] .note-cover-inline-menu {
+  details.note-section-details,
+  details.note-cover-details,
+  details.note-icon-details {
     display: none !important;
   }
 

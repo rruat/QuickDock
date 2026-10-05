@@ -858,14 +858,40 @@ export function renderAppearanceSection(container, meta, onSaved, onClose) {
   container.appendChild(body);
 }
 
-// ── Painel de Opções Conectado Diretamente ao Ícone do Cabeçalho ──────────────
-export function getIconPanelEl() {
-  let el = document.getElementById('note-icon-panel');
+// ── Sessão Expansível em Linha (<details>) para Ícone & Aparência ──────────
+let currentNoteMeta = null;
+
+export function getIconDetailsEl() {
+  let el = document.getElementById('note-icon-details');
   if (!el) {
-    el = document.createElement('div');
-    el.id = 'note-icon-panel';
-    el.className = 'note-icon-inline-menu';
-    el.hidden = true;
+    el = document.createElement('details');
+    el.id = 'note-icon-details';
+    el.className = 'note-section-details note-icon-details';
+    el.innerHTML = `
+      <summary class="note-section-summary">
+        <div class="note-summary-left">
+          <span class="qd-icon material-symbols-rounded note-summary-icon-preview">sentiment_satisfied</span>
+          <span class="note-summary-title">Ícone</span>
+        </div>
+        <div class="note-summary-right">
+          <span class="note-summary-color-dot" id="note-icon-summary-dot"></span>
+          <span class="note-summary-badge" id="note-icon-summary-badge">Padrão</span>
+          <span class="qd-icon material-symbols-rounded note-summary-chevron">expand_more</span>
+        </div>
+      </summary>
+      <div class="note-section-body note-icon-section-body" id="note-icon-body"></div>
+    `;
+
+    el.addEventListener('toggle', () => {
+      const isOpen = el.open;
+      document.getElementById('btn-note-header-icon')?.classList.toggle('section-active', isOpen);
+      document.getElementById('btn-note-header-color')?.classList.toggle('section-active', isOpen);
+      document.getElementById('btn-note-appearance-mobile')?.classList.toggle('section-active', isOpen);
+      if (isOpen && currentNoteMeta) {
+        renderIconPanelContent(el, currentNoteMeta);
+      }
+    });
+
     const headerBar = document.getElementById('note-header-bar');
     if (headerBar && headerBar.parentNode) {
       headerBar.parentNode.insertBefore(el, headerBar.nextSibling);
@@ -878,63 +904,53 @@ export function getIconPanelEl() {
 }
 
 export function isIconPanelOpen() {
-  const el = document.getElementById('note-icon-panel');
-  return el && !el.hidden;
+  const el = document.getElementById('note-icon-details');
+  return el && el.open;
 }
 
 export function closeIconPanel() {
-  const el = getIconPanelEl();
-  el.hidden = true;
-  el.innerHTML = '';
-  document.getElementById('btn-note-header-icon')?.classList.remove('section-active', 'is-active');
-  document.getElementById('btn-note-header-color')?.classList.remove('section-active', 'is-active');
-  document.getElementById('btn-note-appearance-mobile')?.classList.remove('section-active', 'is-active');
+  const el = document.getElementById('note-icon-details');
+  if (el) el.open = false;
 }
 
 export function openIconPanel(meta, onSaved) {
   if (!meta) return;
-  window.dispatchEvent(new CustomEvent('quickdock:close-cover-menu'));
-
-  const el = getIconPanelEl();
-  el.hidden = false;
-  document.getElementById('btn-note-header-icon')?.classList.add('section-active', 'is-active');
-  document.getElementById('btn-note-header-color')?.classList.add('section-active', 'is-active');
-  document.getElementById('btn-note-appearance-mobile')?.classList.add('section-active', 'is-active');
-
+  currentNoteMeta = meta;
+  const el = getIconDetailsEl();
+  el.open = true;
   renderIconPanelContent(el, meta, onSaved);
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 export function toggleIconPanel(meta, onSaved) {
-  if (isIconPanelOpen()) {
-    closeIconPanel();
-  } else {
-    openIconPanel(meta, onSaved);
+  if (!meta) return;
+  currentNoteMeta = meta;
+  const el = getIconDetailsEl();
+  el.open = !el.open;
+  if (el.open) {
+    renderIconPanelContent(el, meta, onSaved);
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
 
 export function renderIconPanelContent(panel, meta, onSaved) {
-  panel.innerHTML = '';
+  if (!panel || !meta) return;
+  currentNoteMeta = meta;
 
-  const header = document.createElement('div');
-  header.className = 'note-icon-menu-header';
-  header.innerHTML = `
-    <div class="note-icon-menu-title">
-      <span class="qd-icon material-symbols-rounded">sentiment_satisfied</span>
-      <span>Opções do Ícone & Aparência</span>
-    </div>
-    <button type="button" class="icon-btn btn-close-icon-panel" title="Recolher opções" aria-label="Recolher opções">
-      <span class="qd-icon material-symbols-rounded">expand_less</span>
-    </button>
-  `;
-  header.querySelector('.btn-close-icon-panel')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeIconPanel();
-  });
-  panel.appendChild(header);
+  // Atualiza indicadores no <summary>
+  const iconPreview = panel.querySelector('.note-summary-icon-preview');
+  if (iconPreview) iconPreview.textContent = meta.icon || 'sentiment_satisfied';
 
-  const body = document.createElement('div');
-  body.className = 'note-icon-menu-body';
+  const dotEl = panel.querySelector('#note-icon-summary-dot');
+  if (dotEl) dotEl.style.background = meta.color || 'var(--text-muted)';
+
+  const badgeEl = panel.querySelector('#note-icon-summary-badge');
+  if (badgeEl) {
+    badgeEl.textContent = meta.icon ? meta.icon : (hasIconImage(meta) ? 'Imagem' : 'Padrão');
+  }
+
+  const body = panel.querySelector('#note-icon-body') || panel;
+  body.innerHTML = '';
 
   // ── SEÇÃO 1: ÍCONE DA NOTA ───────────────────────────────────────────────
   const iconCard = document.createElement('div');
@@ -1214,51 +1230,4 @@ export function renderIconPanelContent(panel, meta, onSaved) {
     optionsCard.appendChild(hideRow);
     body.appendChild(optionsCard);
   }
-
-  // ── SEÇÃO 4: CAPA DA NOTA (ATALHO DIRETO CONECTADO) ──────────────────────
-  const coverShortcutCard = document.createElement('div');
-  coverShortcutCard.className = 'appearance-section-card';
-  const hasCov = hasCover(meta);
-  coverShortcutCard.innerHTML = `
-    <div class="appearance-card-header">
-      <span class="qd-icon material-symbols-rounded">image</span>
-      <span class="appearance-card-title">Capa da Nota</span>
-    </div>
-    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-      <span style="font-size: 12.5px; color: var(--text-secondary);">${hasCov ? 'Capa configurada nesta nota' : 'Sem capa definida'}</span>
-      <button type="button" class="calendar-action-btn secondary btn-open-cover-options" title="${hasCov ? 'Abrir menu de opções da capa' : 'Adicionar uma capa à nota'}">
-        <span class="qd-icon material-symbols-rounded">${hasCov ? 'tune' : 'add_photo_alternate'}</span>
-        <span>${hasCov ? 'Opções da Capa' : 'Adicionar Capa'}</span>
-      </button>
-    </div>
-  `;
-  coverShortcutCard.querySelector('.btn-open-cover-options')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeIconPanel();
-    openCoverMenu();
-  });
-  body.appendChild(coverShortcutCard);
-
-  panel.appendChild(body);
 }
-
-// Ouvintes globais para fechamento e integridade
-window.addEventListener('quickdock:close-icon-menu', () => {
-  closeIconPanel();
-});
-
-document.addEventListener('pointerdown', (e) => {
-  if (isIconPanelOpen()) {
-    const panel = getIconPanelEl();
-    const iconBtn = document.getElementById('btn-note-header-icon');
-    const colorBtn = document.getElementById('btn-note-header-color');
-    const mobileBtn = document.getElementById('btn-note-appearance-mobile');
-    if (!panel.contains(e.target) && !iconBtn?.contains(e.target) && !colorBtn?.contains(e.target) && !mobileBtn?.contains(e.target)) {
-      closeIconPanel();
-    }
-  }
-});
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && isIconPanelOpen()) closeIconPanel();
-});
