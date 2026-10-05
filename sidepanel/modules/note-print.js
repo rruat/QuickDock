@@ -346,18 +346,18 @@ export function executePrint() {
 }
 
 function mount() {
-  if (!headerBar) return;
+  const viewActions = document.querySelector('#section-note .section-header-actions');
   printBtn = document.createElement('button');
   printBtn.id = 'btn-note-print';
   printBtn.type = 'button';
-  printBtn.className = 'icon-btn note-header-print-btn';
+  printBtn.className = 'section-btn btn-print-note';
   printBtn.title = 'Modo de Impressão (Seleção de Blocos)';
   printBtn.setAttribute('aria-label', 'Modo de Impressão');
   printBtn.setAttribute('aria-haspopup', 'false');
   printBtn.setAttribute('aria-expanded', 'false');
-  printBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">print</span>';
-  if (colorBtn && colorBtn.parentNode) {
-    colorBtn.parentNode.insertBefore(printBtn, colorBtn);
+  printBtn.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">print</span>';
+  if (viewActions) {
+    viewActions.insertBefore(printBtn, viewActions.firstChild);
   } else if (headerBar) {
     headerBar.appendChild(printBtn);
   }

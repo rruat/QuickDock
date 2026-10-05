@@ -30,7 +30,7 @@ export function renderNoteHeader(note) {
     closeCoverMenu();
   }
   headerNoteRef = note;
-  if (!headerIconEl || !headerTitleEl || !headerColorDot) return;
+  if (!headerIconEl || !headerTitleEl) return;
   if (!note) return;
 
   // Ícone com imagem ocupa o lugar do glifo; o texto do glifo some junto.
@@ -45,6 +45,17 @@ export function renderNoteHeader(note) {
   headerIconEl.classList.toggle('icon-filled', !!note.iconFilled);
   headerIconEl.style.color = note.color || '';
 
+  const labelEl = document.getElementById('note-header-icon-label');
+  if (labelEl) {
+    if (hasIconImage(note)) {
+      labelEl.textContent = 'Ícone personalizado (imagem)';
+    } else if (note.icon) {
+      labelEl.textContent = `Ícone: ${note.icon}`;
+    } else {
+      labelEl.textContent = 'Ícone & Aparência';
+    }
+  }
+
   const hasCustomIcon = Boolean(note.icon || hasIconImage(note));
   headerIconBtn?.classList.toggle('has-custom-icon', hasCustomIcon);
   document.getElementById('note-header-icon-row')?.classList.toggle('has-custom-icon', hasCustomIcon);
@@ -55,10 +66,6 @@ export function renderNoteHeader(note) {
     if (iconSpan) {
       iconSpan.style.color = note.color || '';
     }
-    // Quando a nota já tem um ícone selecionado, ele próprio é exibido no cabeçalho
-    // e pode ser tocado diretamente para editar/remover. Ocultamos o botão redundante
-    // de "Aparência" no folder bar para não exibir a opção de selecionar e o ícone
-    // selecionado ao mesmo tempo no mobile.
     mobileAppearanceBtn.hidden = hasCustomIcon;
     mobileAppearanceBtn.style.display = hasCustomIcon ? 'none' : '';
   }
@@ -69,7 +76,14 @@ export function renderNoteHeader(note) {
     headerTitleEl.textContent = note.title || '';
   }
 
-  headerColorDot.style.background = note.color || 'var(--text-muted)';
+  if (headerColorDot) {
+    if (note.color) {
+      headerColorDot.style.background = note.color;
+      headerColorDot.hidden = false;
+    } else {
+      headerColorDot.hidden = true;
+    }
+  }
   renderNoteCover(note);
 
   // Renderiza badges de Lembrete de Foco e Localização Maps
@@ -149,6 +163,9 @@ export function clearNoteHeader() {
   headerNoteRef = null;
   if (headerTitleEl) headerTitleEl.textContent = '';
   if (headerIconEl) { headerIconEl.textContent = ''; headerIconEl.classList.remove('has-icon-image'); }
+  const labelEl = document.getElementById('note-header-icon-label');
+  if (labelEl) labelEl.textContent = 'Ícone & Aparência';
+  if (headerColorDot) headerColorDot.hidden = true;
   headerIconBtn?.classList.remove('has-custom-icon', 'section-active');
   headerColorBtn?.classList.remove('section-active');
   document.querySelector('.note-editor')?.classList.remove('has-custom-icon');

@@ -509,23 +509,6 @@ function mount() {
   coverPanelEl = buildCoverPanel();
   noteEditorEl.insertBefore(coverPanelEl, coverEl.nextSibling);
 
-  if (headerBar) {
-    openBtn = document.createElement('button');
-    openBtn.id = 'btn-note-cover';
-    openBtn.type = 'button';
-    openBtn.className = 'icon-btn note-header-cover-btn';
-    openBtn.setAttribute('aria-expanded', 'false');
-    openBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">image</span>';
-    if (colorBtn && colorBtn.parentNode) {
-      colorBtn.parentNode.insertBefore(openBtn, colorBtn);
-    } else {
-      headerBar.appendChild(openBtn);
-    }
-    openBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleCoverMenu();
-    });
-  }
   syncButtons();
 
   window.addEventListener('quickdock:close-cover-menu', () => {

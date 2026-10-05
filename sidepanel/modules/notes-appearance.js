@@ -921,7 +921,9 @@ export function closeIconPanel() {
     el.setAttribute('aria-hidden', 'true');
   }
   document.getElementById('note-header-bar')?.classList.remove('has-icon-expansion-open');
-  document.getElementById('btn-note-header-icon')?.classList.remove('section-active', 'is-active');
+  const iconBtn = document.getElementById('btn-note-header-icon');
+  iconBtn?.classList.remove('section-active', 'is-active');
+  iconBtn?.setAttribute('aria-expanded', 'false');
   document.getElementById('btn-note-header-color')?.classList.remove('section-active', 'is-active');
   document.getElementById('btn-note-appearance-mobile')?.classList.remove('section-active', 'is-active');
 }
@@ -937,7 +939,9 @@ export function openIconPanel(meta, onSaved) {
   el.setAttribute('aria-hidden', 'false');
 
   document.getElementById('note-header-bar')?.classList.add('has-icon-expansion-open');
-  document.getElementById('btn-note-header-icon')?.classList.add('section-active', 'is-active');
+  const iconBtn = document.getElementById('btn-note-header-icon');
+  iconBtn?.classList.add('section-active', 'is-active');
+  iconBtn?.setAttribute('aria-expanded', 'true');
   document.getElementById('btn-note-appearance-mobile')?.classList.add('section-active', 'is-active');
 
   renderIconPanelContent(el, meta, onSaved);

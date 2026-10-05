@@ -277,7 +277,7 @@
   background: var(--bg) !important;
   color: var(--text) !important;
   border: 1px solid var(--border) !important;
-  border-bottom: 1px solid var(--bg) !important;
+  border-bottom: 1px solid var(--border) !important;
   border-top-left-radius: var(--radius-md, 8px) !important;
   border-top-right-radius: var(--radius-md, 8px) !important;
   border-bottom-left-radius: 0 !important;
@@ -289,11 +289,45 @@
   box-shadow: none !important;
 }
 
+.note-header-bar.has-icon-expansion-open #btn-note-header-icon.section-active .note-header-icon-chevron,
+#btn-note-header-icon.section-active .note-header-icon-chevron {
+  transform: rotate(180deg);
+}
+
 .note-icon-expansion.is-open .note-inline-expansion-inner {
   border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
   border: 1px solid var(--border) !important;
+  border-top: none !important;
   background: var(--bg) !important;
   box-shadow: none !important;
+}
+
+/* Oculta o cabeçalho redundante dentro da expansão: o botão do ícone acima já é o cabeçalho completo */
+.note-icon-expansion .note-expansion-header {
+  display: none !important;
+}
+
+/* Botão de Impressão no cabeçalho da view */
+.section-btn.btn-print-note {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.section-btn.btn-print-note:hover {
+  background-color: var(--border);
+  color: var(--text);
+}
+
+.section-btn.btn-print-note.active {
+  color: var(--accent, #6366f1) !important;
+  background-color: var(--border) !important;
 }
 
 /* Cabeçalho da Seção Expansível */

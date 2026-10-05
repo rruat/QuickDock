@@ -952,15 +952,15 @@
     display: none !important;
   }
 
-  /* Se a nota tem ícone customizado, ele fica na linha superior no cabeçalho */
+  /* Se a nota tem ícone customizado, ele fica na linha superior no cabeçalho ocupando a largura total */
   .note-header-icon-btn.has-custom-icon,
   html[data-platform="mobile"] .note-header-icon-btn.has-custom-icon {
-    width: 38px !important;
-    height: 38px !important;
+    width: 100% !important;
+    min-height: 38px !important;
     border-radius: 8px !important;
-    margin: 0 0 2px 0 !important;
-    padding: 0 !important;
-    align-self: flex-start !important;
+    margin: 0 0 4px 0 !important;
+    padding: 6px 12px !important;
+    align-self: stretch !important;
   }
 
   /* Quando a nota tem ícone selecionado, esconde o botão redundante de selecionar aparência no topo */
