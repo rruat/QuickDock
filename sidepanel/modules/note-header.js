@@ -43,21 +43,25 @@ export function renderNoteHeader(note) {
   headerIconEl.classList.toggle('icon-filled', !!note.iconFilled);
   headerIconEl.style.color = note.color || '';
 
+  const hasCustomIcon = Boolean(note.icon || hasIconImage(note));
+  headerIconBtn?.classList.toggle('has-custom-icon', hasCustomIcon);
+  document.getElementById('note-header-icon-row')?.classList.toggle('has-custom-icon', hasCustomIcon);
+  document.querySelector('.note-editor')?.classList.toggle('has-custom-icon', hasCustomIcon);
+
   const labelEl = document.getElementById('note-header-icon-label');
   if (labelEl) {
-    if (hasIconImage(note)) {
-      labelEl.textContent = 'Ícone personalizado (imagem)';
-    } else if (note.icon) {
-      labelEl.textContent = `Ícone: ${note.icon}`;
+    if (hasCustomIcon) {
+      labelEl.textContent = '';
     } else {
       labelEl.textContent = 'Ícone & Aparência';
     }
   }
 
-  const hasCustomIcon = Boolean(note.icon || hasIconImage(note));
-  headerIconBtn?.classList.toggle('has-custom-icon', hasCustomIcon);
-  document.getElementById('note-header-icon-row')?.classList.toggle('has-custom-icon', hasCustomIcon);
-  document.querySelector('.note-editor')?.classList.toggle('has-custom-icon', hasCustomIcon);
+  if (headerIconBtn) {
+    headerIconBtn.title = hasIconImage(note)
+      ? 'Ícone personalizado (clique para alterar)'
+      : (note.icon ? `Ícone: ${note.icon} (clique para alterar)` : 'Ícone & Aparência');
+  }
 
   if (mobileAppearanceBtn) {
     const iconSpan = mobileAppearanceBtn.querySelector('.qd-icon');
