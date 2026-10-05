@@ -6,7 +6,7 @@ import { updateNoteMetaById } from '../storage.js';
 import { registrarGeocerca, desregistrarGeocerca } from './geo-watcher.js';
 import { buscarLocaisPorTexto, obterEnderecoPorCoordenadas, obterPosicaoGpsAltaPrecisao } from './location-service.js';
 import { createMapPicker } from './map-picker.js';
-import { testarAlarmeTDAH } from './reminder-runner.js';
+import { testarAlarmeFoco, testarAlarmeTDAH } from './reminder-runner.js';
 
 let activeSectionType = null; // 'location' | 'reminder' | null
 let currentMapPicker = null;
@@ -157,12 +157,12 @@ function renderLocationSection(container, note, onSaved) {
         </div>
       </div>
 
-      <!-- Alarme Insistente TDAH ao Chegar -->
+      <!-- Alarme de Foco Persistente ao Chegar -->
       <div class="location-tdah-section">
         <div class="reminder-toggle-row">
           <div class="tdah-label-group">
             <span class="qd-icon material-symbols-rounded" style="color: var(--accent);">alarm_on</span>
-            <span class="reminder-toggle-label">Alarme Insistente TDAH ao chegar</span>
+            <span class="reminder-toggle-label">Alarme de Foco Persistente ao chegar</span>
           </div>
           <label class="graph-switch">
             <input type="checkbox" id="sec-tdah-toggle" ${loc.persistentTdah !== false ? 'checked' : ''}>
@@ -451,7 +451,7 @@ function renderReminderSection(container, note, onSaved) {
     <div class="expandable-section-header">
       <div class="expandable-section-title">
         <span class="qd-icon material-symbols-rounded">alarm</span>
-        <span>Lembrete TDAH (Alarme Persistente)</span>
+        <span>Lembrete de Foco (Alarme Persistente)</span>
       </div>
       <button type="button" class="icon-btn btn-collapse-section" title="Recolher card">
         <span class="qd-icon material-symbols-rounded">expand_less</span>
@@ -461,11 +461,11 @@ function renderReminderSection(container, note, onSaved) {
     <div class="expandable-section-body">
       <div class="reminder-info-box">
         <span class="qd-icon material-symbols-rounded">info</span>
-        <span>O alarme insistente repete a cada poucos minutos com som e notificação até você marcar a tarefa como <b>Concluir</b>.</span>
+        <span>O alarme persistente repete a cada poucos minutos com som e notificação até você marcar a tarefa como <b>Concluir</b>.</span>
       </div>
 
       <div class="reminder-toggle-row">
-        <span class="reminder-toggle-label">Ativar Lembrete TDAH</span>
+        <span class="reminder-toggle-label">Ativar Lembrete de Foco</span>
         <label class="graph-switch">
           <input type="checkbox" id="sec-rem-active-toggle" ${rem.active ? 'checked' : ''}>
           <span class="graph-switch-slider"></span>
@@ -479,7 +479,7 @@ function renderReminderSection(container, note, onSaved) {
         </div>
 
         <div class="reminder-field">
-          <label for="sec-rem-interval-select" class="reminder-field-label">Repetição insistente TDAH</label>
+          <label for="sec-rem-interval-select" class="reminder-field-label">Repetição insistente de Foco</label>
           <select id="sec-rem-interval-select" class="property-select">
             <option value="3" ${rem.intervalMinutes === 3 ? 'selected' : ''}>A cada 3 minutos (Mais insistente)</option>
             <option value="5" ${(rem.intervalMinutes || 5) === 5 ? 'selected' : ''}>A cada 5 minutos (Recomendado)</option>
@@ -555,7 +555,7 @@ function renderReminderSection(container, note, onSaved) {
       btn.style.color = 'var(--color-success, #10b981)';
     }
 
-    await testarAlarmeTDAH(note);
+    await testarAlarmeFoco(note);
 
     setTimeout(() => {
       if (btn) {

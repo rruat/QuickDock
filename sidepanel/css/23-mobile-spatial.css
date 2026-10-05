@@ -236,7 +236,9 @@
     display: none !important;
   }
 
-  /* Barra Contextual Estilo Notion: no rodapé da página em edição */
+  /* QuickBar Contextual: no rodapé da página em edição */
+  .mobile-quickbar,
+  html[data-platform="mobile"] .mobile-quickbar,
   .mobile-notion-toolbar,
   html[data-platform="mobile"] .mobile-notion-toolbar {
     order: 99 !important;
@@ -930,7 +932,7 @@
     display: none !important;
   }
 
-  /* Se a nota tem ícone customizado, ele fica na linha superior (order: 1), estilo Notion */
+  /* Se a nota tem ícone customizado, ele fica na linha superior (order: 1) no cabeçalho */
   .note-header-icon-btn.has-custom-icon,
   html[data-platform="mobile"] .note-header-icon-btn.has-custom-icon {
     order: 1 !important;
@@ -940,6 +942,12 @@
     margin: 0 0 2px 0 !important;
     padding: 0 !important;
     align-self: flex-start !important;
+  }
+
+  /* Quando a nota tem ícone selecionado, esconde o botão redundante de selecionar aparência no topo */
+  html[data-platform="mobile"] .note-editor.has-custom-icon #btn-note-appearance-mobile,
+  html[data-platform="mobile"] #btn-note-appearance-mobile[hidden] {
+    display: none !important;
   }
 
   .note-editor-blocks,

@@ -218,6 +218,7 @@ export class SyncEngine {
       // Só a capa por endereço viaja: a enviada é um arquivo local (como as imagens
       // não sincronizadas) e não tem como chegar ao outro aparelho.
       capa: nota.coverUrl || undefined,
+      capaPosicao: typeof nota.coverPosition === 'number' ? nota.coverPosition : undefined,
       // Ícone com imagem: só o endereço e o corte viajam (arquivo enviado é local).
       iconeImagem: nota.iconImage?.url || undefined,
       iconeCorte: nota.iconImage?.url
@@ -605,6 +606,7 @@ export class SyncEngine {
           icon: metaNota.icone ?? null,
           iconFilled: !!metaNota.iconePreenchido,
           coverUrl: metaNota.capa ?? null,
+          coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : 50,
           iconImage: this._iconImageDeMeta(metaNota, null),
           titleHidden: !!metaNota.tituloOculto,
           ordem: metaNota.ordem ?? 'a0',
@@ -686,6 +688,7 @@ export class SyncEngine {
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
             coverUrl: metaNota.capa ?? null,
+            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (notaLocal.coverPosition ?? 50),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,
@@ -747,6 +750,7 @@ export class SyncEngine {
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
             coverUrl: metaNota.capa ?? null,
+            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (notaLocal.coverPosition ?? 50),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,

@@ -1,15 +1,16 @@
 // ── background-alarms.js ──────────────────────────────────────────────────
 // Gerenciador isolado de alarmes e notificações em background (Service Worker).
-// Implementa o ciclo de vida do Lembrete Persistente anti-TDAH.
+// Implementa o ciclo de vida do Lembrete de Foco Persistente.
 
 const PREFIXO_ALARME = 'qd_tdah_rem_';
 
 /**
  * Cria ou reprograma um alarme no chrome.alarms.
  * @param {string} noteId
- * @param {number} delayMinutes
+ * @param {number} delayOrTimestamp
+ * @param {boolean} isTimestamp
  */
-export function agendarAlarmeTDAH(noteId, delayOrTimestamp = 5, isTimestamp = false) {
+export function agendarAlarmeFoco(noteId, delayOrTimestamp = 5, isTimestamp = false) {
   if (!chrome.alarms) return;
   const name = `${PREFIXO_ALARME}${noteId}`;
   if (isTimestamp) {
@@ -22,15 +23,17 @@ export function agendarAlarmeTDAH(noteId, delayOrTimestamp = 5, isTimestamp = fa
     });
   }
 }
+export const agendarAlarmeTDAH = agendarAlarmeFoco;
 
 /**
  * Cancela um alarme ativo de uma nota.
  * @param {string} noteId
  */
-export function cancelarAlarmeTDAH(noteId) {
+export function cancelarAlarmeFoco(noteId) {
   if (!chrome.alarms) return;
   chrome.alarms.clear(`${PREFIXO_ALARME}${noteId}`);
 }
+export const cancelarAlarmeTDAH = cancelarAlarmeFoco;
 
 /**
  * Dispara uma notificação persistente do sistema com ações.
@@ -38,7 +41,7 @@ export function cancelarAlarmeTDAH(noteId) {
  * @param {string} title
  * @param {number} intervalMinutes
  */
-export function dispararNotificacaoTDAH(noteId, title, intervalMinutes = 5) {
+export function dispararNotificacaoFoco(noteId, title, intervalMinutes = 5) {
   if (!chrome.notifications) return;
 
   const notifId = `${PREFIXO_ALARME}${noteId}`;
@@ -46,7 +49,6 @@ export function dispararNotificacaoTDAH(noteId, title, intervalMinutes = 5) {
     type: 'basic',
     iconUrl: 'icons/128.png',
     title: title || 'Lembrete QuickDock',
-    message: `Lembrete pendente (re-notificando a cada ${intervalMinutes} min até concluir).`,
     priority: 2,
     requireInteraction: true,
     buttons: [
@@ -55,6 +57,7 @@ export function dispararNotificacaoTDAH(noteId, title, intervalMinutes = 5) {
     ]
   });
 }
+export const dispararNotificacaoTDAH = dispararNotificacaoFoco;
 
 /**
  * Inicializa os ouvintes de eventos de alarmes e notificações.
@@ -115,7 +118,7 @@ export function initBackgroundAlarms() {
 
   // 4. Mensagens vindas do painel lateral
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg?.type === 'SCHEDULE_TDAH_REMINDER') {
+    if (msg?.type === 'SCHEDULE_FOCUS_REMINDER' || msg?.type === 'SCHEDULE_TDAH_REMINDER') {
       const { noteId, title, datetime, intervalMinutes, immediate } = msg;
       const parsedInterval = Number(intervalMinutes) || 5;
       chrome.storage.local.get(['qd_reminders'], data => {
@@ -129,27 +132,27 @@ export function initBackgroundAlarms() {
         };
         chrome.storage.local.set({ qd_reminders: reminders }, () => {
           if (immediate) {
-            dispararNotificacaoTDAH(noteId, title, parsedInterval);
-            agendarAlarmeTDAH(noteId, parsedInterval, false);
+            dispararNotificacaoFoco(noteId, title, parsedInterval);
+            agendarAlarmeFoco(noteId, parsedInterval, false);
           } else if (datetime) {
             const targetMs = new Date(datetime).getTime();
             if (!isNaN(targetMs) && targetMs > Date.now()) {
-              agendarAlarmeTDAH(noteId, targetMs, true);
+              agendarAlarmeFoco(noteId, targetMs, true);
             } else {
-              dispararNotificacaoTDAH(noteId, title, parsedInterval);
-              agendarAlarmeTDAH(noteId, parsedInterval, false);
+              dispararNotificacaoFoco(noteId, title, parsedInterval);
+              agendarAlarmeFoco(noteId, parsedInterval, false);
             }
           } else {
-            agendarAlarmeTDAH(noteId, parsedInterval, false);
+            agendarAlarmeFoco(noteId, parsedInterval, false);
           }
           sendResponse({ ok: true });
         });
       });
       return true;
     }
-    if (msg?.type === 'CANCEL_TDAH_REMINDER') {
+    if (msg?.type === 'CANCEL_FOCUS_REMINDER' || msg?.type === 'CANCEL_TDAH_REMINDER') {
       const { noteId } = msg;
-      cancelarAlarmeTDAH(noteId);
+      cancelarAlarmeFoco(noteId);
       chrome.storage.local.get(['qd_reminders'], data => {
         const reminders = data.qd_reminders || {};
         delete reminders[noteId];

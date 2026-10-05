@@ -1,10 +1,10 @@
 // ── reminder-runner.js ──────────────────────────────────────────────────────
-// Monitor em tempo real de Lembretes Persistentes (TDAH) e agendamento data/hora.
+// Monitor em tempo real de Lembretes de Foco Persistentes e agendamento data/hora.
 // Opera de forma unificada no PWA, Web e Extensão Chrome.
 
 import { loadAllNotesMeta, updateNoteMetaById, getNoteById } from '../storage.js';
 import { deveDispararLembrete, aplicarAcaoLembrete } from './persistent-reminder.js';
-import { tocarSomAlarmeTDAH } from './reminder-sound.js';
+import { tocarSomAlarmeFoco, tocarSomAlarmeTDAH } from './reminder-sound.js';
 
 let intervalRunnerId = null;
 let bannerContainerEl = null;
@@ -38,7 +38,7 @@ export function exibirAlarmeVisualToast(note, rem = {}) {
 
   const toast = document.createElement('div');
   toast.id = bannerId;
-  toast.className = 'quickdock-tdah-alarm-banner';
+  toast.className = 'quickdock-tdah-alarm-banner quickdock-focus-alarm-banner';
   toast.setAttribute('role', 'alert');
 
   const tituloNota = note.title || 'Lembrete QuickDock';
@@ -50,7 +50,7 @@ export function exibirAlarmeVisualToast(note, rem = {}) {
     </div>
     <div class="alarm-banner-content">
       <div class="alarm-banner-title">${tituloNota}</div>
-      <div class="alarm-banner-desc">Lembrete TDAH pendente · Repetindo a cada ${intervaloMin}m</div>
+      <div class="alarm-banner-desc">Lembrete de Foco pendente · Repetindo a cada ${intervaloMin}m</div>
     </div>
     <div class="alarm-banner-actions">
       <button type="button" class="alarm-banner-btn complete-btn" title="Marcar tarefa como concluída">
@@ -120,12 +120,12 @@ export function exibirAlarmeVisualToast(note, rem = {}) {
  * Dispara teste imediato de som e notificação.
  * @param {Object} [note]
  */
-export async function testarAlarmeTDAH(note = null) {
+export async function testarAlarmeFoco(note = null) {
   // 1. Toca o som sintetizado
-  tocarSomAlarmeTDAH();
+  tocarSomAlarmeFoco();
 
   // 2. Exibe o banner visual interativo na tela
-  const n = note || { title: 'Teste de Lembrete TDAH' };
+  const n = note || { title: 'Teste de Lembrete de Foco' };
   exibirAlarmeVisualToast(n, { intervalMinutes: 5 });
 
   // 3. Pede permissão de notificação se ainda não solicitada
@@ -214,7 +214,7 @@ export function initReminderRunner() {
   // Ouve evento disparado por geocercas para tocar som e alertar
   document.addEventListener('quickdock:geofence-triggered', e => {
     const detail = e.detail || {};
-    tocarSomAlarmeTDAH();
+    tocarSomAlarmeFoco();
     if (detail.noteId) {
       getNoteById(detail.noteId).then(note => {
         if (note) {
@@ -224,3 +224,5 @@ export function initReminderRunner() {
     }
   });
 }
+
+export const testarAlarmeTDAH = testarAlarmeFoco;

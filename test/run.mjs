@@ -5133,7 +5133,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     blocksCssSource.includes('mark.md-highlight'));
 }
 // ─────────────────────────────────────────────────────────────────────────────
-// CALENDÁRIO PRO, LEMBRETE PERSISTENTE (TDAH) & GEOLOCALIZAÇÃO
+// CALENDÁRIO PRO, LEMBRETE PERSISTENTE DE FOCO & GEOLOCALIZAÇÃO
 // ─────────────────────────────────────────────────────────────────────────────
 {
   const { readFile } = await import('node:fs/promises');
@@ -5216,7 +5216,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('property-types · migrar booleano para reminder com intervalo default 5m',
     remObj.active === true && remObj.intervalMinutes === 5 && remObj.completed === false);
 
-  // 4. reminders: persistent-reminder.js (Lembrete TDAH)
+  // 4. reminders: persistent-reminder.js (Lembrete de Foco Persistente)
   const lembreteTDAH = criarLembreteTDAH({ intervalMinutes: 5 });
   ok('reminders · lembrete novo deve disparar imediatamente', deveDispararLembrete(lembreteTDAH, 100000));
 

@@ -49,6 +49,51 @@ function hasCover(note) {
   return !!note && (!!note.coverUrl || note.coverFileId != null);
 }
 
+let isRepositioning = false;
+let isDragging = false;
+let dragStartY = 0;
+let dragStartPos = 50;
+let currentPos = 50;
+let repositionBarEl = null;
+
+function getNoteCoverPos(note) {
+  if (!note) return 50;
+  if (typeof note.coverPosition === 'number') return note.coverPosition;
+  if (typeof note.coverPositionY === 'number') return note.coverPositionY;
+  return 50;
+}
+
+function startReposition() {
+  if (!noteRef || isRepositioning) return;
+  isRepositioning = true;
+  currentPos = getNoteCoverPos(noteRef);
+  if (imgEl) imgEl.style.objectPosition = `50% ${currentPos}%`;
+  coverEl?.classList.add('is-repositioning');
+  if (repositionBarEl) repositionBarEl.hidden = false;
+}
+
+function stopReposition() {
+  isRepositioning = false;
+  isDragging = false;
+  coverEl?.classList.remove('is-repositioning', 'is-dragging');
+  if (repositionBarEl) repositionBarEl.hidden = true;
+}
+
+async function saveReposition() {
+  if (!noteRef) { stopReposition(); return; }
+  const rounded = Math.round(currentPos);
+  await applyCover({ coverPosition: rounded });
+  stopReposition();
+}
+
+function cancelReposition() {
+  if (!isRepositioning) return;
+  const originalPos = getNoteCoverPos(noteRef);
+  currentPos = originalPos;
+  if (imgEl) imgEl.style.objectPosition = `50% ${originalPos}%`;
+  stopReposition();
+}
+
 // ── Renderização ──────────────────────────────────────────────────────────────
 function showError(text) {
   errorEl.textContent = text;
@@ -59,11 +104,17 @@ function showError(text) {
 export async function renderNoteCover(note) {
   noteRef = note || null;
   if (!coverEl) return;
+  if (isRepositioning) stopReposition();
 
   // O cabeçalho re-renderiza a mesma nota várias vezes (título, ícone, cor...):
   // sem esta checagem a imagem era baixada de novo a cada uma.
-  const key = hasCover(note) ? `${note.id}|${note.coverUrl ?? ''}|${note.coverFileId ?? ''}` : null;
-  if (key === renderedKey && (key === null || !coverEl.hidden)) { syncButtons(); return; }
+  const pos = getNoteCoverPos(note);
+  const key = hasCover(note) ? `${note.id}|${note.coverUrl ?? ''}|${note.coverFileId ?? ''}|${pos}` : null;
+  if (key === renderedKey && (key === null || !coverEl.hidden)) {
+    if (imgEl) imgEl.style.objectPosition = `50% ${pos}%`;
+    syncButtons();
+    return;
+  }
   renderedKey = key;
 
   const token = ++renderToken;
@@ -79,6 +130,7 @@ export async function renderNoteCover(note) {
   coverEl.hidden = false;
   errorEl.hidden = true;
   imgEl.hidden = false;
+  imgEl.style.objectPosition = `50% ${pos}%`;
 
   if (note.coverUrl) {
     revokeObjectUrl();
@@ -97,6 +149,7 @@ export async function renderNoteCover(note) {
 export function clearNoteCover() {
   noteRef = null;
   renderedKey = null;
+  stopReposition();
   closePopover();
   if (coverEl) coverEl.hidden = true;
   revokeObjectUrl();
@@ -244,10 +297,29 @@ function buildCover() {
         <span class="qd-icon material-symbols-rounded" aria-hidden="true">image</span>
         <span>Alterar capa</span>
       </button>
+      <button type="button" class="note-cover-action note-cover-reposition" title="Reposicionar verticalmente a capa">
+        <span class="qd-icon material-symbols-rounded" aria-hidden="true">drag_pan</span>
+        <span>Reposicionar</span>
+      </button>
+    </div>
+    <div class="note-cover-reposition-bar" hidden>
+      <span class="note-cover-reposition-hint">Arraste a imagem verticalmente</span>
+      <div class="note-cover-reposition-btns">
+        <button type="button" class="note-cover-action note-cover-reposition-save">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">check</span>
+          <span>Salvar</span>
+        </button>
+        <button type="button" class="note-cover-action note-cover-reposition-cancel">
+          <span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>
+          <span>Cancelar</span>
+        </button>
+      </div>
     </div>
   `;
   imgEl = el.querySelector('.note-cover-img');
   errorEl = el.querySelector('.note-cover-error');
+  repositionBarEl = el.querySelector('.note-cover-reposition-bar');
+
   // Endereço que não abre (saiu do ar, bloqueado...) vira aviso, não uma caixa quebrada.
   imgEl.addEventListener('error', () => {
     if (imgEl.getAttribute('src')) showError('Não foi possível carregar a imagem da capa.');
@@ -257,6 +329,50 @@ function buildCover() {
     e.stopPropagation();
     openPopover(e.currentTarget);
   });
+  el.querySelector('.note-cover-reposition').addEventListener('click', (e) => {
+    e.stopPropagation();
+    startReposition();
+  });
+  el.querySelector('.note-cover-reposition-save').addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveReposition();
+  });
+  el.querySelector('.note-cover-reposition-cancel').addEventListener('click', (e) => {
+    e.stopPropagation();
+    cancelReposition();
+  });
+
+  // Arraste interativo para reposicionar capa
+  el.addEventListener('pointerdown', (e) => {
+    if (!isRepositioning) return;
+    if (e.target.closest('.note-cover-reposition-btns')) return;
+    isDragging = true;
+    dragStartY = e.clientY;
+    dragStartPos = currentPos;
+    el.classList.add('is-dragging');
+    try { el.setPointerCapture(e.pointerId); } catch {}
+  });
+
+  el.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const height = el.clientHeight || 180;
+    const deltaY = e.clientY - dragStartY;
+    // Arrastar para baixo move a imagem para baixo, revelando o topo (diminui % de object-position-y)
+    // Arrastar para cima move a imagem para cima, revelando o rodapé (aumenta % de object-position-y)
+    const deltaPercent = (deltaY / height) * 100;
+    currentPos = Math.max(0, Math.min(100, Math.round(dragStartPos - deltaPercent)));
+    if (imgEl) imgEl.style.objectPosition = `50% ${currentPos}%`;
+  });
+
+  const stopPointerDrag = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    el.classList.remove('is-dragging');
+    try { el.releasePointerCapture(e.pointerId); } catch {}
+  };
+  el.addEventListener('pointerup', stopPointerDrag);
+  el.addEventListener('pointercancel', stopPointerDrag);
+
   return el;
 }
 

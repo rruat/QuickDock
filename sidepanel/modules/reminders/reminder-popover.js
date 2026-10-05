@@ -1,10 +1,10 @@
 // ── reminder-popover.js ──────────────────────────────────────────────────
-// Popover dedicado e intuitivo para configuração de Lembretes TDAH na nota.
+// Popover dedicado e intuitivo para configuração de Lembretes de Foco Persistentes na nota.
 // Permite ativar/desativar com 1 clique, definir horário inicial, intervalo de repetição e testar.
 
 import { positionPopover } from '../popover.js';
 import { updateNoteMetaById } from '../storage.js';
-import { criarLembreteTDAH, INTERVALOS_TDAH_MINUTOS } from './reminder-types.js';
+import { criarLembreteFoco, INTERVALOS_FOCO_MINUTOS } from './reminder-types.js';
 
 let activeReminderPopover = null;
 
@@ -22,7 +22,7 @@ export function closeReminderPopoverIfOutside(target) {
 }
 
 /**
- * Abre o popover do Lembrete TDAH ancorado em um elemento.
+ * Abre o popover do Lembrete de Foco ancorado em um elemento.
  * @param {HTMLElement} anchorEl
  * @param {Object} note
  * @param {Function} [onSaved]
@@ -62,7 +62,7 @@ export function openReminderPopover(anchorEl, note, onSaved) {
     <div class="reminder-popover-header">
       <div class="popover-title-row">
         <span class="qd-icon material-symbols-rounded">alarm</span>
-        <span class="popover-title">Lembrete Insistente TDAH</span>
+        <span class="popover-title">Lembrete de Foco Persistente</span>
       </div>
       <button type="button" class="icon-btn reminder-close-btn" title="Fechar">
         <span class="qd-icon material-symbols-rounded">close</span>
@@ -93,10 +93,10 @@ export function openReminderPopover(anchorEl, note, onSaved) {
 
         <div class="reminder-field">
           <label for="reminder-interval-select" class="reminder-field-label">
-            Loop TDAH: Repetir insistente a cada
+            Loop de Foco: Repetir a cada
           </label>
           <select id="reminder-interval-select" class="property-select">
-            ${INTERVALOS_TDAH_MINUTOS.map(m => `
+            ${INTERVALOS_FOCO_MINUTOS.map(m => `
               <option value="${m}" ${m === (rem.intervalMinutes || 5) ? 'selected' : ''}>
                 A cada ${m} minutos
               </option>
@@ -162,11 +162,11 @@ export function openReminderPopover(anchorEl, note, onSaved) {
       chrome.runtime.sendMessage({
         type: 'TRIGGER_TEST_NOTIFICATION',
         title: note.title || 'Lembrete QuickDock',
-        message: 'Teste de alarme persistente TDAH funcionando!'
+        message: 'Teste de alarme de foco persistente funcionando!'
       });
     } else if (typeof Notification !== 'undefined') {
       Notification.requestPermission().then(p => {
-        if (p === 'granted') new Notification(note.title || 'QuickDock', { body: 'Teste de alarme TDAH!' });
+        if (p === 'granted') new Notification(note.title || 'QuickDock', { body: 'Teste de alarme de foco!' });
       });
     }
   });
@@ -178,7 +178,7 @@ export function openReminderPopover(anchorEl, note, onSaved) {
     const firstTriggerAt = inputTime.value ? new Date(inputTime.value).getTime() : Date.now();
 
     const novoLembrete = isAtivo
-      ? criarLembreteTDAH({
+      ? criarLembreteFoco({
           active: true,
           intervalMinutes,
           firstTriggerAt,

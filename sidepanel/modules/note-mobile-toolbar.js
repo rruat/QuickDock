@@ -1,4 +1,4 @@
-// Barra de contexto mobile ("Notion mobile toolbar"): 3 estados (formatação
+// QuickBar (Barra contextual mobile): 3 estados (formatação
 // de texto / ações de bloco / seleção de blocos), popovers de adicionar/cor,
 // sheets de trocar tipo e modelos de bloco, toque longo pra selecionar.
 import { setDocsCollapsed } from './documents.js';
@@ -25,14 +25,15 @@ import {
   getUndoStackLength, getRedoStackLength, insertTemplateBlocks, blocksToExportMarkdown,
 } from './note.js';
 
-// ── Barra Contextual Estilo Notion (Dual-State & No-Scrim Sheets) ────────────
+// ── QuickBar Contextual (Dual-State & No-Scrim Sheets) ────────────────────────
 let lastFocusedBlock = null;
 // Getter exposto pra note-viewport.js.
 export function getLastFocusedBlock() { return lastFocusedBlock; }
 
-const mobileNotionToolbar = document.createElement('div');
-mobileNotionToolbar.className = 'mobile-notion-toolbar';
-mobileNotionToolbar.id = 'mobile-notion-toolbar';
+const mobileQuickbar = document.createElement('div');
+mobileQuickbar.className = 'mobile-quickbar mobile-notion-toolbar';
+mobileQuickbar.id = 'mobile-quickbar';
+const mobileNotionToolbar = mobileQuickbar; // alias de compatibilidade interna
 
 // Estado 1: Formatação de Texto (quando texto estiver selecionado)
 const mobileFormatBar = document.createElement('div');

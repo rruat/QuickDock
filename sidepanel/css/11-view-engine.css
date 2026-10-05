@@ -41,6 +41,22 @@ html.view-fullscreen #btn-touch-select,
 body.view-fullscreen #btn-touch-select,
 html.view-fullscreen #resize-handle,
 body.view-fullscreen #resize-handle,
+html.view-fullscreen .mobile-quickbar,
+body.view-fullscreen .mobile-quickbar,
+html.has-maximized-panel .mobile-quickbar,
+body.has-maximized-panel .mobile-quickbar,
+html.view-templates .mobile-quickbar,
+body.view-templates .mobile-quickbar,
+html.view-grafo:not(.view-split) .mobile-quickbar,
+body.view-grafo:not(.view-split) .mobile-quickbar,
+html.view-board:not(.view-split) .mobile-quickbar,
+body.view-board:not(.view-split) .mobile-quickbar,
+html.view-calendar:not(.view-split) .mobile-quickbar,
+body.view-calendar:not(.view-split) .mobile-quickbar,
+html.view-bases:not(.view-split) .mobile-quickbar,
+body.view-bases:not(.view-split) .mobile-quickbar,
+html.view-json:not(.view-split) .mobile-quickbar,
+body.view-json:not(.view-split) .mobile-quickbar,
 html.view-fullscreen .mobile-notion-toolbar,
 body.view-fullscreen .mobile-notion-toolbar,
 html.has-maximized-panel .mobile-notion-toolbar,
@@ -240,7 +256,7 @@ html[data-platform="mobile"] .docs-section:not(.is-collapsed) {
   animation: sheet-slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ===== BARRA CONTEXTUAL ESTILO NOTION (DUAL-STATE & NO-SCRIM SHEETS) ===== */
+/* ===== QUICKBAR CONTEXTUAL (DUAL-STATE & NO-SCRIM SHEETS) ===== */
 
 /* As antigas barras estáticas não existem mais */
 .note-toolbar {
@@ -256,6 +272,7 @@ html[data-platform="mobile"] .btn-touch-select {
   display: none !important;
 }
 
+.mobile-quickbar,
 .mobile-notion-toolbar {
   display: flex !important;
   align-items: center;
@@ -269,11 +286,13 @@ html[data-platform="mobile"] .btn-touch-select {
   user-select: none;
 }
 
+html[data-platform="mobile"] .mobile-quickbar,
 html[data-platform="mobile"] .mobile-notion-toolbar {
   height: 44px;
   min-height: 44px;
 }
 
+.mobile-quickbar[hidden],
 .mobile-notion-toolbar[hidden] {
   display: none !important;
 }

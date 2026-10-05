@@ -1,5 +1,5 @@
 /* ==========================================================================
-   28-reminders.css - Estilização dos Lembretes Persistentes (TDAH) e Geocercas
+   28-reminders.css - Estilização dos Lembretes de Foco Persistentes e Geocercas
    Parte da arquitetura CSS modular do QuickDock
    ========================================================================== */
 
@@ -752,7 +752,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── Banners Flutuantes de Alarme TDAH ───────────────────────────────────── */
+/* ── Banners Flutuantes de Alarme de Foco ─────────────────────────────────── */
 .quickdock-alarm-banners-container {
   position: fixed;
   top: 16px;
@@ -766,6 +766,7 @@
   pointer-events: none;
 }
 
+.quickdock-focus-alarm-banner,
 .quickdock-tdah-alarm-banner {
   pointer-events: auto;
   display: flex;

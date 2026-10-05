@@ -43,12 +43,19 @@ export function renderNoteHeader(note) {
 
   const hasCustomIcon = Boolean(note.icon || hasIconImage(note));
   headerIconBtn?.classList.toggle('has-custom-icon', hasCustomIcon);
+  document.querySelector('.note-editor')?.classList.toggle('has-custom-icon', hasCustomIcon);
 
   if (mobileAppearanceBtn) {
     const iconSpan = mobileAppearanceBtn.querySelector('.qd-icon');
     if (iconSpan) {
       iconSpan.style.color = note.color || '';
     }
+    // Quando a nota já tem um ícone selecionado, ele próprio é exibido no cabeçalho
+    // e pode ser tocado diretamente para editar/remover. Ocultamos o botão redundante
+    // de "Aparência" no folder bar para não exibir a opção de selecionar e o ícone
+    // selecionado ao mesmo tempo no mobile.
+    mobileAppearanceBtn.hidden = hasCustomIcon;
+    mobileAppearanceBtn.style.display = hasCustomIcon ? 'none' : '';
   }
 
   // Não sobrescreve o texto se a pessoa estiver com o cursor ali agora —
@@ -60,7 +67,7 @@ export function renderNoteHeader(note) {
   headerColorDot.style.background = note.color || 'var(--text-muted)';
   renderNoteCover(note);
 
-  // Renderiza badges de Lembrete TDAH e Localização Maps
+  // Renderiza badges de Lembrete de Foco e Localização Maps
   if (headerBadgesEl) {
     headerBadgesEl.innerHTML = '';
     const props = note.properties || {};
@@ -137,6 +144,12 @@ export function clearNoteHeader() {
   headerNoteRef = null;
   if (headerTitleEl) headerTitleEl.textContent = '';
   if (headerIconEl) { headerIconEl.textContent = ''; headerIconEl.classList.remove('has-icon-image'); }
+  headerIconBtn?.classList.remove('has-custom-icon');
+  document.querySelector('.note-editor')?.classList.remove('has-custom-icon');
+  if (mobileAppearanceBtn) {
+    mobileAppearanceBtn.hidden = false;
+    mobileAppearanceBtn.style.removeProperty('display');
+  }
   if (headerBadgesEl) headerBadgesEl.innerHTML = '';
   headerReminderBtn?.classList.remove('is-active', 'section-active');
   headerLocationBtn?.classList.remove('is-active', 'section-active');
@@ -211,7 +224,7 @@ document.addEventListener('quickdock:note-appearance-updated', async e => {
   }
 });
 
-// Botão de Lembrete TDAH no cabeçalho da nota
+// Botão de Lembrete de Foco no cabeçalho da nota
 headerReminderBtn?.addEventListener('click', e => {
   e.stopPropagation();
   if (headerNoteRef) {

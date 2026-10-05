@@ -133,6 +133,7 @@
   html #app #section-note > .section-header,
   html[data-platform] .note-outline-sidebar,
   html[data-platform] .note-outline-floating-toggle,
+  html[data-platform] .mobile-quickbar,
   html[data-platform] .mobile-notion-toolbar,
   html[data-platform] .mobile-type-sheet,
   html[data-platform] .mobile-template-sheet,

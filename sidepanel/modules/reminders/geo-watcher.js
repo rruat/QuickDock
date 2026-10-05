@@ -96,7 +96,7 @@ export function processarNovaPosicao(posAtual) {
       const verbo = geocerca.triggerOn === 'exit' ? 'Você saiu de' : 'Você chegou em';
       const tituloAlarme = `📍 ${verbo} ${geocerca.name || 'Local Marcado'}`;
 
-      // Ativa o loop insistente TDAH se configurado (padrão ativo)
+      // Ativa o loop persistente de foco se configurado (padrão ativo)
       if (geocerca.persistentTdah !== false) {
         if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
           chrome.runtime.sendMessage({

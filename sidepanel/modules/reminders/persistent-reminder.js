@@ -1,8 +1,8 @@
 // ── persistent-reminder.js ───────────────────────────────────────────────
-// Máquina de estados para Lembretes Persistentes (Loop insistente anti-TDAH).
+// Máquina de estados para Lembretes Persistentes (Loop contínuo de Foco Prioritário).
 // Lógica pura, sem DOM, 100% testável.
 
-export { criarLembreteTDAH, INTERVALOS_TDAH_MINUTOS, INTERVALO_PADRAO_MINUTOS } from './reminder-types.js';
+export { criarLembreteFoco, criarLembreteTDAH, INTERVALOS_FOCO_MINUTOS, INTERVALOS_TDAH_MINUTOS, INTERVALO_PADRAO_MINUTOS } from './reminder-types.js';
 
 /**
  * Avalia se um lembrete persistente deve disparar no momento atual.

@@ -18,7 +18,7 @@ export const PROPERTY_TYPES = {
   datetime:  { icon: 'schedule',               label: 'Data e Hora' },
   daterange: { icon: 'date_range',             label: 'Período' },
   location:  { icon: 'location_on',            label: 'Localização' },
-  reminder:  { icon: 'alarm',                  label: 'Lembrete TDAH' },
+  reminder:  { icon: 'alarm',                  label: 'Lembrete de Foco' },
   select:    { icon: 'arrow_drop_down_circle', label: 'Seleção' },
 };
 

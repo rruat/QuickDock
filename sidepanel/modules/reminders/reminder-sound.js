@@ -21,7 +21,7 @@ function getAudioContext() {
  * Toca um sinal sonoro agradável e nítido (dois tons suaves: 880Hz e 1320Hz).
  * @returns {boolean} Retorna true se iniciou a reprodução
  */
-export function tocarSomAlarmeTDAH() {
+export function tocarSomAlarmeFoco() {
   try {
     const ctx = getAudioContext();
     if (!ctx) return false;
@@ -58,3 +58,5 @@ export function tocarSomAlarmeTDAH() {
     return false;
   }
 }
+
+export const tocarSomAlarmeTDAH = tocarSomAlarmeFoco;

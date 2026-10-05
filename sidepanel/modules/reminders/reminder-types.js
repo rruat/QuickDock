@@ -1,17 +1,18 @@
 // ── reminder-types.js ───────────────────────────────────────────────────
-// Constantes e validadores para o sistema de Lembretes Persistentes (TDAH) e Geocercas.
+// Constantes e validadores para o sistema de Lembretes de Foco Persistentes e Geocercas.
 // Sem dependências externas, 100% puro.
 
-export const INTERVALOS_TDAH_MINUTOS = [3, 5, 10, 15, 30];
+export const INTERVALOS_FOCO_MINUTOS = [3, 5, 10, 15, 30];
+export const INTERVALOS_TDAH_MINUTOS = INTERVALOS_FOCO_MINUTOS;
 export const INTERVALO_PADRAO_MINUTOS = 5;
 export const RAIO_PADRAO_METROS = 150;
 
 /**
- * Cria a estrutura inicial para um lembrete persistente anti-TDAH.
+ * Cria a estrutura inicial para um lembrete de foco persistente.
  * @param {Object} [parciais]
  * @returns {Object}
  */
-export function criarLembreteTDAH(parciais = {}) {
+export function criarLembreteFoco(parciais = {}) {
   const intervalo = Number.isFinite(parciais.intervalMinutes) && parciais.intervalMinutes > 0
     ? parciais.intervalMinutes
     : INTERVALO_PADRAO_MINUTOS;
@@ -26,6 +27,9 @@ export function criarLembreteTDAH(parciais = {}) {
     triggerCount: typeof parciais.triggerCount === 'number' ? parciais.triggerCount : 0
   };
 }
+
+// Alias para compatibilidade com versões e testes legados
+export const criarLembreteTDAH = criarLembreteFoco;
 
 /**
  * Cria a estrutura para um alvo de geolocalização.

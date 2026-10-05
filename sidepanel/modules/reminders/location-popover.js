@@ -117,12 +117,12 @@ export function openLocationPopover(anchorEl, note, onSaved) {
         </div>
       </div>
 
-      <!-- Configuração de Alarme Insistente TDAH ao Chegar -->
+      <!-- Configuração de Alarme de Foco Persistente ao Chegar -->
       <div class="location-tdah-section">
         <div class="reminder-toggle-row">
           <div class="tdah-label-group">
             <span class="qd-icon material-symbols-rounded" style="color: var(--accent);">alarm_on</span>
-            <span class="reminder-toggle-label">Alarme Insistente TDAH ao chegar</span>
+            <span class="reminder-toggle-label">Alarme de Foco Persistente ao chegar</span>
           </div>
           <label class="graph-switch">
             <input type="checkbox" id="location-tdah-toggle" ${loc.persistentTdah !== false ? 'checked' : ''}>

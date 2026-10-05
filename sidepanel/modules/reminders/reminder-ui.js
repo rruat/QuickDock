@@ -1,8 +1,8 @@
 // ── reminder-ui.js ────────────────────────────────────────────────────────
-// Componentes visuais para configuração e status de Lembretes Persistentes (TDAH) e Geocercas.
+// Componentes visuais para configuração e status de Lembretes de Foco Persistentes e Geocercas.
 // Módulo leve focado em interface, sem dependência pesada de outros módulos.
 
-import { INTERVALOS_TDAH_MINUTOS, criarLembreteTDAH, criarAlvoGeocerca } from './reminder-types.js';
+import { INTERVALOS_FOCO_MINUTOS, criarLembreteFoco, criarAlvoGeocerca } from './reminder-types.js';
 import { aplicarAcaoLembrete } from './persistent-reminder.js';
 import { registrarGeocerca, desregistrarGeocerca } from './geo-watcher.js';
 
@@ -24,9 +24,9 @@ export function renderReminderWidget(container, note, onUpdateCallback) {
     const btnAtivar = document.createElement('button');
     btnAtivar.type = 'button';
     btnAtivar.className = 'reminder-activate-btn';
-    btnAtivar.innerHTML = '<span class="qd-icon material-symbols-rounded">alarm_add</span> Adicionar Lembrete TDAH';
+    btnAtivar.innerHTML = '<span class="qd-icon material-symbols-rounded">alarm_add</span> Adicionar Lembrete de Foco';
     btnAtivar.addEventListener('click', () => {
-      const novoRem = criarLembreteTDAH({ intervalMinutes: 5, active: true });
+      const novoRem = criarLembreteFoco({ intervalMinutes: 5, active: true });
       if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
         chrome.runtime.sendMessage({
           type: 'SCHEDULE_TDAH_REMINDER',
@@ -61,7 +61,7 @@ export function renderReminderWidget(container, note, onUpdateCallback) {
   const selectInterval = document.createElement('select');
   selectInterval.className = 'reminder-interval-select';
   selectInterval.disabled = rem.completed;
-  for (const m of INTERVALOS_TDAH_MINUTOS) {
+  for (const m of INTERVALOS_FOCO_MINUTOS) {
     const opt = document.createElement('option');
     opt.value = String(m);
     opt.textContent = `${m} min`;

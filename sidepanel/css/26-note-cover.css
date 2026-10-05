@@ -95,6 +95,75 @@
   }
 }
 
+/* ── Modo de Reposicionamento da Capa ────────────────────────────────────── */
+.note-cover.is-repositioning .note-cover-actions {
+  display: none !important;
+}
+
+.note-cover.is-repositioning .note-cover-img {
+  cursor: grab !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  pointer-events: auto !important;
+}
+
+.note-cover.is-repositioning.is-dragging .note-cover-img {
+  cursor: grabbing !important;
+}
+
+.note-cover-reposition-bar {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #f8fafc;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.note-cover-reposition-bar[hidden] {
+  display: none !important;
+}
+
+.note-cover-reposition-hint {
+  font-size: 11.5px;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  pointer-events: auto;
+}
+
+.note-cover-reposition-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.note-cover-reposition-bar .note-cover-action {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  border: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.note-cover-reposition-bar .note-cover-action:hover {
+  background: #ffffff;
+}
+
+.note-cover-reposition-bar .note-cover-reposition-save {
+  background: var(--accent, #6366f1);
+  color: #ffffff;
+}
+
+.note-cover-reposition-bar .note-cover-reposition-save:hover {
+  opacity: 0.92;
+}
+
 /* ── Botão no cabeçalho da nota ──────────────────────────────────────────── */
 .note-header-cover-btn {
   width: 28px;
@@ -222,6 +291,7 @@
 /* ── Papel: a capa sai na impressão, os controles não ────────────────────── */
 @media print {
   html[data-platform] .note-cover-actions,
+  html[data-platform] .note-cover-reposition-bar,
   html[data-platform] .note-header-cover-btn,
   html[data-platform] .note-cover-popover {
     display: none !important;
