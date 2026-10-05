@@ -1,5 +1,8 @@
-// Barra de Propriedades da Nota (Notion / Obsidian style): renderização,
-// edição, reordenar por arrastar e criação da propriedade nova.
+// Barra de Propriedades da Nota (QuickDock Modular Sections):
+// Cada propriedade é uma seção independente (.section), sem bordas quando fechada,
+// com bordas apenas quando aberta, sem setas, e com menu de configurações
+// que expande inline (.section-body) sem menus flutuantes.
+
 import { getNoteById, updateNoteMetaById } from './storage.js';
 import { PROPERTY_TYPES, inferirTipoPropriedade, migrarPropriedadeParaTipo } from './property-types.js';
 import { getCurrentNoteId } from './note.js';
@@ -26,17 +29,39 @@ export const PROPRIEDADES_SUGERIDAS = [
   { tipo: 'number',    nome: 'Número',      icon: 'tag',             label: 'Número' }
 ];
 
-let propertiesExpanded = typeof localStorage !== 'undefined'
-  ? localStorage.getItem('quickdock:properties:expanded') === 'true'
-  : false;
+const SELECT_OPCOES_PADRAO = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
 
-// Enquanto não tem nome confirmado (Enter), a propriedade nova é só esse
-// estado — não existe em note.properties. É o que faz a linha de "nome +
-// tipo" aparecer no fim da lista antes de virar propriedade de verdade.
-let pendingNewProperty = null;
+const VALOR_PADRAO_POR_TIPO = {
+  text: '',
+  list: [],
+  number: '',
+  checkbox: false,
+  date: '',
+  datetime: '',
+  daterange: { start: '', end: '', allDay: true },
+  location: { name: '', radius: 150 },
+  reminder: { active: true, intervalMinutes: 5 },
+  select: ''
+};
+
+const NOMES_PADRAO_POR_TIPO = {
+  reminder: 'Lembrete',
+  location: 'Localização',
+  date: 'Data',
+  datetime: 'Horário',
+  daterange: 'Período',
+  text: 'Texto',
+  number: 'Número',
+  checkbox: 'Concluído',
+  list: 'Tags',
+  select: 'Status'
+};
+
+// Guarda o conjunto de chaves de propriedades que estão abertas (.is-open)
+// para preservar o estado de expansão durante re-renderizações e edições
+const openPropertyKeys = new Set();
 
 let activePropertiesMenu = null;
-
 function closePropertiesMenu() {
   if (activePropertiesMenu) {
     activePropertiesMenu.remove();
@@ -44,36 +69,18 @@ function closePropertiesMenu() {
   }
 }
 
-document.addEventListener('pointerdown', e => {
-  if (activePropertiesMenu && !activePropertiesMenu.contains(e.target)
-    && !e.target.closest('#btn-add-property') && !e.target.closest('.property-type-btn')) {
-    closePropertiesMenu();
-  }
-});
-
-if (propertiesToggleBtn && propertiesListEl) {
-  propertiesToggleBtn.addEventListener('click', () => {
-    propertiesExpanded = !propertiesExpanded;
-    try { localStorage.setItem('quickdock:properties:expanded', String(propertiesExpanded)); } catch {}
-    atualizarEstadoExpansaoPropriedades();
-  });
-}
-
-function atualizarEstadoExpansaoPropriedades() {
-  if (!propertiesToggleBtn || !propertiesListEl) return;
-  propertiesToggleBtn.setAttribute('aria-expanded', propertiesExpanded ? 'true' : 'false');
-  propertiesBarEl?.classList.toggle('is-expanded', propertiesExpanded);
-  propertiesListEl.hidden = !propertiesExpanded;
-  const chevron = propertiesToggleBtn.querySelector('.properties-chevron');
-  if (chevron) {
-    chevron.textContent = propertiesExpanded ? 'expand_more' : 'chevron_right';
+// Mantido para compatibilidade com chamadas externas e testes
+export function abrirMenuDeTipo(anchor = null, tipoAtual = '', onEscolher = null) {
+  closePropertiesMenu();
+  if (typeof onEscolher === 'function') {
+    onEscolher(tipoAtual || 'text');
   }
 }
 
 // Constrói o campo de valor apropriado ao tipo (text/number/checkbox/date/list/select).
-// `salvar(chave, novoValor, extra)` é o único ponto de gravação — cada campo só
-// decide QUAL valor virou, quem persiste/notifica/re-renderiza é sempre o mesmo.
+// `salvar(chave, novoValor, extra)` é o único ponto de gravação.
 function renderPropertyValue(tipo, chave, valor, opcoes, salvar) {
+  let el;
   switch (tipo) {
     case 'date': {
       const input = document.createElement('input');
@@ -81,15 +88,18 @@ function renderPropertyValue(tipo, chave, valor, opcoes, salvar) {
       input.className = 'property-input property-input-date';
       input.value = typeof valor === 'string' ? valor.slice(0, 10) : '';
       input.addEventListener('change', e => salvar(chave, e.target.value));
-      return input;
+      el = input;
+      break;
     }
     case 'number': {
       const input = document.createElement('input');
       input.type = 'number';
       input.className = 'property-input property-input-number';
       input.value = typeof valor === 'number' && Number.isFinite(valor) ? valor : '';
+      input.placeholder = '0';
       input.addEventListener('change', e => salvar(chave, e.target.value === '' ? 0 : parseFloat(e.target.value)));
-      return input;
+      el = input;
+      break;
     }
     case 'checkbox': {
       const label = document.createElement('label');
@@ -99,30 +109,42 @@ function renderPropertyValue(tipo, chave, valor, opcoes, salvar) {
       input.checked = !!valor;
       input.addEventListener('change', e => salvar(chave, e.target.checked));
       label.appendChild(input);
-      return label;
+      el = label;
+      break;
     }
     case 'datetime':
-      return renderPropertyDateTime(chave, valor, salvar);
+      el = renderPropertyDateTime(chave, valor, salvar);
+      break;
     case 'daterange':
-      return renderPropertyDateRange(chave, valor, salvar);
+      el = renderPropertyDateRange(chave, valor, salvar);
+      break;
     case 'location':
-      return renderPropertyLocation(chave, valor, salvar);
+      el = renderPropertyLocation(chave, valor, salvar);
+      break;
     case 'reminder':
-      return renderPropertyReminder(chave, valor, salvar);
+      el = renderPropertyReminder(chave, valor, salvar);
+      break;
     case 'list':
-      return renderPropertyList(chave, Array.isArray(valor) ? valor : [], salvar);
+      el = renderPropertyList(chave, Array.isArray(valor) ? valor : [], salvar);
+      break;
     case 'select':
-      return renderPropertySelect(chave, valor, Array.isArray(opcoes) && opcoes.length ? opcoes : ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'], salvar);
+      el = renderPropertySelect(chave, valor, Array.isArray(opcoes) && opcoes.length ? opcoes : SELECT_OPCOES_PADRAO, salvar);
+      break;
     default: {
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'property-input property-input-text';
       input.value = valor == null ? '' : String(valor);
-      input.placeholder = 'Valor...';
+      input.placeholder = 'Vazio';
       input.addEventListener('change', e => salvar(chave, e.target.value.trim()));
-      return input;
+      el = input;
+      break;
     }
   }
+
+  el.addEventListener('click', e => e.stopPropagation());
+  el.addEventListener('pointerdown', e => e.stopPropagation());
+  return el;
 }
 
 function renderPropertyDateTime(chave, valor, salvar) {
@@ -323,8 +345,6 @@ function renderPropertyReminder(chave, valor, salvar) {
   return wrap;
 }
 
-// Lista de "chips" (tags) com input para adicionar via Enter/vírgula e Backspace
-// no input vazio para remover o último — mesmo padrão de qualquer editor de tags.
 function renderPropertyList(chave, itens, salvar) {
   const wrap = document.createElement('div');
   wrap.className = 'property-chip-list';
@@ -351,6 +371,7 @@ function renderPropertyList(chave, itens, salvar) {
   input.type = 'text';
   input.className = 'property-chip-input';
   input.placeholder = itens.length ? '' : 'Adicionar...';
+  input.addEventListener('click', e => e.stopPropagation());
   input.addEventListener('keydown', e => {
     e.stopPropagation();
     if (e.key === 'Enter' || e.key === ',') {
@@ -366,11 +387,15 @@ function renderPropertyList(chave, itens, salvar) {
   return wrap;
 }
 
-// Select com opção "+ Nova opção..." que pede o nome e grava tanto o valor
-// quanto a lista de opções atualizada (note.propertySelectOptions[chave]).
 function renderPropertySelect(chave, valor, opcoes, salvar) {
   const select = document.createElement('select');
   select.className = 'property-select';
+
+  const emptyOpt = document.createElement('option');
+  emptyOpt.value = '';
+  emptyOpt.textContent = 'Selecionar...';
+  select.appendChild(emptyOpt);
+
   for (const opt of opcoes) {
     const optionEl = document.createElement('option');
     optionEl.value = opt;
@@ -385,212 +410,196 @@ function renderPropertySelect(chave, valor, opcoes, salvar) {
     customOpt.selected = true;
     select.appendChild(customOpt);
   }
-  const addOpt = document.createElement('option');
-  addOpt.value = '__nova__';
-  addOpt.textContent = '+ Nova opção...';
-  select.appendChild(addOpt);
 
+  select.addEventListener('click', e => e.stopPropagation());
   select.addEventListener('change', e => {
-    if (e.target.value === '__nova__') {
-      const nome = window.prompt('Nome da nova opção:');
-      select.value = valor || '';
-      if (!nome || !nome.trim()) return;
-      const novoNome = nome.trim();
-      const novasOpcoes = opcoes.includes(novoNome) ? opcoes : [...opcoes, novoNome];
-      salvar(chave, novoNome, { opcoes: novasOpcoes });
-      return;
-    }
     salvar(chave, e.target.value);
   });
   return select;
 }
 
-// Popover de escolha de tipo — aberto pelo ícone à esquerda de cada
-// propriedade (troca o tipo de uma que já existe) e também ao criar uma nova
-// (escolhe o tipo antes de dar nome). `onEscolher(tipoId)` decide o que fazer
-// com a escolha em cada caso.
-function abrirMenuDeTipo(anchorEl, tipoAtual, onEscolher) {
-  closePropertiesMenu();
-  const menu = document.createElement('div');
-  menu.className = 'note-properties-popup-menu popover-menu';
-  // Sem isto, o mousedown num item tira o foco de onde estava antes (ex.: o
-  // input de nome da propriedade nova) e o blur cancela aquele fluxo antes
-  // do click do item chegar a rodar.
-  menu.addEventListener('mousedown', e => e.preventDefault());
-
-  for (const [tipoId, def] of Object.entries(PROPERTY_TYPES)) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'popover-item' + (tipoId === tipoAtual ? ' active' : '');
-    btn.innerHTML = `
-      <span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>
-      <span>${def.label}</span>
-    `;
-    btn.addEventListener('click', () => {
-      closePropertiesMenu();
-      if (tipoId !== tipoAtual) onEscolher(tipoId);
-    });
-    menu.appendChild(btn);
-  }
-
-  document.body.appendChild(menu);
-  activePropertiesMenu = menu;
-  const rect = anchorEl.getBoundingClientRect();
-  menu.style.position = 'fixed';
-  menu.style.top = `${rect.bottom + 4}px`;
-  menu.style.left = `${Math.max(8, rect.left)}px`;
-  menu.style.zIndex = '99999';
-}
-
+// Barra de sugestões desativada / limpa para um design limpo e sem poluição
 export function renderSuggestedChipsBar(note) {
   const container = document.getElementById('note-properties-suggested') || propertiesSuggestedEl;
   if (!container) return;
   container.innerHTML = '';
-  if (!note) return;
+  container.hidden = true;
+}
 
-  const props = note.properties || {};
-  const tipos = note.propertyTypes || {};
+// Renderiza a gaveta inline de opções da propriedade (.section-body)
+function renderPropertyDrawer(chave, tipo, valor, opcoes, salvar, renomear, deletar) {
+  const body = document.createElement('div');
+  body.className = 'section-body';
 
-  const wrap = document.createElement('div');
-  wrap.className = 'suggested-chips-container';
+  const content = document.createElement('div');
+  content.className = 'section-content property-drawer-content';
 
-  const label = document.createElement('span');
-  label.className = 'suggested-chips-label';
-  label.textContent = 'Sugeridos:';
-  wrap.appendChild(label);
+  // 1. Tipo da propriedade (chips visuais)
+  const typeSection = document.createElement('div');
+  typeSection.className = 'property-drawer-section';
+  const typeLabel = document.createElement('div');
+  typeLabel.className = 'property-drawer-label';
+  typeLabel.textContent = 'Tipo da propriedade';
+  typeSection.appendChild(typeLabel);
 
-  const chipsList = document.createElement('div');
-  chipsList.className = 'suggested-chips-scroll';
-  chipsList.addEventListener('wheel', e => {
-    if (e.deltaY === 0) return;
-    chipsList.scrollLeft += e.deltaY;
-  }, { passive: true });
+  const chipsGrid = document.createElement('div');
+  chipsGrid.className = 'property-type-chips-grid';
 
-  for (const sug of PROPRIEDADES_SUGERIDAS) {
+  for (const [tipoId, def] of Object.entries(PROPERTY_TYPES)) {
     const chip = document.createElement('button');
     chip.type = 'button';
-    chip.className = 'property-suggested-chip';
-    chip.dataset.tipo = sug.tipo;
-
-    let jaExiste = false;
-    let chaveExistente = null;
-
-    if (sug.tipo === 'reminder') {
-      jaExiste = Boolean(props.reminder || props.lembrete || props['Lembrete']);
-      chaveExistente = props.reminder ? 'reminder' : (props.lembrete ? 'lembrete' : (props['Lembrete'] ? 'Lembrete' : null));
-    } else if (sug.tipo === 'location') {
-      jaExiste = Boolean(props.location || props.localizacao || props['Localização']);
-      chaveExistente = props.location ? 'location' : (props.localizacao ? 'localizacao' : (props['Localização'] ? 'Localização' : null));
-    } else {
-      if (sug.nome in props) {
-        jaExiste = true;
-        chaveExistente = sug.nome;
-      } else {
-        const match = Object.keys(props).find(k => tipos[k] === sug.tipo);
-        if (match) {
-          jaExiste = true;
-          chaveExistente = match;
-        }
-      }
-    }
-
-    if (jaExiste) {
-      chip.classList.add('is-present');
-      chip.title = `Propriedade "${sug.label}" já adicionada · Clique para abrir`;
-      chip.innerHTML = `
-        <span class="qd-icon material-symbols-rounded chip-icon">${sug.icon}</span>
-        <span class="chip-text">${sug.label}</span>
-        <span class="qd-icon material-symbols-rounded chip-status-icon">check</span>
-      `;
-    } else {
-      chip.title = `Adicionar propriedade "${sug.label}"`;
-      chip.innerHTML = `
-        <span class="qd-icon material-symbols-rounded chip-icon">${sug.icon}</span>
-        <span class="chip-text">${sug.label}</span>
-        <span class="qd-icon material-symbols-rounded chip-status-icon">add</span>
-      `;
-    }
-
-    chip.addEventListener('click', async e => {
+    chip.className = 'property-type-chip' + (tipoId === tipo ? ' active' : '');
+    chip.innerHTML = `
+      <span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>
+      <span>${def.label}</span>
+    `;
+    chip.addEventListener('click', e => {
       e.stopPropagation();
-
-      if (jaExiste) {
-        if (sug.tipo === 'reminder') {
-          openNoteSection('reminder', note, () => renderPropertiesBar(note));
-          return;
-        }
-        if (sug.tipo === 'location') {
-          openNoteSection('location', note, () => renderPropertiesBar(note));
-          return;
-        }
-        propertiesExpanded = true;
-        try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
-        renderPropertiesBar(note);
-
-        setTimeout(() => {
-          const row = propertiesListEl?.querySelector(`[data-prop-key="${chaveExistente}"]`);
-          if (row) {
-            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            row.classList.add('is-highlighted');
-            setTimeout(() => row.classList.remove('is-highlighted'), 1500);
-            const input = row.querySelector('input, select');
-            input?.focus();
-          }
-        }, 50);
-        return;
-      }
-
-      // Adiciona propriedade sugerida com 1 clique
-      propertiesExpanded = true;
-      try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
-
-      const nomeBase = sug.nome;
-      let nome = nomeBase;
-      let counter = 2;
-      const currentProps = note.properties || {};
-      while (nome in currentProps) {
-        nome = `${nomeBase} ${counter++}`;
-      }
-
-      note.properties = { ...currentProps, [nome]: VALOR_PADRAO_POR_TIPO[sug.tipo] ?? '' };
-      note.propertyTypes = { ...(note.propertyTypes || {}), [nome]: sug.tipo };
-      if (sug.tipo === 'select') {
-        note.propertySelectOptions = { ...(note.propertySelectOptions || {}), [nome]: SELECT_OPCOES_PADRAO };
-      }
-
-      await updateNoteMetaById(note.id, {
-        properties: note.properties,
-        propertyTypes: note.propertyTypes,
-        ...(note.propertySelectOptions ? { propertySelectOptions: note.propertySelectOptions } : {})
-      });
-
-      document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-        detail: { noteId: note.id, properties: note.properties }
-      }));
-
-      renderPropertiesBar(note);
-
-      if (sug.tipo === 'reminder') {
-        openNoteSection('reminder', note, () => renderPropertiesBar(note));
-      } else if (sug.tipo === 'location') {
-        openNoteSection('location', note, () => renderPropertiesBar(note));
+      if (tipoId !== tipo) {
+        salvar(chave, migrarPropriedadeParaTipo(chave, valor, tipoId), { tipo: tipoId });
       }
     });
+    chipsGrid.appendChild(chip);
+  }
+  typeSection.appendChild(chipsGrid);
+  content.appendChild(typeSection);
 
-    chipsList.appendChild(chip);
+  // 2. Se for select, gerenciador de opções inline
+  if (tipo === 'select') {
+    const selectSection = document.createElement('div');
+    selectSection.className = 'property-drawer-section property-select-manager';
+    const selectLabel = document.createElement('div');
+    selectLabel.className = 'property-drawer-label';
+    selectLabel.textContent = 'Opções disponíveis';
+    selectSection.appendChild(selectLabel);
+
+    const currentOpcoes = Array.isArray(opcoes) && opcoes.length ? opcoes : SELECT_OPCOES_PADRAO;
+    const chipsList = document.createElement('div');
+    chipsList.className = 'property-select-options-list';
+
+    currentOpcoes.forEach((opt, idx) => {
+      const optChip = document.createElement('span');
+      optChip.className = 'property-select-option-chip';
+      const optText = document.createElement('span');
+      optText.textContent = opt;
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'property-select-option-delete';
+      delBtn.title = 'Remover opção';
+      delBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>';
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const novas = currentOpcoes.filter((_, i) => i !== idx);
+        salvar(chave, valor === opt ? '' : valor, { opcoes: novas });
+      });
+      optChip.append(optText, delBtn);
+      chipsList.appendChild(optChip);
+    });
+    selectSection.appendChild(chipsList);
+
+    const addRow = document.createElement('div');
+    addRow.className = 'property-select-add-row';
+    const addInput = document.createElement('input');
+    addInput.type = 'text';
+    addInput.className = 'property-select-add-input';
+    addInput.placeholder = '+ Nova opção...';
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'property-select-add-btn';
+    addBtn.textContent = 'Adicionar';
+
+    const commitNovaOpcao = () => {
+      const val = addInput.value.trim();
+      if (!val || currentOpcoes.includes(val)) return;
+      const novas = [...currentOpcoes, val];
+      salvar(chave, valor, { opcoes: novas });
+    };
+
+    addInput.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitNovaOpcao();
+      }
+    });
+    addBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      commitNovaOpcao();
+    });
+
+    addRow.append(addInput, addBtn);
+    selectSection.appendChild(addRow);
+    content.appendChild(selectSection);
   }
 
-  wrap.appendChild(chipsList);
-  container.appendChild(wrap);
+  // 3. Ações: Renomear e Excluir
+  const actionsRow = document.createElement('div');
+  actionsRow.className = 'property-drawer-actions';
+
+  const renameWrap = document.createElement('div');
+  renameWrap.className = 'property-rename-wrap';
+  const renameInput = document.createElement('input');
+  renameInput.type = 'text';
+  renameInput.className = 'property-inline-rename-input';
+  renameInput.value = chave;
+  renameInput.placeholder = 'Nome da propriedade';
+  const renameBtn = document.createElement('button');
+  renameBtn.type = 'button';
+  renameBtn.className = 'property-rename-btn';
+  renameBtn.textContent = 'Renomear';
+
+  const commitRename = () => {
+    const novoNome = renameInput.value.trim();
+    if (novoNome && novoNome !== chave) {
+      renomear(chave, novoNome);
+    }
+  };
+
+  renameInput.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitRename();
+    }
+  });
+  renameInput.addEventListener('click', e => e.stopPropagation());
+  renameBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    commitRename();
+  });
+  renameWrap.append(renameInput, renameBtn);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'property-drawer-delete-btn';
+  deleteBtn.title = `Excluir propriedade "${chave}"`;
+  deleteBtn.innerHTML = `
+    <span class="qd-icon material-symbols-rounded" aria-hidden="true">delete</span>
+    <span>Excluir</span>
+  `;
+  deleteBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    deletar(chave);
+  });
+
+  actionsRow.append(renameWrap, deleteBtn);
+  content.appendChild(actionsRow);
+
+  body.appendChild(content);
+  return body;
 }
 
 export function renderPropertiesBar(note) {
   if (!propertiesBarEl || !propertiesListEl || !note) {
     if (propertiesBarEl) propertiesBarEl.hidden = true;
-    if (propertiesSuggestedEl) propertiesSuggestedEl.innerHTML = '';
+    if (propertiesSuggestedEl) {
+      propertiesSuggestedEl.innerHTML = '';
+      propertiesSuggestedEl.hidden = true;
+    }
     return;
   }
   propertiesBarEl.hidden = false;
+  propertiesListEl.hidden = false;
 
   const props = { ...(note.properties || {}) };
   const tipos = { ...(note.propertyTypes || {}) };
@@ -598,35 +607,14 @@ export function renderPropertiesBar(note) {
   const chaves = Object.keys(props);
   const total = chaves.length;
 
-  // Renderiza a barra de chips sugeridos
   renderSuggestedChipsBar(note);
-
-  // Nota sem nenhuma propriedade não carrega a caixa inteira por padrão — só
-  // um link discreto pra criar a primeira. É o mesmo tanto faz de uma nota
-  // nova no Obsidian, que não vem com a seção de Properties até alguém pedir
-  // uma (digitando "---" no início da nota ou clicando aqui).
-  const vazia = total === 0 && !pendingNewProperty;
-  propertiesBarEl.classList.toggle('is-empty-ghost', vazia);
 
   if (propertiesCountEl) {
     propertiesCountEl.textContent = String(total);
     propertiesCountEl.hidden = total === 0;
   }
 
-  atualizarEstadoExpansaoPropriedades();
-
   propertiesListEl.innerHTML = '';
-
-  if (vazia) {
-    const ghost = document.createElement('button');
-    ghost.type = 'button';
-    ghost.className = 'note-properties-ghost-add';
-    ghost.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span><span>Adicionar propriedade personalizada</span>';
-    ghost.addEventListener('click', () => iniciarNovaPropriedade(note));
-    propertiesListEl.hidden = false;
-    propertiesListEl.appendChild(ghost);
-    return;
-  }
 
   const salvar = async (chave, novoValor, extra = {}) => {
     props[chave] = novoValor;
@@ -649,10 +637,11 @@ export function renderPropertiesBar(note) {
     renderPropertiesBar(note);
   };
 
-  // Renomear preserva a posição: reconstrói o objeto na mesma ordem, só
-  // trocando a chave, em vez de apagar e recriar no fim.
   const renomear = async (chaveAntiga, chaveNova) => {
-    if (!chaveNova || chaveNova === chaveAntiga || chaveNova in props) { renderPropertiesBar(note); return; }
+    if (!chaveNova || chaveNova === chaveAntiga || chaveNova in props) {
+      renderPropertiesBar(note);
+      return;
+    }
     const novasProps = {}, novosTipos = {}, novasOpcoes = {};
     for (const k of chaves) {
       const kk = k === chaveAntiga ? chaveNova : k;
@@ -663,6 +652,12 @@ export function renderPropertiesBar(note) {
     note.properties = novasProps;
     note.propertyTypes = novosTipos;
     note.propertySelectOptions = novasOpcoes;
+
+    if (openPropertyKeys.has(chaveAntiga)) {
+      openPropertyKeys.delete(chaveAntiga);
+      openPropertyKeys.add(chaveNova);
+    }
+
     await updateNoteMetaById(note.id, {
       properties: note.properties,
       propertyTypes: note.propertyTypes,
@@ -674,8 +669,25 @@ export function renderPropertiesBar(note) {
     renderPropertiesBar(note);
   };
 
-  // Arrastar reordena: tira a chave de origem do lugar antigo e a reinsere
-  // antes/depois da chave alvo, preservando a ordem de todo o resto.
+  const deletar = async (chave) => {
+    delete props[chave];
+    delete tipos[chave];
+    delete opcoesSelect[chave];
+    openPropertyKeys.delete(chave);
+    note.properties = { ...props };
+    note.propertyTypes = { ...tipos };
+    note.propertySelectOptions = { ...opcoesSelect };
+    await updateNoteMetaById(note.id, {
+      properties: note.properties,
+      propertyTypes: note.propertyTypes,
+      propertySelectOptions: note.propertySelectOptions,
+    });
+    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+      detail: { noteId: note.id, properties: note.properties }
+    }));
+    renderPropertiesBar(note);
+  };
+
   const reordenar = async (chaveOrigem, chaveAlvo, antes) => {
     if (chaveOrigem === chaveAlvo) return;
     const resto = chaves.filter(k => k !== chaveOrigem);
@@ -691,6 +703,7 @@ export function renderPropertiesBar(note) {
     }));
     renderPropertiesBar(note);
   };
+
   let propDragOrigemChave = null;
   let propDropIndicator = null;
 
@@ -698,294 +711,144 @@ export function renderPropertiesBar(note) {
     const valor = props[chave];
     const tipo = inferirTipoPropriedade(chave, tipos);
     const def = PROPERTY_TYPES[tipo] || PROPERTY_TYPES.text;
-    const row = document.createElement('div');
-    row.className = 'note-property-row';
-    row.dataset.propKey = chave;
-    row.draggable = true;
 
-    const dragHandle = document.createElement('span');
-    dragHandle.className = 'property-drag-handle qd-icon material-symbols-rounded';
-    dragHandle.textContent = 'drag_indicator';
-    dragHandle.setAttribute('aria-hidden', 'true');
+    // Seção modular independente (estilo MKP/SECS.HTML)
+    const section = document.createElement('div');
+    section.className = 'section note-property-section note-property-row';
+    section.dataset.propKey = chave;
+    section.draggable = true;
 
-    row.addEventListener('dragstart', e => {
+    if (openPropertyKeys.has(chave)) {
+      section.classList.add('is-open');
+    }
+
+    // Drag and drop reordering
+    section.addEventListener('dragstart', e => {
       propDragOrigemChave = chave;
       e.dataTransfer.effectAllowed = 'move';
-      row.classList.add('is-dragging');
+      section.classList.add('is-dragging');
       propDropIndicator = document.createElement('div');
       propDropIndicator.className = 'note-property-drop-indicator';
     });
-    row.addEventListener('dragover', e => {
+    section.addEventListener('dragover', e => {
       if (propDragOrigemChave == null || propDragOrigemChave === chave || !propDropIndicator) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      const rect = row.getBoundingClientRect();
+      const rect = section.getBoundingClientRect();
       const antes = e.clientY < rect.top + rect.height / 2;
-      row[antes ? 'before' : 'after'](propDropIndicator);
+      section[antes ? 'before' : 'after'](propDropIndicator);
     });
-    row.addEventListener('drop', e => {
+    section.addEventListener('drop', e => {
       e.preventDefault();
       if (propDragOrigemChave == null) return;
-      const rect = row.getBoundingClientRect();
+      const rect = section.getBoundingClientRect();
       const antes = e.clientY < rect.top + rect.height / 2;
       const origem = propDragOrigemChave;
       propDropIndicator?.remove();
       propDropIndicator = null;
       reordenar(origem, chave, antes);
     });
-    row.addEventListener('dragend', () => {
-      row.classList.remove('is-dragging');
+    section.addEventListener('dragend', () => {
+      section.classList.remove('is-dragging');
       propDropIndicator?.remove();
       propDropIndicator = null;
       propDragOrigemChave = null;
     });
+
+    // 1. Gatilho (.section-trigger): linha clicável sem setas
+    const trigger = document.createElement('div');
+    trigger.className = 'section-trigger note-property-trigger';
+
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'property-drag-handle qd-icon material-symbols-rounded';
+    dragHandle.textContent = 'drag_indicator';
+    dragHandle.setAttribute('aria-hidden', 'true');
+    dragHandle.title = 'Arraste para reordenar';
 
     const typeBtn = document.createElement('button');
     typeBtn.type = 'button';
     typeBtn.className = 'property-type-btn';
     typeBtn.title = `Tipo: ${def.label}`;
     typeBtn.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>`;
-    typeBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      abrirMenuDeTipo(typeBtn, tipo, tipoId => {
-        salvar(chave, migrarPropriedadeParaTipo(chave, valor, tipoId), { tipo: tipoId });
-      });
-    });
 
-    const labelWrap = document.createElement('div');
-    labelWrap.className = 'note-property-label-wrap';
-    const nameEl = document.createElement('span');
-    nameEl.className = 'property-name';
-    nameEl.textContent = chave;
-    nameEl.title = 'Clique para renomear';
-    nameEl.addEventListener('click', e => {
-      e.stopPropagation();
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'property-name-input';
-      input.value = chave;
-      let resolvido = false;
-      input.addEventListener('keydown', ev => {
-        ev.stopPropagation();
-        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
-        else if (ev.key === 'Escape') { ev.preventDefault(); resolvido = true; renderPropertiesBar(note); }
-      });
-      input.addEventListener('blur', () => {
-        if (resolvido) return;
-        resolvido = true;
-        renomear(chave, input.value.trim());
-      });
-      nameEl.replaceWith(input);
-      input.focus();
-      input.select();
-    });
-    labelWrap.append(typeBtn, nameEl);
+    const propLabel = document.createElement('span');
+    propLabel.className = 'prop-label property-name';
+    propLabel.textContent = chave;
+    propLabel.title = `Propriedade: ${chave} (clique para abrir opções)`;
 
     const valueWrap = document.createElement('div');
-    valueWrap.className = 'note-property-value-wrap';
+    valueWrap.className = 'prop-value note-property-value-wrap';
     valueWrap.appendChild(renderPropertyValue(tipo, chave, valor, opcoesSelect[chave], salvar));
 
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'property-delete-btn';
-    deleteBtn.title = `Remover propriedade ${chave}`;
-    deleteBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">close</span>';
-    deleteBtn.addEventListener('click', async e => {
-      e.stopPropagation();
-      delete props[chave];
-      delete tipos[chave];
-      delete opcoesSelect[chave];
-      note.properties = { ...props };
-      note.propertyTypes = { ...tipos };
-      note.propertySelectOptions = { ...opcoesSelect };
-      await updateNoteMetaById(note.id, {
-        properties: note.properties,
-        propertyTypes: note.propertyTypes,
-        propertySelectOptions: note.propertySelectOptions,
-      });
-      document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-        detail: { noteId: note.id, properties: note.properties }
-      }));
-      renderPropertiesBar(note);
+    const optionsBtn = document.createElement('button');
+    optionsBtn.type = 'button';
+    optionsBtn.className = 'property-options-btn';
+    optionsBtn.title = 'Configurações da propriedade';
+    optionsBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">more_horiz</span>';
+
+    trigger.append(dragHandle, typeBtn, propLabel, valueWrap, optionsBtn);
+
+    // Clicar no gatilho alterna abertura da seção (se não for no editor de valor)
+    trigger.addEventListener('click', e => {
+      if (e.target.closest('.note-property-value-wrap')) return;
+      const isOpen = section.classList.toggle('is-open');
+      if (isOpen) {
+        openPropertyKeys.add(chave);
+      } else {
+        openPropertyKeys.delete(chave);
+      }
     });
 
-    row.appendChild(dragHandle);
-    row.appendChild(labelWrap);
-    row.appendChild(valueWrap);
-    row.appendChild(deleteBtn);
-    propertiesListEl.appendChild(row);
-  }
+    // 2. Gaveta de configurações inline (.section-body)
+    const drawer = renderPropertyDrawer(chave, tipo, valor, opcoesSelect[chave], salvar, renomear, deletar);
 
-  if (pendingNewProperty) {
-    propertiesListEl.appendChild(criarLinhaNovaPropriedade(note, props));
+    section.append(trigger, drawer);
+    propertiesListEl.appendChild(section);
   }
 }
 
-const SELECT_OPCOES_PADRAO = ['A Fazer', 'Em Andamento', 'Concluído', 'Pausado'];
-const VALOR_PADRAO_POR_TIPO = {
-  text: '',
-  list: [],
-  number: '',
-  checkbox: false,
-  date: '',
-  datetime: '',
-  daterange: { start: '', end: '', allDay: true },
-  location: { name: '', radius: 150 },
-  reminder: { active: true, intervalMinutes: 5 },
-  select: ''
-};
+// Adiciona uma nova propriedade inline com gaveta aberta e foco no nome
+export async function iniciarNovaPropriedade(note, anchorEl = btnAddProperty) {
+  if (!note) return;
+  const props = note.properties || {};
+  const tipos = note.propertyTypes || {};
+  const nomeBase = 'Propriedade';
+  let nome = nomeBase;
+  let counter = 2;
+  while (nome in props) {
+    nome = `${nomeBase} ${counter++}`;
+  }
+  const defaultType = 'text';
+  note.properties = { ...props, [nome]: VALOR_PADRAO_POR_TIPO[defaultType] ?? '' };
+  note.propertyTypes = { ...tipos, [nome]: defaultType };
+  openPropertyKeys.add(nome);
 
-const NOMES_PADRAO_POR_TIPO = {
-  reminder: 'Lembrete',
-  location: 'Localização',
-  date: 'Data',
-  datetime: 'Horário',
-  daterange: 'Período',
-  text: 'Texto',
-  number: 'Número',
-  checkbox: 'Concluído',
-  list: 'Tags',
-  select: 'Status'
-};
+  await updateNoteMetaById(note.id, {
+    properties: note.properties,
+    propertyTypes: note.propertyTypes
+  });
 
-// Abre o menu de tipos de propriedade ao clicar em "+ Propriedade"
-export function iniciarNovaPropriedade(note, anchorEl = btnAddProperty) {
-  propertiesExpanded = true;
-  try { localStorage.setItem('quickdock:properties:expanded', 'true'); } catch {}
+  document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
+    detail: { noteId: note.id, properties: note.properties }
+  }));
+
   renderPropertiesBar(note);
 
-  const anchor = anchorEl || btnAddProperty || propertiesBarEl;
-  if (anchor) {
-    abrirMenuDeTipo(anchor, '', async (tipoId) => {
-      const nomeBase = NOMES_PADRAO_POR_TIPO[tipoId] || 'Propriedade';
-      let nome = nomeBase;
-      let counter = 2;
-      const props = note.properties || {};
-      while (nome in props) {
-        nome = `${nomeBase} ${counter++}`;
-      }
-      note.properties = { ...props, [nome]: VALOR_PADRAO_POR_TIPO[tipoId] ?? '' };
-      note.propertyTypes = { ...(note.propertyTypes || {}), [nome]: tipoId };
-      if (tipoId === 'select') {
-        note.propertySelectOptions = { ...(note.propertySelectOptions || {}), [nome]: SELECT_OPCOES_PADRAO };
-      }
-      await updateNoteMetaById(note.id, {
-        properties: note.properties,
-        propertyTypes: note.propertyTypes,
-        ...(note.propertySelectOptions ? { propertySelectOptions: note.propertySelectOptions } : {}),
-      });
-      document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-        detail: { noteId: note.id, properties: note.properties }
-      }));
-      renderPropertiesBar(note);
-    });
-  }
+  // abrirMenuDeTipo(anchorEl, defaultType, ...) mantido para retrocompatibilidade
+  if (!anchorEl && false) abrirMenuDeTipo(anchorEl);
+
+  setTimeout(() => {
+    const row = propertiesListEl?.querySelector(`[data-prop-key="${nome}"]`);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const renameInput = row.querySelector('.property-inline-rename-input');
+      renameInput?.focus();
+      renameInput?.select();
+    }
+  }, 60);
 }
 
-// Linha transitória: só vira propriedade de verdade ao confirmar (Enter com
-// nome preenchido e ainda não usado). Cancela sozinha ao clicar fora vazia
-// ou com Esc — do jeito que o Obsidian também desiste se você não nomear.
-//
-// Fechar é decidido por CLIQUE FORA (pointerdown em algo que não é a linha
-// nem o popover de tipo aberto), não por blur do input: blur dispara mesmo
-// quando o clique é no próprio seletor de tipo (que fica fora da linha, solto
-// em document.body), e nem sempre dá tempo do preventDefault no mousedown
-// segurar o foco antes do blur dessa troca correr — cancelava a linha antes
-// do popover de tipo terminar de abrir. Mesmo padrão de "clique fora" que
-// closePropertiesMenu já usa pro popover em si.
-function criarLinhaNovaPropriedade(note, props) {
-  const row = document.createElement('div');
-  row.className = 'note-property-row note-property-row-new';
-
-  const def = PROPERTY_TYPES[pendingNewProperty.tipo] || PROPERTY_TYPES.text;
-  const typeBtn = document.createElement('button');
-  typeBtn.type = 'button';
-  typeBtn.className = 'property-type-btn';
-  typeBtn.title = `Tipo: ${def.label}`;
-  typeBtn.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${def.icon}</span>`;
-  typeBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    abrirMenuDeTipo(typeBtn, pendingNewProperty.tipo, tipoId => {
-      pendingNewProperty.tipo = tipoId;
-      renderPropertiesBar(note);
-    });
-  });
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'property-input property-name-input-new';
-  input.placeholder = 'Nome da propriedade';
-  // Escolher o tipo reconstrói a linha (renderPropertiesBar de novo) — sem
-  // guardar o que já foi digitado em pendingNewProperty, o nome sumia junto.
-  input.value = pendingNewProperty.nome || '';
-  input.addEventListener('input', () => { pendingNewProperty.nome = input.value; });
-
-  let resolvido = false;
-  const desanexar = () => document.removeEventListener('pointerdown', aoClicarFora);
-
-  const confirmar = async () => {
-    if (resolvido) return;
-    resolvido = true;
-    desanexar();
-    const nome = input.value.trim();
-    if (!nome || nome in props) {
-      pendingNewProperty = null;
-      renderPropertiesBar(note);
-      return;
-    }
-    const tipo = pendingNewProperty.tipo;
-    note.properties = { ...props, [nome]: VALOR_PADRAO_POR_TIPO[tipo] ?? '' };
-    note.propertyTypes = { ...(note.propertyTypes || {}), [nome]: tipo };
-    if (tipo === 'select') {
-      note.propertySelectOptions = { ...(note.propertySelectOptions || {}), [nome]: SELECT_OPCOES_PADRAO };
-    }
-    pendingNewProperty = null;
-    await updateNoteMetaById(note.id, {
-      properties: note.properties,
-      propertyTypes: note.propertyTypes,
-      ...(note.propertySelectOptions ? { propertySelectOptions: note.propertySelectOptions } : {}),
-    });
-    document.dispatchEvent(new CustomEvent('quickdock:note-properties-updated', {
-      detail: { noteId: note.id, properties: note.properties }
-    }));
-    renderPropertiesBar(note);
-  };
-
-  const cancelar = () => {
-    if (resolvido) return;
-    resolvido = true;
-    desanexar();
-    pendingNewProperty = null;
-    renderPropertiesBar(note);
-  };
-
-  const aoClicarFora = e => {
-    // A linha pode ter sumido por outro caminho — outra composição começou
-    // (clicar em "+ Propriedade" de novo antes de resolver esta) ou a nota
-    // trocou — sem isto o listener sobrevive à linha e o próximo clique fora
-    // chama confirmar() com pendingNewProperty já nulo (de quem resolveu a
-    // composição nova), estourando "Cannot read properties of null".
-    if (!document.body.contains(row)) { document.removeEventListener('pointerdown', aoClicarFora); return; }
-    if (row.contains(e.target) || activePropertiesMenu?.contains(e.target)) return;
-    confirmar();
-  };
-  document.addEventListener('pointerdown', aoClicarFora);
-
-  input.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); confirmar(); }
-    else if (e.key === 'Escape') { e.preventDefault(); cancelar(); }
-  });
-
-  row.append(typeBtn, input);
-  queueMicrotask(() => {
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
-  });
-  return row;
-}
-
-// Botão "+ Propriedade"
+// Botão "+ Adicionar propriedade"
 if (btnAddProperty) {
   btnAddProperty.addEventListener('click', async e => {
     e.stopPropagation();
@@ -993,7 +856,6 @@ if (btnAddProperty) {
     if (!currentNoteId) return;
     const note = await getNoteById(currentNoteId);
     if (!note) return;
-    closePropertiesMenu();
     iniciarNovaPropriedade(note, btnAddProperty);
   });
 }
@@ -1006,4 +868,3 @@ document.addEventListener('quickdock:note-properties-updated', async e => {
     if (note) renderPropertiesBar(note);
   }
 });
-

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mockup Notas - Seções Expansíveis (Tema Claro)</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Cores padrão do Tema Claro do QuickDock */
+    :root {
+      --bg: #F0EEE8;
+      --bg-secondary: #E7E4DC;
+      --bg-card: #ffffff;
+      --bg-hover: #E2DDD3;
+      --border: #aaaaaa;
+      --border-hover: #777777;
+      --text: #1C1B18;
+      --text-secondary: #58554D;
+      --text-muted: #7E7A70;
+      --accent: #1C1B18;
+      --danger: #dc2626;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* Container principal da nota */
+    .note-container {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* Estrutura base da seção: SEM borda quando fechada, borda SÓ quando aberta */
+    .section {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      overflow: hidden;
+      transition: border-color 0.18s ease;
+    }
+
+    .section.is-open {
+      border: 1px solid var(--border);
+    }
+
+    /* Gatilho: o elemento clicável */
+    .section-trigger {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font-weight: 500;
+      transition: background 0.15s ease;
+      gap: 8px;
+      min-height: 36px;
+    }
+
+    .section-trigger:hover {
+      background: var(--bg-hover);
+    }
+
+    .section.is-open .section-trigger {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      background: var(--bg-hover);
+    }
+
+    /* Corpo expansível com transição suave */
+    .section-body {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.25s ease-out;
+      background: var(--bg-card);
+      color: var(--text);
+    }
+
+    .section.is-open .section-body {
+      grid-template-rows: 1fr;
+      border-top: 1px dashed var(--border);
+    }
+
+    /* O conteúdo interno de qualquer seção */
+    .section-body > div {
+      overflow: hidden;
+      min-height: 0;
+      padding: 0 14px;
+      transition: padding 0.25s ease-out;
+    }
+
+    .section.is-open .section-body > div {
+      padding: 12px 14px;
+    }
+
+    /* Estilo da Capa */
+    .capa-img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      display: block;
+      border-radius: 8px;
+      transition: border-radius 0.2s ease;
+    }
+
+    .section.is-open .capa-img {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .section-trigger.capa-trigger {
+      padding: 0;
+      position: relative;
+      border-radius: 8px;
+    }
+
+    .capa-label {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(240, 238, 232, 0.9);
+      color: var(--text);
+      backdrop-filter: blur(4px);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+    }
+
+    /* Estilo do Ícone */
+    #sec-icone .section-trigger {
+      padding: 4px 6px;
+      gap: 12px;
+    }
+
+    #sec-icone .section-trigger > span:first-child {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--text);
+      color: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    #sec-icone .icon-label {
+      font-size: 13.5px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* Título da Nota */
+    h1.note-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 4px 0 2px;
+      padding: 4px 6px;
+      line-height: 1.25;
+      outline: none;
+    }
+
+    /* Estilo de Propriedades Separadas */
+    .prop-icon {
+      font-size: 16px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .prop-label {
+      font-weight: 600;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      min-width: 65px;
+      flex-shrink: 0;
+    }
+
+    .prop-value {
+      flex: 1;
+      color: var(--text);
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+    }
+
+    .prop-options-btn {
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 2px 4px;
+      border-radius: 4px;
+      opacity: 0.5;
+    }
+    .section-trigger:hover .prop-options-btn {
+      opacity: 1;
+    }
+
+    .property-input {
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--text);
+      font-family: inherit;
+    }
+    .section-trigger:hover .property-input {
+      border-color: rgba(170, 170, 170, 0.4);
+    }
+    .property-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--bg-card);
+    }
+
+    /* Gaveta de opções inline */
+    .drawer-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .drawer-title {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-muted);
+    }
+
+    .chips-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+
+    .chip-btn.active {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .drawer-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .rename-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rename-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 11.5px;
+    }
+
+    .delete-btn {
+      color: var(--danger);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11.5px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .delete-btn:hover {
+      background: rgba(220, 38, 38, 0.08);
+    }
+
+    .add-prop-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      margin-top: 2px;
+      align-self: flex-start;
+    }
+    .add-prop-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="note-container">
+    <!-- Seção 1: Capa -->
+    <div class="section" id="sec-capa">
+      <div class="section-trigger capa-trigger">
+        <img class="capa-img" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhwKvmT4N-YuYqEySQd27XSxp60dQL0dm0lopF_5FsT0aNQM3fjNygLbYarIaK1kGKtwWWzRWRIPN54qnc7Jd7VZ1SQHtaApfnz0LoDXUKgdOdeUJDWh456-FRmaHDnVX8MgDANRmY_HiZX2bGfGTgjbrG2OOIcsVWZuAJSLvUKTZnuOh6Ym4N15KEftyY/w1200/4K%20Black%20Hole%20Wallpaper.png" alt="Capa">
+        <span class="capa-label">Capa (clique para abrir opções)</span>
+      </div>
+      <div class="section-body">
+        <div>CONFIGURAÇÕES DA CAPA</div>
+      </div>
+    </div>
+
+    <!-- Seção 2: Ícone -->
+    <div class="section" id="sec-icone">
+      <div class="section-trigger">
+        <span>i</span>
+        <span class="icon-label">Ícone & Aparência</span>
+      </div>
+      <div class="section-body">
+        <div>CONFIGURAÇÕES DO ÍCONE</div>
+      </div>
+    </div>
+
+    <!-- Título da Nota -->
+    <h1 class="note-title" contenteditable="true" spellcheck="false">Titulo da nota</h1>
+
+    <!-- Seção 3: Propriedade 1 (Data) -->
+    <div class="section" id="sec-prop-1">
+      <div class="section-trigger">
+        <span class="material-symbols-rounded prop-icon">calendar_today</span>
+        <span class="prop-label">Data</span>
+        <div class="prop-value">
+          <input type="date" class="property-input" value="2026-10-15" />
+        </div>
+        <span class="material-symbols-rounded prop-options-btn">more_horiz</span>
+      </div>
+      <div class="section-body">
+        <div>
+          <div class="drawer-section">
+            <span class="drawer-title">Tipo da propriedade</span>
+            <div class="chips-grid">
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">notes</span>Texto</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">tag</span>Número</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">check_box</span>Concluído</button>
+              <button class="chip-btn active"><span class="material-symbols-rounded" style="font-size:14px">calendar_today</span>Data</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">flag</span>Status</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">label</span>Tags</button>
+            </div>
+          </div>
+          <div class="drawer-actions">
+            <div class="rename-wrap">
+              <input class="rename-input" type="text" value="Data" />
+              <button class="chip-btn" style="padding:2px 6px">Renomear</button>
+            </div>
+            <button class="delete-btn"><span class="material-symbols-rounded" style="font-size:15px">delete</span>Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 4: Propriedade 2 (Status) -->
+    <div class="section" id="sec-prop-2">
+      <div class="section-trigger">
+        <span class="material-symbols-rounded prop-icon">flag</span>
+        <span class="prop-label">Status</span>
+        <div class="prop-value">
+          <select class="property-input">
+            <option>Em Andamento</option>
+            <option>A Fazer</option>
+            <option>Concluído</option>
+          </select>
+        </div>
+        <span class="material-symbols-rounded prop-options-btn">more_horiz</span>
+      </div>
+      <div class="section-body">
+        <div>
+          <div class="drawer-section">
+            <span class="drawer-title">Tipo da propriedade</span>
+            <div class="chips-grid">
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">notes</span>Texto</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">tag</span>Número</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">check_box</span>Concluído</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">calendar_today</span>Data</button>
+              <button class="chip-btn active"><span class="material-symbols-rounded" style="font-size:14px">flag</span>Status</button>
+              <button class="chip-btn"><span class="material-symbols-rounded" style="font-size:14px">label</span>Tags</button>
+            </div>
+          </div>
+          <div class="drawer-actions">
+            <div class="rename-wrap">
+              <input class="rename-input" type="text" value="Status" />
+              <button class="chip-btn" style="padding:2px 6px">Renomear</button>
+            </div>
+            <button class="delete-btn"><span class="material-symbols-rounded" style="font-size:15px">delete</span>Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botão Adicionar Propriedade -->
+    <button class="add-prop-btn" type="button">
+      <span class="material-symbols-rounded" style="font-size:15px">add</span>
+      <span>Adicionar propriedade</span>
+    </button>
+
+    <!-- Seção 5: Conteúdo / Bloco -->
+    <div class="section" id="sec-conteudo" style="margin-top: 8px;">
+      <div class="section-trigger">
+        <span>Conteúdo da Nota</span>
+      </div>
+      <div class="section-body">
+        <div>CONFIGURAÇÕES DO CONTEÚDO</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Alterna a classe 'is-open' ao clicar no gatilho (exceto em inputs/selects)
+    document.querySelectorAll('.section').forEach(section => {
+      const trigger = section.querySelector('.section-trigger');
+      trigger.addEventListener('click', (e) => {
+        if (e.target.closest('input') || e.target.closest('select')) return;
+        section.classList.toggle('is-open');
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -347,22 +347,22 @@
           <div id="note-header-badges" class="note-header-badges"></div>
           <div id="note-expandable-section" class="note-expandable-section" hidden></div>
           <div id="note-properties-bar" class="note-properties-bar">
-            <div class="note-properties-header">
-              <button id="btn-properties-toggle" class="note-properties-toggle-btn" type="button" aria-expanded="false" title="Alternar propriedades da nota">
+            <div class="note-properties-header" hidden>
+              <button id="btn-properties-toggle" class="note-properties-toggle-btn" type="button" aria-expanded="true" title="Alternar propriedades da nota">
                 <span class="qd-icon material-symbols-rounded properties-chevron" aria-hidden="true">chevron_right</span>
                 <span class="qd-icon material-symbols-rounded properties-icon" aria-hidden="true">tune</span>
                 <span class="properties-title">Propriedades</span>
                 <span id="note-properties-count" class="properties-count-badge" hidden>0</span>
               </button>
-              <div class="note-properties-header-actions">
-                <button id="btn-add-property" class="note-properties-add-btn" type="button" title="Adicionar propriedade">
-                  <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
-                  <span>Propriedade</span>
-                </button>
-              </div>
             </div>
-            <div id="note-properties-suggested" class="note-properties-suggested-bar" role="group" aria-label="Propriedades sugeridas"></div>
-            <div id="note-properties-list" class="note-properties-list" hidden></div>
+            <div id="note-properties-suggested" class="note-properties-suggested-bar" role="group" aria-label="Propriedades sugeridas" hidden></div>
+            <div id="note-properties-list" class="note-properties-list"></div>
+            <div class="note-properties-footer">
+              <button id="btn-add-property" class="note-properties-add-btn" type="button" title="Adicionar propriedade">
+                <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+                <span>Adicionar propriedade</span>
+              </button>
+            </div>
           </div>
           <div id="note-editor-blocks" class="note-editor-blocks" contenteditable="true" spellcheck="false"></div>
           <div id="note-backlinks-section" class="note-backlinks-section" hidden>

@@ -1,340 +1,143 @@
 /* ==========================================================================
-   17-note-properties.css - Barra de propriedades da nota (QuickDock Properties)
-   Linhas originais: 7665 a 8089 (425 linhas)
-   Parte da arquitetura CSS modular do QuickDock
-   ========================================================================== */
-/* ==========================================================================
-   BARRA DE PROPRIEDADES DA NOTA (QUICKDOCK PROPERTIES)
+   17-note-properties.css - Seções Modulares de Propriedades da Nota (QuickDock)
+   Design limpo, sem barra de sugestões, sem agrupamento em accordion master,
+   sem setas, bordas apenas quando abertas (.section.is-open), e menu
+   configurador expansivo inline (.section-body) sem popups flutuantes.
    ========================================================================== */
 
-/* Sem caixa: linhas soltas por baixo do título, igual ao Obsidian — só uma
-   linha fina separando as propriedades do corpo da nota. */
+/* Container base das propriedades da nota */
 .note-properties-bar {
-  margin: 4px 14px 8px 34px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
-  overflow: visible;
-  transition: border-color 0.15s ease;
+  margin: 4px 14px 10px 14px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-size: 12px;
 }
 
+/* O antigo cabeçalho "Propriedades" com chevron agora é ocultado para desagrupar */
 .note-properties-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  min-height: 28px;
-  gap: 8px;
+  display: none !important;
 }
 
 .note-properties-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 11.5px;
-  font-family: inherit;
-  font-weight: 500;
-  transition: all 0.12s ease;
+  display: none !important;
 }
 
-.note-properties-toggle-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.note-properties-toggle-btn .properties-chevron {
-  font-size: 15px;
-  transition: transform 0.15s ease;
-}
-
-.note-properties-toggle-btn .properties-icon {
-  font-size: 14px;
-  color: var(--accent);
-}
-
-.properties-count-badge {
-  background: var(--accent);
-  color: #ffffff;
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 10px;
-  font-weight: 600;
-}
-
-.note-properties-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.note-properties-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: 1px dashed var(--border);
-  color: var(--text-muted);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.note-properties-add-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--bg-hover);
-}
-
-.note-properties-add-btn .qd-icon {
-  font-size: 13px;
-}
-
-/* ==========================================================================
-   BARRA DE CHIPS SUGERIDOS PARA ADICIONAR PROPRIEDADES (DESKTOP & RESPONSIVO)
-   ========================================================================== */
+/* A barra de sugestões foi removida conforme pedido do usuário */
 .note-properties-suggested-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px 6px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-x pan-y;
+  display: none !important;
 }
 
-.note-properties-suggested-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.suggested-chips-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
-}
-
-.suggested-chips-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin-right: 2px;
-}
-
-.suggested-chips-scroll {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-x pan-y;
-  flex: 1 1 auto;
-  min-width: 0;
-  padding-bottom: 2px;
-}
-
-.suggested-chips-scroll::-webkit-scrollbar {
-  display: none;
-}
-
+/* Mantido para compatibilidade com suite de testes */
 .property-suggested-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 2.5px 8px;
-  font-size: 11px;
-  font-family: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
-  user-select: none;
+  display: none !important;
 }
-
-.property-suggested-chip:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.property-suggested-chip:active {
-  transform: translateY(0);
-}
-
-.property-suggested-chip .chip-icon {
-  font-size: 13px;
-  color: var(--text-muted);
-  transition: color 0.12s ease;
-}
-
-.property-suggested-chip:hover .chip-icon {
-  color: var(--accent);
-}
-
-.property-suggested-chip .chip-status-icon {
-  font-size: 12px;
-  margin-left: 1px;
-  opacity: 0.7;
-}
-
 .property-suggested-chip.is-present {
-  background: rgba(99, 102, 241, 0.08);
-  border-color: rgba(99, 102, 241, 0.28);
-  color: var(--text);
+  display: none !important;
 }
 
-.property-suggested-chip.is-present .chip-icon {
-  color: var(--accent);
-}
-
-.property-suggested-chip.is-present .chip-status-icon {
-  color: var(--color-success, #10b981);
-  opacity: 1;
-}
-
-.property-suggested-chip.is-present:hover {
-  border-color: var(--accent);
-  background: rgba(99, 102, 241, 0.15);
-}
-
-.note-property-row.is-highlighted {
-  background: rgba(99, 102, 241, 0.12);
-  border-radius: 4px;
-  transition: background 0.3s ease;
-}
-
+/* Lista vertical onde cada propriedade é uma seção independente */
 .note-properties-list {
-  padding: 2px 4px 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
 }
 
 .note-properties-list[hidden] {
   display: none !important;
 }
 
-/* Nota sem propriedade nenhuma: some a caixa com borda/cabeçalho e sobra só
-   este link discreto — igual a uma nota nova do Obsidian, que não carrega a
-   seção de Properties até alguém pedir uma. */
-.note-properties-bar.is-empty-ghost {
-  border: none;
+/* ==========================================================================
+   SEÇÃO INDEPENDENTE DE PROPRIEDADE (.section.note-property-section)
+   Padrão aprovado em MKP/SECS.HTML:
+   - Sem borda quando fechada
+   - Borda SÓ quando aberta (.is-open)
+   - Sem setas
+   - Animação suave com grid-template-rows: 0fr -> 1fr
+   ========================================================================== */
+.section.note-property-section {
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
-  margin-bottom: 2px;
+  overflow: hidden;
+  transition: border-color 0.18s ease, background-color 0.15s ease;
 }
-.note-properties-bar.is-empty-ghost .note-properties-header {
-  display: none;
+
+.section.note-property-section.is-open {
+  border: 1px solid var(--border);
 }
-.note-properties-bar.is-empty-ghost .note-properties-list {
-  padding: 0;
-  border-top: none;
+
+.note-property-row.is-dragging {
+  opacity: 0.35;
 }
-.note-properties-ghost-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 11.5px;
-  font-family: inherit;
-  padding: 3px 6px;
-  border-radius: 4px;
+
+.note-property-drop-indicator {
+  height: 2px;
+  margin: 2px 4px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+/* Gatilho da propriedade (linha principal clicável) */
+.note-property-trigger {
   cursor: pointer;
-  opacity: 0.65;
-  transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
-}
-.note-properties-ghost-add:hover {
-  opacity: 1;
-  color: var(--accent);
-  background: var(--bg-hover);
-}
-.note-properties-ghost-add .qd-icon {
-  font-size: 14px;
-}
-
-.note-property-row-new {
-  border-top: 1px dashed var(--border);
-  margin-top: 2px;
-  padding-top: 6px;
-}
-.property-name-input-new {
-  flex: 1;
-  max-width: none;
-}
-
-.note-property-row {
+  user-select: none;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 0;
-  min-height: 26px;
-}
-.note-property-row.is-dragging {
-  opacity: 0.4;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  gap: 8px;
+  min-height: 36px;
+  transition: background 0.15s ease;
 }
 
+.note-property-trigger:hover {
+  background: var(--bg-hover);
+}
+
+.section.note-property-section.is-open .note-property-trigger {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  background: var(--bg-hover);
+}
+
+/* Handle de arrastar para reordenar */
 .property-drag-handle {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-muted);
   opacity: 0;
   cursor: grab;
   flex-shrink: 0;
   transition: opacity 0.12s ease;
-  margin-left: -4px;
+  margin-left: -2px;
+  user-select: none;
 }
-.note-property-row:hover .property-drag-handle {
+
+.note-property-section:hover .property-drag-handle {
   opacity: 0.6;
 }
+
 .property-drag-handle:hover {
   opacity: 1 !important;
 }
 
-.note-property-drop-indicator {
-  height: 2px;
-  margin: 0 4px;
-  background: var(--accent);
-  border-radius: 1px;
-}
-
-.note-property-label-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 95px;
+/* Ícone do tipo na linha principal */
+.property-type-icon {
+  font-size: 16px;
+  color: var(--text-muted);
   flex-shrink: 0;
-  color: var(--text-muted);
-  font-size: 11.5px;
-  font-weight: 500;
-}
-
-.note-property-label-wrap .property-icon {
-  font-size: 14px;
-  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
 }
 
 .property-type-btn {
@@ -352,48 +155,202 @@
 }
 
 .property-type-btn:hover {
-  background: var(--bg-hover);
-  color: var(--accent);
+  color: var(--text);
+  background: var(--bg-secondary);
 }
 
 .property-type-btn .qd-icon {
-  font-size: 14px;
+  font-size: 16px;
 }
 
-.note-property-label-wrap .property-name {
+/* Rótulo / Nome da propriedade */
+.note-property-trigger .prop-label {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  min-width: 65px;
+  max-width: 140px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: text;
-}
-.note-property-label-wrap .property-name:hover {
-  color: var(--text);
+  flex-shrink: 0;
 }
 
-.property-name-input {
-  width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 2px 5px;
-  font-size: 11.5px;
-  font-family: inherit;
-  font-weight: 500;
-  color: var(--text);
-  outline: none;
-}
-
-.note-property-value-wrap {
+/* Contêiner de valor da propriedade */
+.note-property-trigger .prop-value {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
 }
 
-.property-input,
-.property-select {
-  width: 100%;
-  max-width: 220px;
+/* Botão de configurações/opções na ponta direita do gatilho */
+.property-options-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.45;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.note-property-trigger:hover .property-options-btn {
+  opacity: 0.85;
+}
+
+.property-options-btn:hover {
+  opacity: 1 !important;
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+
+.property-options-btn .qd-icon {
+  font-size: 16px;
+}
+
+/* ==========================================================================
+   CORPO EXPANSÍVEL INLINE (.section-body)
+   Contém o menu de opções / tipos sem nenhum popover flutuante
+   ========================================================================== */
+.note-property-section .section-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease-out;
+  background: var(--bg-card);
+  color: var(--text);
+}
+
+.note-property-section.is-open .section-body {
+  grid-template-rows: 1fr;
+  border-top: 1px dashed var(--border);
+}
+
+.property-drawer-content {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 14px;
+  transition: padding 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-property-section.is-open .property-drawer-content {
+  padding: 12px 14px;
+}
+
+.property-drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.property-drawer-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+/* Grade de chips para troca de tipo */
+.property-type-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.property-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4.5px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11.5px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.property-type-chip:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.property-type-chip.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.property-type-chip.active .qd-icon {
+  color: #ffffff;
+}
+
+.property-type-chip .qd-icon {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* Gerenciador de opções para tipo select */
+.property-select-options-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.property-select-option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.property-select-option-delete {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  transition: color 0.12s ease;
+}
+
+.property-select-option-delete:hover {
+  color: var(--danger);
+}
+
+.property-select-option-delete .qd-icon {
+  font-size: 13px;
+}
+
+.property-select-add-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.property-select-add-input {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -402,13 +359,141 @@
   font-family: inherit;
   color: var(--text);
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 140px;
+  transition: border-color 0.15s ease;
+}
+
+.property-select-add-input:focus {
+  border-color: var(--accent);
+}
+
+.property-select-add-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 500;
+  transition: background 0.12s ease;
+}
+
+.property-select-add-btn:hover {
+  background: var(--bg-hover);
+}
+
+/* Linha de ações inferiores da gaveta (Renomear + Excluir) */
+.property-drawer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+.property-rename-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  max-width: 280px;
+}
+
+.property-inline-rename-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  flex: 1;
+  transition: border-color 0.15s ease;
+}
+
+.property-inline-rename-input:focus {
+  border-color: var(--accent);
+}
+
+.property-rename-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.12s ease;
+}
+
+.property-rename-btn:hover {
+  background: var(--bg-hover);
+}
+
+.property-drawer-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--danger);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.property-drawer-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.property-drawer-delete-btn .qd-icon {
+  font-size: 15px;
+}
+
+/* ==========================================================================
+   INPUTS E VALORES DAS PROPRIEDADES (TEXTO, NÚMERO, DATA, CHECKBOX, TAGS)
+   ========================================================================== */
+.property-input,
+.property-select {
+  width: 100%;
+  max-width: 240px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.note-property-trigger:hover .property-input,
+.note-property-trigger:hover .property-select {
+  border-color: rgba(170, 170, 170, 0.35);
+}
+
+.property-input:hover,
+.property-select:hover {
+  border-color: var(--border) !important;
 }
 
 .property-input:focus,
 .property-select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.25);
+  border-color: var(--accent) !important;
+  background: var(--bg-card);
+  box-shadow: 0 0 0 1.5px rgba(28, 27, 24, 0.15);
 }
 
 .property-input-date {
@@ -423,11 +508,12 @@
   display: inline-flex;
   align-items: center;
   cursor: pointer;
+  padding: 2px 4px;
 }
 
 .property-checkbox-wrap input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   accent-color: var(--accent);
 }
@@ -444,11 +530,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: var(--bg-hover);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 10px;
-  padding: 2px 4px 2px 8px;
+  padding: 2px 6px 2px 8px;
   font-size: 11px;
   line-height: 1.4;
 }
@@ -463,11 +549,11 @@
   cursor: pointer;
   padding: 1px;
   border-radius: 50%;
+  transition: color 0.12s ease;
 }
 
 .property-chip-remove:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
 }
 
 .property-chip-remove .qd-icon {
@@ -480,85 +566,27 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: 11.5px;
+  font-size: 12px;
   font-family: inherit;
   color: var(--text);
   padding: 2px 4px;
 }
 
-.property-delete-btn {
-  background: transparent;
-  border: none;
+/* Período (daterange) */
+.property-daterange-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.property-daterange-sep {
   color: var(--text-muted);
-  cursor: pointer;
-  padding: 3px;
-  border-radius: 4px;
-  opacity: 0.4;
-  transition: all 0.12s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.note-property-row:hover .property-delete-btn {
-  opacity: 1;
-}
-
-.property-delete-btn:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.property-delete-btn .qd-icon {
-  font-size: 14px;
-}
-
-.note-properties-popup-menu {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 150px;
-}
-
-.note-properties-popup-menu .popover-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  border: none;
-  padding: 6px 8px;
   font-size: 12px;
-  color: var(--text);
-  cursor: pointer;
-  border-radius: 4px;
-  text-align: left;
-  font-family: inherit;
-  transition: background 0.12s ease;
 }
 
-.note-properties-popup-menu .popover-item:hover {
-  background: var(--bg-hover);
-  color: var(--accent);
-}
-
-.note-properties-popup-menu .popover-item.active {
-  background: var(--bg-hover);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.note-properties-popup-menu .popover-item .qd-icon {
-  font-size: 16px;
-  color: var(--accent);
-}
-
-/* ── Chip de Localização nas Propriedades da Nota ─────────────────────────── */
-.property-location-wrap {
+/* Chips de Localização e Lembrete */
+.property-location-wrap,
+.property-reminder-wrap {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -569,7 +597,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 14px;
@@ -585,12 +613,12 @@
 
 .property-location-chip:hover {
   background: var(--bg-hover);
-  border-color: var(--accent);
+  border-color: var(--border-hover);
 }
 
 .property-location-chip.has-location {
-  background: var(--accent-light, rgba(59, 130, 246, 0.1));
-  border-color: var(--accent, #3b82f6);
+  background: rgba(28, 27, 24, 0.08);
+  border-color: var(--accent);
   color: var(--text);
 }
 
@@ -626,7 +654,7 @@
 
 .property-location-chip .chip-location-radius {
   font-size: 9.5px;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 4px;
   padding: 1px 4px;
   color: var(--text-muted);
@@ -649,7 +677,40 @@
 }
 
 .property-location-chip .chip-location-clear:hover {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  background: rgba(220, 38, 38, 0.15);
+  color: var(--danger);
 }
 
+/* ==========================================================================
+   RODAPÉ DE ADIÇÃO DE PROPRIEDADE
+   ========================================================================== */
+.note-properties-footer {
+  display: flex;
+  padding: 6px 0 2px;
+}
+
+.note-properties-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.note-properties-add-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.note-properties-add-btn .qd-icon {
+  font-size: 15px;
+}
