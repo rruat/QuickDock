@@ -49,7 +49,6 @@ export function closeNoteSection() {
   document.getElementById('btn-note-header-reminder')?.classList.remove('section-active');
   document.getElementById('btn-note-header-location')?.classList.remove('section-active');
   document.getElementById('btn-note-header-icon')?.classList.remove('section-active');
-  document.getElementById('btn-note-header-color')?.classList.remove('section-active');
   document.getElementById('btn-note-appearance-mobile')?.classList.remove('section-active');
   document.getElementById('btn-note-cover')?.classList.remove('section-active');
 }
@@ -86,7 +85,6 @@ export function openNoteSection(type, note, onSaved) {
   } else if (type === 'appearance') {
     renderAppearanceSection(container, note, onSaved, closeNoteSection);
     document.getElementById('btn-note-header-icon')?.classList.add('section-active');
-    document.getElementById('btn-note-header-color')?.classList.add('section-active');
     document.getElementById('btn-note-appearance-mobile')?.classList.add('section-active');
     document.getElementById('btn-note-cover')?.classList.add('section-active');
   }

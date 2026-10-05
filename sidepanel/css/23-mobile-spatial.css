@@ -933,7 +933,6 @@
   .note-header-outline-btn,
   #btn-note-header-reminder,
   #btn-note-header-location,
-  #btn-note-header-color,
   html[data-platform="mobile"] #btn-note-print,
   html[data-platform="mobile"] .note-header-print-btn,
   html[data-platform="mobile"] #btn-note-cover,
@@ -941,8 +940,7 @@
   html[data-platform="mobile"] #btn-note-outline-toggle-desktop,
   html[data-platform="mobile"] .note-header-outline-btn,
   html[data-platform="mobile"] #btn-note-header-reminder,
-  html[data-platform="mobile"] #btn-note-header-location,
-  html[data-platform="mobile"] #btn-note-header-color {
+  html[data-platform="mobile"] #btn-note-header-location {
     display: none !important;
   }
 

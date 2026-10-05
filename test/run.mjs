@@ -3734,20 +3734,18 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   // 24.5: index.html — estrutura do cabeçalho da nota
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
-  ok('cabeçalho · index.html define note-header-bar com ícone, título editável e cor',
+  ok('cabeçalho · index.html define note-header-bar com ícone e título editável',
     sidepanelHtmlSource.includes('id="note-header-bar"') &&
     sidepanelHtmlSource.includes('id="btn-note-header-icon"') &&
     sidepanelHtmlSource.includes('id="note-header-title"') &&
-    sidepanelHtmlSource.includes('contenteditable="true"') &&
-    sidepanelHtmlSource.includes('id="btn-note-header-color"'));
+    sidepanelHtmlSource.includes('contenteditable="true"'));
 
   // 24.6: style.css — estiliza cabeçalho e os novos tipos de campo
   const sidepanelStyleSource = await readCssWithImports(new URL('../sidepanel/style.css', import.meta.url));
-  ok('cabeçalho · style.css estiliza note-header-bar/título/ícone/cor',
+  ok('cabeçalho · style.css estiliza note-header-bar/título/ícone',
     sidepanelStyleSource.includes('.note-header-bar') &&
     sidepanelStyleSource.includes('.note-header-title') &&
-    sidepanelStyleSource.includes(':empty::before') &&
-    sidepanelStyleSource.includes('.note-header-color-dot'));
+    sidepanelStyleSource.includes(':empty::before'));
   ok('propriedades · style.css estiliza botão de tipo e chips de lista',
     sidepanelStyleSource.includes('.property-type-btn') &&
     sidepanelStyleSource.includes('.property-chip-list') &&
