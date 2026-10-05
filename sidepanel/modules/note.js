@@ -188,6 +188,13 @@ const ANCORA = '​';
 export function createBlockEl(type, innerHTML = '', checked = false, rows = null, config = '') {
   let el;
 
+  if (typeof innerHTML === 'string' && (innerHTML.includes('print-select-handle') || innerHTML.includes('print-checkbox-indicator'))) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = innerHTML;
+    tmp.querySelectorAll('.print-select-handle, .print-checkbox-indicator').forEach(n => n.remove());
+    innerHTML = tmp.innerHTML;
+  }
+
   // "quote" deixou de ser um tipo e virou decoração. Um registro antigo que
   // escape da normalização ainda chega aqui — vira parágrafo citado, que é a
   // forma nova do mesmo conteúdo.
@@ -857,6 +864,7 @@ function sanitizeForSave(html, keepBreaks = false) {
     else if (mQuote && mQuote[2]) extra = mQuote[2];
     if (extra) el.after(document.createTextNode(extra));
   });
+  div.querySelectorAll('.print-select-handle, .print-checkbox-indicator, .note-print-gutter').forEach(el => el.remove());
   div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());
   div.querySelectorAll('.md-syntax-fence').forEach(el => el.remove());
   div.querySelectorAll('.code-block-header').forEach(el => el.remove());
@@ -932,7 +940,15 @@ export function serializeBlockEl(block) {
     b.config = block.dataset.config ?? '';
     return b;
   }
-  b.html = sanitizeForSave(getContentEl(block).innerHTML, type === 'code');
+  const contentEl = getContentEl(block);
+  let rawHtml = contentEl.innerHTML;
+  if (rawHtml.includes('print-select-handle') || rawHtml.includes('print-checkbox-indicator')) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = rawHtml;
+    tmp.querySelectorAll('.print-select-handle, .print-checkbox-indicator, .note-print-gutter').forEach(n => n.remove());
+    rawHtml = tmp.innerHTML;
+  }
+  b.html = sanitizeForSave(rawHtml, type === 'code');
   if (type === 'checklist') b.checked = block.dataset.checked === 'true';
   return b;
 }
@@ -981,7 +997,7 @@ export async function blocksToExportMarkdown(blocks) {
 export function clearTemplateEditing() { editingTemplate = null; }
 
 export function scheduleSave() {
-  if (editingTemplate) return;
+  if (editingTemplate || document.body.classList.contains('is-print-mode')) return;
   scheduleOutlineUpdate();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 800);
@@ -991,7 +1007,7 @@ export async function flushSave() {
   clearTimeout(saveTimer);
   saveTimer = null;
   flushRescan();
-  if (editingTemplate || currentNoteId == null) return;
+  if (editingTemplate || currentNoteId == null || document.body.classList.contains('is-print-mode')) return;
   const blocks = serializeBlocks();
   // Markdown completo (não só texto simples) — é o que permite recuperar
   // negrito/itálico/etc. se a nota precisar ser reconstruída a partir desse
@@ -1017,6 +1033,12 @@ export async function flushSave() {
   // quem escuta só faz trabalho de verdade se estiver com o painel aberto.
   document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
 }
+
+document.addEventListener('quickdock:flush-pending-save', () => {
+  if (saveTimer) {
+    flushSave();
+  }
+});
 
 export function getCurrentNoteId() {
   return currentNoteId;

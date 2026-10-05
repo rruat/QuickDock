@@ -130,41 +130,47 @@
 }
 
 /* ── Estilo de Seleção Interativa de Blocos (Estilo WhatsApp) ─────────────── */
+body.is-print-mode .note-cover {
+  margin-left: 54px !important;
+  width: calc(100% - 78px) !important;
+}
+
+body.is-print-mode .note-header-bar,
+body.is-print-mode .note-properties-bar,
+body.is-print-mode .note-backlinks-section {
+  padding-left: 54px !important;
+}
+
 body.is-print-mode .note-editor-blocks {
-  padding-left: 48px !important;
+  padding-left: 54px !important;
 }
 
-body.is-print-mode .print-selectable-item {
-  position: relative !important;
-  cursor: pointer !important;
-  user-select: none !important;
-  transition: opacity 0.2s ease, filter 0.2s ease;
+/* Calha de checkboxes independente (Estilo WhatsApp) */
+.note-print-gutter {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  z-index: 100;
 }
 
-body.is-print-mode .print-selectable-item:hover {
-  outline: 1px dashed var(--accent, #6366f1);
-  outline-offset: 3px;
-  border-radius: var(--radius-sm);
-}
-
-body.is-print-mode .print-selectable-item.print-excluded {
-  opacity: 0.28 !important;
-  filter: grayscale(0.7) !important;
-}
-
-body.is-print-mode .print-selectable-item.print-excluded:hover {
-  opacity: 0.55 !important;
-}
-
-/* Alça / Checkbox estilo WhatsApp */
+/* Alça / Checkbox estilo WhatsApp na calha */
 .print-select-handle {
+  position: absolute;
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
   cursor: pointer !important;
   user-select: none !important;
-  vertical-align: middle !important;
-  z-index: 10 !important;
+  pointer-events: auto !important;
+  z-index: 101 !important;
+  transition: transform 0.15s ease;
+}
+
+.print-select-handle:hover,
+.print-select-handle.print-hover {
+  transform: scale(1.08);
 }
 
 .print-checkbox-indicator {
@@ -183,14 +189,16 @@ body.is-print-mode .print-selectable-item.print-excluded:hover {
   background: #22c55e;
   border: 2px solid #22c55e;
   color: #ffffff;
-  transform: scale(1);
 }
 
 .print-select-handle.is-unchecked .print-checkbox-indicator {
   background: var(--bg-card);
   border: 2px solid var(--border);
   color: transparent;
-  transform: scale(0.92);
+}
+
+.print-select-handle.is-unchecked .print-checkbox-indicator .qd-icon {
+  visibility: hidden;
 }
 
 .print-checkbox-indicator .qd-icon {
@@ -200,7 +208,7 @@ body.is-print-mode .print-selectable-item.print-excluded:hover {
 }
 
 .print-handle-badge {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -211,38 +219,28 @@ body.is-print-mode .print-selectable-item.print-excluded:hover {
   color: var(--text-muted);
 }
 
-/* Posicionamento da alça no bloco de conteúdo */
-body.is-print-mode .note-editor-blocks .block .print-select-handle {
-  position: absolute;
-  left: -36px;
-  top: 3px;
+body.is-print-mode .print-selectable-item {
+  position: relative !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: opacity 0.2s ease, filter 0.2s ease, background-color 0.15s ease;
+  border-radius: var(--radius-sm);
 }
 
-/* Posicionamento da alça na capa */
-.note-cover .print-select-handle {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 15;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(4px);
-  padding: 4px 10px;
-  border-radius: 20px;
-  color: #ffffff;
+body.is-print-mode .print-selectable-item:hover,
+body.is-print-mode .print-selectable-item.print-hover {
+  outline: 1px dashed var(--accent, #6366f1);
+  outline-offset: 3px;
 }
 
-.note-cover .print-select-handle .print-handle-badge {
-  background: transparent;
-  border: none;
-  color: #ffffff;
+body.is-print-mode .print-selectable-item.print-excluded {
+  opacity: 0.28 !important;
+  filter: grayscale(0.7) !important;
 }
 
-/* Posicionamento da alça no título e propriedades */
-.note-header-bar .print-select-handle,
-.note-properties-bar .print-select-handle,
-.note-backlinks-section .print-select-handle {
-  margin-right: 8px;
-  flex-shrink: 0;
+body.is-print-mode .print-selectable-item.print-excluded:hover,
+body.is-print-mode .print-selectable-item.print-excluded.print-hover {
+  opacity: 0.55 !important;
 }
 
 /* ── Saída em papel: só a nota aberta, em tema claro ─────────────────────── */
@@ -252,9 +250,27 @@ body.is-print-mode .note-editor-blocks .block .print-select-handle {
   .print-excluded,
   [data-print-selected="false"],
   .print-select-handle,
+  .note-print-gutter,
+  #note-print-gutter,
   #note-print-toolbar,
   .note-print-toolbar {
     display: none !important;
+  }
+
+  body.is-print-mode .note-cover {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: calc(100% - 28px) !important;
+  }
+
+  body.is-print-mode .note-header-bar,
+  body.is-print-mode .note-properties-bar,
+  body.is-print-mode .note-backlinks-section {
+    padding-left: 0 !important;
+  }
+
+  body.is-print-mode .note-editor-blocks {
+    padding-left: 0 !important;
   }
 
   html,

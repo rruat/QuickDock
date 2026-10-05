@@ -23,7 +23,8 @@ function applyPageStyle() {
 let isPrintMode = false;
 let printBtn = null;
 let toolbarEl = null;
-let savedEditable = null;
+let gutterEl = null;
+let savedEditables = [];
 let trackedItems = [];
 
 export function isPrintModeActive() {
@@ -109,7 +110,7 @@ function createHandle(label = '') {
   handle.setAttribute('role', 'checkbox');
   handle.setAttribute('aria-checked', 'true');
   handle.setAttribute('tabindex', '0');
-  handle.title = 'Clique para incluir ou excluir da impressão';
+  handle.title = 'Clique para alternar inclusão na impressão';
   handle.innerHTML = `
     <span class="print-checkbox-indicator">
       <span class="qd-icon material-symbols-rounded">check</span>
@@ -119,6 +120,72 @@ function createHandle(label = '') {
   return handle;
 }
 
+function setupItem(itemObj) {
+  const { el, handle } = itemObj;
+  setItemState(itemObj, true);
+  el.classList.add('print-selectable-item');
+
+  handle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleItem(itemObj);
+  });
+
+  el.addEventListener('click', el._printClickHandler = (e) => {
+    if (!isPrintMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleItem(itemObj);
+  });
+
+  handle.addEventListener('mouseenter', () => el.classList.add('print-hover'));
+  handle.addEventListener('mouseleave', () => el.classList.remove('print-hover'));
+  el.addEventListener('mouseenter', () => handle.classList.add('print-hover'));
+  el.addEventListener('mouseleave', () => handle.classList.remove('print-hover'));
+}
+
+export function positionGutter() {
+  if (!isPrintMode || !gutterEl) return;
+  const editorContainer = document.querySelector('.note-editor');
+  if (!editorContainer) return;
+
+  const editorRect = editorContainer.getBoundingClientRect();
+  const blocksContainer = document.getElementById('note-editor-blocks');
+  const blocksRect = blocksContainer ? blocksContainer.getBoundingClientRect() : editorRect;
+
+  // X fixo e IDÊNTICO para todos os checkboxes (estilo WhatsApp)
+  // Alinhado no canal da margem esquerda da coluna de conteúdo
+  const gutterX = Math.max(14, Math.round(blocksRect.left - editorRect.left + editorContainer.scrollLeft + 16));
+
+  trackedItems.forEach(item => {
+    const el = item.el;
+    if (!el || !el.isConnected) return;
+    const elRect = el.getBoundingClientRect();
+    let targetTop = elRect.top - editorRect.top + editorContainer.scrollTop;
+
+    if (item.type === 'cover') {
+      targetTop += 16;
+    } else if (item.type === 'header') {
+      const titleEl = document.getElementById('note-header-title');
+      if (titleEl) {
+        targetTop = titleEl.getBoundingClientRect().top - editorRect.top + editorContainer.scrollTop + 6;
+      } else {
+        targetTop += 8;
+      }
+    } else if (item.type === 'properties') {
+      targetTop += 8;
+    } else if (item.type === 'block') {
+      targetTop += 4;
+    } else if (item.type === 'backlinks') {
+      targetTop += 8;
+    }
+
+    item.handle.style.left = `${gutterX}px`;
+    item.handle.style.top = `${Math.round(targetTop)}px`;
+  });
+
+  gutterEl.style.height = `${Math.max(editorContainer.scrollHeight, editorContainer.clientHeight)}px`;
+}
+
 export function enterPrintMode() {
   if (isPrintMode) return;
 
@@ -126,18 +193,24 @@ export function enterPrintMode() {
   window.dispatchEvent(new CustomEvent('quickdock:close-cover-menu'));
   window.dispatchEvent(new CustomEvent('quickdock:close-icon-menu'));
 
+  // Dispara evento para salvar qualquer edição de texto pendente antes de travar o editor
+  document.dispatchEvent(new CustomEvent('quickdock:flush-pending-save'));
+
   isPrintMode = true;
   document.body.classList.add('is-print-mode');
   printBtn?.classList.add('active');
   printBtn?.setAttribute('aria-expanded', 'true');
 
   const editorContainer = document.querySelector('.note-editor');
-  const blocksContainer = document.getElementById('note-editor-blocks');
+  if (!editorContainer) return;
 
-  if (blocksContainer) {
-    savedEditable = blocksContainer.getAttribute('contenteditable');
-    blocksContainer.setAttribute('contenteditable', 'false');
-  }
+  // Trava contenteditable de todos os elementos para não haver edição durante o modo de seleção
+  savedEditables = [];
+  const editables = editorContainer.querySelectorAll('[contenteditable="true"]');
+  editables.forEach(el => {
+    savedEditables.push(el);
+    el.setAttribute('contenteditable', 'false');
+  });
 
   // Cria a barra superior de impressão
   toolbarEl = document.createElement('div');
@@ -178,27 +251,24 @@ export function enterPrintMode() {
     </div>
   `;
 
-  if (editorContainer) {
-    editorContainer.insertBefore(toolbarEl, editorContainer.firstChild);
-  } else {
-    document.body.appendChild(toolbarEl);
-  }
+  editorContainer.insertBefore(toolbarEl, editorContainer.firstChild);
 
-  // Mapeamento dos itens que podem ser impressos
+  // Cria a calha independente de checkboxes (estilo WhatsApp)
+  // Ela é filha direta de .note-editor e NUNCA fica dentro dos blocos, garantindo 0 mutações no texto da nota
+  gutterEl = document.createElement('div');
+  gutterEl.id = 'note-print-gutter';
+  gutterEl.className = 'note-print-gutter';
+  editorContainer.appendChild(gutterEl);
+
   trackedItems = [];
 
   // 1. Capa
   const coverEl = document.querySelector('.note-cover');
   if (coverEl && !coverEl.hidden) {
     const handle = createHandle('Capa');
-    coverEl.appendChild(handle);
+    gutterEl.appendChild(handle);
     const itemObj = { el: coverEl, handle, selected: true, type: 'cover' };
-    setItemState(itemObj, true);
-    coverEl.classList.add('print-selectable-item');
-    handle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleItem(itemObj);
-    });
+    setupItem(itemObj);
     trackedItems.push(itemObj);
   }
 
@@ -206,15 +276,9 @@ export function enterPrintMode() {
   const headerBarEl = document.getElementById('note-header-bar');
   if (headerBarEl) {
     const handle = createHandle('Título');
-    const targetRow = document.getElementById('note-header-title-row') || headerBarEl;
-    targetRow.insertBefore(handle, targetRow.firstChild);
+    gutterEl.appendChild(handle);
     const itemObj = { el: headerBarEl, handle, selected: true, type: 'header' };
-    setItemState(itemObj, true);
-    headerBarEl.classList.add('print-selectable-item');
-    handle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleItem(itemObj);
-    });
+    setupItem(itemObj);
     trackedItems.push(itemObj);
   }
 
@@ -222,14 +286,9 @@ export function enterPrintMode() {
   const propsBarEl = document.getElementById('note-properties-bar');
   if (propsBarEl && !propsBarEl.hidden && propsBarEl.offsetHeight > 0) {
     const handle = createHandle('Propriedades');
-    propsBarEl.insertBefore(handle, propsBarEl.firstChild);
+    gutterEl.appendChild(handle);
     const itemObj = { el: propsBarEl, handle, selected: true, type: 'properties' };
-    setItemState(itemObj, true);
-    propsBarEl.classList.add('print-selectable-item');
-    handle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleItem(itemObj);
-    });
+    setupItem(itemObj);
     trackedItems.push(itemObj);
   }
 
@@ -237,19 +296,9 @@ export function enterPrintMode() {
   const blocks = Array.from(document.querySelectorAll('#note-editor-blocks .block'));
   blocks.forEach((block) => {
     const handle = createHandle();
-    block.insertBefore(handle, block.firstChild);
+    gutterEl.appendChild(handle);
     const itemObj = { el: block, handle, selected: true, type: 'block' };
-    setItemState(itemObj, true);
-    block.classList.add('print-selectable-item');
-
-    // Ao clicar na alça ou no bloco em modo de impressão, alterna a seleção
-    block.addEventListener('click', block._printClickHandler = (e) => {
-      if (!isPrintMode) return;
-      e.preventDefault();
-      e.stopPropagation();
-      toggleItem(itemObj);
-    });
-
+    setupItem(itemObj);
     trackedItems.push(itemObj);
   });
 
@@ -257,18 +306,17 @@ export function enterPrintMode() {
   const backlinksSection = document.querySelector('.note-backlinks-section');
   if (backlinksSection && !backlinksSection.hidden && backlinksSection.offsetHeight > 0) {
     const handle = createHandle('Backlinks');
-    backlinksSection.insertBefore(handle, backlinksSection.firstChild);
+    gutterEl.appendChild(handle);
     const itemObj = { el: backlinksSection, handle, selected: true, type: 'backlinks' };
-    setItemState(itemObj, true);
-    backlinksSection.classList.add('print-selectable-item');
-    handle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleItem(itemObj);
-    });
+    setupItem(itemObj);
     trackedItems.push(itemObj);
   }
 
+  // Posiciona todos os checkboxes na mesma linha vertical
+  positionGutter();
   updateToolbarStatus();
+
+  window.addEventListener('resize', positionGutter);
 
   // Eventos da toolbar
   toolbarEl.addEventListener('click', (e) => {
@@ -307,23 +355,28 @@ export function exitPrintMode() {
   printBtn?.classList.remove('active');
   printBtn?.setAttribute('aria-expanded', 'false');
 
-  const blocksContainer = document.getElementById('note-editor-blocks');
-  if (blocksContainer && savedEditable !== null) {
-    blocksContainer.setAttribute('contenteditable', savedEditable);
-    savedEditable = null;
-  }
+  window.removeEventListener('resize', positionGutter);
 
-  // Remove toolbar
+  // Restaura contenteditable dos elementos travados
+  savedEditables.forEach(el => {
+    if (el.isConnected) el.setAttribute('contenteditable', 'true');
+  });
+  savedEditables = [];
+
+  // Remove toolbar e calha de checkboxes
   if (toolbarEl) {
     toolbarEl.remove();
     toolbarEl = null;
   }
+  if (gutterEl) {
+    gutterEl.remove();
+    gutterEl = null;
+  }
 
-  // Limpa alças e classes de todos os itens rastreados
+  // Limpa classes e event listeners dos itens rastreados
   trackedItems.forEach(item => {
-    item.el.classList.remove('print-selectable-item', 'print-selected', 'print-excluded');
+    item.el.classList.remove('print-selectable-item', 'print-selected', 'print-excluded', 'print-hover');
     item.el.removeAttribute('data-print-selected');
-    if (item.handle) item.handle.remove();
     if (item.el._printClickHandler) {
       item.el.removeEventListener('click', item.el._printClickHandler);
       delete item.el._printClickHandler;
