@@ -351,7 +351,36 @@
     display: none !important;
   }
 
-  /* 5. Aside como Left Drawer estilo Obsidian Mobile (slide-over da esquerda com scrim) */
+  /* Transição suave do push da nota estilo Obsidian Mobile */
+  #mHeader,
+  #mMain,
+  html[data-platform="mobile"] #mHeader,
+  html[data-platform="mobile"] #mMain {
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1) !important;
+    will-change: transform;
+  }
+
+  /* Quando o drawer esquerdo abre: empurra o header e a nota para a direita */
+  body.has-left-drawer-open #mHeader,
+  body.has-left-drawer-open #mMain,
+  #app.has-left-drawer-open #mHeader,
+  #app.has-left-drawer-open #mMain,
+  #app:has(#mAside.is-open-mobile) #mHeader,
+  #app:has(#mAside.is-open-mobile) #mMain {
+    transform: translate3d(min(85vw, 320px), 0, 0) !important;
+  }
+
+  /* Quando o drawer direito abre: empurra o header e a nota para a esquerda */
+  body.has-right-drawer-open #mHeader,
+  body.has-right-drawer-open #mMain,
+  #app.has-right-drawer-open #mHeader,
+  #app.has-right-drawer-open #mMain,
+  #app:has(#mobileRightDrawer.is-open-mobile) #mHeader,
+  #app:has(#mobileRightDrawer.is-open-mobile) #mMain {
+    transform: translate3d(calc(-1 * min(85vw, 340px)), 0, 0) !important;
+  }
+
+  /* 5. Aside como Left Drawer estilo Obsidian Mobile (empurra a nota para a direita) */
   #mAside,
   html[data-platform="mobile"] #mAside {
     position: fixed !important;
@@ -362,7 +391,7 @@
     max-width: 85vw !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
-    z-index: 1100 !important;
+    z-index: 100 !important;
     transform: translate3d(-100%, 0, 0) !important;
     transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease !important;
     background-color: var(--bg) !important;
@@ -382,7 +411,7 @@
   #mAside.is-open-mobile,
   html[data-platform="mobile"] #mAside.is-open-mobile {
     transform: translate3d(0, 0, 0) !important;
-    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.45) !important;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2) !important;
     pointer-events: auto !important;
   }
 
@@ -446,7 +475,7 @@
     display: none !important;
   }
 
-  /* 7. Right Drawer estilo Obsidian Mobile (Sumário, Backlinks, Constelações) */
+  /* 7. Right Drawer estilo Obsidian Mobile (empurra a nota para a esquerda) */
   #mobileRightDrawer,
   html[data-platform="mobile"] #mobileRightDrawer {
     position: fixed !important;
@@ -457,7 +486,7 @@
     max-width: 85vw !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
-    z-index: 1100 !important;
+    z-index: 100 !important;
     transform: translate3d(100%, 0, 0) !important;
     transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease !important;
     background-color: var(--bg) !important;
@@ -474,7 +503,7 @@
   #mobileRightDrawer.is-open-mobile,
   html[data-platform="mobile"] #mobileRightDrawer.is-open-mobile {
     transform: translate3d(0, 0, 0) !important;
-    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.45) !important;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2) !important;
     pointer-events: auto !important;
   }
 
@@ -799,23 +828,43 @@
     flex: 1;
   }
 
-  /* 8. Scrim / Backdrop escuro para os drawers */
+  /* 8. Scrim transparente interativo para fechar a nota empurrada */
   .mobile-drawer-scrim {
-    display: block !important;
+    display: none !important;
     position: fixed !important;
-    inset: 0 !important;
-    background: rgba(0, 0, 0, 0.45) !important;
-    backdrop-filter: blur(2px) !important;
-    -webkit-backdrop-filter: blur(2px) !important;
-    z-index: 1050 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.08) !important;
+    z-index: 105 !important;
     opacity: 0 !important;
     pointer-events: none !important;
     transition: opacity 240ms ease !important;
+    cursor: pointer !important;
   }
 
+  body.has-left-drawer-open .mobile-drawer-scrim,
+  #app.has-left-drawer-open .mobile-drawer-scrim,
+  #app:has(#mAside.is-open-mobile) .mobile-drawer-scrim,
   .mobile-drawer-scrim.is-active {
+    display: block !important;
     opacity: 1 !important;
     pointer-events: auto !important;
+  }
+
+  body.has-left-drawer-open .mobile-drawer-scrim,
+  #app.has-left-drawer-open .mobile-drawer-scrim,
+  #app:has(#mAside.is-open-mobile) .mobile-drawer-scrim {
+    left: min(85vw, 320px) !important;
+    right: 0 !important;
+    width: auto !important;
+  }
+
+  body.has-right-drawer-open .mobile-drawer-scrim,
+  #app.has-right-drawer-open .mobile-drawer-scrim,
+  #app:has(#mobileRightDrawer.is-open-mobile) .mobile-drawer-scrim {
+    left: 0 !important;
+    right: min(85vw, 340px) !important;
+    width: auto !important;
   }
 
   /* 6. Oculta Activity Bar (#mNav) no mobile para sensação de página única em branco */

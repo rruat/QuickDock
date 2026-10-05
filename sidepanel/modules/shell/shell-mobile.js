@@ -338,56 +338,106 @@ function onMobileTouchEnd() {
   }
 }
 
+function getLeftDrawerWidth() {
+  const aside = document.getElementById('mAside');
+  return aside ? Math.min(window.innerWidth * 0.85, 320) : 300;
+}
+
+function getRightDrawerWidth() {
+  const drawer = document.getElementById('mobileRightDrawer');
+  return drawer ? Math.min(window.innerWidth * 0.85, 340) : 320;
+}
+
 export function openMobileLeftDrawer() {
   const mAside = document.getElementById('mAside');
-  const scrim = document.getElementById('mobileDrawerScrim');
   const rightDrawer = document.getElementById('mobileRightDrawer');
+  const app = document.getElementById('app');
 
-  rightDrawer?.classList.remove('is-open-mobile');
+  closeMobileRightDrawer();
+
   if (mAside) {
     mAside.classList.add('is-open-mobile');
+    mAside.style.removeProperty('transform');
+    mAside.style.removeProperty('transition');
+    mAside.style.removeProperty('pointer-events');
   }
-  if (scrim) {
-    scrim.classList.add('is-active');
+  app?.classList.add('has-left-drawer-open');
+  document.body.classList.add('has-left-drawer-open');
+
+  const mHeader = document.getElementById('mHeader');
+  const mMain = document.getElementById('mMain');
+  if (mHeader) {
+    mHeader.style.removeProperty('transform');
+    mHeader.style.removeProperty('transition');
   }
+  if (mMain) {
+    mMain.style.removeProperty('transform');
+    mMain.style.removeProperty('transition');
+  }
+
   triggerSnapHaptic();
 }
 
 export function closeMobileLeftDrawer() {
   const mAside = document.getElementById('mAside');
-  const scrim = document.getElementById('mobileDrawerScrim');
-  const rightDrawer = document.getElementById('mobileRightDrawer');
+  const app = document.getElementById('app');
 
   if (mAside) {
     mAside.classList.remove('is-open-mobile');
+    mAside.style.removeProperty('transform');
+    mAside.style.removeProperty('transition');
+    mAside.style.removeProperty('pointer-events');
   }
-  const isRightOpen = rightDrawer?.classList.contains('is-open-mobile');
-  if (!isRightOpen && scrim) {
-    scrim.classList.remove('is-active');
+  app?.classList.remove('has-left-drawer-open');
+  document.body.classList.remove('has-left-drawer-open');
+
+  const mHeader = document.getElementById('mHeader');
+  const mMain = document.getElementById('mMain');
+  if (mHeader) {
+    mHeader.style.removeProperty('transform');
+    mHeader.style.removeProperty('transition');
+  }
+  if (mMain) {
+    mMain.style.removeProperty('transform');
+    mMain.style.removeProperty('transition');
   }
 }
 
 export function toggleMobileLeftDrawer(force) {
   const mAside = document.getElementById('mAside');
   if (!mAside) return;
-  const isCurrentlyOpen = mAside.classList.contains('is-open-mobile');
+  const isCurrentlyOpen = mAside.classList.contains('is-open-mobile') || document.body.classList.contains('has-left-drawer-open');
   const shouldOpen = force !== undefined ? Boolean(force) : !isCurrentlyOpen;
   if (shouldOpen) openMobileLeftDrawer();
   else closeMobileLeftDrawer();
 }
 
 export function openMobileRightDrawer(tab) {
-  const mAside = document.getElementById('mAside');
-  const scrim = document.getElementById('mobileDrawerScrim');
   const rightDrawer = document.getElementById('mobileRightDrawer');
+  const app = document.getElementById('app');
 
-  mAside?.classList.remove('is-open-mobile');
+  closeMobileLeftDrawer();
+
   if (rightDrawer) {
     rightDrawer.classList.add('is-open-mobile');
+    rightDrawer.style.removeProperty('transform');
+    rightDrawer.style.removeProperty('transition');
+    rightDrawer.style.removeProperty('pointer-events');
   }
-  if (scrim) {
-    scrim.classList.add('is-active');
+  app?.classList.add('has-right-drawer-open');
+  document.body.classList.add('has-right-drawer-open');
+
+  const mHeader = document.getElementById('mHeader');
+  const mMain = document.getElementById('mMain');
+  if (mHeader) {
+    mHeader.style.removeProperty('transform');
+    mHeader.style.removeProperty('transition');
   }
+  if (mMain) {
+    mMain.style.removeProperty('transform');
+    mMain.style.removeProperty('transition');
+  }
+
   triggerSnapHaptic();
 
   document.dispatchEvent(new CustomEvent('quickdock:open-mobile-inspector', {
@@ -396,23 +446,34 @@ export function openMobileRightDrawer(tab) {
 }
 
 export function closeMobileRightDrawer() {
-  const mAside = document.getElementById('mAside');
-  const scrim = document.getElementById('mobileDrawerScrim');
   const rightDrawer = document.getElementById('mobileRightDrawer');
+  const app = document.getElementById('app');
 
   if (rightDrawer) {
     rightDrawer.classList.remove('is-open-mobile');
+    rightDrawer.style.removeProperty('transform');
+    rightDrawer.style.removeProperty('transition');
+    rightDrawer.style.removeProperty('pointer-events');
   }
-  const isLeftOpen = mAside?.classList.contains('is-open-mobile');
-  if (!isLeftOpen && scrim) {
-    scrim.classList.remove('is-active');
+  app?.classList.remove('has-right-drawer-open');
+  document.body.classList.remove('has-right-drawer-open');
+
+  const mHeader = document.getElementById('mHeader');
+  const mMain = document.getElementById('mMain');
+  if (mHeader) {
+    mHeader.style.removeProperty('transform');
+    mHeader.style.removeProperty('transition');
+  }
+  if (mMain) {
+    mMain.style.removeProperty('transform');
+    mMain.style.removeProperty('transition');
   }
 }
 
 export function toggleMobileRightDrawer(force) {
   const rightDrawer = document.getElementById('mobileRightDrawer');
   if (!rightDrawer) return;
-  const isCurrentlyOpen = rightDrawer.classList.contains('is-open-mobile');
+  const isCurrentlyOpen = rightDrawer.classList.contains('is-open-mobile') || document.body.classList.contains('has-right-drawer-open');
   const shouldOpen = force !== undefined ? Boolean(force) : !isCurrentlyOpen;
   if (shouldOpen) openMobileRightDrawer();
   else closeMobileRightDrawer();
@@ -421,7 +482,6 @@ export function toggleMobileRightDrawer(force) {
 export function closeAllMobileDrawers() {
   closeMobileLeftDrawer();
   closeMobileRightDrawer();
-  document.getElementById('mobileDrawerScrim')?.classList.remove('is-active');
 }
 
 export async function updateMobileHeaderNoteTitle(noteId) {
@@ -461,11 +521,33 @@ export function setupMobileObsidianUI() {
     });
   }
 
+  const btnCloseAside = document.getElementById('btnCloseAsideMobile');
+  if (btnCloseAside) {
+    btnCloseAside.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeMobileLeftDrawer();
+    });
+  }
+
   const scrim = document.getElementById('mobileDrawerScrim');
   if (scrim) {
-    scrim.addEventListener('click', () => {
+    scrim.addEventListener('click', (e) => {
+      e.stopPropagation();
       closeAllMobileDrawers();
     });
+  }
+
+  const mainEl = document.getElementById('mMain');
+  if (mainEl) {
+    mainEl.addEventListener('click', (e) => {
+      const isLeftOpen = document.body.classList.contains('has-left-drawer-open') || document.getElementById('mAside')?.classList.contains('is-open-mobile');
+      const isRightOpen = document.body.classList.contains('has-right-drawer-open') || document.getElementById('mobileRightDrawer')?.classList.contains('is-open-mobile');
+      if (isLeftOpen || isRightOpen) {
+        e.stopPropagation();
+        e.preventDefault();
+        closeAllMobileDrawers();
+      }
+    }, true);
   }
 
   const noteInfoPill = document.getElementById('mobile-header-note-info');
@@ -512,67 +594,207 @@ export function setupMobileTouchGestures() {
     updateMobileCarouselPositions(false);
   });
 
-  // Gestos de borda (Edge Swipe) no padrão Obsidian Mobile
+  // Gestos de arrasto e borda (Edge Swipe & Pull to Push) no padrão Obsidian Mobile
   let edgeStartX = 0;
   let edgeStartY = 0;
-  let isEdgeCandidate = false;
-  let edgeAction = null;
+  let edgeStartTime = 0;
+  let isDraggingDrawer = false;
+  let activeDragAction = null;
+  let lastDiffX = 0;
 
   document.addEventListener('touchstart', (e) => {
     if (window.innerWidth > 768 && !isMobileMode()) return;
     if (!e.touches || e.touches.length === 0) return;
 
+    const target = e.target;
+    // Ignora elementos interativos
+    if (target.closest('input, textarea, select, .property-input, .property-select, button')) return;
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+
     const x = e.touches[0].clientX;
     const y = e.touches[0].clientY;
     edgeStartX = x;
     edgeStartY = y;
-    isEdgeCandidate = false;
-    edgeAction = null;
+    edgeStartTime = Date.now();
+    lastDiffX = 0;
+    isDraggingDrawer = false;
+    activeDragAction = null;
 
     const mAside = document.getElementById('mAside');
     const rightDrawer = document.getElementById('mobileRightDrawer');
-    const isLeftOpen = mAside?.classList.contains('is-open-mobile');
-    const isRightOpen = rightDrawer?.classList.contains('is-open-mobile');
+    const isLeftOpen = mAside?.classList.contains('is-open-mobile') || document.body.classList.contains('has-left-drawer-open');
+    const isRightOpen = rightDrawer?.classList.contains('is-open-mobile') || document.body.classList.contains('has-right-drawer-open');
+
+    const leftWidth = getLeftDrawerWidth();
+    const rightWidth = getRightDrawerWidth();
 
     if (isLeftOpen) {
-      isEdgeCandidate = true;
-      edgeAction = 'close-left';
+      activeDragAction = 'close-left';
+      if (x >= leftWidth) isDraggingDrawer = true;
     } else if (isRightOpen) {
-      isEdgeCandidate = true;
-      edgeAction = 'close-right';
-    } else if (x <= 35) {
-      isEdgeCandidate = true;
-      edgeAction = 'open-left';
-    } else if (x >= window.innerWidth - 35) {
-      isEdgeCandidate = true;
-      edgeAction = 'open-right';
+      activeDragAction = 'close-right';
+      if (x <= window.innerWidth - rightWidth) isDraggingDrawer = true;
+    } else {
+      // Zona de borda generosa (75px) ou toque no header
+      if (x <= 75 || target.closest('#mHeader .header-left, #mHeader .header-center')) {
+        activeDragAction = 'open-left';
+      } else if (x >= window.innerWidth - 75 || target.closest('#mHeader .header-right')) {
+        activeDragAction = 'open-right';
+      }
     }
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
-    if (!isEdgeCandidate || !e.touches || e.touches.length === 0) return;
+    if (!activeDragAction || !e.touches || e.touches.length === 0) return;
     const currentX = e.touches[0].clientX;
     const currentY = e.touches[0].clientY;
     const dx = currentX - edgeStartX;
     const dy = currentY - edgeStartY;
 
-    if (Math.abs(dy) > Math.abs(dx) + 8) {
-      isEdgeCandidate = false;
-      return;
+    if (!isDraggingDrawer) {
+      if (Math.abs(dy) > Math.abs(dx) + 6) {
+        activeDragAction = null;
+        return;
+      }
+      if (Math.abs(dx) > 10) {
+        isDraggingDrawer = true;
+      } else {
+        return;
+      }
     }
 
-    if (edgeAction === 'open-left' && dx > 40) {
-      isEdgeCandidate = false;
-      openMobileLeftDrawer();
-    } else if (edgeAction === 'open-right' && dx < -40) {
-      isEdgeCandidate = false;
-      openMobileRightDrawer();
-    } else if (edgeAction === 'close-left' && dx < -35) {
-      isEdgeCandidate = false;
-      closeMobileLeftDrawer();
-    } else if (edgeAction === 'close-right' && dx > 35) {
-      isEdgeCandidate = false;
-      closeMobileRightDrawer();
+    lastDiffX = dx;
+    const mAside = document.getElementById('mAside');
+    const rightDrawer = document.getElementById('mobileRightDrawer');
+    const mHeader = document.getElementById('mHeader');
+    const mMain = document.getElementById('mMain');
+
+    const leftWidth = getLeftDrawerWidth();
+    const rightWidth = getRightDrawerWidth();
+
+    if (activeDragAction === 'open-left') {
+      const currentDx = Math.min(leftWidth, Math.max(0, dx));
+      if (mAside) {
+        mAside.style.transform = `translate3d(${currentDx - leftWidth}px, 0, 0)`;
+        mAside.style.transition = 'none';
+        mAside.style.pointerEvents = 'none';
+      }
+      if (mHeader) {
+        mHeader.style.transform = `translate3d(${currentDx}px, 0, 0)`;
+        mHeader.style.transition = 'none';
+      }
+      if (mMain) {
+        mMain.style.transform = `translate3d(${currentDx}px, 0, 0)`;
+        mMain.style.transition = 'none';
+      }
+    } else if (activeDragAction === 'open-right') {
+      const currentDx = Math.max(-rightWidth, Math.min(0, dx));
+      if (rightDrawer) {
+        rightDrawer.style.transform = `translate3d(${rightWidth + currentDx}px, 0, 0)`;
+        rightDrawer.style.transition = 'none';
+        rightDrawer.style.pointerEvents = 'none';
+      }
+      if (mHeader) {
+        mHeader.style.transform = `translate3d(${currentDx}px, 0, 0)`;
+        mHeader.style.transition = 'none';
+      }
+      if (mMain) {
+        mMain.style.transform = `translate3d(${currentDx}px, 0, 0)`;
+        mMain.style.transition = 'none';
+      }
+    } else if (activeDragAction === 'close-left') {
+      const currentDx = Math.max(-leftWidth, Math.min(0, dx));
+      const shiftedPos = leftWidth + currentDx;
+      if (mAside) {
+        mAside.style.transform = `translate3d(${currentDx}px, 0, 0)`;
+        mAside.style.transition = 'none';
+      }
+      if (mHeader) {
+        mHeader.style.transform = `translate3d(${shiftedPos}px, 0, 0)`;
+        mHeader.style.transition = 'none';
+      }
+      if (mMain) {
+        mMain.style.transform = `translate3d(${shiftedPos}px, 0, 0)`;
+        mMain.style.transition = 'none';
+      }
+    } else if (activeDragAction === 'close-right') {
+      const currentDx = Math.min(rightWidth, Math.max(0, dx));
+      const shiftedPos = -rightWidth + currentDx;
+      if (rightDrawer) {
+        rightDrawer.style.transform = `translate3d(${currentDx}px, 0, 0)`;
+        rightDrawer.style.transition = 'none';
+      }
+      if (mHeader) {
+        mHeader.style.transform = `translate3d(${shiftedPos}px, 0, 0)`;
+        mHeader.style.transition = 'none';
+      }
+      if (mMain) {
+        mMain.style.transform = `translate3d(${shiftedPos}px, 0, 0)`;
+        mMain.style.transition = 'none';
+      }
     }
   }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!activeDragAction) return;
+
+    const dx = lastDiffX;
+    const elapsed = Date.now() - edgeStartTime;
+    const isFlick = elapsed < 260 && Math.abs(dx) > 25;
+    const action = activeDragAction;
+    const wasDragging = isDraggingDrawer;
+
+    activeDragAction = null;
+    isDraggingDrawer = false;
+
+    const mAside = document.getElementById('mAside');
+    const rightDrawer = document.getElementById('mobileRightDrawer');
+    const mHeader = document.getElementById('mHeader');
+    const mMain = document.getElementById('mMain');
+
+    if (mAside) {
+      mAside.style.removeProperty('transform');
+      mAside.style.removeProperty('transition');
+      mAside.style.removeProperty('pointer-events');
+    }
+    if (rightDrawer) {
+      rightDrawer.style.removeProperty('transform');
+      rightDrawer.style.removeProperty('transition');
+      rightDrawer.style.removeProperty('pointer-events');
+    }
+    if (mHeader) {
+      mHeader.style.removeProperty('transform');
+      mHeader.style.removeProperty('transition');
+    }
+    if (mMain) {
+      mMain.style.removeProperty('transform');
+      mMain.style.removeProperty('transition');
+    }
+
+    if (action === 'open-left') {
+      if (dx >= 50 || (isFlick && dx > 20)) {
+        openMobileLeftDrawer();
+      } else {
+        closeMobileLeftDrawer();
+      }
+    } else if (action === 'open-right') {
+      if (dx <= -50 || (isFlick && dx < -20)) {
+        openMobileRightDrawer();
+      } else {
+        closeMobileRightDrawer();
+      }
+    } else if (action === 'close-left') {
+      if (!wasDragging || dx <= -40 || (isFlick && dx < -20)) {
+        closeMobileLeftDrawer();
+      } else {
+        openMobileLeftDrawer();
+      }
+    } else if (action === 'close-right') {
+      if (!wasDragging || dx >= 40 || (isFlick && dx > 20)) {
+        closeMobileRightDrawer();
+      } else {
+        openMobileRightDrawer();
+      }
+    }
+  });
 }

@@ -152,9 +152,24 @@ export function openMobileRightDrawer(initialTab) {
   if (!rightDrawerEl) return;
   // Fecha o drawer esquerdo caso esteja aberto
   document.getElementById('mAside')?.classList.remove('is-open-mobile');
+  document.getElementById('app')?.classList.remove('has-left-drawer-open');
+  document.body.classList.remove('has-left-drawer-open');
 
   rightDrawerEl.classList.add('is-open-mobile');
+  document.getElementById('app')?.classList.add('has-right-drawer-open');
+  document.body.classList.add('has-right-drawer-open');
   if (scrimEl) scrimEl.classList.add('is-active');
+
+  const mHeader = document.getElementById('mHeader');
+  const mMain = document.getElementById('mMain');
+  if (mHeader) {
+    mHeader.style.removeProperty('transform');
+    mHeader.style.removeProperty('transition');
+  }
+  if (mMain) {
+    mMain.style.removeProperty('transform');
+    mMain.style.removeProperty('transition');
+  }
 
   if (initialTab) {
     switchInspectorTab(initialTab);
@@ -166,6 +181,19 @@ export function openMobileRightDrawer(initialTab) {
 export function closeMobileRightDrawer() {
   if (!rightDrawerEl) return;
   rightDrawerEl.classList.remove('is-open-mobile');
+  document.getElementById('app')?.classList.remove('has-right-drawer-open');
+  document.body.classList.remove('has-right-drawer-open');
+
+  const mHeader = document.getElementById('mHeader');
+  const mMain = document.getElementById('mMain');
+  if (mHeader) {
+    mHeader.style.removeProperty('transform');
+    mHeader.style.removeProperty('transition');
+  }
+  if (mMain) {
+    mMain.style.removeProperty('transform');
+    mMain.style.removeProperty('transition');
+  }
 
   // Só retira o scrim se o drawer da esquerda também estiver fechado
   const leftOpen = document.getElementById('mAside')?.classList.contains('is-open-mobile');

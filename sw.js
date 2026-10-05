@@ -79,6 +79,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/note-header.js',
   'sidepanel/modules/note-backlinks.js',
   'sidepanel/modules/note-outline.js',
+  'sidepanel/modules/note-mobile-inspector.js',
   'sidepanel/modules/note-properties.js',
   'sidepanel/modules/note-detection.js',
   'sidepanel/modules/note-link-autocomplete.js',
