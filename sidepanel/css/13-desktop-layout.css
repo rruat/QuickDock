@@ -601,6 +601,13 @@
     box-sizing: border-box;
   }
 
+  html[data-platform="desktop"] .note-icon-expansion {
+    width: 100%;
+    max-width: 480px;
+    align-self: flex-start;
+    margin: 4px 0 10px 0;
+  }
+
   /* Barra de abas / cabeçalho da sidebar no desktop */
   html[data-platform="desktop"] .notes-tabbar {
     order: 1;

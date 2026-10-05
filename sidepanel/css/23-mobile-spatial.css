@@ -878,19 +878,35 @@
   .note-header-bar,
   html[data-platform="mobile"] .note-header-bar {
     display: flex !important;
-    flex-wrap: wrap !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
     padding: 2px 18px 4px 18px !important;
-    gap: 6px !important;
+    gap: 4px !important;
     border: none !important;
     background: transparent !important;
+  }
+
+  .note-header-icon-row,
+  html[data-platform="mobile"] .note-header-icon-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  .note-header-icon-row:not(.has-custom-icon) {
+    display: none !important;
+  }
+
+  .note-header-title-row,
+  html[data-platform="mobile"] .note-header-title-row {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
   }
 
   /* O título ganha 100% da largura, sem disputar espaço com nenhum botão */
   .note-header-title,
   html[data-platform="mobile"] .note-header-title {
-    order: 2 !important;
     width: 100% !important;
     flex: 1 1 100% !important;
     display: block !important;
@@ -900,7 +916,7 @@
     line-height: 1.25 !important;
     color: var(--text) !important;
     padding: 4px 0 !important;
-    margin: 4px 0 2px 0 !important;
+    margin: 2px 0 !important;
     border: none !important;
     background: transparent !important;
     box-sizing: border-box !important;
@@ -936,10 +952,9 @@
     display: none !important;
   }
 
-  /* Se a nota tem ícone customizado, ele fica na linha superior (order: 1) no cabeçalho */
+  /* Se a nota tem ícone customizado, ele fica na linha superior no cabeçalho */
   .note-header-icon-btn.has-custom-icon,
   html[data-platform="mobile"] .note-header-icon-btn.has-custom-icon {
-    order: 1 !important;
     width: 38px !important;
     height: 38px !important;
     border-radius: 8px !important;

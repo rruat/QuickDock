@@ -113,10 +113,25 @@ body:not(.booting) .note-editor-blocks {
 /* Cabeçalho da nota: ícone + título editável + cor (estilo Obsidian) */
 .note-header-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   padding: 4px 14px 2px 30px;
   flex-shrink: 0;
+}
+
+.note-header-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.note-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .note-header-icon-btn {
@@ -126,20 +141,22 @@ body:not(.booting) .note-editor-blocks {
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  background: transparent;
-  border: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--note-accent, var(--text-muted));
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  box-shadow: none !important;
+  transition: all 0.15s ease;
 }
 
 .note-header-icon-btn:hover {
   background: var(--bg-hover);
+  border-color: var(--border-hover, var(--border));
 }
 
 .note-header-icon-btn .qd-icon {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .note-header-title {
@@ -172,15 +189,17 @@ body:not(.booting) .note-editor-blocks {
   width: 26px;
   height: 26px;
   flex-shrink: 0;
-  background: transparent;
-  border: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 50%;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  box-shadow: none !important;
+  transition: all 0.15s ease;
 }
 
 .note-header-color-btn:hover {
   background: var(--bg-hover);
+  border-color: var(--border-hover, var(--border));
 }
 
 .note-header-color-dot {
@@ -218,6 +237,9 @@ body:not(.booting) .note-editor-blocks {
 .note-header-color-btn.section-active,
 .note-header-cover-btn.is-active,
 .note-header-cover-btn.section-active {
-  box-shadow: 0 0 0 2px var(--accent, #6366f1);
-  background: var(--bg-hover);
+  border-color: var(--accent, #6366f1) !important;
+  background: var(--bg-hover) !important;
+  box-shadow: none !important;
+  outline: 1.5px solid var(--accent, #6366f1) !important;
+  outline-offset: 1px;
 }

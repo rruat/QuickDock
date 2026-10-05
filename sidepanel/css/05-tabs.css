@@ -155,23 +155,25 @@
    repeat(4, 1fr) elas flutuavam à esquerda de células muito mais largas que
    elas, que é o que deixava a seção desalinhada. */
 .color-grid {
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
   align-items: center;
 }
 
 .color-swatch {
-  width: 100%;
-  aspect-ratio: 1;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
   border-radius: 50%;
   border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
   position: relative;
-  transition: transform 0.1s;
+  box-shadow: none !important;
+  transition: transform 0.1s, border-color 0.12s;
 }
-.color-swatch:hover { transform: scale(1.18); }
+.color-swatch:hover { transform: scale(1.15); border-color: var(--text); }
 .color-swatch.active { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* "Nenhuma cor" — círculo com uma linha diagonal, convenção comum de "sem preenchimento" */
@@ -212,24 +214,26 @@
   display: flex;
   align-items: center;
   position: relative;
-  margin: 4px 0 6px;
+  margin: 3px 0 6px;
 }
 
 .icon-search-input {
   width: 100%;
-  height: 26px;
+  height: 28px;
   box-sizing: border-box;
-  font-size: 11px;
+  font-size: 12px;
   padding: 0 24px 0 8px;
-  background: var(--bg-secondary);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
   outline: none;
+  box-shadow: none !important;
 }
 
 .icon-search-input:focus {
   border-color: var(--accent);
+  box-shadow: none !important;
 }
 
 .icon-search-clear {
@@ -254,18 +258,19 @@
 }
 
 .icon-catalog-scroll {
-  max-height: 160px;
+  max-height: 170px;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
   padding: 4px;
   margin-bottom: 6px;
+  box-shadow: none !important;
 }
 
 .icon-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)) !important;
   gap: 3px;
 }
 
@@ -279,19 +284,23 @@
 
 .icon-swatch {
   width: 100%;
-  height: 28px;
+  max-width: 40px;
+  height: 32px;
+  margin: 0 auto;
   background: none;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--text);
-  font-size: 17px;
+  font-size: 18px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: none !important;
+  transition: all 0.12s ease;
 }
-.icon-swatch:hover { background: var(--bg-hover); }
-.icon-swatch.active { background: color-mix(in srgb, var(--accent) 14%, var(--bg)); border-color: var(--accent); color: var(--accent); }
+.icon-swatch:hover { background: var(--bg-hover); border-color: var(--border); }
+.icon-swatch.active { background: var(--bg-hover); border-color: var(--accent); color: var(--accent); outline: 1.5px solid var(--accent); }
 .icon-swatch-none { font-family: var(--font); font-size: 15px; color: var(--text-muted); }
 
 .icon-fill-row {

@@ -883,22 +883,27 @@ export function getIconPanelEl() {
       </div>
     `;
 
-    el.querySelector('.btn-close-expansion')?.addEventListener('click', (e) => {
+    const iconRow = document.getElementById('note-header-icon-row');
+    const titleRow = document.getElementById('note-header-title-row') || document.getElementById('note-header-title');
+    if (iconRow && iconRow.parentNode) {
+      iconRow.parentNode.insertBefore(el, iconRow.nextSibling);
+    } else if (titleRow && titleRow.parentNode) {
+      titleRow.parentNode.insertBefore(el, titleRow);
+    } else {
+      const headerBar = document.getElementById('note-header-bar');
+      if (headerBar) headerBar.insertBefore(el, headerBar.firstChild);
+    }
+  }
+
+  const closeBtn = el.querySelector('.btn-close-expansion');
+  if (closeBtn && !closeBtn._hasClickListener) {
+    closeBtn._hasClickListener = true;
+    closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       closeIconPanel();
     });
-
-    const headerBar = document.getElementById('note-header-bar');
-    const headerBadges = document.getElementById('note-header-badges');
-    if (headerBadges && headerBadges.parentNode) {
-      headerBadges.parentNode.insertBefore(el, headerBadges.nextSibling);
-    } else if (headerBar && headerBar.parentNode) {
-      headerBar.parentNode.insertBefore(el, headerBar.nextSibling);
-    } else {
-      const editor = document.querySelector('.note-editor');
-      if (editor) editor.insertBefore(el, editor.firstChild);
-    }
   }
+
   return el;
 }
 

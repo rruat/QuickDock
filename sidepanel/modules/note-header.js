@@ -47,6 +47,7 @@ export function renderNoteHeader(note) {
 
   const hasCustomIcon = Boolean(note.icon || hasIconImage(note));
   headerIconBtn?.classList.toggle('has-custom-icon', hasCustomIcon);
+  document.getElementById('note-header-icon-row')?.classList.toggle('has-custom-icon', hasCustomIcon);
   document.querySelector('.note-editor')?.classList.toggle('has-custom-icon', hasCustomIcon);
 
   if (mobileAppearanceBtn) {

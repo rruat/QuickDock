@@ -207,7 +207,8 @@ export function enterPrintMode() {
   const headerBarEl = document.getElementById('note-header-bar');
   if (headerBarEl) {
     const handle = createHandle('Título');
-    headerBarEl.insertBefore(handle, headerBarEl.firstChild);
+    const targetRow = document.getElementById('note-header-title-row') || headerBarEl;
+    targetRow.insertBefore(handle, targetRow.firstChild);
     const itemObj = { el: headerBarEl, handle, selected: true, type: 'header' };
     setItemState(itemObj, true);
     headerBarEl.classList.add('print-selectable-item');

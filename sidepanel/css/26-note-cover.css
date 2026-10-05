@@ -208,15 +208,27 @@
               margin 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* O painel de ícone no desktop não deve ficar gigante: fica contido e alinhado ao ícone */
+.note-icon-expansion {
+  width: 100%;
+  max-width: 480px;
+  align-self: flex-start;
+  margin: 2px 0 6px 0;
+}
+
+.note-icon-expansion.is-open {
+  margin: 4px 0 10px 0;
+}
+
 .note-inline-expansion-inner {
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--bg-card);
+  background: var(--bg);
   color: var(--text);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transform: translateY(-10px);
+  box-shadow: none !important;
+  transform: translateY(-8px);
   transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -228,12 +240,13 @@
 .note-cover.is-configuring {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
-  box-shadow: 0 0 0 2px var(--accent, #6366f1);
-  transition: border-radius 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid var(--accent, #6366f1);
+  box-shadow: none !important;
+  transition: border-radius 0.2s ease, border-color 0.2s ease;
 }
 
 .note-cover:not([hidden]) + .note-cover-expansion.is-open {
-  margin-top: -2px;
+  margin-top: -1px;
 }
 
 .note-cover:not([hidden]) + .note-cover-expansion.is-open .note-inline-expansion-inner {
@@ -247,8 +260,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 14px;
-  background: var(--bg-hover);
+  padding: 8px 12px;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
 
@@ -256,19 +269,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text);
 }
 
 .note-expansion-title .qd-icon {
-  font-size: 18px;
+  font-size: 17px;
   color: var(--accent, #6366f1);
 }
 
 .btn-close-expansion {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -276,21 +289,23 @@
   color: var(--text-muted);
   cursor: pointer;
   background: transparent;
-  border: none;
-  transition: background 0.15s ease, color 0.15s ease;
+  border: 1px solid transparent;
+  box-shadow: none !important;
+  transition: all 0.15s ease;
 }
 
 .btn-close-expansion:hover {
-  background: var(--bg-card);
+  background: var(--bg-hover);
+  border-color: var(--border);
   color: var(--text);
 }
 
 .note-expansion-body {
-  padding: 14px 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: var(--bg-card);
+  gap: 10px;
+  background: var(--bg);
 }
 
 .note-cover-menu-section {
@@ -330,19 +345,23 @@
   font-weight: 500;
   cursor: pointer;
   text-align: center;
+  box-shadow: none !important;
   transition: all 0.15s ease;
 }
 
 .note-cover-height-btn:hover {
   background: var(--bg-hover);
+  border-color: var(--border-hover, var(--border));
   color: var(--text);
 }
 
 .note-cover-height-btn.active {
-  background: var(--accent, #6366f1);
-  color: #ffffff;
+  background: var(--bg-hover);
+  color: var(--accent, #6366f1);
   border-color: var(--accent, #6366f1);
   font-weight: 600;
+  outline: 1.5px solid var(--accent, #6366f1);
+  outline-offset: -1px;
 }
 
 .note-cover-input-row {
