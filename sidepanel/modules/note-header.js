@@ -213,12 +213,14 @@ if (headerTitleEl) {
 
 // Ícone, cor e aparência da nota expandem o menu de opções conectado diretamente ao elemento
 headerIconBtn?.addEventListener('click', e => {
+  if (document.body.classList.contains('is-print-mode')) return;
   e.stopPropagation();
   if (headerNoteRef) {
     toggleIconPanel(headerNoteRef, () => renderNoteHeader(headerNoteRef));
   }
 });
 mobileAppearanceBtn?.addEventListener('click', e => {
+  if (document.body.classList.contains('is-print-mode')) return;
   e.stopPropagation();
   if (headerNoteRef) {
     toggleIconPanel(headerNoteRef, () => renderNoteHeader(headerNoteRef));

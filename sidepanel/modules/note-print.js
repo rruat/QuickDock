@@ -55,22 +55,29 @@ function updateToolbarStatus() {
 
   if (countEl) {
     if (total === 0) {
-      countEl.textContent = 'Nenhum bloco para imprimir';
+      countEl.textContent = 'Nenhum item para imprimir';
     } else if (selectedCount === total) {
-      countEl.textContent = `Todos os ${total} blocos selecionados`;
+      countEl.textContent = `Todos os ${total} itens selecionados`;
     } else {
-      countEl.textContent = `${selectedCount} de ${total} blocos selecionados`;
+      countEl.textContent = `${selectedCount} de ${total} itens selecionados`;
     }
   }
 
   if (toggleLabel) {
     if (selectedCount > 0) {
       toggleLabel.textContent = 'Desmarcar Todos';
-      toggleBtn.title = 'Desmarcar todos os blocos da impressão';
+      toggleBtn.title = 'Desmarcar todos os itens da impressão';
     } else {
       toggleLabel.textContent = 'Selecionar Todos';
-      toggleBtn.title = 'Marcar todos os blocos para impressão';
+      toggleBtn.title = 'Marcar todos os itens para impressão';
     }
+  }
+
+  const propsBar = document.getElementById('note-properties-bar');
+  if (propsBar) {
+    const propItems = trackedItems.filter(item => item.type === 'property');
+    const anyPropSelected = propItems.length > 0 && propItems.some(item => item.selected);
+    propsBar.classList.toggle('has-no-props-selected', propItems.length > 0 && !anyPropSelected);
   }
 }
 
@@ -164,15 +171,17 @@ export function positionGutter() {
 
     if (item.type === 'cover') {
       targetTop += 16;
-    } else if (item.type === 'header') {
+    } else if (item.type === 'icon') {
+      targetTop += Math.max(2, Math.round((elRect.height - 22) / 2));
+    } else if (item.type === 'title' || item.type === 'header') {
       const titleEl = document.getElementById('note-header-title');
       if (titleEl) {
         targetTop = titleEl.getBoundingClientRect().top - editorRect.top + editorContainer.scrollTop + 6;
       } else {
-        targetTop += 8;
+        targetTop += Math.max(2, Math.round((elRect.height - 22) / 2));
       }
-    } else if (item.type === 'properties') {
-      targetTop += 8;
+    } else if (item.type === 'property' || item.type === 'properties') {
+      targetTop += Math.max(2, Math.round((elRect.height - 22) / 2));
     } else if (item.type === 'block') {
       targetTop += 4;
     } else if (item.type === 'backlinks') {
@@ -274,25 +283,42 @@ export function enterPrintMode() {
     trackedItems.push(itemObj);
   }
 
-  // 2. Cabeçalho / Título
-  const headerBarEl = document.getElementById('note-header-bar');
-  if (headerBarEl) {
-    const handle = createHandle('Título');
+  // 2. Ícone da Nota (opção independente quando presente)
+  const iconRowEl = document.getElementById('note-header-icon-row');
+  const hasIcon = iconRowEl && !iconRowEl.hidden && iconRowEl.offsetHeight > 0 &&
+                  (iconRowEl.classList.contains('has-custom-icon') ||
+                   iconRowEl.querySelector('.has-icon-image') ||
+                   (iconRowEl.querySelector('.note-header-icon-preview')?.textContent?.trim() &&
+                    iconRowEl.querySelector('.note-header-icon-preview')?.textContent?.trim() !== 'description'));
+  if (hasIcon) {
+    const handle = createHandle('Ícone');
     gutterEl.appendChild(handle);
-    const itemObj = { el: headerBarEl, handle, selected: true, type: 'header' };
+    const itemObj = { el: iconRowEl, handle, selected: true, type: 'icon' };
     setupItem(itemObj);
     trackedItems.push(itemObj);
   }
 
-  // 3. Propriedades
-  const propsBarEl = document.getElementById('note-properties-bar');
-  if (propsBarEl && !propsBarEl.hidden && propsBarEl.offsetHeight > 0) {
-    const handle = createHandle('Propriedades');
+  // 3. Título da Nota (independente)
+  const titleRowEl = document.getElementById('note-header-title-row') || document.getElementById('note-header-title');
+  if (titleRowEl && !titleRowEl.hidden && titleRowEl.offsetHeight > 0) {
+    const handle = createHandle('Título');
     gutterEl.appendChild(handle);
-    const itemObj = { el: propsBarEl, handle, selected: true, type: 'properties' };
+    const itemObj = { el: titleRowEl, handle, selected: true, type: 'title' };
     setupItem(itemObj);
     trackedItems.push(itemObj);
   }
+
+  // 4. Propriedades (cada uma com seleção independente)
+  const propSections = Array.from(document.querySelectorAll('#note-properties-list .note-property-section'));
+  propSections.forEach(propSec => {
+    if (!propSec.isConnected || propSec.hidden) return;
+    const propKey = propSec.dataset.propKey || propSec.querySelector('.property-name')?.textContent?.trim() || 'Propriedade';
+    const handle = createHandle(propKey);
+    gutterEl.appendChild(handle);
+    const itemObj = { el: propSec, handle, selected: true, type: 'property' };
+    setupItem(itemObj);
+    trackedItems.push(itemObj);
+  });
 
   // 4. Blocos de Conteúdo
   const blocks = Array.from(document.querySelectorAll('#note-editor-blocks .block'));
@@ -385,6 +411,7 @@ export function exitPrintMode() {
     }
   });
   trackedItems = [];
+  document.getElementById('note-properties-bar')?.classList.remove('has-no-props-selected');
 }
 
 export function executePrint() {

@@ -416,6 +416,10 @@ body.is-print-mode .print-selectable-item.print-excluded.print-hover {
   }
 
   /* Propriedades limpas no papel impresso */
+  #note-properties-bar.has-no-props-selected {
+    display: none !important;
+  }
+
   .section.note-property-section {
     border: none !important;
     background: transparent !important;
