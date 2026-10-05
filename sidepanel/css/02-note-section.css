@@ -193,40 +193,6 @@ body:not(.booting) .note-editor-blocks {
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Quando a nota tem ícone customizado: exibe apenas o ícone, sem texto nem chevron */
-.note-header-icon-btn.has-custom-icon {
-  width: auto !important;
-  min-height: unset !important;
-  padding: 4px !important;
-  border-radius: 8px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  align-self: flex-start !important;
-  gap: 0 !important;
-}
-
-.note-header-icon-btn.has-custom-icon .note-header-icon-label,
-.note-header-icon-btn.has-custom-icon .note-header-icon-chevron {
-  display: none !important;
-}
-
-.note-header-icon-btn.has-custom-icon .note-header-icon-preview {
-  width: 32px;
-  height: 32px;
-  font-size: 28px;
-}
-
-.note-header-icon-btn.has-custom-icon .note-header-icon-preview.has-icon-image {
-  width: auto;
-  height: auto;
-}
-
-.note-header-icon-btn.has-custom-icon .note-header-icon-img {
-  width: 32px;
-  height: 32px;
-}
-
 .note-header-title {
   flex: 1;
   min-width: 0;
