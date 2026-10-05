@@ -237,9 +237,8 @@ body:not(.booting) .note-editor-blocks {
 .note-header-color-btn.section-active,
 .note-header-cover-btn.is-active,
 .note-header-cover-btn.section-active {
-  border-color: var(--accent, #6366f1) !important;
+  border-color: var(--border) !important;
   background: var(--bg-hover) !important;
   box-shadow: none !important;
-  outline: 1.5px solid var(--accent, #6366f1) !important;
-  outline-offset: 1px;
+  outline: none !important;
 }

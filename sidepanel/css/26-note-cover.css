@@ -208,16 +208,18 @@
               margin 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* O painel de ícone no desktop não deve ficar gigante: fica contido e alinhado ao ícone */
+/* O painel de ícone ocupa a largura útil disponível, integrando-se à nota como a capa */
 .note-icon-expansion {
-  width: 100%;
-  max-width: 480px;
-  align-self: flex-start;
-  margin: 2px 0 6px 0;
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  margin: 0 !important;
 }
 
 .note-icon-expansion.is-open {
-  margin: 4px 0 10px 0;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 12px 0 !important;
 }
 
 .note-inline-expansion-inner {
@@ -253,6 +255,45 @@
   border-top-left-radius: 0;
   border-top-right-radius: 0;
   border-top: 1px dashed var(--border);
+}
+
+/* Conexão visual com o Ícone da Nota: o outline envolve o ícone quando a seção estiver aberta */
+.note-header-bar.has-icon-expansion-open {
+  gap: 0 !important;
+}
+
+.note-header-bar.has-icon-expansion-open .note-header-icon-row {
+  margin-bottom: 0 !important;
+  position: relative;
+  z-index: 2;
+}
+
+.note-header-bar.has-icon-expansion-open .note-header-title-row {
+  margin-top: 8px !important;
+}
+
+.note-header-bar.has-icon-expansion-open #btn-note-header-icon.section-active,
+#btn-note-header-icon.section-active {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-bottom: 1px solid var(--bg) !important;
+  border-top-left-radius: var(--radius-md, 8px) !important;
+  border-top-right-radius: var(--radius-md, 8px) !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  position: relative !important;
+  z-index: 10 !important;
+  margin-bottom: -1px !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.note-icon-expansion.is-open .note-inline-expansion-inner {
+  border-top-left-radius: 0 !important;
+  border: 1px solid var(--border) !important;
+  background: var(--bg) !important;
+  box-shadow: none !important;
 }
 
 /* Cabeçalho da Seção Expansível */
@@ -326,6 +367,33 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
+}
+
+/* Divisor sutil entre seções no painel de aparência */
+.note-appearance-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 10px 0;
+  width: 100%;
+}
+
+.note-icon-expansion .icon-catalog-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 6px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.note-icon-expansion .icon-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)) !important;
+  gap: 4px;
+  width: 100%;
 }
 
 .note-cover-height-picker {

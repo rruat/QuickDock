@@ -872,8 +872,8 @@ export function getIconPanelEl() {
       <div class="note-inline-expansion-inner">
         <div class="note-expansion-header">
           <div class="note-expansion-title">
-            <span class="qd-icon material-symbols-rounded">sentiment_satisfied</span>
-            <span>Opções do Ícone & Aparência</span>
+            <span class="qd-icon material-symbols-rounded">palette</span>
+            <span>Aparência & Ícone</span>
           </div>
           <button type="button" class="icon-btn btn-close-expansion" title="Recolher opções do ícone" aria-label="Recolher opções">
             <span class="qd-icon material-symbols-rounded">expand_less</span>
@@ -920,6 +920,7 @@ export function closeIconPanel() {
     el.classList.remove('is-open');
     el.setAttribute('aria-hidden', 'true');
   }
+  document.getElementById('note-header-bar')?.classList.remove('has-icon-expansion-open');
   document.getElementById('btn-note-header-icon')?.classList.remove('section-active', 'is-active');
   document.getElementById('btn-note-header-color')?.classList.remove('section-active', 'is-active');
   document.getElementById('btn-note-appearance-mobile')?.classList.remove('section-active', 'is-active');
@@ -935,8 +936,8 @@ export function openIconPanel(meta, onSaved) {
   el.classList.add('is-open');
   el.setAttribute('aria-hidden', 'false');
 
+  document.getElementById('note-header-bar')?.classList.add('has-icon-expansion-open');
   document.getElementById('btn-note-header-icon')?.classList.add('section-active', 'is-active');
-  document.getElementById('btn-note-header-color')?.classList.add('section-active', 'is-active');
   document.getElementById('btn-note-appearance-mobile')?.classList.add('section-active', 'is-active');
 
   renderIconPanelContent(el, meta, onSaved);
@@ -958,18 +959,17 @@ export function renderIconPanelContent(panel, meta, onSaved) {
   const body = panel.querySelector('#note-icon-body') || panel;
   body.innerHTML = '';
 
-  // ── SEÇÃO 1: ÍCONE DA NOTA ───────────────────────────────────────────────
-  const iconCard = document.createElement('div');
-  iconCard.className = 'appearance-section-card';
+  // ── SEÇÃO 1: ÍCONE DA NOTA (em seção única como a capa) ────────────────────
+  const iconSec = document.createElement('div');
+  iconSec.className = 'note-cover-menu-section';
 
   const iconHeader = document.createElement('div');
-  iconHeader.className = 'appearance-card-header';
+  iconHeader.className = 'note-cover-section-header';
   iconHeader.innerHTML = `
-    <span class="qd-icon material-symbols-rounded">sentiment_satisfied</span>
-    <span class="appearance-card-title">Ícone</span>
+    <span class="note-cover-section-label">Ícone</span>
     <span class="icon-catalog-header-count">${(MATERIAL_ICONS?.length || 4284).toLocaleString('pt-BR')} disponíveis</span>
   `;
-  iconCard.appendChild(iconHeader);
+  iconSec.appendChild(iconHeader);
 
   // Imagem própria (link ou arquivo)
   const imageRow = document.createElement('button');
@@ -983,7 +983,7 @@ export function renderIconPanelContent(panel, meta, onSaved) {
   imageRow.appendChild(imageLabel);
   imageRow.addEventListener('click', (e) => {
     e.stopPropagation();
-    renderIconImageEditor(iconCard, meta, {
+    renderIconImageEditor(iconSec, meta, {
       back: () => renderIconPanelContent(panel, meta, onSaved),
       save: async (iconImage) => {
         const antigo = meta.iconImage?.fileId;
@@ -1002,7 +1002,7 @@ export function renderIconPanelContent(panel, meta, onSaved) {
       },
     });
   });
-  iconCard.appendChild(imageRow);
+  iconSec.appendChild(imageRow);
 
   // Barra de busca
   const searchWrap = document.createElement('div');
@@ -1018,18 +1018,18 @@ export function renderIconPanelContent(panel, meta, onSaved) {
   searchClear.title = 'Limpar busca';
   searchClear.hidden = true;
   searchWrap.append(searchInput, searchClear);
-  iconCard.appendChild(searchWrap);
+  iconSec.appendChild(searchWrap);
 
   const countEl = document.createElement('div');
   countEl.className = 'icon-catalog-count';
-  iconCard.appendChild(countEl);
+  iconSec.appendChild(countEl);
 
   const iconScrollContainer = document.createElement('div');
   iconScrollContainer.className = 'icon-catalog-scroll';
   const iconGrid = document.createElement('div');
   iconGrid.className = 'icon-grid icon-catalog-grid';
   iconScrollContainer.appendChild(iconGrid);
-  iconCard.appendChild(iconScrollContainer);
+  iconSec.appendChild(iconScrollContainer);
 
   const pickIcon = async (name) => {
     const antigo = meta.iconImage?.fileId;
@@ -1064,7 +1064,7 @@ export function renderIconPanelContent(panel, meta, onSaved) {
     return btn;
   };
 
-  let renderLimit = 72;
+  let renderLimit = 160;
   let currentFilteredList = [];
 
   const renderBatch = () => {
@@ -1101,7 +1101,7 @@ export function renderIconPanelContent(panel, meta, onSaved) {
 
   const updateGrid = () => {
     iconGrid.innerHTML = '';
-    renderLimit = 72;
+    renderLimit = 160;
     renderBatch();
   };
 
@@ -1121,8 +1121,8 @@ export function renderIconPanelContent(panel, meta, onSaved) {
   iconScrollContainer.addEventListener('scroll', () => {
     if (iconScrollContainer.scrollTop + iconScrollContainer.clientHeight >= iconScrollContainer.scrollHeight - 40) {
       if (renderLimit < currentFilteredList.length) {
-        renderLimit += 60;
-        const nextBatch = currentFilteredList.slice(renderLimit - 60, renderLimit);
+        renderLimit += 80;
+        const nextBatch = currentFilteredList.slice(renderLimit - 80, renderLimit);
         for (const name of nextBatch) {
           iconGrid.appendChild(createSwatch(name));
         }
@@ -1151,21 +1151,25 @@ export function renderIconPanelContent(panel, meta, onSaved) {
   const fillLabel = document.createElement('span');
   fillLabel.textContent = 'Ícone preenchido';
   fillRow.append(fillCheckbox, fillLabel);
-  iconCard.appendChild(fillRow);
+  iconSec.appendChild(fillRow);
 
-  body.appendChild(iconCard);
+  body.appendChild(iconSec);
+
+  // Divisor entre Ícone e Cor
+  const div1 = document.createElement('div');
+  div1.className = 'note-appearance-divider';
+  body.appendChild(div1);
 
   // ── SEÇÃO 2: COR DA NOTA ─────────────────────────────────────────────────
-  const colorCard = document.createElement('div');
-  colorCard.className = 'appearance-section-card';
+  const colorSec = document.createElement('div');
+  colorSec.className = 'note-cover-menu-section';
 
   const colorHeader = document.createElement('div');
-  colorHeader.className = 'appearance-card-header';
+  colorHeader.className = 'note-cover-section-header';
   colorHeader.innerHTML = `
-    <span class="qd-icon material-symbols-rounded">format_paint</span>
-    <span class="appearance-card-title">Cor da Nota</span>
+    <span class="note-cover-section-label">Cor da Nota</span>
   `;
-  colorCard.appendChild(colorHeader);
+  colorSec.appendChild(colorHeader);
 
   const colorGrid = document.createElement('div');
   colorGrid.className = 'color-grid';
@@ -1211,13 +1215,24 @@ export function renderIconPanelContent(panel, meta, onSaved) {
   customSwatch.appendChild(colorInput);
   colorGrid.appendChild(customSwatch);
 
-  colorCard.appendChild(colorGrid);
-  body.appendChild(colorCard);
+  colorSec.appendChild(colorGrid);
+  body.appendChild(colorSec);
 
   // ── SEÇÃO 3: OPÇÕES NA ABA ───────────────────────────────────────────────
   if (meta.icon || meta.color || hasIconImage(meta)) {
-    const optionsCard = document.createElement('div');
-    optionsCard.className = 'appearance-section-card';
+    const div2 = document.createElement('div');
+    div2.className = 'note-appearance-divider';
+    body.appendChild(div2);
+
+    const optionsSec = document.createElement('div');
+    optionsSec.className = 'note-cover-menu-section';
+
+    const optionsHeader = document.createElement('div');
+    optionsHeader.className = 'note-cover-section-header';
+    optionsHeader.innerHTML = `
+      <span class="note-cover-section-label">Aba & Título</span>
+    `;
+    optionsSec.appendChild(optionsHeader);
 
     const hideRow = document.createElement('label');
     hideRow.className = 'icon-fill-row';
@@ -1233,8 +1248,9 @@ export function renderIconPanelContent(panel, meta, onSaved) {
     const hideLabel = document.createElement('span');
     hideLabel.textContent = 'Ocultar nome na aba';
     hideRow.append(hideCheckbox, hideLabel);
-    optionsCard.appendChild(hideRow);
-    body.appendChild(optionsCard);
+    optionsSec.appendChild(hideRow);
+
+    body.appendChild(optionsSec);
   }
 }
 
