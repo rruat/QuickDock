@@ -68,6 +68,8 @@ export function toggleNoteSection(type, note, onSaved) {
 
 export function openNoteSection(type, note, onSaved) {
   if (!note) return;
+  window.dispatchEvent(new CustomEvent('quickdock:close-cover-menu'));
+  window.dispatchEvent(new CustomEvent('quickdock:close-icon-menu'));
   closeNoteSection();
 
   const container = getSectionContainer();
@@ -636,3 +638,7 @@ function renderReminderSection(container, note, onSaved) {
     onSaved?.(novoReminder);
   });
 }
+
+window.addEventListener('quickdock:close-note-section', () => {
+  closeNoteSection();
+});

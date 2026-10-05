@@ -213,7 +213,11 @@ body:not(.booting) .note-editor-blocks {
 }
 
 .note-header-icon-btn.is-active,
-.note-header-icon-btn.section-active {
+.note-header-icon-btn.section-active,
+.note-header-color-btn.is-active,
+.note-header-color-btn.section-active,
+.note-header-cover-btn.is-active,
+.note-header-cover-btn.section-active {
   box-shadow: 0 0 0 2px var(--accent, #6366f1);
   background: var(--bg-hover);
 }

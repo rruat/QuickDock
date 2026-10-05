@@ -1,7 +1,7 @@
 // Cabeçalho da nota: ícone, título editável e cor.
 import { getNoteById, updateNoteMetaById } from './storage.js';
 import { openAppearancePopover, toggleIconPanel, closeIconPanel } from './notes-appearance.js';
-import { renderNoteCover, clearNoteCover } from './note-cover.js';
+import { renderNoteCover, clearNoteCover, closeCoverMenu } from './note-cover.js';
 import { hasIconImage, buildIconImageNode } from './note-icon-image.js';
 import { toggleNoteSection, closeNoteSection, openNoteSection } from './reminders/note-expandable-section.js';
 import { openReminderPopover, closeReminderPopoverIfOutside } from './reminders/reminder-popover.js';
@@ -25,6 +25,10 @@ let headerTitleDebounce = null;
 let headerNoteRef = null;
 
 export function renderNoteHeader(note) {
+  if (headerNoteRef && note && headerNoteRef.id !== note.id) {
+    closeIconPanel();
+    closeCoverMenu();
+  }
   headerNoteRef = note;
   if (!headerIconEl || !headerTitleEl || !headerColorDot) return;
   if (!note) return;

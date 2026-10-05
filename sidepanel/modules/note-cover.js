@@ -19,7 +19,7 @@ let coverEl = null;
 let imgEl = null;
 let errorEl = null;
 let repositionBarEl = null;
-let coverDetailsEl = null;
+let coverPanelEl = null;
 let openBtn = null;
 
 function revokeObjectUrl() {
@@ -112,44 +112,55 @@ export async function applyCoverHeight(heightKey, targetNote = null) {
 }
 
 export function isCoverMenuOpen() {
-  return coverDetailsEl && coverDetailsEl.open;
+  return coverPanelEl && coverPanelEl.classList.contains('is-open');
 }
 
 export function closeCoverMenu() {
-  if (coverDetailsEl) coverDetailsEl.open = false;
+  if (coverPanelEl) {
+    coverPanelEl.classList.remove('is-open');
+    coverPanelEl.setAttribute('aria-hidden', 'true');
+  }
+  coverEl?.classList.remove('is-configuring');
+  openBtn?.classList.remove('section-active', 'is-active');
+  openBtn?.setAttribute('aria-expanded', 'false');
 }
 
 export function openCoverMenu() {
-  if (coverDetailsEl) {
-    coverDetailsEl.open = true;
-    renderCoverDetailsContent();
-    coverDetailsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
+  if (!coverPanelEl) return;
+  window.dispatchEvent(new CustomEvent('quickdock:close-icon-menu'));
+  window.dispatchEvent(new CustomEvent('quickdock:close-note-section'));
+
+  coverPanelEl.classList.add('is-open');
+  coverPanelEl.setAttribute('aria-hidden', 'false');
+  coverEl?.classList.add('is-configuring');
+  openBtn?.classList.add('section-active', 'is-active');
+  openBtn?.setAttribute('aria-expanded', 'true');
+
+  renderCoverDetailsContent();
+  coverPanelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 export function toggleCoverMenu() {
-  if (coverDetailsEl) {
-    coverDetailsEl.open = !coverDetailsEl.open;
-    if (coverDetailsEl.open) {
-      renderCoverDetailsContent();
-      coverDetailsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+  if (isCoverMenuOpen()) {
+    closeCoverMenu();
+  } else {
+    openCoverMenu();
   }
 }
 
-// ── Renderização dos Controles dentro da Sessão <details> ────────────────────
+// ── Renderização dos Controles dentro da Sessão Expansível ──────────────────
 function renderCoverDetailsContent() {
-  if (!coverDetailsEl || !noteRef) return;
+  if (!coverPanelEl || !noteRef) return;
   const has = hasCover(noteRef);
   const currentKey = getNoteCoverHeightKey(noteRef);
   const heightPx = getNoteCoverHeight(noteRef);
 
-  const badgeEl = coverDetailsEl.querySelector('#note-cover-status-badge');
-  if (badgeEl) {
-    badgeEl.textContent = has ? `${heightPx}px · Ativa` : 'Adicionar capa';
+  const titleEl = coverPanelEl.querySelector('#note-cover-panel-title');
+  if (titleEl) {
+    titleEl.textContent = has ? `Opções da Capa (${heightPx}px)` : 'Adicionar Capa à Nota';
   }
 
-  const bodyEl = coverDetailsEl.querySelector('#note-cover-body');
+  const bodyEl = coverPanelEl.querySelector('#note-cover-body');
   if (!bodyEl) return;
 
   bodyEl.innerHTML = `
@@ -275,6 +286,7 @@ function renderCoverDetailsContent() {
   bodyEl.querySelector('.btn-menu-remove-cover')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     await removeCover(noteRef);
+    closeCoverMenu();
   });
 }
 
@@ -461,34 +473,32 @@ function buildCover() {
   return el;
 }
 
-function buildCoverDetails() {
-  const details = document.createElement('details');
-  details.id = 'note-cover-details';
-  details.className = 'note-section-details note-cover-details';
-  details.innerHTML = `
-    <summary class="note-section-summary">
-      <div class="note-summary-left">
-        <span class="qd-icon material-symbols-rounded">image</span>
-        <span class="note-summary-title">Capa</span>
+function buildCoverPanel() {
+  const panel = document.createElement('div');
+  panel.id = 'note-cover-panel';
+  panel.className = 'note-inline-expansion note-cover-expansion';
+  panel.setAttribute('aria-hidden', 'true');
+  panel.innerHTML = `
+    <div class="note-inline-expansion-inner">
+      <div class="note-expansion-header">
+        <div class="note-expansion-title">
+          <span class="qd-icon material-symbols-rounded">tune</span>
+          <span id="note-cover-panel-title">Opções da Capa</span>
+        </div>
+        <button type="button" class="icon-btn btn-close-expansion" title="Recolher opções da capa" aria-label="Recolher opções">
+          <span class="qd-icon material-symbols-rounded">expand_less</span>
+        </button>
       </div>
-      <div class="note-summary-right">
-        <span class="note-summary-badge" id="note-cover-status-badge">Adicionar capa</span>
-        <span class="qd-icon material-symbols-rounded note-summary-chevron">expand_more</span>
-      </div>
-    </summary>
-    <div class="note-section-body note-cover-section-body" id="note-cover-body"></div>
+      <div class="note-expansion-body" id="note-cover-body"></div>
+    </div>
   `;
 
-  details.addEventListener('toggle', () => {
-    if (details.open) {
-      coverEl?.classList.add('is-configuring');
-      renderCoverDetailsContent();
-    } else {
-      coverEl?.classList.remove('is-configuring');
-    }
+  panel.querySelector('.btn-close-expansion')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeCoverMenu();
   });
 
-  return details;
+  return panel;
 }
 
 function mount() {
@@ -496,8 +506,8 @@ function mount() {
   coverEl = buildCover();
   noteEditorEl.insertBefore(coverEl, noteEditorEl.firstChild);
 
-  coverDetailsEl = buildCoverDetails();
-  noteEditorEl.insertBefore(coverDetailsEl, coverEl.nextSibling);
+  coverPanelEl = buildCoverPanel();
+  noteEditorEl.insertBefore(coverPanelEl, coverEl.nextSibling);
 
   if (headerBar) {
     openBtn = document.createElement('button');
@@ -513,6 +523,14 @@ function mount() {
     });
   }
   syncButtons();
+
+  window.addEventListener('quickdock:close-cover-menu', () => {
+    closeCoverMenu();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isCoverMenuOpen()) closeCoverMenu();
+  });
 }
 
 mount();

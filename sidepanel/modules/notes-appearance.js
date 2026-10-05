@@ -858,42 +858,41 @@ export function renderAppearanceSection(container, meta, onSaved, onClose) {
   container.appendChild(body);
 }
 
-// ── Sessão Expansível em Linha (<details>) para Ícone & Aparência ──────────
+// ── Sessão Expansível em Linha para Ícone & Aparência ─────────────────────
 let currentNoteMeta = null;
 
-export function getIconDetailsEl() {
-  let el = document.getElementById('note-icon-details');
+export function getIconPanelEl() {
+  let el = document.getElementById('note-icon-panel');
   if (!el) {
-    el = document.createElement('details');
-    el.id = 'note-icon-details';
-    el.className = 'note-section-details note-icon-details';
+    el = document.createElement('div');
+    el.id = 'note-icon-panel';
+    el.className = 'note-inline-expansion note-icon-expansion';
+    el.setAttribute('aria-hidden', 'true');
     el.innerHTML = `
-      <summary class="note-section-summary">
-        <div class="note-summary-left">
-          <span class="qd-icon material-symbols-rounded note-summary-icon-preview">sentiment_satisfied</span>
-          <span class="note-summary-title">Ícone</span>
+      <div class="note-inline-expansion-inner">
+        <div class="note-expansion-header">
+          <div class="note-expansion-title">
+            <span class="qd-icon material-symbols-rounded">sentiment_satisfied</span>
+            <span>Opções do Ícone & Aparência</span>
+          </div>
+          <button type="button" class="icon-btn btn-close-expansion" title="Recolher opções do ícone" aria-label="Recolher opções">
+            <span class="qd-icon material-symbols-rounded">expand_less</span>
+          </button>
         </div>
-        <div class="note-summary-right">
-          <span class="note-summary-color-dot" id="note-icon-summary-dot"></span>
-          <span class="note-summary-badge" id="note-icon-summary-badge">Padrão</span>
-          <span class="qd-icon material-symbols-rounded note-summary-chevron">expand_more</span>
-        </div>
-      </summary>
-      <div class="note-section-body note-icon-section-body" id="note-icon-body"></div>
+        <div class="note-expansion-body" id="note-icon-body"></div>
+      </div>
     `;
 
-    el.addEventListener('toggle', () => {
-      const isOpen = el.open;
-      document.getElementById('btn-note-header-icon')?.classList.toggle('section-active', isOpen);
-      document.getElementById('btn-note-header-color')?.classList.toggle('section-active', isOpen);
-      document.getElementById('btn-note-appearance-mobile')?.classList.toggle('section-active', isOpen);
-      if (isOpen && currentNoteMeta) {
-        renderIconPanelContent(el, currentNoteMeta);
-      }
+    el.querySelector('.btn-close-expansion')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeIconPanel();
     });
 
     const headerBar = document.getElementById('note-header-bar');
-    if (headerBar && headerBar.parentNode) {
+    const headerBadges = document.getElementById('note-header-badges');
+    if (headerBadges && headerBadges.parentNode) {
+      headerBadges.parentNode.insertBefore(el, headerBadges.nextSibling);
+    } else if (headerBar && headerBar.parentNode) {
       headerBar.parentNode.insertBefore(el, headerBar.nextSibling);
     } else {
       const editor = document.querySelector('.note-editor');
@@ -903,51 +902,53 @@ export function getIconDetailsEl() {
   return el;
 }
 
+export const getIconDetailsEl = getIconPanelEl;
+
 export function isIconPanelOpen() {
-  const el = document.getElementById('note-icon-details');
-  return el && el.open;
+  const el = document.getElementById('note-icon-panel');
+  return el && el.classList.contains('is-open');
 }
 
 export function closeIconPanel() {
-  const el = document.getElementById('note-icon-details');
-  if (el) el.open = false;
+  const el = document.getElementById('note-icon-panel');
+  if (el) {
+    el.classList.remove('is-open');
+    el.setAttribute('aria-hidden', 'true');
+  }
+  document.getElementById('btn-note-header-icon')?.classList.remove('section-active', 'is-active');
+  document.getElementById('btn-note-header-color')?.classList.remove('section-active', 'is-active');
+  document.getElementById('btn-note-appearance-mobile')?.classList.remove('section-active', 'is-active');
 }
 
 export function openIconPanel(meta, onSaved) {
   if (!meta) return;
+  window.dispatchEvent(new CustomEvent('quickdock:close-cover-menu'));
+  window.dispatchEvent(new CustomEvent('quickdock:close-note-section'));
+
   currentNoteMeta = meta;
-  const el = getIconDetailsEl();
-  el.open = true;
+  const el = getIconPanelEl();
+  el.classList.add('is-open');
+  el.setAttribute('aria-hidden', 'false');
+
+  document.getElementById('btn-note-header-icon')?.classList.add('section-active', 'is-active');
+  document.getElementById('btn-note-header-color')?.classList.add('section-active', 'is-active');
+  document.getElementById('btn-note-appearance-mobile')?.classList.add('section-active', 'is-active');
+
   renderIconPanelContent(el, meta, onSaved);
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 export function toggleIconPanel(meta, onSaved) {
-  if (!meta) return;
-  currentNoteMeta = meta;
-  const el = getIconDetailsEl();
-  el.open = !el.open;
-  if (el.open) {
-    renderIconPanelContent(el, meta, onSaved);
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (isIconPanelOpen()) {
+    closeIconPanel();
+  } else {
+    openIconPanel(meta, onSaved);
   }
 }
 
 export function renderIconPanelContent(panel, meta, onSaved) {
   if (!panel || !meta) return;
   currentNoteMeta = meta;
-
-  // Atualiza indicadores no <summary>
-  const iconPreview = panel.querySelector('.note-summary-icon-preview');
-  if (iconPreview) iconPreview.textContent = meta.icon || 'sentiment_satisfied';
-
-  const dotEl = panel.querySelector('#note-icon-summary-dot');
-  if (dotEl) dotEl.style.background = meta.color || 'var(--text-muted)';
-
-  const badgeEl = panel.querySelector('#note-icon-summary-badge');
-  if (badgeEl) {
-    badgeEl.textContent = meta.icon ? meta.icon : (hasIconImage(meta) ? 'Imagem' : 'Padrão');
-  }
 
   const body = panel.querySelector('#note-icon-body') || panel;
   body.innerHTML = '';
@@ -1231,3 +1232,12 @@ export function renderIconPanelContent(panel, meta, onSaved) {
     body.appendChild(optionsCard);
   }
 }
+
+// Ouvintes globais para fechamento e integridade
+window.addEventListener('quickdock:close-icon-menu', () => {
+  closeIconPanel();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && isIconPanelOpen()) closeIconPanel();
+});
