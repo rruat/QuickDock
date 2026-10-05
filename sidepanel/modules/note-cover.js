@@ -80,19 +80,205 @@ export function stopReposition() {
   if (repositionBarEl) repositionBarEl.hidden = true;
 }
 
-async function saveReposition() {
-  if (!noteRef) { stopReposition(); return; }
-  const rounded = Math.round(currentPos);
-  await applyCover({ coverPosition: rounded });
-  stopReposition();
+export function getNoteCoverHeight(note) {
+  if (!note) return 180;
+  if (typeof note.coverHeight === 'number') return note.coverHeight;
+  if (note.coverHeight === 'compact') return 120;
+  if (note.coverHeight === 'normal') return 180;
+  if (note.coverHeight === 'large') return 260;
+  if (note.coverHeight === 'banner') return 340;
+  return 180;
 }
 
-function cancelReposition() {
-  if (!isRepositioning) return;
-  const originalPos = getNoteCoverPos(noteRef);
-  currentPos = originalPos;
-  if (imgEl) imgEl.style.objectPosition = `50% ${originalPos}%`;
-  stopReposition();
+export function getNoteCoverHeightKey(note) {
+  if (!note) return 'normal';
+  if (typeof note.coverHeight === 'string') return note.coverHeight;
+  if (typeof note.coverHeight === 'number') {
+    if (note.coverHeight <= 140) return 'compact';
+    if (note.coverHeight <= 220) return 'normal';
+    if (note.coverHeight <= 300) return 'large';
+    return 'banner';
+  }
+  return 'normal';
+}
+
+export async function applyCoverHeight(heightKey, targetNote = null) {
+  await applyCover({ coverHeight: heightKey }, targetNote);
+}
+
+let coverMenuEl = null;
+
+export function isCoverMenuOpen() {
+  return coverMenuEl && !coverMenuEl.hidden;
+}
+
+export function closeCoverMenu() {
+  if (coverMenuEl) {
+    coverMenuEl.hidden = true;
+    coverEl?.classList.remove('is-configuring');
+  }
+}
+
+export function openCoverMenu() {
+  if (!coverMenuEl || !noteRef) return;
+  window.dispatchEvent(new CustomEvent('quickdock:close-icon-menu'));
+  renderCoverMenuContent();
+  coverMenuEl.hidden = false;
+  coverEl?.classList.add('is-configuring');
+  coverMenuEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+export function toggleCoverMenu() {
+  if (isCoverMenuOpen()) {
+    closeCoverMenu();
+  } else {
+    openCoverMenu();
+  }
+}
+
+function renderCoverMenuContent() {
+  if (!coverMenuEl || !noteRef) return;
+  const currentKey = getNoteCoverHeightKey(noteRef);
+
+  coverMenuEl.innerHTML = `
+    <div class="note-cover-menu-header">
+      <div class="note-cover-menu-title">
+        <span class="qd-icon material-symbols-rounded">image</span>
+        <span>Opções da Capa</span>
+      </div>
+      <button type="button" class="icon-btn btn-close-cover-menu" title="Recolher opções" aria-label="Recolher opções">
+        <span class="qd-icon material-symbols-rounded">expand_less</span>
+      </button>
+    </div>
+
+    <div class="note-cover-menu-body">
+      <!-- 1. Tamanho / Altura -->
+      <div class="note-cover-menu-section">
+        <div class="note-cover-section-header">
+          <span class="note-cover-section-label">Tamanho / Altura</span>
+        </div>
+        <div class="note-cover-height-picker" role="radiogroup" aria-label="Tamanho da Capa">
+          <button type="button" class="note-cover-height-btn ${currentKey === 'compact' ? 'active' : ''}" data-height="compact" title="Altura compacta (120px)">Compacta</button>
+          <button type="button" class="note-cover-height-btn ${currentKey === 'normal' ? 'active' : ''}" data-height="normal" title="Altura padrão (180px)">Padrão</button>
+          <button type="button" class="note-cover-height-btn ${currentKey === 'large' ? 'active' : ''}" data-height="large" title="Altura grande (260px)">Grande</button>
+          <button type="button" class="note-cover-height-btn ${currentKey === 'banner' ? 'active' : ''}" data-height="banner" title="Altura banner (340px)">Banner</button>
+        </div>
+      </div>
+
+      <!-- 2. Alinhamento / Posição -->
+      <div class="note-cover-menu-section">
+        <div class="note-cover-section-header">
+          <span class="note-cover-section-label">Alinhamento & Posição</span>
+        </div>
+        <button type="button" class="calendar-action-btn secondary btn-menu-reposition" title="Arrastar verticalmente para ajustar o enquadramento">
+          <span class="qd-icon material-symbols-rounded">drag_pan</span>
+          <span>Reposicionar Imagem (Arrastar)</span>
+        </button>
+      </div>
+
+      <!-- 3. Alterar Imagem -->
+      <div class="note-cover-menu-section">
+        <div class="note-cover-section-header">
+          <span class="note-cover-section-label">Alterar Imagem da Capa</span>
+        </div>
+        <div class="note-cover-input-row">
+          <input type="url" class="property-input note-cover-menu-url" placeholder="Colar link de imagem (https://...)" spellcheck="false" autocomplete="off" value="${noteRef.coverUrl || ''}">
+          <button type="button" class="calendar-action-btn primary btn-menu-apply-url" title="Aplicar link da imagem">
+            <span class="qd-icon material-symbols-rounded">link</span>
+            <span>Aplicar</span>
+          </button>
+          <label class="calendar-action-btn secondary btn-menu-file-label" title="Escolher arquivo do aparelho">
+            <input type="file" accept="image/*" class="note-cover-menu-file" hidden>
+            <span class="qd-icon material-symbols-rounded">upload_file</span>
+            <span>Arquivo</span>
+          </label>
+        </div>
+        <div class="note-cover-menu-error" hidden></div>
+      </div>
+
+      <!-- 4. Remover Capa -->
+      <div class="note-cover-menu-footer">
+        <button type="button" class="calendar-action-btn danger btn-menu-remove-cover" title="Remover capa desta nota">
+          <span class="qd-icon material-symbols-rounded">delete</span>
+          <span>Remover Capa</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  coverMenuEl.querySelector('.btn-close-cover-menu')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeCoverMenu();
+  });
+
+  coverMenuEl.querySelectorAll('.note-cover-height-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const heightKey = btn.dataset.height;
+      await applyCoverHeight(heightKey, noteRef);
+      renderCoverMenuContent();
+    });
+  });
+
+  coverMenuEl.querySelector('.btn-menu-reposition')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeCoverMenu();
+    startReposition();
+  });
+
+  const urlInput = coverMenuEl.querySelector('.note-cover-menu-url');
+  const applyBtn = coverMenuEl.querySelector('.btn-menu-apply-url');
+  const fileInput = coverMenuEl.querySelector('.note-cover-menu-file');
+  const errorEl = coverMenuEl.querySelector('.note-cover-menu-error');
+
+  const handleApplyUrl = async () => {
+    const raw = (urlInput?.value || '').trim();
+    const url = normalizeUrl(raw);
+    if (!url) {
+      if (errorEl) {
+        errorEl.textContent = 'Digite um link http:// ou https:// válido.';
+        errorEl.hidden = false;
+      }
+      return;
+    }
+    if (errorEl) errorEl.hidden = true;
+    await applyCover({ coverUrl: url, coverFileId: null }, noteRef);
+    renderCoverMenuContent();
+  };
+
+  applyBtn?.addEventListener('click', handleApplyUrl);
+  urlInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleApplyUrl(); }
+  });
+
+  fileInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      if (errorEl) {
+        errorEl.textContent = 'Escolha um arquivo de imagem.';
+        errorEl.hidden = false;
+      }
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      if (errorEl) {
+        errorEl.textContent = 'A imagem passa de 10 MB. Escolha uma menor.';
+        errorEl.hidden = false;
+      }
+      return;
+    }
+    if (errorEl) errorEl.hidden = true;
+    const fileId = await saveFile(file, noteRef.id, { inline: true });
+    await applyCover({ coverFileId: fileId, coverUrl: null }, noteRef);
+    renderCoverMenuContent();
+  });
+
+  coverMenuEl.querySelector('.btn-menu-remove-cover')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    closeCoverMenu();
+    await removeCover(noteRef);
+  });
 }
 
 // ── Renderização ──────────────────────────────────────────────────────────────
@@ -107,10 +293,17 @@ export async function renderNoteCover(note) {
   if (!coverEl) return;
   if (isRepositioning) stopReposition();
 
+  const height = getNoteCoverHeight(note);
+  coverEl.style.height = `${height}px`;
+
+  if (isCoverMenuOpen()) {
+    renderCoverMenuContent();
+  }
+
   // O cabeçalho re-renderiza a mesma nota várias vezes (título, ícone, cor...):
   // sem esta checagem a imagem era baixada de novo a cada uma.
   const pos = getNoteCoverPos(note);
-  const key = hasCover(note) ? `${note.id}|${note.coverUrl ?? ''}|${note.coverFileId ?? ''}|${pos}` : null;
+  const key = hasCover(note) ? `${note.id}|${note.coverUrl ?? ''}|${note.coverFileId ?? ''}|${pos}|${height}` : null;
   if (key === renderedKey && (key === null || !coverEl.hidden)) {
     if (imgEl) imgEl.style.objectPosition = `50% ${pos}%`;
     syncButtons();
@@ -124,6 +317,7 @@ export async function renderNoteCover(note) {
     revokeObjectUrl();
     imgEl.removeAttribute('src');
     coverEl.hidden = true;
+    closeCoverMenu();
     syncButtons();
     return;
   }
@@ -152,6 +346,7 @@ export function clearNoteCover() {
   renderedKey = null;
   stopReposition();
   closePopover();
+  closeCoverMenu();
   if (coverEl) coverEl.hidden = true;
   revokeObjectUrl();
 }
@@ -332,9 +527,7 @@ function buildCover() {
   imgEl.addEventListener('load', () => { errorEl.hidden = true; imgEl.hidden = false; });
   el.querySelector('.note-cover-change').addEventListener('click', (e) => {
     e.stopPropagation();
-    if (noteRef) {
-      openNoteSection('appearance', noteRef);
-    }
+    toggleCoverMenu();
   });
   el.querySelector('.note-cover-reposition').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -388,6 +581,12 @@ function mount() {
   coverEl = buildCover();
   noteEditorEl.insertBefore(coverEl, noteEditorEl.firstChild);
 
+  coverMenuEl = document.createElement('div');
+  coverMenuEl.id = 'note-cover-menu';
+  coverMenuEl.className = 'note-cover-inline-menu';
+  coverMenuEl.hidden = true;
+  noteEditorEl.insertBefore(coverMenuEl, coverEl.nextSibling);
+
   popoverEl = buildPopover();
 
   if (headerBar) {
@@ -402,21 +601,27 @@ function mount() {
     openBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (noteRef) {
-        toggleNoteSection('appearance', noteRef);
+        toggleCoverMenu();
       }
     });
   }
   syncButtons();
 
-  document.addEventListener('mousedown', (e) => {
-    if (popoverEl.hidden) return;
-    if (popoverEl.contains(e.target) || openBtn?.contains(e.target) || coverEl.contains(e.target)) return;
-    closePopover();
+  document.addEventListener('pointerdown', (e) => {
+    if (isCoverMenuOpen()) {
+      if (!coverMenuEl.contains(e.target) && !coverEl.contains(e.target) && !openBtn?.contains(e.target)) {
+        closeCoverMenu();
+      }
+    }
   });
+
+  window.addEventListener('quickdock:close-cover-menu', () => {
+    closeCoverMenu();
+  });
+
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !popoverEl.hidden) closePopover();
+    if (e.key === 'Escape' && isCoverMenuOpen()) closeCoverMenu();
   });
-  window.addEventListener('resize', () => { if (!popoverEl.hidden) closePopover(); });
 }
 
 mount();

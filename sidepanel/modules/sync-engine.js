@@ -219,6 +219,7 @@ export class SyncEngine {
       // não sincronizadas) e não tem como chegar ao outro aparelho.
       capa: nota.coverUrl || undefined,
       capaPosicao: typeof nota.coverPosition === 'number' ? nota.coverPosition : undefined,
+      capaAltura: (typeof nota.coverHeight === 'number' || typeof nota.coverHeight === 'string') ? nota.coverHeight : undefined,
       // Ícone com imagem: só o endereço e o corte viajam (arquivo enviado é local).
       iconeImagem: nota.iconImage?.url || undefined,
       iconeCorte: nota.iconImage?.url
@@ -607,6 +608,7 @@ export class SyncEngine {
           iconFilled: !!metaNota.iconePreenchido,
           coverUrl: metaNota.capa ?? null,
           coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : 50,
+          coverHeight: metaNota.capaAltura ?? null,
           iconImage: this._iconImageDeMeta(metaNota, null),
           titleHidden: !!metaNota.tituloOculto,
           ordem: metaNota.ordem ?? 'a0',
@@ -689,6 +691,7 @@ export class SyncEngine {
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
             coverUrl: metaNota.capa ?? null,
             coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (notaLocal.coverPosition ?? 50),
+            coverHeight: metaNota.capaAltura !== undefined ? metaNota.capaAltura : (notaLocal.coverHeight ?? null),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,

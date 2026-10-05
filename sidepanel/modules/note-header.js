@@ -1,6 +1,6 @@
 // Cabeçalho da nota: ícone, título editável e cor.
 import { getNoteById, updateNoteMetaById } from './storage.js';
-import { openAppearancePopover } from './notes-appearance.js';
+import { openAppearancePopover, toggleIconPanel, closeIconPanel } from './notes-appearance.js';
 import { renderNoteCover, clearNoteCover } from './note-cover.js';
 import { hasIconImage, buildIconImageNode } from './note-icon-image.js';
 import { toggleNoteSection, closeNoteSection, openNoteSection } from './reminders/note-expandable-section.js';
@@ -156,6 +156,7 @@ export function clearNoteHeader() {
   headerReminderBtn?.classList.remove('is-active', 'section-active');
   headerLocationBtn?.classList.remove('is-active', 'section-active');
   closeNoteSection();
+  closeIconPanel();
   clearNoteCover();
 }
 
@@ -196,23 +197,23 @@ if (headerTitleEl) {
   });
 }
 
-// Ícone, cor e aparência da nota expandem a seção integrada (sem popovers)
+// Ícone, cor e aparência da nota expandem o menu de opções conectado diretamente ao elemento
 headerIconBtn?.addEventListener('click', e => {
   e.stopPropagation();
   if (headerNoteRef) {
-    toggleNoteSection('appearance', headerNoteRef, () => renderNoteHeader(headerNoteRef));
+    toggleIconPanel(headerNoteRef, () => renderNoteHeader(headerNoteRef));
   }
 });
 headerColorBtn?.addEventListener('click', e => {
   e.stopPropagation();
   if (headerNoteRef) {
-    toggleNoteSection('appearance', headerNoteRef, () => renderNoteHeader(headerNoteRef));
+    toggleIconPanel(headerNoteRef, () => renderNoteHeader(headerNoteRef));
   }
 });
 mobileAppearanceBtn?.addEventListener('click', e => {
   e.stopPropagation();
   if (headerNoteRef) {
-    toggleNoteSection('appearance', headerNoteRef, () => renderNoteHeader(headerNoteRef));
+    toggleIconPanel(headerNoteRef, () => renderNoteHeader(headerNoteRef));
   }
 });
 

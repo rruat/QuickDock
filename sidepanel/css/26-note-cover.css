@@ -288,12 +288,167 @@
   color: var(--text-muted);
 }
 
+/* ── Menu de Configuração Conectado Diretamente à Capa ───────────────────── */
+.note-cover.is-configuring {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: 0 0 0 2px var(--accent, #6366f1);
+}
+
+.note-cover-inline-menu {
+  position: relative;
+  width: calc(100% - 28px);
+  max-width: var(--note-max-width, 297mm);
+  align-self: center;
+  margin: -4px 0 16px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: 1px dashed var(--border);
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 10;
+  animation: coverMenuExpand 0.18s ease-out;
+}
+
+@keyframes coverMenuExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.note-cover-inline-menu[hidden] {
+  display: none !important;
+}
+
+.note-cover-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.note-cover-menu-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.note-cover-menu-title .qd-icon {
+  font-size: 18px;
+  color: var(--accent, #6366f1);
+}
+
+.note-cover-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-cover-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.note-cover-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.note-cover-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.note-cover-height-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.note-cover-height-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.note-cover-height-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.note-cover-height-btn.active {
+  background: var(--accent, #6366f1);
+  color: #ffffff;
+  border-color: var(--accent, #6366f1);
+  font-weight: 600;
+}
+
+.note-cover-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.note-cover-input-row .note-cover-menu-url {
+  flex: 1 1 200px;
+}
+
+.note-cover-menu-error {
+  font-size: 12px;
+  color: var(--danger, #ef4444);
+  margin-top: 4px;
+}
+
+.note-cover-menu-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 768px) {
+  #btn-note-cover {
+    display: none !important;
+  }
+  .note-cover-height-picker {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ── Papel: a capa sai na impressão, os controles não ────────────────────── */
 @media print {
   html[data-platform] .note-cover-actions,
   html[data-platform] .note-cover-reposition-bar,
   html[data-platform] .note-header-cover-btn,
-  html[data-platform] .note-cover-popover {
+  html[data-platform] .note-cover-popover,
+  html[data-platform] .note-cover-inline-menu {
     display: none !important;
   }
 

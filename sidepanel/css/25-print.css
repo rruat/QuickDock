@@ -4,7 +4,7 @@
    modules/note-print.js (Retrato por padrão, Paisagem opcional).
    ========================================================================== */
 
-/* ── Botão no cabeçalho da nota e popover de opções ──────────────────────── */
+/* ── Botão no cabeçalho da nota ──────────────────────────────────────────── */
 .note-header-print-btn {
   width: 28px;
   height: 28px;
@@ -13,67 +13,250 @@
 }
 
 .note-header-print-btn:hover,
-.note-header-print-btn[aria-expanded="true"] {
+.note-header-print-btn[aria-expanded="true"],
+.note-header-print-btn.active {
   background: var(--bg-hover);
   color: var(--text);
 }
 
-.note-print-popover {
-  position: fixed;
-  z-index: 3000;
-  width: 240px;
-  padding: 12px;
+/* ── Barra Superior do Modo de Impressão ─────────────────────────────────── */
+.note-print-toolbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--accent, #6366f1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  animation: printToolbarSlideDown 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  flex-wrap: wrap;
+}
+
+@keyframes printToolbarSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.note-print-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.note-print-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(37, 211, 102, 0.12);
+  color: #22c55e;
+}
+
+.note-print-icon-badge .qd-icon {
+  font-size: 20px;
+}
+
+.note-print-toolbar-info {
   display: flex;
   flex-direction: column;
+  line-height: 1.25;
+}
+
+.note-print-toolbar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.note-print-toolbar-count {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.note-print-toolbar-center {
+  display: flex;
+  align-items: center;
   gap: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text);
+  flex-wrap: wrap;
 }
 
-.note-print-popover[hidden] {
-  display: none;
-}
-
-.note-print-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.note-print-orientation {
+.note-print-orientation-tabs {
   flex: none;
 }
 
-.note-print-go {
+.btn-print-select-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.note-print-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-print-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.btn-print-exit {
+  width: 32px;
+  height: 32px;
+  color: var(--text-muted);
+}
+
+.btn-print-exit:hover {
+  background: var(--bg-hover);
+  color: var(--danger, #ef4444);
+}
+
+/* ── Estilo de Seleção Interativa de Blocos (Estilo WhatsApp) ─────────────── */
+body.is-print-mode .note-editor-blocks {
+  padding-left: 48px !important;
+}
+
+body.is-print-mode .print-selectable-item {
+  position: relative !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+body.is-print-mode .print-selectable-item:hover {
+  outline: 1px dashed var(--accent, #6366f1);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+body.is-print-mode .print-selectable-item.print-excluded {
+  opacity: 0.28 !important;
+  filter: grayscale(0.7) !important;
+}
+
+body.is-print-mode .print-selectable-item.print-excluded:hover {
+  opacity: 0.55 !important;
+}
+
+/* Alça / Checkbox estilo WhatsApp */
+.print-select-handle {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  vertical-align: middle !important;
+  z-index: 10 !important;
+}
+
+.print-checkbox-indicator {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--bg);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
 }
 
-.note-print-go .qd-icon {
-  font-size: 17px;
+.print-select-handle.is-checked .print-checkbox-indicator {
+  background: #22c55e;
+  border: 2px solid #22c55e;
+  color: #ffffff;
+  transform: scale(1);
 }
 
-.note-print-hint {
+.print-select-handle.is-unchecked .print-checkbox-indicator {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  color: transparent;
+  transform: scale(0.92);
+}
+
+.print-checkbox-indicator .qd-icon {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.print-handle-badge {
   font-size: 11px;
-  line-height: 1.4;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   color: var(--text-muted);
+}
+
+/* Posicionamento da alça no bloco de conteúdo */
+body.is-print-mode .note-editor-blocks .block .print-select-handle {
+  position: absolute;
+  left: -36px;
+  top: 3px;
+}
+
+/* Posicionamento da alça na capa */
+.note-cover .print-select-handle {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 15;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  padding: 4px 10px;
+  border-radius: 20px;
+  color: #ffffff;
+}
+
+.note-cover .print-select-handle .print-handle-badge {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+}
+
+/* Posicionamento da alça no título e propriedades */
+.note-header-bar .print-select-handle,
+.note-properties-bar .print-select-handle,
+.note-backlinks-section .print-select-handle {
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 
 /* ── Saída em papel: só a nota aberta, em tema claro ─────────────────────── */
 @media print {
+  /* Regra de Ouro do Modo de Impressão com Seleção:
+     Itens desmarcados (.print-excluded) e controles de UI são completamente ocultados */
+  .print-excluded,
+  [data-print-selected="false"],
+  .print-select-handle,
+  #note-print-toolbar,
+  .note-print-toolbar {
+    display: none !important;
+  }
+
   html,
   html[data-theme="dark"],
   html[data-theme="light"] {
@@ -137,17 +320,17 @@
   html[data-platform] .mobile-notion-toolbar,
   html[data-platform] .mobile-type-sheet,
   html[data-platform] .mobile-template-sheet,
-  html[data-platform] .note-backlinks-section,
   html[data-platform] .note-watermark,
   html[data-platform] .template-bar,
   html[data-platform] .note-folder-bar,
-  html[data-platform] .note-properties-bar,
   html[data-platform] .block-controls,
   html[data-platform] .btn-touch-select,
   html[data-platform] .note-print-popover,
   html[data-platform] .note-header-print-btn,
   html[data-platform] .note-header-outline-btn,
   html[data-platform] .note-header-color-btn,
+  html[data-platform] #btn-note-header-reminder,
+  html[data-platform] #btn-note-header-location,
   html[data-platform] .modal {
     display: none !important;
   }

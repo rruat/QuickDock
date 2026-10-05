@@ -5,7 +5,7 @@ import { positionPopover } from './popover.js';
 import { iconSvg } from './icons.js';
 import { MATERIAL_ICONS } from './material-icons-list.js';
 import { hasIconImage, renderIconImageEditor, buildIconImageNode, forgetIconFile } from './note-icon-image.js';
-import { hasCover, applyCover, removeCover, startReposition, normalizeUrl, MAX_BYTES } from './note-cover.js';
+import { hasCover, applyCover, removeCover, startReposition, normalizeUrl, MAX_BYTES, openCoverMenu } from './note-cover.js';
 import {
   getNotesMeta, getActiveId, setAccent, renderTabs, refreshOpenAsideRows,
 } from './notes-tabs.js';
@@ -857,3 +857,408 @@ export function renderAppearanceSection(container, meta, onSaved, onClose) {
 
   container.appendChild(body);
 }
+
+// ── Painel de Opções Conectado Diretamente ao Ícone do Cabeçalho ──────────────
+export function getIconPanelEl() {
+  let el = document.getElementById('note-icon-panel');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'note-icon-panel';
+    el.className = 'note-icon-inline-menu';
+    el.hidden = true;
+    const headerBar = document.getElementById('note-header-bar');
+    if (headerBar && headerBar.parentNode) {
+      headerBar.parentNode.insertBefore(el, headerBar.nextSibling);
+    } else {
+      const editor = document.querySelector('.note-editor');
+      if (editor) editor.insertBefore(el, editor.firstChild);
+    }
+  }
+  return el;
+}
+
+export function isIconPanelOpen() {
+  const el = document.getElementById('note-icon-panel');
+  return el && !el.hidden;
+}
+
+export function closeIconPanel() {
+  const el = getIconPanelEl();
+  el.hidden = true;
+  el.innerHTML = '';
+  document.getElementById('btn-note-header-icon')?.classList.remove('section-active', 'is-active');
+  document.getElementById('btn-note-header-color')?.classList.remove('section-active', 'is-active');
+  document.getElementById('btn-note-appearance-mobile')?.classList.remove('section-active', 'is-active');
+}
+
+export function openIconPanel(meta, onSaved) {
+  if (!meta) return;
+  window.dispatchEvent(new CustomEvent('quickdock:close-cover-menu'));
+
+  const el = getIconPanelEl();
+  el.hidden = false;
+  document.getElementById('btn-note-header-icon')?.classList.add('section-active', 'is-active');
+  document.getElementById('btn-note-header-color')?.classList.add('section-active', 'is-active');
+  document.getElementById('btn-note-appearance-mobile')?.classList.add('section-active', 'is-active');
+
+  renderIconPanelContent(el, meta, onSaved);
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+export function toggleIconPanel(meta, onSaved) {
+  if (isIconPanelOpen()) {
+    closeIconPanel();
+  } else {
+    openIconPanel(meta, onSaved);
+  }
+}
+
+export function renderIconPanelContent(panel, meta, onSaved) {
+  panel.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'note-icon-menu-header';
+  header.innerHTML = `
+    <div class="note-icon-menu-title">
+      <span class="qd-icon material-symbols-rounded">sentiment_satisfied</span>
+      <span>Opções do Ícone & Aparência</span>
+    </div>
+    <button type="button" class="icon-btn btn-close-icon-panel" title="Recolher opções" aria-label="Recolher opções">
+      <span class="qd-icon material-symbols-rounded">expand_less</span>
+    </button>
+  `;
+  header.querySelector('.btn-close-icon-panel')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeIconPanel();
+  });
+  panel.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'note-icon-menu-body';
+
+  // ── SEÇÃO 1: ÍCONE DA NOTA ───────────────────────────────────────────────
+  const iconCard = document.createElement('div');
+  iconCard.className = 'appearance-section-card';
+
+  const iconHeader = document.createElement('div');
+  iconHeader.className = 'appearance-card-header';
+  iconHeader.innerHTML = `
+    <span class="qd-icon material-symbols-rounded">sentiment_satisfied</span>
+    <span class="appearance-card-title">Ícone</span>
+    <span class="icon-catalog-header-count">${(MATERIAL_ICONS?.length || 4284).toLocaleString('pt-BR')} disponíveis</span>
+  `;
+  iconCard.appendChild(iconHeader);
+
+  // Imagem própria (link ou arquivo)
+  const imageRow = document.createElement('button');
+  imageRow.type = 'button';
+  imageRow.className = 'icon-image-row' + (hasIconImage(meta) ? ' active' : '');
+  const thumb = hasIconImage(meta) ? buildIconImageNode(meta.iconImage, 'icon-image-thumb') : null;
+  if (thumb) imageRow.appendChild(thumb);
+  else imageRow.insertAdjacentHTML('beforeend', '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add_photo_alternate</span>');
+  const imageLabel = document.createElement('span');
+  imageLabel.textContent = hasIconImage(meta) ? 'Alterar imagem do ícone' : 'Usar uma imagem (link ou arquivo)';
+  imageRow.appendChild(imageLabel);
+  imageRow.addEventListener('click', (e) => {
+    e.stopPropagation();
+    renderIconImageEditor(iconCard, meta, {
+      back: () => renderIconPanelContent(panel, meta, onSaved),
+      save: async (iconImage) => {
+        const antigo = meta.iconImage?.fileId;
+        const patch = { iconImage, ...(iconImage ? { icon: null } : {}) };
+        await updateNoteMetaById(meta.id, patch);
+        sincronizarComNotesMeta(meta, patch);
+        if (antigo != null && antigo !== iconImage?.fileId) {
+          try { await deleteFile(antigo); } catch {}
+          forgetIconFile(antigo);
+        }
+        renderTabs();
+        refreshOpenAsideRows();
+        document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
+        onSaved?.();
+        renderIconPanelContent(panel, meta, onSaved);
+      },
+    });
+  });
+  iconCard.appendChild(imageRow);
+
+  // Barra de busca
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'icon-search-wrap';
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.className = 'icon-search-input';
+  searchInput.placeholder = 'Buscar entre 4.000+ ícones...';
+  searchInput.setAttribute('aria-label', 'Buscar ícones');
+  const searchClear = document.createElement('button');
+  searchClear.className = 'icon-search-clear icon-btn';
+  searchClear.innerHTML = iconSvg('close');
+  searchClear.title = 'Limpar busca';
+  searchClear.hidden = true;
+  searchWrap.append(searchInput, searchClear);
+  iconCard.appendChild(searchWrap);
+
+  const countEl = document.createElement('div');
+  countEl.className = 'icon-catalog-count';
+  iconCard.appendChild(countEl);
+
+  const iconScrollContainer = document.createElement('div');
+  iconScrollContainer.className = 'icon-catalog-scroll';
+  const iconGrid = document.createElement('div');
+  iconGrid.className = 'icon-grid icon-catalog-grid';
+  iconScrollContainer.appendChild(iconGrid);
+  iconCard.appendChild(iconScrollContainer);
+
+  const pickIcon = async (name) => {
+    const antigo = meta.iconImage?.fileId;
+    await updateNoteMetaById(meta.id, { icon: name, iconImage: null });
+    sincronizarComNotesMeta(meta, { icon: name, iconImage: null });
+    if (antigo != null) {
+      try { await deleteFile(antigo); } catch {}
+      forgetIconFile(antigo);
+    }
+    renderTabs();
+    refreshOpenAsideRows();
+    document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
+    onSaved?.();
+    renderIconPanelContent(panel, meta, onSaved);
+  };
+
+  const filledClass = meta.iconFilled ? ' icon-filled' : '';
+  const noneIconBtn = document.createElement('button');
+  noneIconBtn.className = 'icon-swatch icon-swatch-none' + (!meta.icon && !hasIconImage(meta) ? ' active' : '');
+  noneIconBtn.textContent = '—';
+  noneIconBtn.title = 'Nenhum ícone';
+  noneIconBtn.setAttribute('aria-label', 'Nenhum ícone');
+  noneIconBtn.addEventListener('click', (e) => { e.stopPropagation(); pickIcon(null); });
+
+  const createSwatch = (name) => {
+    const btn = document.createElement('button');
+    btn.className = 'icon-swatch' + filledClass + (meta.icon === name ? ' active' : '');
+    btn.innerHTML = iconSvg(name);
+    btn.title = name;
+    btn.setAttribute('aria-label', name);
+    btn.addEventListener('click', (e) => { e.stopPropagation(); pickIcon(name); });
+    return btn;
+  };
+
+  let renderLimit = 72;
+  let currentFilteredList = [];
+
+  const renderBatch = () => {
+    const q = searchInput.value.trim().toLowerCase();
+    const isSearching = !!q;
+
+    if (!isSearching) {
+      countEl.textContent = 'Populares e catálogo completo:';
+      iconGrid.appendChild(noneIconBtn);
+      for (const name of COMMON_ICONS) {
+        iconGrid.appendChild(createSwatch(name));
+      }
+      if (meta.icon && !COMMON_ICONS.includes(meta.icon)) {
+        iconGrid.appendChild(createSwatch(meta.icon));
+      }
+      currentFilteredList = (MATERIAL_ICONS || []).filter(name => !COMMON_ICONS.includes(name));
+    } else {
+      currentFilteredList = (MATERIAL_ICONS || []).filter(name => name.toLowerCase().includes(q));
+      countEl.textContent = `${currentFilteredList.length} ícone(s) encontrado(s):`;
+      if (currentFilteredList.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'icon-catalog-empty';
+        empty.textContent = 'Nenhum ícone encontrado para esta busca.';
+        iconGrid.appendChild(empty);
+        return;
+      }
+    }
+
+    const slice = currentFilteredList.slice(0, renderLimit);
+    for (const name of slice) {
+      iconGrid.appendChild(createSwatch(name));
+    }
+  };
+
+  const updateGrid = () => {
+    iconGrid.innerHTML = '';
+    renderLimit = 72;
+    renderBatch();
+  };
+
+  searchInput.addEventListener('input', () => {
+    searchClear.hidden = !searchInput.value;
+    updateGrid();
+  });
+
+  searchClear.addEventListener('click', (e) => {
+    e.stopPropagation();
+    searchInput.value = '';
+    searchClear.hidden = true;
+    updateGrid();
+    searchInput.focus();
+  });
+
+  iconScrollContainer.addEventListener('scroll', () => {
+    if (iconScrollContainer.scrollTop + iconScrollContainer.clientHeight >= iconScrollContainer.scrollHeight - 40) {
+      if (renderLimit < currentFilteredList.length) {
+        renderLimit += 60;
+        const nextBatch = currentFilteredList.slice(renderLimit - 60, renderLimit);
+        for (const name of nextBatch) {
+          iconGrid.appendChild(createSwatch(name));
+        }
+      }
+    }
+  });
+
+  updateGrid();
+
+  // Ícone preenchido
+  const fillRow = document.createElement('label');
+  fillRow.className = 'icon-fill-row';
+  const fillCheckbox = document.createElement('input');
+  fillCheckbox.type = 'checkbox';
+  fillCheckbox.checked = !!meta.iconFilled;
+  fillCheckbox.addEventListener('change', async (e) => {
+    e.stopPropagation();
+    await updateNoteMetaById(meta.id, { iconFilled: e.target.checked });
+    sincronizarComNotesMeta(meta, { iconFilled: e.target.checked });
+    renderTabs();
+    refreshOpenAsideRows();
+    document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
+    onSaved?.();
+    renderIconPanelContent(panel, meta, onSaved);
+  });
+  const fillLabel = document.createElement('span');
+  fillLabel.textContent = 'Ícone preenchido';
+  fillRow.append(fillCheckbox, fillLabel);
+  iconCard.appendChild(fillRow);
+
+  body.appendChild(iconCard);
+
+  // ── SEÇÃO 2: COR DA NOTA ─────────────────────────────────────────────────
+  const colorCard = document.createElement('div');
+  colorCard.className = 'appearance-section-card';
+
+  const colorHeader = document.createElement('div');
+  colorHeader.className = 'appearance-card-header';
+  colorHeader.innerHTML = `
+    <span class="qd-icon material-symbols-rounded">format_paint</span>
+    <span class="appearance-card-title">Cor da Nota</span>
+  `;
+  colorCard.appendChild(colorHeader);
+
+  const colorGrid = document.createElement('div');
+  colorGrid.className = 'color-grid';
+
+  const pickColor = async (hex) => {
+    await updateNoteMetaById(meta.id, { color: hex });
+    sincronizarComNotesMeta(meta, { color: hex });
+    if (meta.id === getActiveId()) setAccent(hex);
+    renderTabs();
+    refreshOpenAsideRows();
+    document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
+    onSaved?.();
+    renderIconPanelContent(panel, meta, onSaved);
+  };
+
+  const noneColorBtn = document.createElement('button');
+  noneColorBtn.className = 'color-swatch color-swatch-none' + (!meta.color ? ' active' : '');
+  noneColorBtn.title = 'Nenhuma cor';
+  noneColorBtn.addEventListener('click', (e) => { e.stopPropagation(); pickColor(null); });
+  colorGrid.appendChild(noneColorBtn);
+
+  for (const { name, hex } of COLORS) {
+    const sw = document.createElement('button');
+    sw.className = 'color-swatch' + (meta.color === hex ? ' active' : '');
+    sw.style.background = hex;
+    sw.title = name;
+    sw.addEventListener('click', (e) => { e.stopPropagation(); pickColor(hex); });
+    colorGrid.appendChild(sw);
+  }
+
+  const isCustomColor = !!meta.color && !COLORS.some(c => c.hex === meta.color);
+  const customSwatch = document.createElement('label');
+  customSwatch.className = 'color-swatch color-swatch-custom' + (isCustomColor ? ' active' : '');
+  customSwatch.title = 'Outra cor…';
+  if (isCustomColor) customSwatch.style.background = meta.color;
+
+  const colorInput = document.createElement('input');
+  colorInput.type = 'color';
+  colorInput.className = 'color-custom-input';
+  colorInput.value = (meta.color && /^#[0-9a-f]{6}$/i.test(meta.color)) ? meta.color : '#888888';
+  colorInput.addEventListener('input', (e) => { e.target.closest('.color-swatch').style.background = e.target.value; });
+  colorInput.addEventListener('change', (e) => { e.stopPropagation(); pickColor(e.target.value); });
+  customSwatch.appendChild(colorInput);
+  colorGrid.appendChild(customSwatch);
+
+  colorCard.appendChild(colorGrid);
+  body.appendChild(colorCard);
+
+  // ── SEÇÃO 3: OPÇÕES NA ABA ───────────────────────────────────────────────
+  if (meta.icon || meta.color || hasIconImage(meta)) {
+    const optionsCard = document.createElement('div');
+    optionsCard.className = 'appearance-section-card';
+
+    const hideRow = document.createElement('label');
+    hideRow.className = 'icon-fill-row';
+    const hideCheckbox = document.createElement('input');
+    hideCheckbox.type = 'checkbox';
+    hideCheckbox.checked = !!meta.titleHidden;
+    hideCheckbox.addEventListener('change', async (e) => {
+      e.stopPropagation();
+      await updateNoteMetaById(meta.id, { titleHidden: e.target.checked });
+      meta.titleHidden = e.target.checked;
+      renderTabs();
+    });
+    const hideLabel = document.createElement('span');
+    hideLabel.textContent = 'Ocultar nome na aba';
+    hideRow.append(hideCheckbox, hideLabel);
+    optionsCard.appendChild(hideRow);
+    body.appendChild(optionsCard);
+  }
+
+  // ── SEÇÃO 4: CAPA DA NOTA (ATALHO DIRETO CONECTADO) ──────────────────────
+  const coverShortcutCard = document.createElement('div');
+  coverShortcutCard.className = 'appearance-section-card';
+  const hasCov = hasCover(meta);
+  coverShortcutCard.innerHTML = `
+    <div class="appearance-card-header">
+      <span class="qd-icon material-symbols-rounded">image</span>
+      <span class="appearance-card-title">Capa da Nota</span>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <span style="font-size: 12.5px; color: var(--text-secondary);">${hasCov ? 'Capa configurada nesta nota' : 'Sem capa definida'}</span>
+      <button type="button" class="calendar-action-btn secondary btn-open-cover-options" title="${hasCov ? 'Abrir menu de opções da capa' : 'Adicionar uma capa à nota'}">
+        <span class="qd-icon material-symbols-rounded">${hasCov ? 'tune' : 'add_photo_alternate'}</span>
+        <span>${hasCov ? 'Opções da Capa' : 'Adicionar Capa'}</span>
+      </button>
+    </div>
+  `;
+  coverShortcutCard.querySelector('.btn-open-cover-options')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeIconPanel();
+    openCoverMenu();
+  });
+  body.appendChild(coverShortcutCard);
+
+  panel.appendChild(body);
+}
+
+// Ouvintes globais para fechamento e integridade
+window.addEventListener('quickdock:close-icon-menu', () => {
+  closeIconPanel();
+});
+
+document.addEventListener('pointerdown', (e) => {
+  if (isIconPanelOpen()) {
+    const panel = getIconPanelEl();
+    const iconBtn = document.getElementById('btn-note-header-icon');
+    const colorBtn = document.getElementById('btn-note-header-color');
+    const mobileBtn = document.getElementById('btn-note-appearance-mobile');
+    if (!panel.contains(e.target) && !iconBtn?.contains(e.target) && !colorBtn?.contains(e.target) && !mobileBtn?.contains(e.target)) {
+      closeIconPanel();
+    }
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && isIconPanelOpen()) closeIconPanel();
+});
