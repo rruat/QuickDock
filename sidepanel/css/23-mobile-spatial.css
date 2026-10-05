@@ -906,7 +906,9 @@
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    padding: 8px 18px 2px 18px !important;
+    padding: 8px var(--note-gutter-x, 18px) 2px var(--note-gutter-x, 18px) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
   }
 
   .note-appearance-mobile-btn,
@@ -929,10 +931,12 @@
     display: flex !important;
     flex-direction: column !important;
     align-items: stretch !important;
-    padding: 2px 18px 4px 18px !important;
+    padding: 2px var(--note-gutter-x, 18px) 4px var(--note-gutter-x, 18px) !important;
+    margin: 0 !important;
     gap: 4px !important;
     border: none !important;
     background: transparent !important;
+    box-sizing: border-box !important;
   }
 
   .note-header-icon-row,
@@ -953,7 +957,7 @@
     width: 100% !important;
   }
 
-  /* O título ganha 100% da largura, sem disputar espaço com nenhum botão */
+  /* O título ganha 100% da largura, perfeitamente alinhado com o ícone, propriedades e blocos */
   .note-header-title,
   html[data-platform="mobile"] .note-header-title {
     width: 100% !important;
@@ -964,7 +968,7 @@
     letter-spacing: -0.02em !important;
     line-height: 1.25 !important;
     color: var(--text) !important;
-    padding: 4px 0 !important;
+    padding: 4px 8px !important;
     margin: 2px 0 !important;
     border: none !important;
     background: transparent !important;
@@ -1006,8 +1010,9 @@
     min-height: 38px !important;
     border-radius: 8px !important;
     margin: 0 0 4px 0 !important;
-    padding: 6px 12px !important;
+    padding: 6px 8px !important;
     align-self: stretch !important;
+    box-sizing: border-box !important;
   }
 
   /* Quando a nota tem ícone selecionado, esconde o botão redundante de selecionar aparência no topo */
@@ -1018,14 +1023,18 @@
 
   .note-editor-blocks,
   html[data-platform="mobile"] .note-editor-blocks {
-    padding: 12px 18px calc(80px + env(safe-area-inset-bottom, 24px)) 18px !important;
+    padding: 12px var(--note-gutter-x, 18px) calc(80px + env(safe-area-inset-bottom, 24px)) var(--note-gutter-x, 18px) !important;
     max-width: 100% !important;
     background: var(--bg) !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
   }
 
   .note-properties-bar,
   html[data-platform="mobile"] .note-properties-bar {
-    padding: 2px 18px 6px 18px !important;
+    padding: 2px var(--note-gutter-x, 18px) 6px var(--note-gutter-x, 18px) !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
   }
 
   /* Visões no Drawer Esquerdo */

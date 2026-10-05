@@ -9,14 +9,14 @@
   /* Sem overflow-y aqui — quem rola é .note-editor (ver acima), pra pasta,
      título e propriedades subirem junto com o conteúdo em vez de ficarem
      presos acima de uma área com rolagem própria. */
-  /* padding-left maior que os outros lados: reserva espaço pros controles
-     de bloco (+ / ⠿) que aparecem ao passar o mouse */
-  padding: 12px 14px 26px 34px;
+  padding: 10px var(--note-gutter-x, 20px) 26px var(--note-gutter-x, 20px);
   font-family: var(--font);
   font-size: 13px;
   line-height: 1.65;
   color: var(--text);
   outline: none;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 /* Controles de bloco (+ / ⠿) — overlay único que acompanha o bloco sob o
@@ -171,6 +171,8 @@
   min-height: 1.65em;
   word-break: break-word;
   white-space: pre-wrap;
+  padding: 3px 8px;
+  box-sizing: border-box;
 }
 
 /* Só mostra o placeholder quando a nota inteira está vazia (um único

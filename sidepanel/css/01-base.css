@@ -14,6 +14,8 @@ html:not([data-theme="dark"]) {
   --header-height: 49px;
   /* Largura máxima da nota na view: uma folha A4 deitada (297mm) */
   --note-max-width: 297mm;
+  /* Margem/Gutter horizontal unificado para todo o conteúdo da nota */
+  --note-gutter-x: 20px;
   --gap-size: 4px;
 
   /* Tokens de cor — um nome por papel:

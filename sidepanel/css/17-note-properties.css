@@ -7,14 +7,16 @@
 
 /* Container base das propriedades da nota */
 .note-properties-bar {
-  margin: 4px 14px 10px 14px;
-  padding: 0;
+  margin: 4px auto 8px auto;
+  padding: 0 var(--note-gutter-x, 20px);
   border: none;
   background: transparent;
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* O antigo cabeçalho "Propriedades" com chevron agora é ocultado para desagrupar */
@@ -64,12 +66,16 @@
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  overflow: hidden;
+  overflow: visible;
   transition: border-color 0.18s ease, background-color 0.15s ease;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
 }
 
 .section.note-property-section.is-open {
   border: 1px solid var(--border);
+  overflow: hidden;
 }
 
 .note-property-row.is-dragging {
@@ -89,13 +95,17 @@
   user-select: none;
   display: flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 8px;
   background: transparent;
   color: var(--text);
   gap: 8px;
   min-height: 36px;
   transition: background 0.15s ease;
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  margin: 0;
 }
 
 .note-property-trigger:hover {
@@ -108,16 +118,21 @@
   background: var(--bg-hover);
 }
 
-/* Handle de arrastar para reordenar */
+/* Handle de arrastar para reordenar (posicionado no gutter à esquerda para não deslocar o ícone) */
 .property-drag-handle {
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 16px;
   color: var(--text-muted);
   opacity: 0;
   cursor: grab;
   flex-shrink: 0;
   transition: opacity 0.12s ease;
-  margin-left: -2px;
+  margin: 0;
   user-select: none;
+  z-index: 2;
 }
 
 .note-property-section:hover .property-drag-handle {
@@ -148,10 +163,14 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 2px;
+  padding: 0;
+  width: 20px;
+  height: 20px;
   border-radius: 4px;
   flex-shrink: 0;
   transition: all 0.12s ease;
+  box-sizing: border-box;
+  margin: 0;
 }
 
 .property-type-btn:hover {
@@ -696,13 +715,15 @@
   background: transparent;
   border: 1px dashed var(--border);
   border-radius: 8px;
-  padding: 5px 12px;
+  padding: 6px 8px;
+  margin: 0;
   font-size: 12px;
   font-family: inherit;
   font-weight: 500;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
+  box-sizing: border-box;
 }
 
 .note-properties-add-btn:hover {
@@ -712,5 +733,10 @@
 }
 
 .note-properties-add-btn .qd-icon {
-  font-size: 15px;
+  font-size: 18px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }

@@ -578,11 +578,16 @@
     display: none !important;
   }
 
+  html[data-platform="desktop"] {
+    --note-gutter-x: 48px;
+  }
+
   html[data-platform="desktop"] .note-editor-blocks {
     max-width: var(--note-max-width, 297mm);
     width: 100%;
     margin: 0 auto;
-    padding: 32px 52px 68px;
+    padding: 24px var(--note-gutter-x) 68px;
+    box-sizing: border-box;
   }
 
   /* Pasta, cabeçalho, propriedades e backlinks são irmãos de .note-editor-blocks
@@ -596,6 +601,24 @@
   html[data-platform="desktop"] .note-backlinks-section {
     width: 100%;
     max-width: var(--note-max-width, 297mm);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--note-gutter-x);
+    padding-right: var(--note-gutter-x);
+    box-sizing: border-box;
+  }
+
+  html[data-platform="desktop"] .note-cover {
+    width: calc(100% - 2 * var(--note-gutter-x));
+    max-width: calc(var(--note-max-width, 297mm) - 2 * var(--note-gutter-x));
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+  }
+
+  html[data-platform="desktop"] .note-cover-expansion {
+    width: calc(100% - 2 * var(--note-gutter-x));
+    max-width: calc(var(--note-max-width, 297mm) - 2 * var(--note-gutter-x));
     margin-left: auto;
     margin-right: auto;
     box-sizing: border-box;

@@ -145,7 +145,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 0 16px 6px 16px;
+  padding: 0 var(--note-gutter-x, 20px) 6px var(--note-gutter-x, 20px);
+  box-sizing: border-box;
 }
 
 .note-header-badge {
