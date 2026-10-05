@@ -249,7 +249,6 @@
     flex-shrink: 0 !important;
   }
 
-  .section-body,
   .note-workspace-body,
   #mMain .graph-canvas-container,
   #mMain .board-container,
@@ -258,7 +257,6 @@
   #mMain .docs-body,
   #mMain .settings-body,
   #mMain .gallery-content-scroll,
-  html[data-platform="mobile"] .section-body,
   html[data-platform="mobile"] .note-workspace-body,
   html[data-platform="mobile"] #mMain .graph-canvas-container,
   html[data-platform="mobile"] #mMain .board-container,
@@ -275,6 +273,49 @@
     flex-direction: column !important;
     overflow: hidden !important;
     border-radius: 0.75rem 0.75rem 0 0 !important;
+  }
+
+  /* Gaveta expansível de propriedades da nota no mobile:
+     permanece fechada por padrão (0fr), expandindo suavemente (1fr) apenas quando tiver .is-open */
+  .note-property-section .section-body,
+  html[data-platform="mobile"] .note-property-section .section-body {
+    order: unset !important;
+    display: grid !important;
+    grid-template-rows: 0fr !important;
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+    background: var(--bg-card) !important;
+    color: var(--text) !important;
+    transition: grid-template-rows 0.25s ease-out !important;
+  }
+
+  .note-property-section.is-open .section-body,
+  html[data-platform="mobile"] .note-property-section.is-open .section-body {
+    grid-template-rows: 1fr !important;
+    border-top: 1px dashed var(--border) !important;
+  }
+
+  .note-property-section .property-drawer-content,
+  html[data-platform="mobile"] .note-property-section .property-drawer-content {
+    overflow: hidden !important;
+    min-height: 0 !important;
+    padding: 0 14px !important;
+    transition: padding 0.25s ease-out !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .note-property-section.is-open .property-drawer-content,
+  html[data-platform="mobile"] .note-property-section.is-open .property-drawer-content {
+    padding: 12px 14px !important;
+  }
+
+  .note-property-trigger .property-options-btn,
+  html[data-platform="mobile"] .note-property-trigger .property-options-btn {
+    opacity: 0.6 !important;
   }
 
   .template-bar,
