@@ -7,3 +7,7 @@ export const noteEditorEl = document.querySelector('.note-editor');
 export const root         = document.getElementById('note-editor-blocks');
 export const indicator    = document.getElementById('save-indicator');
 export const btnTouchSelect = document.getElementById('btn-touch-select');
+
+let isCtrlHeld = false;
+export function getIsCtrlHeld() { return isCtrlHeld; }
+export function setIsCtrlHeld(v) { isCtrlHeld = Boolean(v); }

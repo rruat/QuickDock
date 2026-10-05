@@ -3,9 +3,9 @@
 // de feedback ("copiado!", modo Ctrl/toque ativo).
 import { escHtml } from './blocks.js';
 import { tryParseMath } from './math-parser.js';
-import { indicator, noteSection } from './note-state.js';
+import { indicator, noteSection, getIsCtrlHeld, setIsCtrlHeld } from './note-state.js';
 import {
-  isTouchSelectionMode, setTouchSelectionMode, getIsCtrlHeld, setIsCtrlHeld,
+  isTouchSelectionMode, setTouchSelectionMode,
   getIndicatorTimer, setIndicatorTimer,
 } from './note.js';
 

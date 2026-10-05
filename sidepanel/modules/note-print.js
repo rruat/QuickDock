@@ -356,7 +356,11 @@ function mount() {
   printBtn.setAttribute('aria-haspopup', 'false');
   printBtn.setAttribute('aria-expanded', 'false');
   printBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">print</span>';
-  headerBar.insertBefore(printBtn, colorBtn || null);
+  if (colorBtn && colorBtn.parentNode) {
+    colorBtn.parentNode.insertBefore(printBtn, colorBtn);
+  } else if (headerBar) {
+    headerBar.appendChild(printBtn);
+  }
 
   setOrientation(orientation);
 

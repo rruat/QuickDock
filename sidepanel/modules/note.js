@@ -25,6 +25,7 @@ import {
 } from './code-highlighter.js';
 import {
   noteSection, noteWorkspaceBodyEl, noteEditorEl, root, indicator, btnTouchSelect,
+  getIsCtrlHeld, setIsCtrlHeld,
 } from './note-state.js';
 import {
   pointAtOffset, rangeFromOffsets, getCaretOffset, setCaretOffset, caretViewportRect,
@@ -125,10 +126,8 @@ import {
 export { getLastFocusedBlock };
 
 let currentNoteId  = null;
-let isCtrlHeld     = false;
 let touchSelectionActive = false;
-export function getIsCtrlHeld() { return isCtrlHeld; }
-export function setIsCtrlHeld(v) { isCtrlHeld = v; }
+export { getIsCtrlHeld, setIsCtrlHeld };
 
 // ── Modo de seleção por toque (em telas com dedo / pointer: coarse) ─────────
 export function isTouchSelectionMode() {
@@ -139,7 +138,7 @@ export function setTouchSelectionMode(active) {
   if (touchSelectionActive === active) return;
   touchSelectionActive = active;
   noteSection.classList.toggle('touch-selection-active', active);
-  noteSection.classList.toggle('ctrl-active', active || isCtrlHeld);
+  noteSection.classList.toggle('ctrl-active', active || getIsCtrlHeld());
   if (btnTouchSelect) {
     btnTouchSelect.classList.toggle('is-active', active);
     btnTouchSelect.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -1140,7 +1139,7 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
 
 // ── Clique em marcação detectada (CPF, data, cálculo…) ou seleção por toque ──
 root.addEventListener('click', e => {
-  if (!isCtrlHeld && !touchSelectionActive && !getIsBlockSelectActive()) return;
+  if (!getIsCtrlHeld() && !touchSelectionActive && !getIsBlockSelectActive()) return;
 
   // Mesmo gesto que abre o menu de CPF/data: com Ctrl ou modo de seleção por toque, clique em link navega.
   // Sem Ctrl/modo toque o clique só posiciona o cursor — senão não dá pra editar o texto.

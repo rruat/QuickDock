@@ -516,7 +516,11 @@ function mount() {
     openBtn.className = 'icon-btn note-header-cover-btn';
     openBtn.setAttribute('aria-expanded', 'false');
     openBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">image</span>';
-    headerBar.insertBefore(openBtn, colorBtn || null);
+    if (colorBtn && colorBtn.parentNode) {
+      colorBtn.parentNode.insertBefore(openBtn, colorBtn);
+    } else {
+      headerBar.appendChild(openBtn);
+    }
     openBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleCoverMenu();
