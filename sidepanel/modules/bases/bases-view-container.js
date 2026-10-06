@@ -17,6 +17,7 @@ import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
 import { renderViewTabs as desenhaAbas } from './ui/view-tabs.js';
 import { renderQuickFilters, loadQuickFilters, saveQuickFilters } from './ui/quick-filters.js';
 import { impliedValues } from './engine/filter-tree.js';
+import { applyDerivedColumns } from './engine/derived-columns.js';
 import { normalizeColorRules, rowTone, cellTone } from './engine/color-rules.js';
 import {
   moveView, duplicateViewAt, deleteViewById, renameViewById, setViewLocked, setViewIcon,
@@ -169,6 +170,13 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     settingsHandle = mountViewSettingsPanel(settingsEl, {
       getView: () => baseDef.views[activeIndex()],
       getSchema: () => inferBaseSchema(allNotes, baseDef.properties),
+      getBaseProps: () => baseDef.properties || {},
+      onBasePatch: patch => {
+        const props = { ...(baseDef.properties || {}) };
+        for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete props[k]; else props[k] = v; }
+        baseDef = { ...baseDef, properties: props };
+        persistBase(); updateViewport();
+      },
       onPatch: patch => updateActiveView(patch),
       onRename: nome => updateActiveView({ name: nome }),
       onDuplicate: () => { const r = duplicateViewAt(baseDef, activeViewId); aplica(r.baseDef, r.newId); },
@@ -297,6 +305,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
 
     // 1. Infere o schema combinando notas + definições explícitas
     const schema = inferBaseSchema(allNotes, baseDef.properties);
+    const notasBase = applyDerivedColumns(allNotes, baseDef.properties);
 
     if (quickFiltersViewId !== currentView.id) {
       quickFiltersViewId = currentView.id;
@@ -304,7 +313,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     }
 
     // 2. Filtra notas pela fonte (source), filtros da view, filtros rápidos e busca
-    const filteredNotes = queryBaseNotes(allNotes, {
+    const filteredNotes = queryBaseNotes(notasBase, {
       quickFilters,
       source: baseDef.source,
       filters: currentView.filters,

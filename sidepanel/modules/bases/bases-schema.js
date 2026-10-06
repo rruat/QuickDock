@@ -257,14 +257,20 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
       schema[key] = {
         key,
         label: def.label || key,
-        type: def.type || 'text',
+        type: (def.type === 'formula' || def.type === 'rollup') ? (def.result || (def.type === 'rollup' ? 'number' : 'text')) : (def.type || 'text'),
         width: def.width || 160,
         options: def.options || [],
         isSystem: false,
+        ...((def.type === 'formula' || def.type === 'rollup') ? { isDerived: def.type, expr: def.expr } : {}),
       };
     } else {
       if (def.label)   schema[key].label = def.label;
       if (def.type)    schema[key].type = def.type;
+      if (def.type === 'formula' || def.type === 'rollup') {
+        schema[key].type = def.result || (def.type === 'rollup' ? 'number' : 'text');
+        schema[key].isDerived = def.type;
+        if (def.expr !== undefined) schema[key].expr = def.expr;
+      }
       if (def.width)   schema[key].width = def.width;
       if (def.options) schema[key].options = def.options;
     }

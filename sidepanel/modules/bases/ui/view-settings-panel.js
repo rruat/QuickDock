@@ -17,6 +17,7 @@ import { layoutSection } from './section-layout.js';
 import { cardSection } from './section-card.js';
 import { boardSection } from './section-board.js';
 import { colorSection } from './section-color.js';
+import { derivedSection } from './section-derived.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -90,6 +91,7 @@ export function mountViewSettingsPanel(host, api) {
   if (view.type !== 'calendar') corpo.appendChild(sortSection(ctx));
   const cor = colorSection(ctx);
   if (cor) corpo.appendChild(cor);
+  if (api.getBaseProps) corpo.appendChild(derivedSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) }));
 
   const onKey = e => { if (e.key === 'Escape') api.onClose(); };
   host.addEventListener('keydown', onKey);

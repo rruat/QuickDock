@@ -129,4 +129,66 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('yaml · "- chave:" sem valor abre filho, não irmão',
     Y.parseYamlOrJson('views:\n  - type: table\n    color:\n      rules:\n        - when:\n            property: v\n          tone: red\n').views[0].color.rules,
     [{ when: { property: 'v' }, tone: 'red' }]);
+
+  // ── fórmulas ──
+  const Fm = await import('../sidepanel/modules/bases/engine/formula/evaluator.js');
+  const Pa = await import('../sidepanel/modules/bases/engine/formula/parser.js');
+  const Dc = await import('../sidepanel/modules/bases/engine/derived-columns.js');
+  const dados = { custo: 10, qtd: 3, nome: 'Ana', d: '2026-10-06', tags: ['a', 'b', 'a'], ok: true, vazio: '' };
+  const f = e => Fm.runFormula(e, { prop: k => dados[k] });
+  igual('fórmula · multiplicação de propriedades', f('prop("custo") * prop("qtd")').value, 30);
+  igual('fórmula · precedência e potência', f('1 + 2 * 3 ^ 2').value, 19);
+  igual('fórmula · unário e potência', f('-2 ^ 2').value, -4);
+  igual('fórmula · if', f('if(prop("ok"), "sim", "nao")').value, 'sim');
+  igual('fórmula · ternário e comparação', f('prop("custo") > 5 ? "alto" : "baixo"').value, 'alto');
+  igual('fórmula · ifs com padrão', f('ifs(1 > 2, "a", 2 > 3, "b", "c")').value, 'c');
+  igual('fórmula · texto', f('concat("Oi ", upper(prop("nome")), "!")').value, 'Oi ANA!');
+  igual('fórmula · + com texto concatena', f('"a" + 1').value, 'a1');
+  igual('fórmula · arredondar', f('round(10 / 3, 2)').value, 3.33);
+  igual('fórmula · mediana', f('median(1, 2, 3, 10)').value, 2.5);
+  igual('fórmula · data +1 mês formatada', f('formatDate(dateAdd(prop("d"), 1, "month"), "DD/MM/YYYY")').value, '06/11/2026');
+  igual('fórmula · fim de mês não estoura', Fm.runFormula('formatDate(dateAdd("2026-01-31", 1, "month"), "YYYY-MM-DD")').value, '2026-02-28');
+  igual('fórmula · dateBetween em dias', f('dateBetween("2026-12-25", prop("d"), "days")').value, 80);
+  igual('fórmula · segunda = 1', f('weekday("2026-10-06")').value, 2);
+  igual('fórmula · lista: unique/map/filter', [f('length(unique(prop("tags")))').value, f('map(prop("tags"), upper(current))').value, f('length(filter(prop("tags"), current == "a"))').value], [2, ['A', 'B', 'A'], 2]);
+  igual('fórmula · vazio', [f('empty(prop("vazio"))').value, f('empty(prop("nome"))').value], [true, false]);
+  igual('fórmula · divisão por zero é erro, não exceção', f('1 / 0'), { ok: false, error: 'Divisão por zero' });
+  igual('fórmula · função desconhecida', f('foo(1)').error, 'Função desconhecida: foo()');
+  igual('fórmula · parêntese faltando', f('prop("custo"').ok, false);
+  igual('fórmula · vazia', f('   ').error, 'Fórmula vazia');
+  ok('fórmula · sem eval: identificador solto é erro', f('alert').ok === false && f('constructor').ok === false);
+  ok('fórmula · limite de aninhamento', Fm.runFormula('('.repeat(200) + '1' + ')'.repeat(200)).ok === false);
+  ok('fórmula · repeat limitado', String(f('length(repeat("x", 99999999))').value).length <= 4);
+  ok('fórmula · regex enorme é recusada', f('test("a", "' + 'a'.repeat(200) + '")').ok === false);
+  igual('fórmula · referências citadas', [...Pa.referencedProps(Pa.parse('prop("a") + if(prop("b"), 1, 2)'))], ['a', 'b']);
+
+  // ── propriedades derivadas (fórmula e rollup) ──
+  const nts = [
+    { id: 1, title: 'Projeto X', properties: { custo: 10, qtd: 3 } },
+    { id: 2, title: 'Tarefa 1', properties: { horas: 2, projeto: '[[Projeto X]]' } },
+    { id: 3, title: 'Tarefa 2', properties: { horas: 5, projeto: '[[Projeto X]]' } },
+    { id: 4, title: 'Sem fim', properties: { custo: 1, qtd: 1 } },
+  ];
+  const defs = {
+    total: { type: 'formula', expr: 'prop("custo") * prop("qtd")', result: 'number' },
+    dobro: { type: 'formula', expr: 'prop("total") * 2', result: 'number' },
+    ciclo1: { type: 'formula', expr: 'prop("ciclo2")' }, ciclo2: { type: 'formula', expr: 'prop("ciclo1")' },
+    quebrada: { type: 'formula', expr: '1 +' },
+    horasTotais: { type: 'rollup', relation: 'tarefas', target: 'horas', agg: 'sum' },
+  };
+  const der = Dc.applyDerivedColumns(nts, defs);
+  igual('derivada · fórmula calculada em __calc', der[0].__calc.total, 30);
+  igual('derivada · fórmula usa outra fórmula', der[0].__calc.dobro, 60);
+  ok('derivada · ciclo vira erro legível', String(der[0].__calc.ciclo1).includes('circular'));
+  ok('derivada · fórmula quebrada vira ⚠ erro', String(der[0].__calc.quebrada).startsWith('⚠'));
+  ok('derivada · nunca grava em properties', !('total' in der[0].properties) && !('total' in nts[0].properties));
+  igual('derivada · sem derivadas devolve a mesma lista', Dc.applyDerivedColumns(nts, {}), nts);
+  ok('derivada · engine lê o valor calculado', E.getNotePropertyValue(der[0], 'total') === 30);
+  const rel = Dc.applyDerivedColumns([
+    { id: 1, title: 'Projeto X', properties: { tarefas: ['[[Tarefa 1]]', '[[Tarefa 2]]'] } },
+    ...nts.slice(1, 3),
+  ], { horasTotais: defs.horasTotais });
+  igual('rollup · soma de horas das tarefas ligadas', rel[0].__calc.horasTotais, 7);
+  igual('fórmula · checkFormula acusa autorreferência', Dc.checkFormula('prop("x")', { x: {} }, 'x').ok, false);
+  igual('fórmula · checkFormula lista propriedade desconhecida', Dc.checkFormula('prop("nada")', { a: {} }).desconhecidas, ['nada']);
 }

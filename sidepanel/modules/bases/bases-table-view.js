@@ -262,6 +262,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
         // Clique simples ativa edição para checkbox; duplo clique ou clique para outros campos
         td.addEventListener('click', e => {
+          if (propDef.isDerived) return;
           if (propDef.type === 'checkbox' || propDef.type === 'select' || propDef.type === 'folder') {
             activateCellEditor(td, note, colKey, propDef, () => {
               renderTableBody();
@@ -270,6 +271,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         });
 
         td.addEventListener('dblclick', () => {
+          if (propDef.isDerived) return;
           if (propDef.type !== 'checkbox' && propDef.type !== 'select' && propDef.type !== 'folder') {
             activateCellEditor(td, note, colKey, propDef, () => {
               renderTableBody();

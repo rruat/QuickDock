@@ -15,6 +15,8 @@ import { evaluateFilterNode } from './engine/filter-tree.js';
 
 export function getNotePropertyValue(note, propKey) {
   if (!note) return undefined;
+  // propriedade derivada (fórmula/rollup): calculada por engine/derived-columns.js
+  if (note.__calc && propKey in note.__calc) return note.__calc[propKey];
 
   switch (propKey) {
     case 'title':
