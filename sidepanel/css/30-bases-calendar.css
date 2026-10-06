@@ -393,3 +393,8 @@
 .bcal-mini-day.is-anchor:not(.is-today) { outline: 2px solid var(--bcal-today, var(--accent)); outline-offset: -2px; }
 .bcal-mini-day.has-events::after { content: ''; position: absolute; left: 50%; bottom: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: currentColor; opacity: 0.7; }
 @media (max-width: 640px) { .bcal-mini { display: none; } }
+
+/* ── Calendário: feriados (tom neutro quente, OKLCH, legível nos dois temas) ── */
+.bcal-holiday { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; line-height: 1.3; padding: 0 5px; border-radius: 8px; background: oklch(93% 0.05 75); color: oklch(33% 0.08 60); }
+[data-theme="dark"] .bcal-holiday { background: oklch(32% 0.05 75); color: oklch(90% 0.05 75); }
+.bcal-month-cell.is-holiday, .bcal-day-head.is-holiday { background-image: linear-gradient(oklch(80% 0.1 75 / 0.12), oklch(80% 0.1 75 / 0.12)); }

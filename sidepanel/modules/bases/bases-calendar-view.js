@@ -16,6 +16,7 @@ import { buildMovePatch, buildResizePatch, buildCreateProps } from './calendar/c
 import { createCalendarToolbar } from './calendar/calendar-toolbar.js';
 import { renderNoDateBox } from './calendar/calendar-nodate.js';
 import { renderMiniCalendar } from './calendar/calendar-minical.js';
+import { holidaysForDays } from './engine/holidays.js';
 import { renderTimeGrid } from './calendar/calendar-time-grid.js';
 import { renderMonthGrid } from './calendar/calendar-month-grid.js';
 import { renderAgenda } from './calendar/calendar-agenda.js';
@@ -104,7 +105,9 @@ export function renderBaseCalendarView(container, notes, schema, viewConfig = {}
     onRerender: rerender,
   };
 
-  const ctx = { cfg, days: range.days, buckets, events, schema, hoje, callbacks: acoes, anchor };
+  // feriados do período (inclui os dias de outros meses que aparecem na grade)
+  const holidays = cfg.holidays.country ? holidaysForDays(range.days, cfg.holidays.country) : new Map();
+  const ctx = { cfg, days: range.days, buckets, events, schema, hoje, callbacks: acoes, anchor, holidays };
   let vista;
   if (mode === 'month') vista = renderMonthGrid(corpo, { ...ctx, weeks: range.weeks });
   else if (mode === 'agenda') vista = renderAgenda(corpo, ctx);

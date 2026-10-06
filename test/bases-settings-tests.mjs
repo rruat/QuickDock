@@ -515,4 +515,14 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('inversa · quem cita cada nota', rvR.map(n => n.__calc.citadoPor), [['[[Paredes]]', '[[Telhado]]'], ['[[Telhado]]'], []]);
   igual('inversa · schema vira lista derivada (não editável)', [Sc.inferBaseSchema(rvN, rvDefs).citadoPor.type, !!Sc.inferBaseSchema(rvN, rvDefs).citadoPor.isDerived], ['list', true]);
   igual('id · schema marca ID único como texto não editável', [Sc.inferBaseSchema([], { ident: { type: 'uid', prefix: 'TAR' } }).ident.isUniqueId, Sc.inferBaseSchema([], { ident: { type: 'uid', prefix: 'TAR' } }).ident.idPrefix], [true, 'TAR']);
+
+  // ── feriados ──
+  const Ho = await import('../sidepanel/modules/bases/engine/holidays.js');
+  igual('feriados · Páscoa (anos conhecidos)', [2024, 2025, 2026, 2027].map(Ho.easterSunday), ['2024-03-31', '2025-04-20', '2026-04-05', '2027-03-28']);
+  const h26 = Ho.holidaysBR(2026);
+  igual('feriados · móveis de 2026 a partir da Páscoa', [h26.get('2026-02-17'), h26.get('2026-04-03'), h26.get('2026-06-04')], ['Carnaval', 'Sexta-feira Santa', 'Corpus Christi']);
+  igual('feriados · fixos', [h26.get('2026-09-07'), h26.get('2026-12-25'), h26.get('2026-01-01')], ['Independência do Brasil', 'Natal', 'Confraternização Universal']);
+  igual('feriados · Consciência Negra só a partir de 2024', [Ho.holidaysBR(2023).has('2023-11-20'), Ho.holidaysBR(2026).has('2026-11-20')], [false, true]);
+  igual('feriados · semana de virada de ano pega os dois anos', [...Ho.holidaysForDays(['2026-12-31', '2027-01-01']).keys()].filter(k => k === '2027-01-01' || k === '2026-12-25'), ['2026-12-25', '2027-01-01']);
+  igual('feriados · país desconhecido não mostra nada', Ho.holidaysForDays(['2026-01-01'], 'XX').size, 0);
 }

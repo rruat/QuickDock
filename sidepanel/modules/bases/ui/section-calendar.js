@@ -48,6 +48,11 @@ export function calendarSections({ view, schema, memoria, patch }) {
   exib.body.appendChild(row('Mini-calendário lateral', id => toggle({
     id, value: cfg.sidebar.miniCalendar, onChange: v => patch({ sidebar: { miniCalendar: v } }),
   })));
+  exib.body.appendChild(row('Feriados', id => selectControl({
+    id, value: cfg.holidays.country || 'none',
+    options: [{ value: 'none', label: 'Não mostrar' }, { value: 'BR', label: 'Brasil (nacionais)' }],
+    onChange: v => patch({ holidays: { country: v === 'none' ? undefined : v } }),
+  }), { dica: 'Feriados nacionais, incluindo os móveis (Carnaval, Sexta Santa, Corpus Christi).' }));
   saida.push(exib.root);
 
   // ── Datas ──

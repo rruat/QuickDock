@@ -56,6 +56,8 @@ export function renderTimeGrid(body, ctx) {
     celula.dataset.ymd = ymd;
     celula.appendChild(el('span', 'bcal-day-name', DIAS_ABREV[weekdayOf(ymd)]));
     celula.appendChild(el('span', 'bcal-day-num', String(Number(ymd.slice(8)))));
+    const feriado = ctx.holidays?.get(ymd);
+    if (feriado) { celula.classList.add('is-holiday'); const f = el('span', 'bcal-holiday', feriado); f.title = feriado; celula.appendChild(f); }
     const add = el('button', 'bcal-day-add');
     add.type = 'button';
     add.title = `Nova nota em ${ymd.split('-').reverse().join('/')}`;

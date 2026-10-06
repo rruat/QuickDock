@@ -97,6 +97,7 @@ export function calendarDefaults() {
     card: { props: [], colorBy: null, showTime: true },
     month: { maxPerDay: 3, showOtherMonthDays: true },
     sidebar: { miniCalendar: false },
+    holidays: { country: null },
   };
 }
 
@@ -155,6 +156,7 @@ export function resolveCalendarConfig(view = {}) {
       colorBy: card.colorBy || null,
       showTime: card.showTime !== false && card.showTime !== 'false',
     },
+    holidays: { country: view.holidays?.country === 'BR' ? 'BR' : null },
     sidebar: { miniCalendar: view.sidebar?.miniCalendar === true || view.sidebar?.miniCalendar === 'true' },
     month: {
       maxPerDay: Math.round(num(month.maxPerDay, 3, 1, 10)),
