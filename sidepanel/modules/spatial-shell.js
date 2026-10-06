@@ -17,6 +17,7 @@ import {
   transitionToMobileCard,
   setupMobileTouchGestures
 } from './shell/shell-mobile.js';
+import { setupMobileBack } from './shell/shell-mobile-back.js';
 import {
   reorderMainSections as _reorderMainSections,
   updateSectionMoveButtons as _updateSectionMoveButtons,
@@ -139,6 +140,7 @@ export function initSpatialShell() {
     setFocusedViewId: (id) => { focusedViewId = id; }
   });
   setupMobileTouchGestures();
+  setupMobileBack();
 
   document.addEventListener('quickdock:active-note-changed', e => {
     activeNoteId = e.detail?.id;
@@ -650,6 +652,11 @@ function applyViewVisibility() {
     }
     el.classList.toggle('is-focused', focusedViewId === id);
   }
+
+  document.documentElement.dataset.shellFocus = focusedViewId || '';
+  document.dispatchEvent(new CustomEvent('quickdock:shell-focus', {
+    detail: { viewId: focusedViewId, openViewIds: [...openViewIds] }
+  }));
 
   // Remove qualquer placeholder residual de nota caso exista
   const mainEl = document.getElementById('mMain');

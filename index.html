@@ -37,6 +37,9 @@
 
     <header id="mHeader">
       <div class="header-left">
+        <button id="btn-mobile-left-drawer" class="aside-btn mobile-header-btn mobile-only-btn" title="Árvore de Pastas e Notas" aria-label="Abrir árvore de pastas e notas" type="button">
+          <span class="material-symbols-rounded">menu</span>
+        </button>
         <div id="mLogo" class="header-brand" title="QuickDock">
           <img class="header-brand-icon" src="icons/icon.svg" width="20" height="20" alt="QuickDock" />
           <span class="header-brand-title">QuickDock</span>
@@ -44,6 +47,10 @@
       </div>
 
       <div class="header-center">
+        <div id="mobile-header-note-info" class="mobile-header-note-info mobile-only-flex" title="Buscar ou alternar notas (Ctrl+K)">
+          <span id="mobile-header-note-title" class="mobile-header-note-title">Sem título</span>
+          <span class="material-symbols-rounded mobile-search-badge">search</span>
+        </div>
         <div id="smartSearchBar" class="smart-search-bar" role="search">
           <span class="material-symbols-rounded search-icon">search</span>
           <input type="text" id="smartSearchInput" class="smart-search-input" placeholder="Buscar notas, tags, comandos... (Ctrl + K)" autocomplete="off" spellcheck="false" />
@@ -310,6 +317,10 @@
             <button id="btn-note-folder" class="note-folder-btn" title="Pasta da nota (clique para mover)" aria-label="Pasta da nota">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">folder</span>
               <span id="note-folder-name" class="note-folder-name">Sem pasta</span>
+            </button>
+            <button id="btn-note-appearance-mobile" class="note-folder-btn mobile-only-btn" title="Aparência da nota (ícone e cor)" aria-label="Aparência da nota" type="button">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">palette</span>
+              <span>Aparência</span>
             </button>
           </div>
           <div id="note-header-bar" class="note-header-bar">
@@ -1141,6 +1152,11 @@
 
       <div id="modal-body" class="modal-body"></div>
     </div>
+
+    <!-- Botão flutuante para modo de seleção por toque (visível apenas em telas com toque, pointer: coarse) -->
+    <button id="btn-touch-select" class="btn-touch-select" title="Alternar modo de seleção por toque" aria-label="Alternar modo de seleção por toque" aria-pressed="false">
+      <span class="qd-icon material-symbols-rounded" aria-hidden="true">touch_app</span>
+    </button>
 
     <!-- Scrim / Backdrop para drawers mobile (estilo Obsidian) -->
     <div id="mobileDrawerScrim" class="mobile-drawer-scrim" aria-hidden="true"></div>

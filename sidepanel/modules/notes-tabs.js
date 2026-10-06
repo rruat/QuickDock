@@ -5,6 +5,7 @@ import {
   gcInlineFiles,
   listarPastas, criarPasta, renomearPasta, excluirPasta, moverNotaParaPasta, normalizarCaminhoPasta,
 } from './storage.js';
+import { closeMobileLeftDrawer } from './shell/shell-mobile.js';
 import { setDocumentsNote, refreshDocuments } from './documents.js';
 import { positionPopover } from './popover.js';
 import {
@@ -888,7 +889,9 @@ export function closeNotesAsideDrawer() {
 
   const mAside = document.getElementById('mAside');
   if (mAside) {
-    mAside.classList.remove('is-open-mobile');
+    // Fechar só a classe deixava body.has-left-drawer-open ligado e o conteúdo
+    // empurrado 320px depois de escolher uma view (fecha tudo de uma vez).
+    closeMobileLeftDrawer();
     document.getElementById('mobileDrawerScrim')?.classList.remove('is-active');
     return;
   }
