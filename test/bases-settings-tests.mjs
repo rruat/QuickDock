@@ -365,4 +365,27 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('lote · limpar propriedade', 'st' in Bk.buildBulkPatch(bn, { kind: 'clearProperty', key: 'st' }).properties, false);
   igual('lote · ação desconhecida é ignorada', Bk.buildBulkPatch(bn, { kind: 'explodir' }), null);
   igual('lote · descrição da exclusão avisa permanência', Bk.describeBulkAction({ kind: 'delete' }, 3), 'Excluir 3 notas permanentemente');
+
+  // ── dependências da linha do tempo ──
+  const Td = await import('../sidepanel/modules/bases/timeline/timeline-deps.js');
+  const dI = [
+    { id: 'a', title: 'Fundação', startYmd: '2026-10-01', endYmd: '2026-10-05', note: { properties: {} } },
+    { id: 'b', title: 'Paredes', startYmd: '2026-10-06', endYmd: '2026-10-10', note: { properties: { dep: ['[[Fundação]]'] } } },
+    { id: 'c', title: 'Telhado', startYmd: '2026-10-11', endYmd: '2026-10-12', note: { properties: { dep: '[[Paredes]], Fundação, [[Fantasma]]' } } },
+    { id: 'd', title: 'Auto', startYmd: '2026-10-01', endYmd: '2026-10-02', note: { properties: { dep: ['[[Auto]]'] } } },
+  ];
+  const dE = Td.resolveDependencies(dI, (n, p) => n.properties[p], 'dep');
+  igual('deps · predecessores por título (lista e texto), ignora fantasma e autorreferência', dE.map(e => `${e.from}>${e.to}`).sort(), ['a>b', 'a>c', 'b>c']);
+  igual('deps · sem propriedade, sem arestas', Td.resolveDependencies(dI, () => null, null), []);
+  igual('deps · conflito quando começa antes/no dia do fim do predecessor', [Td.isConflict(dI[0], dI[1]), Td.isConflict(dI[0], { startYmd: '2026-10-05' }), Td.isConflict(dI[0], { startYmd: '2026-10-04' })], [false, true, true]);
+  // Fundação passa a terminar em 10/10: Paredes (06) precisa começar em 11 (+5, vira 11–15); Telhado (11) precisa começar em 16 (+5) 
+  const sh = Td.cascadeShifts(dI, dE, { a: { startYmd: '2026-10-06', endYmd: '2026-10-10' } });
+  igual('deps · cascata empurra o sucessor e o sucessor dele', sh, { b: 5, c: 5 });
+  igual('deps · cascata nunca puxa para trás', Td.cascadeShifts(dI, dE, { a: { startYmd: '2026-09-20', endYmd: '2026-09-22' } }), {});
+  igual('deps · quem a pessoa moveu agora não é empurrado', Td.cascadeShifts(dI, dE, { a: { startYmd: '2026-10-06', endYmd: '2026-10-20' }, b: { startYmd: '2026-10-06', endYmd: '2026-10-10' } }).b, undefined);
+  const ciclo = Td.cascadeShifts([{ id: 'x', startYmd: '2026-10-01', endYmd: '2026-10-03' }, { id: 'y', startYmd: '2026-10-04', endYmd: '2026-10-06' }], [{ from: 'x', to: 'y' }, { from: 'y', to: 'x' }], { x: { startYmd: '2026-10-05', endYmd: '2026-10-08' } });
+  ok('deps · ciclo termina (sem laço infinito)', typeof ciclo === 'object');
+  const rotas = [Td.routeArrow({ left: 0, width: 50, row: 0 }, { left: 100, width: 30, row: 1 }, [0, 32, 64], 32), Td.routeArrow({ left: 0, width: 50, row: 0 }, { left: 20, width: 30, row: 1 }, [0, 32, 64], 32)];
+  ok('deps · rota normal tem degrau e termina no início da barra', rotas[0].startsWith('M 50 16') && rotas[0].endsWith('H 100'));
+  ok('deps · rota de conflito contorna (mais segmentos)', rotas[1].split(' ').length > rotas[0].split(' ').length);
 }

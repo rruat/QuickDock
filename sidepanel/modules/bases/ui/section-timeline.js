@@ -31,5 +31,15 @@ export function timelineSections({ view, schema, memoria, patch }) {
     onChange: v => patch({ color: { by: v === NENHUMA ? undefined : v } }),
   })));
   out.push(ap.root);
+
+  const dp = section('Dependências', { chave: 'tl-deps', memoria, abertaPorPadrao: false,
+    dica: 'Escolha uma propriedade de lista/link com os predecessores ("depende de": [[Tarefa A]]). A seta liga o fim do predecessor ao início da nota.' });
+  const candidatas = Object.entries(schema).filter(([k, d]) => !d?.isSystem && ['list', 'link', 'text'].includes(d?.type)).map(([k, d]) => ({ value: d.key || k, label: d.label || k }));
+  dp.body.appendChild(row('Predecessores em', id => selectControl({ id, value: cfg.deps.prop || NENHUMA, options: [{ value: NENHUMA, label: 'Sem dependências' }, ...candidatas], onChange: v => patch({ dependencies: { prop: v === NENHUMA ? undefined : v } }) })));
+  if (cfg.deps.prop) {
+    dp.body.appendChild(row('Mostrar setas', id => toggle({ id, value: cfg.deps.showArrows, onChange: v => patch({ dependencies: { showArrows: v } }) })));
+    dp.body.appendChild(row('Reagendar sucessores', id => toggle({ id, value: cfg.deps.autoShift, onChange: v => patch({ dependencies: { autoShift: v } }) }), { dica: 'Ao mover ou esticar uma barra, empurra automaticamente quem depende dela (nunca puxa para trás).' }));
+  }
+  out.push(dp.root);
   return out;
 }

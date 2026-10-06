@@ -16,6 +16,11 @@ export function resolveTimelineConfig(view = {}) {
     table: { visible: bool(t.visible, true), width: Math.min(600, Math.max(160, Number(t.width) || 280)) },
     colorBy: view.color?.by || null,
     today: bool(view.today, true),
+    deps: {
+      prop: view.dependencies?.prop || null,
+      showArrows: bool(view.dependencies?.showArrows, true),
+      autoShift: bool(view.dependencies?.autoShift, false),
+    },
   };
 }
 

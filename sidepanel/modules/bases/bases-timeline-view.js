@@ -7,9 +7,11 @@ import { getNotePropertyValue } from './bases-engine.js';
 import { resolveTimelineConfig, buildTimelineItems, buildRows } from './timeline/timeline-model.js';
 import { TIMELINE_SCALES, visibleRange, headerCells, cellWidth, xOf, ymdAtX } from './timeline/timeline-scale.js';
 import { createBar } from './timeline/timeline-bars.js';
+import { resolveDependencies, isConflict, routeArrow, cascadeShifts } from './timeline/timeline-deps.js';
+import { moveItemPatch } from './timeline/timeline-actions.js';
 import { pickDefaultDateProp } from './calendar/calendar-model.js';
 import { resolveGroupConfig, getViewProps } from './config/view-model.js';
-import { todayYMD } from './engine/date-utils.js';
+import { todayYMD, diffDays } from './engine/date-utils.js';
 import { TONES } from './engine/color-rules.js';
 import { formatPropertyValue } from './bases-schema.js';
 
@@ -155,9 +157,33 @@ export function renderBaseTimelineView(container, notes, schema, viewConfig = {}
     canvas.appendChild(t);
   }
 
+  // datas do item DEPOIS do patch gravado (para a cascata)
+  const reaplica = (item, r) => {
+    const ev = item.ev;
+    const dia = v => (v && typeof v === 'object' && !Array.isArray(v) ? v.start : v);
+    const fimRaw = r.patch[ev.endProp];
+    const iniRaw = r.patch[ev.startProp];
+    const ymd = x => (x ? String(dia(x)).slice(0, 10) : null);
+    const faixa = iniRaw && typeof iniRaw === 'object' ? iniRaw : null;
+    return {
+      startYmd: ymd(iniRaw) || item.startYmd,
+      endYmd: (faixa ? String(faixa.end).slice(0, 10) : ymd(fimRaw)) || item.endYmd,
+    };
+  };
+  const barGeometryOf = it => ({ left: xOf(it.startYmd, range, ppd), width: Math.max((diffDays(it.startYmd, it.endYmd) + 1) * ppd, 12) });
   const aoGravar = async (item, r) => {
     if (!r) return;
     await callbacks.onUpdateNoteProperties?.(item.note, r.patch, r.types);
+    // reagendamento automático: empurra os sucessores que ficaram em conflito
+    if (cfg.deps.autoShift && cfg.deps.prop) {
+      const novo = reaplica(item, r);
+      const empurroes = cascadeShifts(items, arestas, { [item.id]: novo });
+      for (const [id, delta] of Object.entries(empurroes)) {
+        const alvo = items.find(i => i.id === id);
+        const pr = alvo && moveItemPatch(alvo, delta);
+        if (pr) await callbacks.onUpdateNoteProperties?.(alvo.note, pr.patch, pr.types);
+      }
+    }
     container._tlKeep = { left: scroll.scrollLeft, top: scroll.scrollTop };
     renderBaseTimelineView(container, notes, schema, viewConfig, callbacks);
   };
@@ -178,6 +204,32 @@ export function renderBaseTimelineView(container, notes, schema, viewConfig = {}
     linhasEl.appendChild(l);
   }
   canvas.appendChild(linhasEl);
+
+  // dependências: setas SVG por cima das barras (fim do predecessor → início da nota)
+  const arestas = resolveDependencies(items, getNotePropertyValue, cfg.deps.prop);
+  if (arestas.length && cfg.deps.showArrows) {
+    const tops = []; let y = ALTURA_CAB * 2;
+    const linhaDoItem = new Map();
+    linhas.forEach((r, i) => { tops.push(y); if (r.type === 'item') linhaDoItem.set(r.item.id, i); y += r.type === 'group' ? ALTURA_CAB : ALTURA_LINHA; });
+    const porId = new Map(items.map(i => [i.id, i]));
+    const NS = 'http://www.w3.org/2000/svg';
+    const svgEl = document.createElementNS(NS, 'svg');
+    svgEl.setAttribute('class', 'btl-deps');
+    svgEl.setAttribute('width', String(larguraTotal)); svgEl.setAttribute('height', String(y));
+    svgEl.setAttribute('aria-hidden', 'true');
+    svgEl.innerHTML = '<defs><marker id="btl-seta" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" class="btl-seta-ponta"/></marker></defs>';
+    for (const a of arestas) {
+      const pred = porId.get(a.from), suc = porId.get(a.to);
+      if (!pred || !suc || !linhaDoItem.has(pred.id) || !linhaDoItem.has(suc.id)) continue;   // grupo recolhido
+      const g = it => ({ ...barGeometryOf(it), row: linhaDoItem.get(it.id) });
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', routeArrow(g(pred), g(suc), tops, ALTURA_LINHA));
+      path.setAttribute('class', 'btl-dep' + (isConflict(pred, suc) ? ' is-conflict' : ''));
+      path.setAttribute('marker-end', 'url(#btl-seta)');
+      svgEl.appendChild(path);
+    }
+    canvas.appendChild(svgEl);
+  }
 
   // tabela acompanha a rolagem vertical da grade (e a roda do mouse sobre a tabela rola a grade)
   if (tabela) {

@@ -36,3 +36,10 @@
 .btl-nodate-list { display: flex; flex-wrap: wrap; gap: 4px 12px; list-style: none; margin: 6px 0 0; padding: 0; }
 .btl-nodate-list a { color: var(--text); }
 .btl-table-head { position: sticky; top: 0; z-index: 2; background: var(--bg-card); }
+
+/* ── Dependências ── */
+.btl-deps { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; overflow: visible; }
+.btl-dep { fill: none; stroke: var(--text-secondary); stroke-width: 1.5; }
+.btl-dep.is-conflict { stroke: oklch(55% 0.2 25); stroke-width: 2; stroke-dasharray: 5 3; }
+[data-theme="dark"] .btl-dep.is-conflict { stroke: oklch(72% 0.16 25); }
+.btl-seta-ponta { fill: var(--text-secondary); }
