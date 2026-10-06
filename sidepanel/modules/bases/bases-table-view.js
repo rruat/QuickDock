@@ -130,13 +130,29 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   const thead = document.createElement('thead');
   const tbody = document.createElement('tbody');
   const tfoot = document.createElement('tfoot');
-  table.append(thead, tbody, tfoot);
+  // Larguras exatas (table-layout: fixed + <colgroup>): arrastar uma coluna muda SÓ ela; a tabela
+  // vira mais larga que a tela e rola na horizontal, em vez de redistribuir o espaço entre as colunas.
+  const colgroup = document.createElement('colgroup');
+  table.append(colgroup, thead, tbody, tfoot);
   tableWrap.appendChild(table);
   container.appendChild(tableWrap);
 
   // ── 3. Renderização do Cabeçalho (com ordenação e redimensionamento) ─────────
+  const larguraColuna = k => Math.max(80, Number(activeView.columnWidths?.[k]) || Number(schema[k]?.width) || 160);
+  function aplicaLarguras() {
+    colgroup.replaceChildren();
+    let total = 0;
+    const add = px => { const c = document.createElement('col'); c.style.width = `${px}px`; colgroup.appendChild(c); total += px; return c; };
+    if (layout.selectable) add(32);
+    if (layout.rowNumbers) add(36);
+    const cols = columns.map(k => { const c = add(larguraColuna(k)); c.dataset.col = k; return c; });
+    table.style.width = `${total}px`;
+    return cols;
+  }
+
   function renderTableHeader() {
     thead.innerHTML = '';
+    aplicaLarguras();
     const tr = document.createElement('tr');
     if (layout.selectable && selection) {
       const ths = document.createElement('th'); ths.className = 'base-th base-th-sel';
@@ -158,9 +174,6 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       th.dataset.col = colKey;
       congelaCelula(th, colKey);
 
-      const w = activeView.columnWidths[colKey] || propDef.width || 160;
-      th.style.width = `${w}px`;
-      th.style.minWidth = '80px';
 
       const content = document.createElement('div');
       content.className = 'base-th-content';
@@ -218,28 +231,31 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     let startX = 0;
     let startWidth = 0;
 
-    const onMouseMove = e => {
-      const delta = e.clientX - startX;
-      const newWidth = Math.max(80, startWidth + delta);
-      th.style.width = `${newWidth}px`;
-      activeView.columnWidths[colKey] = newWidth;
+    const onMove = e => {
+      activeView.columnWidths[colKey] = Math.max(80, Math.round(startWidth + (e.clientX - startX)));
+      aplicaLarguras();     // só a <col> dessa coluna e a largura total mudam
     };
 
-    const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
+    const onUp = e => {
+      resizer.removeEventListener('pointermove', onMove);
+      resizer.removeEventListener('pointerup', onUp);
+      resizer.removeEventListener('pointercancel', onUp);
+      try { resizer.releasePointerCapture(e.pointerId); } catch { /* já solto */ }
       document.body.classList.remove('base-col-resizing');
       gravaView({ columnWidths: { ...activeView.columnWidths } });
     };
 
-    resizer.addEventListener('mousedown', e => {
+    // pointer events (mouse, toque e caneta) com captura: o arrasto continua mesmo fora do cabeçalho
+    resizer.addEventListener('pointerdown', e => {
       e.stopPropagation();
       e.preventDefault();
       startX = e.clientX;
-      startWidth = th.offsetWidth;
+      startWidth = larguraColuna(colKey);
       document.body.classList.add('base-col-resizing');
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
+      resizer.setPointerCapture(e.pointerId);
+      resizer.addEventListener('pointermove', onMove);
+      resizer.addEventListener('pointerup', onUp);
+      resizer.addEventListener('pointercancel', onUp);
     });
   }
 
@@ -276,6 +292,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     };
     proximo();
   }
+
 
   // ── 5. Renderização do Corpo da Tabela ───────────────────────────────────────
   function renderTableBody() {

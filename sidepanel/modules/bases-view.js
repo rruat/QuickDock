@@ -8,7 +8,7 @@
 
 import { renderBaseComponent } from './bases/bases-view-container.js';
 import { getNoteById, updateNoteBlocksById } from './storage.js';
-import { getBaseBlocksFromNote } from './blocks.js';
+import { getBaseBlocksFromNote, blocksToMarkdown } from './blocks.js';
 import { getCurrentNoteId, appendBaseBlockToCurrentNote, requestSaveFromExternalEdit } from './note.js';
 import { getCurrentView, goBack } from './views.js';
 import { isDesktopMode } from './platform.js';
@@ -24,6 +24,9 @@ let bodyEl = null;
 // quickdock:notes-changed (ver mais abaixo) saber se vale a pena remontar.
 let lastMountedNoteId = null;
 let lastMountedConfig = null;
+// Última nota cuja Base foi mostrada: ao abrir uma nota QUALQUER a partir da Base, o painel continua
+// mostrando essa Base (em vez de trocar por "esta nota não tem uma Base" e fazer a Base sumir).
+let ultimaBaseNoteId = null;
 
 function limparMontagemAnterior() {
   if (typeof bodyEl?._cleanup === 'function') bodyEl._cleanup();
@@ -82,7 +85,7 @@ async function escreverConfigDeVolta(noteId, newYaml) {
   const idx = blocks.findIndex(b => b?.type === 'base');
   if (idx === -1) return;
   blocks[idx] = { ...blocks[idx], config: newYaml };
-  await updateNoteBlocksById(noteId, blocks, note.content || '');
+  await updateNoteBlocksById(noteId, blocks, blocksToMarkdown(blocks));
   document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
 }
 
@@ -91,6 +94,12 @@ async function renderCurrentNoteBase() {
   const noteId = getCurrentNoteId();
 
   if (noteId == null) {
+    const lembrada = await baseLembrada(null);
+    if (lembrada) {
+      // já está na tela com a mesma config: não remonta (evita piscar a cada troca de nota)
+      if (lastMountedNoteId !== lembrada.id || lastMountedConfig !== lembrada.config) await montarBase(lembrada.id, lembrada.config);
+      return;
+    }
     renderEmptyState('Abra ou crie uma nota para ver sua Base.');
     return;
   }
@@ -99,6 +108,12 @@ async function renderCurrentNoteBase() {
   const baseBlocks = getBaseBlocksFromNote(note);
 
   if (baseBlocks.length === 0) {
+    const lembrada = await baseLembrada(noteId);
+    if (lembrada) {
+      // já está na tela com a mesma config: não remonta (evita piscar a cada troca de nota)
+      if (lastMountedNoteId !== lembrada.id || lastMountedConfig !== lembrada.config) await montarBase(lembrada.id, lembrada.config);
+      return;
+    }
     renderEmptyState('Esta nota ainda não tem uma Base.', {
       label: 'Criar Base nesta nota',
       onClick: async () => {
@@ -109,10 +124,15 @@ async function renderCurrentNoteBase() {
     return;
   }
 
+  await montarBase(noteId, baseBlocks[0].config);
+}
+
+async function montarBase(noteId, config) {
   limparMontagemAnterior();
   lastMountedNoteId = noteId;
-  lastMountedConfig = baseBlocks[0].config;
-  await renderBaseComponent(bodyEl, baseBlocks[0].config, {
+  lastMountedConfig = config;
+  ultimaBaseNoteId = noteId;
+  await renderBaseComponent(bodyEl, config, {
     embedded: true,
     baseId: noteId,
     onConfigChange: (newYaml) => {
@@ -120,6 +140,16 @@ async function renderCurrentNoteBase() {
       escreverConfigDeVolta(noteId, newYaml);
     },
   });
+}
+
+/** Base lembrada (a última mostrada), se a nota dela ainda existe e ainda tem uma Base. */
+async function baseLembrada(exceto) {
+  if (ultimaBaseNoteId == null || ultimaBaseNoteId === exceto) return null;
+  const nota = await getNoteById(ultimaBaseNoteId);
+  const blocos = getBaseBlocksFromNote(nota);
+  if (blocos.length) return { id: ultimaBaseNoteId, config: blocos[0].config };
+  ultimaBaseNoteId = null;
+  return null;
 }
 
 export function initBasesView() {

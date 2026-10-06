@@ -536,4 +536,8 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('colar · descarta chaves de protótipo', [venenoso.ok, ({}).admin, venenoso.view.admin, 'constructor' in (venenoso.view.a || {}) && Object.keys(venenoso.view.a).includes('constructor'), venenoso.view.a.b], [true, undefined, undefined, false, 2]);
   const colado = A.pasteViewInto({ views: [{ id: 'a', name: 'Q' }], defaultViewId: 'a' }, { type: 'board', name: 'Q' });
   igual('colar · id novo e nome diferente quando já existe', [colado.baseDef.views.length, colado.newId !== 'a', colado.baseDef.views[1].name], [2, true, 'Q (colada)']);
+
+  // ── id de nota (timeline/mapa guardam como texto) ──
+  const Ni = await import('../sidepanel/modules/bases/engine/note-id.js');
+  igual('id · "3" vira 3; número, uid e vazio ficam como estão', [Ni.normalizeNoteId('3'), Ni.normalizeNoteId(7), Ni.normalizeNoteId('abc-1'), Ni.normalizeNoteId('3a'), Ni.normalizeNoteId(null)], [3, 7, 'abc-1', '3a', null]);
 }
