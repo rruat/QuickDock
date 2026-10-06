@@ -22,7 +22,7 @@ import { createNoteRecord, updateNoteMetaById } from '../storage.js';
  * @param {Function} params.onDefChange Callback ao alterar configuração
  * @returns {HTMLElement}
  */
-export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, rowTone = null }) {
+export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, onOpenNote = null, rowTone = null }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-board-view';
 
@@ -241,7 +241,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
 
     titleEl.onclick = e => {
       e.stopPropagation();
-      document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
+      if (onOpenNote) onOpenNote(note.id); else document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
     };
 
     // Propriedades exibidas no card
@@ -382,6 +382,8 @@ export function renderBaseBoardView(container, notes, schema, viewConfig = {}, c
     onDefChange: callbacks.onDefChange || (() => {}),
     showOwnToolbar: callbacks.showOwnToolbar,
     rowTone: callbacks.rowTone,
+    // só intercepta o clique quando a view abre em prévia; senão mantém o caminho antigo (evento de ativar nota)
+    onOpenNote: callbacks.peekActive ? callbacks.onOpenNote : null,
     onViewChange: callbacks.onUpdateView || null,
   });
   container.appendChild(boardEl);

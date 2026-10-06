@@ -7,8 +7,13 @@ import { section, row, selectControl } from './controls.js';
 const NENHUM = '__none__';
 
 export function newNoteSection({ view, templates, memoria, patch }) {
-  const s = section('Nova nota', { chave: 'newnote', memoria, abertaPorPadrao: false,
+  const s = section('Abrir e criar notas', { chave: 'newnote', memoria, abertaPorPadrao: false,
     dica: 'A nota nova usa o conteúdo do modelo e já nasce com os valores dos filtros e do grupo.' });
+  s.body.appendChild(row('Abrir notas em', id => selectControl({
+    id, value: view.openIn || 'page',
+    options: [{ value: 'page', label: 'Editor (página cheia)' }, { value: 'peek-side', label: 'Prévia lateral' }, { value: 'peek-center', label: 'Prévia central' }],
+    onChange: v => patch({ openIn: v === 'page' ? undefined : v }),
+  }), { dica: 'A prévia é somente leitura e não troca a nota ativa; "Abrir nota" leva ao editor.' }));
   const lista = (templates || []).filter(t => t.kind === 'note' && t.uid);
   s.body.appendChild(row('Modelo', id => selectControl({
     id, value: view.newTemplate || NENHUM,

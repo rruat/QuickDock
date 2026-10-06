@@ -48,3 +48,17 @@
 .base-gallery-preview-body { font-size: 11px; line-height: 1.4; max-height: 100%; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, oklch(0% 0 0) 65%, transparent); mask-image: linear-gradient(to bottom, oklch(0% 0 0) 65%, transparent); }
 .base-gallery-preview-body.note-editor-blocks h1.block, .base-gallery-preview-body.note-editor-blocks h2.block, .base-gallery-preview-body.note-editor-blocks h3.block { font-size: 13px; line-height: 1.3; margin: 0 0 4px; padding: 0; }
 .base-gallery-preview-body.note-editor-blocks .block { margin-top: 0; margin-bottom: 2px; padding-top: 0; padding-bottom: 0; }
+
+/* ── Prévia da nota (abrir em: lateral/central) ── */
+.base-component-root { position: relative; }
+.base-peek { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
+.base-peek-panel { pointer-events: auto; display: flex; flex-direction: column; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); box-shadow: 0 8px 28px oklch(0% 0 0 / 0.25); overflow: hidden; }
+.base-peek.base-peek-side .base-peek-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100%); border-width: 0 0 0 1px; }
+.base-peek.base-peek-center { pointer-events: auto; background: oklch(0% 0 0 / 0.35); display: flex; align-items: center; justify-content: center; }
+.base-peek.base-peek-center .base-peek-panel { width: min(720px, calc(100% - 32px)); max-height: calc(100% - 32px); border-radius: var(--radius); }
+.base-peek-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.base-peek-title { margin: 0; flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.base-peek-props { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; padding: 10px 14px; font-size: 12px; border-bottom: 1px solid var(--border); }
+.base-peek-props dt { color: var(--text-secondary); font-weight: 600; } .base-peek-props dd { margin: 0; }
+.base-peek-body { flex: 1; overflow-y: auto; padding: 12px 14px; font-size: 13.5px; line-height: 1.5; }
+@media print { .base-peek { display: none !important; } }

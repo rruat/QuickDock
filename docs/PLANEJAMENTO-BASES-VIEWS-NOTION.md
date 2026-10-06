@@ -279,7 +279,9 @@ Seleção por checkbox/`Shift`/`Ctrl`; barra de ações: definir propriedade, mo
 
 ### 4.9b "Abrir em" (Fase 8)
 
-`openMode: page | peek-side | peek-center`. **peek** reaproveita o **editor emprestado** (já usado no cartão de nota do Espaço — `lendEditorTo` em `note.js`): abre a nota num painel lateral/central **sem trocar a nota ativa**.
+> **Decisão na implementação:** a prévia é **somente leitura** (`openIn: peek-side | peek-center`, mesmo render dos cartões do Espaço), não o editor emprestado: o editor é um só e emprestá-lo a um painel tiraria do ar o bloco da própria Base que está na tela. "Abrir nota" leva ao editor.
+
+`openMode: page | peek-side | peek-center`. **peek** reaproveitaria o **editor emprestado** (já usado no cartão de nota do Espaço — `lendEditorTo` em `note.js`): abre a nota num painel lateral/central **sem trocar a nota ativa**.
 
 ### 4.10 Views vinculadas e Bases embutidas (Fase 8)
 
@@ -752,7 +754,7 @@ Navegação por teclado completa (4.12) · contraste ≥ 55 de L (OKLCH) · não
 | 5 | Linha do tempo | ✅ (barras, marco, 5 escalas com zoom que mantém o centro, tabela lateral sincronizada, grupos, cor, hoje, mover/esticar por arrasto e teclado; etapa 2: dependências com setas, conflito destacado e reagendamento em cascata opcional) |
 | 6 | Gráficos | ✅ (barras vertical/horizontal agrupadas/empilhadas/100%, linha, pizza, número; séries, acumulado, meta, clique filtra; SVG próprio em OKLCH; falta só tooltip rico além do título nativo) |
 | 7 | Mapa e Feed | ✅ (Mapa: Leaflet, pinos coloridos, cluster por grade sem plugin, aviso offline, lista "sem localização"; Feed: conteúdo da nota em blocos, carregamento preguiçoso, "ver mais", grupos) |
-| 8 | Vinculadas, templates, lote, peek, exportar, dashboard | 🟡 (feito: views vinculadas (origem = outra Base, só leitura), exportar CSV/Markdown/JSON com proteção contra injeção de fórmula, seleção e edição em lote com confirmação, colunas congeladas, modelo de nota por view, impressão por view; faltam "abrir em" peek, botão-ação e dashboard) |
+| 8 | Vinculadas, templates, lote, peek, exportar, dashboard | 🟡 (feito: views vinculadas, "abrir em" prévia lateral/central (somente leitura — de propósito, ver 4.9b), exportar CSV/Markdown/JSON, seleção e edição em lote, colunas congeladas, modelo de nota por view, impressão por view; faltam botão-ação e dashboard) |
 
 ---
 

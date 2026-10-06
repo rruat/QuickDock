@@ -17,11 +17,12 @@ import { renderBaseFeedView } from './bases-feed-view.js';
 import { renderBaseMapView } from './bases-map-view.js';
 import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, loadAllTemplates, updateNoteBlocksById, getNoteById } from '../storage.js';
 import { parseMarkdownToBlocks, blocksToMarkdown } from '../blocks.js';
-import { normalizeViews, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
+import { normalizeViews, getViewProps, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
 import { renderViewTabs as desenhaAbas, abreMenu } from './ui/view-tabs.js';
 import { exportMenuItems } from './ui/export-menu.js';
 import { createBulkController } from './bases-bulk-controller.js';
+import { createNotePeek } from './ui/note-peek.js';
 import { readLinkedDefinition, effectiveSource, effectiveProperties, findBaseNotes } from './engine/linked-base.js';
 import { renderQuickFilters, loadQuickFilters, saveQuickFilters } from './ui/quick-filters.js';
 import { impliedValues } from './engine/filter-tree.js';
@@ -191,6 +192,8 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   const bulkEl = document.createElement('div');
   rootContainer.appendChild(bulkEl);
   const bulk = createBulkController(bulkEl, { getNotes: () => allNotes, onChanged: () => updateViewport() });
+
+  const peek = createNotePeek(rootContainer, { onOpenNote: id => switchToNote(id) });
 
   // 2. Área Principal de Visualização (Viewport) + painel de configuração da view
   const viewportEl = document.createElement('div');
@@ -409,8 +412,13 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       onSelectionChange: bulk.onSelectionChange,
       rowTone: regrasCor.length ? n => rowTone(n, regrasCor) : null,
       cellTone: regrasCor.length ? (n, k) => cellTone(n, regrasCor, k) : null,
+      peekActive: currentView.openIn === 'peek-side' || currentView.openIn === 'peek-center',
+      // "Abrir em": página (editor) ou prévia lateral/central somente leitura
       onOpenNote: async (noteId) => {
-        await switchToNote(noteId);
+        const modo = currentView.openIn;
+        const nota = (modo === 'peek-side' || modo === 'peek-center') ? allNotes.find(n => n.id === noteId) : null;
+        if (nota) peek.abrir(nota, modo, { schema, props: getViewProps(currentView) });
+        else await switchToNote(noteId);
       },
       onAddNote: async (extraProps, extraTypes) => {
         await handleCreateNewNote(extraProps, extraTypes);
@@ -495,6 +503,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   document.addEventListener('quickdock:note-created', onNoteEvent);
 
   rootContainer._cleanup = () => {
+    peek.fechar();
     document.removeEventListener('quickdock:note-updated', onNoteEvent);
     document.removeEventListener('quickdock:note-created', onNoteEvent);
     rootContainer.removeEventListener('keydown', onKeyViews);

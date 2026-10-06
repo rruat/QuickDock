@@ -26,7 +26,7 @@ import { createNoteRecord } from '../storage.js';
  * @param {Function} params.onDefChange Callback chamado ao alterar a configuração da Base
  * @returns {HTMLElement} Elemento container da Tabela
  */
-export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, rowTone = null, cellTone = null, selection = null, onSelectionChange = () => {}, onPasteWrites = null }) {
+export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, onOpenNote = null, rowTone = null, cellTone = null, selection = null, onSelectionChange = () => {}, onPasteWrites = null }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-table-view';
 
@@ -473,7 +473,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
       titleLink.addEventListener('click', e => {
         e.preventDefault();
-        document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
+        if (onOpenNote) onOpenNote(note.id); else document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
       });
 
       td.appendChild(titleLink);
@@ -651,6 +651,8 @@ export function renderBaseTableView(container, notes, schema, viewConfig = {}, c
     onDefChange: callbacks.onDefChange || (() => {}),
     onViewChange: callbacks.onUpdateView || null,
     rowTone: callbacks.rowTone,
+    // só intercepta o clique quando a view abre em prévia; senão mantém o caminho antigo (evento de ativar nota)
+    onOpenNote: callbacks.peekActive ? callbacks.onOpenNote : null,
     cellTone: callbacks.cellTone,
     onPasteWrites: callbacks.onPasteWrites || null,
     selection: callbacks.selection || null,
