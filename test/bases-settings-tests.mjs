@@ -402,4 +402,6 @@ export async function runBasesSettingsTests({ ok, igual }) {
   ok('cores · badges sem hex (OKLCH)', !badge || true);
   const ced = await readFile(new URL('../sidepanel/modules/bases/bases-cell-editors.js', import.meta.url), 'utf8');
   ok('cores · cell-editors sem #hex e sem sufixo de alfa colado na cor', !/#[0-9a-fA-F]{6}/.test(ced) && !/\$\{color\}[0-9a-f]{2}/.test(ced));
+
+  igual('quadro · sub-grupo padrão e coleta de recolhidas', [V.resolveSubGroup({}), V.resolveSubGroup({ subGroup: { prop: 'p', collapsed: ['x', 3] } })], [{ prop: null, collapsed: [] }, { prop: 'p', collapsed: ['x', '3'] }]);
 }

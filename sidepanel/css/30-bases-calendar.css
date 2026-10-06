@@ -332,3 +332,9 @@
 .bcal-nodate-list li { display: flex; align-items: center; gap: 6px; }
 .bcal-nodate-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .bcal-nodate-list .bset-input { max-width: 140px; height: 24px; }
+
+/* ── Quadro: raias (sub-grupo) ── */
+.base-board-columns-wrap.has-lanes { flex-direction: column; align-items: stretch; overflow: auto; gap: 8px; }
+.base-lane { display: flex; flex-direction: column; flex: none; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.base-lane-header { position: sticky; left: 0; }
+.base-lane-columns { display: flex; align-items: flex-start; gap: 12px; overflow-x: auto; padding: 4px 2px 8px; }

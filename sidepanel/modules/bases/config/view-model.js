@@ -220,6 +220,12 @@ export function resolveGroupConfig(view = {}) {
   };
 }
 
+/** Sub-grupo do quadro (raias): { prop, collapsed }. */
+export function resolveSubGroup(view = {}) {
+  const g = view.subGroup && typeof view.subGroup === 'object' ? view.subGroup : {};
+  return { prop: g.prop || null, collapsed: Array.isArray(g.collapsed) ? g.collapsed.map(String) : [] };
+}
+
 /** Cálculos por coluna: `calc` (novo) ou `summaries` (antigo, com nomes antigos traduzidos). */
 export function resolveCalc(view = {}) {
   const calc = {};
