@@ -16,7 +16,7 @@ const icone = nome => {
 
 function fechaMenus() { document.querySelectorAll('.base-add-view-dropdown').forEach(m => m.remove()); }
 
-function abreMenu(ancora, itens) {
+export function abreMenu(ancora, itens) {
   const existente = document.querySelector('.base-add-view-dropdown');
   if (existente) { existente.remove(); if (existente._ancora === ancora) return; }
   const menu = el('div', 'base-add-view-dropdown');

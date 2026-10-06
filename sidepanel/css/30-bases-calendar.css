@@ -309,3 +309,17 @@
 .bset-formula-msg.is-error { color: oklch(45% 0.18 25); }
 [data-theme="dark"] .bset-formula-msg.is-error { color: oklch(78% 0.13 25); }
 .bset-derived-name { font-size: 12.5px; flex: 1; }
+
+/* ── Tabela: colunas congeladas ── */
+.base-table th.base-frozen, .base-table td.base-frozen { position: sticky; z-index: 2; background: var(--bg-card); }
+.base-table th.base-frozen { z-index: 4; background: var(--bg-secondary); }
+.base-table tr[class*="tone-"] > td.base-frozen { background: inherit; }
+.base-table .is-frozen-edge { box-shadow: 2px 0 0 var(--border); }
+
+/* ── Seleção em lote ── */
+.base-bulkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--border); background: var(--bg-hover); }
+.base-bulkbar[hidden] { display: none; }
+.base-bulkbar .bset-input, .base-bulkbar .bset-select { max-width: 130px; min-width: 0; height: 26px; }
+.bbulk-count { font-size: 12px; font-weight: 600; margin-right: 4px; }
+.base-th-sel, .base-td-sel { width: 32px; min-width: 32px; text-align: center; }
+.base-tr.is-selected td { background: color-mix(in oklch, var(--accent) 12%, transparent); }

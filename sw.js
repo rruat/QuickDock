@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-77';
+const CACHE_NAME = 'quickdock-v3.0.0-79';
 
 const ASSET_PATHS = [
   '',
@@ -181,9 +181,11 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/chart/chart-model.js',
   'sidepanel/modules/bases/chart/chart-svg.js',
   'sidepanel/modules/bases/engine/aggregate-engine.js',
+  'sidepanel/modules/bases/engine/bulk-actions.js',
   'sidepanel/modules/bases/engine/color-rules.js',
   'sidepanel/modules/bases/engine/date-utils.js',
   'sidepanel/modules/bases/engine/derived-columns.js',
+  'sidepanel/modules/bases/engine/export.js',
   'sidepanel/modules/bases/engine/format.js',
   'sidepanel/modules/bases/engine/formula/evaluator.js',
   'sidepanel/modules/bases/engine/formula/functions.js',
@@ -205,6 +207,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/calendar/calendar-nav.js',
   'sidepanel/modules/bases/calendar/calendar-time-grid.js',
   'sidepanel/modules/bases/calendar/calendar-toolbar.js',
+  'sidepanel/modules/bases/ui/bulk-bar.js',
   'sidepanel/modules/bases/ui/controls.js',
   'sidepanel/modules/bases/ui/filter-operators.js',
   'sidepanel/modules/bases/ui/section-filter.js',
@@ -214,6 +217,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/ui/section-sort.js',
   'sidepanel/modules/bases/ui/property-options.js',
   'sidepanel/modules/bases/ui/quick-filters.js',
+  'sidepanel/modules/bases/ui/export-menu.js',
   'sidepanel/modules/bases/ui/grouped-sections.js',
   'sidepanel/modules/bases/ui/section-board.js',
   'sidepanel/modules/bases/ui/section-calendar.js',

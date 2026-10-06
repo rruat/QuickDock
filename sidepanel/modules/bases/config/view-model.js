@@ -234,5 +234,7 @@ export function resolveTableLayout(view = {}) {
     wrapCells: l.wrapCells === true || l.wrapCells === 'true',
     rowNumbers: l.rowNumbers === true || l.rowNumbers === 'true',
     borders: ['both', 'rows', 'none'].includes(l.borders) ? l.borders : 'both',
+    selectable: l.selectable === true || l.selectable === 'true',
+    frozenColumns: Math.min(3, Math.max(0, Math.floor(Number(l.frozenColumns)) || 0)),
   };
 }

@@ -101,7 +101,7 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('config · group novo vence groupBy', V.resolveGroupConfig({ groupBy: 'a', group: { prop: 'b', order: 'count' } }).order, 'count');
   igual('config · summaries antigos traduzidos', V.resolveCalc({ summaries: { custo: 'average', ok: 'percent_checked', t: 'count' } }), { custo: 'avg', ok: 'pct_checked', t: 'count' });
   igual('config · calc sobrepõe e remove', V.resolveCalc({ summaries: { a: 'sum', b: 'sum' }, calc: { a: 'max', b: 'none' } }), { a: 'max' });
-  igual('config · layout padrão', V.resolveTableLayout({}), { rowHeight: 'medium', wrapCells: false, rowNumbers: false, borders: 'both' });
+  igual('config · layout padrão', V.resolveTableLayout({}), { rowHeight: 'medium', wrapCells: false, rowNumbers: false, borders: 'both', selectable: false, frozenColumns: 0 });
   igual('config · layout ignora lixo', V.resolveTableLayout({ layout: { rowHeight: 'enorme', borders: 'x' } }).rowHeight, 'medium');
 
   // ── cor condicional ──
@@ -335,4 +335,34 @@ export async function runBasesSettingsTests({ ok, igual }) {
   }
   ok('imports · todo import relativo de bases/ resolve para um arquivo', quebrados.length === 0, quebrados.join('\n'));
   ok('imports · varreu os módulos (não ficou vazio)', arquivos.length > 60);
+
+  // ── exportação ──
+  const Ex = await import('../sidepanel/modules/bases/engine/export.js');
+  const exN = [{ id: 1, title: 'A,"x"', properties: { v: -5, t: '=HYPERLINK("http://x")', tg: ['a', 'b'], ok: true } }, { id: 2, title: '+cmd', properties: {} }];
+  const exS = { title: { label: 'Nome' }, v: { type: 'number', label: 'V' }, t: { label: 'T' }, tg: { type: 'list', label: 'Tags' }, ok: { type: 'checkbox', label: 'Ok' } };
+  const csv = Ex.toCsv(exN, ['title', 'v', 't', 'tg', 'ok'], exS);
+  ok('export · CSV começa com BOM e usa CRLF', csv.startsWith('﻿') && csv.includes('\r\n'));
+  ok('export · aspas e vírgulas escapadas', csv.includes('"A,""x"""'));
+  ok('export · injeção de fórmula neutralizada (= + - @)', csv.includes("\"'=HYPERLINK") && csv.includes("'+cmd"));
+  ok('export · número negativo não é alterado', csv.includes(',-5,'));
+  ok('export · lista com "; " e checkbox em Sim/Não', csv.includes('a; b') && csv.includes('Sim'));
+  igual('export · markdown escapa pipe e quebra de linha', Ex.toMarkdownTable([{ id: 1, title: 'a|b\nc', properties: {} }], ['title'], exS).split('\n')[2], '| a\\|b c |');
+  igual('export · JSON mantém tipos', JSON.parse(Ex.toJson(exN, ['title', 'v', 'ok'], exS))[0], { title: 'A,"x"', v: -5, ok: true });
+  igual('export · nome de arquivo seguro', Ex.exportFileName('Minha Base: ação/2', 'csv', new Date(2026, 9, 6)), 'Minha-Base-acao-2-20261006.csv');
+  igual('export · guard só em texto', [Ex.guardSpreadsheet('-5'), Ex.guardSpreadsheet('-abc'), Ex.guardSpreadsheet('ok')], ['-5', "'-abc", 'ok']);
+
+  // ── edição em lote ──
+  const Bk = await import('../sidepanel/modules/bases/engine/bulk-actions.js');
+  const bn = { id: 1, pasta: 'a', properties: { tags: 'x, y', st: 'A' }, propertyTypes: {} };
+  igual('lote · definir propriedade com tipo', Bk.buildBulkPatch(bn, { kind: 'setProperty', key: 'prazo', value: '2026-10-10', type: 'date' }).propertyTypes.prazo, 'date');
+  igual('lote · definir o mesmo valor não faz nada', Bk.buildBulkPatch(bn, { kind: 'setProperty', key: 'st', value: 'A' }), null);
+  igual('lote · adicionar tag converte "x, y" em lista', Bk.buildBulkPatch(bn, { kind: 'addTag', tag: '#z' }).properties.tags, ['x', 'y', 'z']);
+  igual('lote · tag repetida não faz nada', Bk.buildBulkPatch(bn, { kind: 'addTag', tag: 'x' }), null);
+  igual('lote · remover a última tag apaga a chave', 'tags' in Bk.buildBulkPatch({ properties: { tags: ['a'] } }, { kind: 'removeTag', tag: 'a' }).properties, false);
+  igual('lote · mover de pasta normaliza barras', Bk.buildBulkPatch(bn, { kind: 'moveFolder', pasta: '/b/c/' }), { pasta: 'b/c' });
+  igual('lote · mover para a mesma pasta não faz nada', Bk.buildBulkPatch(bn, { kind: 'moveFolder', pasta: 'a' }), null);
+  igual('lote · não muta a nota original', [bn.properties.tags, Object.keys(bn.properties)], ['x, y', ['tags', 'st']]);
+  igual('lote · limpar propriedade', 'st' in Bk.buildBulkPatch(bn, { kind: 'clearProperty', key: 'st' }).properties, false);
+  igual('lote · ação desconhecida é ignorada', Bk.buildBulkPatch(bn, { kind: 'explodir' }), null);
+  igual('lote · descrição da exclusão avisa permanência', Bk.describeBulkAction({ kind: 'delete' }, 3), 'Excluir 3 notas permanentemente');
 }

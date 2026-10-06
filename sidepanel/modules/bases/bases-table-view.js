@@ -24,7 +24,7 @@ import { createNoteRecord } from '../storage.js';
  * @param {Function} params.onDefChange Callback chamado ao alterar a configuração da Base
  * @returns {HTMLElement} Elemento container da Tabela
  */
-export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, rowTone = null, cellTone = null }) {
+export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, rowTone = null, cellTone = null, selection = null, onSelectionChange = () => {} }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-table-view';
 
@@ -40,6 +40,21 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   const layout = resolveTableLayout(activeView);
   container.classList.add(`base-rows-${layout.rowHeight}`, `base-borders-${layout.borders}`);
   container.classList.toggle('base-wrap-cells', layout.wrapCells);
+  // Colunas congeladas: deslocamento (px) de cada uma = soma das larguras das anteriores (+ coluna do nº da linha)
+  const larguraDe = k => activeView.columnWidths?.[k] || schema[k]?.width || 160;
+  const congeladas = columns.slice(0, layout.frozenColumns).reduce((acc, k, i) => {
+    acc.push({ k, left: i === 0 ? (layout.selectable ? 32 : 0) + (layout.rowNumbers ? 36 : 0) : acc[i - 1].left + larguraDe(acc[i - 1].k) });
+    return acc;
+  }, []);
+  const congelaCelula = (el, colKey) => {
+    const i = congeladas.findIndex(c => c.k === colKey);
+    if (i < 0) return;
+    el.classList.add('base-frozen');
+    if (i === congeladas.length - 1) el.classList.add('is-frozen-edge');
+    el.style.left = `${congeladas[i].left}px`;
+  };
+  const congelaNumero = el => { if (congeladas.length && layout.rowNumbers) { el.classList.add('base-frozen'); el.style.left = `${layout.selectable ? 32 : 0}px`; } };
+  const congelaSel = el => { if (congeladas.length && layout.selectable) { el.classList.add('base-frozen'); el.style.left = '0px'; } };
 
   // ── 1. Barra de ferramentas da Base ─────────────────────────────────────────
   // showOwnToolbar=false quando montada dentro de bases-view-container.js: a
@@ -117,13 +132,25 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   function renderTableHeader() {
     thead.innerHTML = '';
     const tr = document.createElement('tr');
-    if (layout.rowNumbers) tr.appendChild(Object.assign(document.createElement('th'), { className: 'base-th base-th-num', textContent: '#' }));
+    if (layout.selectable && selection) {
+      const ths = document.createElement('th'); ths.className = 'base-th base-th-sel';
+      const todas = document.createElement('input'); todas.type = 'checkbox'; todas.setAttribute('aria-label', 'Selecionar todas as linhas visíveis');
+      todas.addEventListener('change', () => {
+        for (const id of visiveisIds) { if (todas.checked) selection.add(id); else selection.delete(id); }
+        onSelectionChange(); renderTableBody();
+      });
+      congelaSel(ths);
+      ths.appendChild(todas); tr.appendChild(ths);
+      container._selectAll = todas;
+    }
+    if (layout.rowNumbers) { const thn = Object.assign(document.createElement('th'), { className: 'base-th base-th-num', textContent: '#' }); congelaNumero(thn); tr.appendChild(thn); }
 
     for (const colKey of columns) {
       const propDef = schema[colKey] || { key: colKey, label: colKey, type: 'text' };
       const th = document.createElement('th');
       th.className = 'base-th';
       th.dataset.col = colKey;
+      congelaCelula(th, colKey);
 
       const w = activeView.columnWidths[colKey] || propDef.width || 160;
       th.style.width = `${w}px`;
@@ -210,6 +237,8 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     });
   }
 
+  let visiveisIds = [];
+
   // ── 5. Renderização do Corpo da Tabela ───────────────────────────────────────
   function renderTableBody() {
     tbody.innerHTML = '';
@@ -224,6 +253,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
     // Aplica ordenação
     const sorted = sortBaseNotes(filtered, activeSorts, schema);
+    visiveisIds = sorted.map(n => n.id);
 
     if (countBadge) countBadge.textContent = `${sorted.length} ${sorted.length === 1 ? 'nota' : 'notas'}`;
 
@@ -231,7 +261,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       const emptyRow = document.createElement('tr');
       const emptyTd = document.createElement('td');
       emptyTd.className = 'base-td-empty';
-      emptyTd.colSpan = columns.length + (layout.rowNumbers ? 1 : 0);
+      emptyTd.colSpan = columns.length + (layout.rowNumbers ? 1 : 0) + (layout.selectable ? 1 : 0);
       emptyTd.innerHTML = '<span class="qd-icon material-symbols-rounded">inbox</span><span>Nenhuma nota encontrada</span>';
       emptyRow.appendChild(emptyTd);
       tbody.appendChild(emptyRow);
@@ -247,7 +277,27 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       tr.dataset.noteId = note.id;
       const tomLinha = rowTone?.(note);
       if (tomLinha) tr.classList.add(`tone-${tomLinha}`);
-      if (layout.rowNumbers) tr.appendChild(Object.assign(document.createElement('td'), { className: 'base-td base-td-num', textContent: String(numero) }));
+      if (layout.selectable && selection) {
+        const tds = document.createElement('td'); tds.className = 'base-td base-td-sel';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = selection.has(note.id);
+        cb.setAttribute('aria-label', `Selecionar ${note.title || 'nota'}`);
+        tr.classList.toggle('is-selected', cb.checked);
+        cb.addEventListener('click', e => e.stopPropagation());
+        cb.addEventListener('change', e => {
+          // Shift+clique seleciona o intervalo desde a última marcada
+          if (e.shiftKey && container._lastSel != null) {
+            const a = visiveisIds.indexOf(container._lastSel), b2 = visiveisIds.indexOf(note.id);
+            if (a >= 0 && b2 >= 0) for (const id of visiveisIds.slice(Math.min(a, b2), Math.max(a, b2) + 1)) selection.add(id);
+          } else if (cb.checked) selection.add(note.id); else selection.delete(note.id);
+          container._lastSel = note.id;
+          tr.classList.toggle('is-selected', selection.has(note.id));
+          onSelectionChange();
+          if (e.shiftKey) renderTableBody();
+        });
+        congelaSel(tds);
+        tds.appendChild(cb); tr.appendChild(tds);
+      }
+      if (layout.rowNumbers) { const tdn = Object.assign(document.createElement('td'), { className: 'base-td base-td-num', textContent: String(numero) }); congelaNumero(tdn); tr.appendChild(tdn); }
 
       for (const colKey of columns) {
         const propDef = schema[colKey] || { key: colKey, type: 'text' };
@@ -256,6 +306,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         const td = document.createElement('td');
         td.className = `base-td base-td-${propDef.type}`;
         td.dataset.col = colKey;
+        congelaCelula(td, colKey);
         const tomCelula = cellTone?.(note, colKey);
         if (tomCelula) td.classList.add(`tone-${tomCelula}`);
 
@@ -298,7 +349,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         gr.className = 'base-group-row' + (fechado ? ' is-collapsed' : '');
         gr.dataset.groupKey = g.key;
         const tdTitulo = document.createElement('td');
-        tdTitulo.colSpan = 1 + (layout.rowNumbers ? 1 : 0);
+        tdTitulo.colSpan = 1 + (layout.rowNumbers ? 1 : 0) + (layout.selectable ? 1 : 0);
         const toggle = document.createElement('button');
         toggle.type = 'button'; toggle.className = 'base-group-toggle';
         toggle.setAttribute('aria-expanded', String(!fechado));
@@ -509,6 +560,8 @@ export function renderBaseTableView(container, notes, schema, viewConfig = {}, c
     onViewChange: callbacks.onUpdateView || null,
     rowTone: callbacks.rowTone,
     cellTone: callbacks.cellTone,
+    selection: callbacks.selection || null,
+    onSelectionChange: callbacks.onSelectionChange || (() => {}),
     showOwnToolbar: callbacks.showOwnToolbar,
   });
   container.appendChild(tableEl);
