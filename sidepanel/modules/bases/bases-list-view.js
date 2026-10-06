@@ -5,6 +5,7 @@
 import { getNotePropertyValue } from './bases-engine.js';
 import { formatPropertyValue } from './bases-schema.js';
 import { getViewProps } from './config/view-model.js';
+import { renderGrouped } from './ui/grouped-sections.js';
 import { formatSelectBadge } from './bases-cell-editors.js';
 
 /**
@@ -22,12 +23,24 @@ export function renderBaseListView(container, notes, schema, viewConfig = {}, ca
   const visibleProps = getViewProps(viewConfig);
 
   const listEl = document.createElement('div');
-  listEl.className = 'base-list-items';
+  listEl.className = 'base-list-items' + (viewConfig.density === 'compact' ? ' is-compact' : '');
+  const checkProp = viewConfig.checkboxProp || null;
 
-  notes.forEach(note => {
+  const desenhaItens = (box, lista) => lista.forEach(note => {
     const row = document.createElement('div');
     row.className = 'base-list-row';
     row.dataset.noteId = note.id;
+
+    // Caixa de marcação: grava a propriedade checkbox escolhida (ex.: tarefa concluída)
+    if (checkProp) {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.className = 'base-list-check';
+      cb.checked = getNotePropertyValue(note, checkProp) === true;
+      cb.setAttribute('aria-label', `Marcar ${note.title || 'nota'}`);
+      cb.addEventListener('click', e => e.stopPropagation());
+      cb.addEventListener('change', () => callbacks.onUpdateNoteProperties?.(note, { [checkProp]: cb.checked }, { [checkProp]: 'checkbox' }));
+      row.appendChild(cb);
+    }
 
     // Ícone de documento
     const iconWrap = document.createElement('div');
@@ -54,7 +67,7 @@ export function renderBaseListView(container, notes, schema, viewConfig = {}, ca
 
     visibleProps.forEach(propName => {
       if (propName === 'title') return;
-      const propDef = schema?.properties?.find(p => p.name === propName) || { name: propName, type: 'text' };
+      const propDef = schema?.[propName] || schema?.properties?.find?.(p => p.name === propName) || { name: propName, type: 'text' };
       const rawVal = getNotePropertyValue(note, propName);
       if (rawVal == null || rawVal === '' || (Array.isArray(rawVal) && rawVal.length === 0)) return;
 
@@ -74,8 +87,9 @@ export function renderBaseListView(container, notes, schema, viewConfig = {}, ca
     });
 
     row.appendChild(propsWrap);
-    listEl.appendChild(row);
+    box.appendChild(row);
   });
+  renderGrouped(listEl, { notes, schema, view: viewConfig }, desenhaItens, callbacks.onUpdateView);
 
   // Linha "+ Adicionar nota"
   const addRow = document.createElement('div');

@@ -281,3 +281,17 @@
 .base-calc-select.is-none { opacity: 0; }
 .base-tfoot-td:hover .base-calc-select, .base-calc-select:focus-visible { opacity: 1; }
 .base-tfoot-td .base-summary-value { margin-left: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ── Grupos recolhíveis (lista e galeria) ── */
+.base-group { margin-bottom: 8px; }
+.base-group-header { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 4px; cursor: pointer; border-radius: var(--radius-sm); text-align: left; }
+.base-group-header:hover { background: var(--bg-hover); }
+.base-group-header:focus-visible { outline: 2px solid var(--accent); }
+.base-group-header .qd-icon { font-size: 18px; }
+.base-group-body { padding-left: 2px; }
+.base-list-items.is-compact .base-list-row { padding-top: 3px; padding-bottom: 3px; }
+.base-list-check { margin: 0 6px 0 2px; accent-color: var(--accent); }
+
+/* ── Galeria: proporção e ajuste da capa ── */
+.base-gallery-container [style*="--gallery-aspect"] .base-gallery-cover { height: auto; aspect-ratio: var(--gallery-aspect); }
+.base-gallery-container .fit-contain .base-gallery-cover { background-size: contain; }
