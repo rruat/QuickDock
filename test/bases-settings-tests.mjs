@@ -421,4 +421,40 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('ordem · escopos', [Mo.scopeKey(), Mo.scopeKey('alta', 'Feito'), Mo.scopeKey(null, 'Feito')], ['__all__', 'alta/Feito', 'Feito']);
   igual('ordem · ordenar por propriedade desliga a manual', [Mo.manualOrderActive({}), Mo.manualOrderActive({ sort: [{ property: 'a' }] })], [true, false]);
   igual('ordem · resolve lixo', Mo.resolveManualOrder({ manualOrder: { a: [1, 2], b: 'x' } }), { a: ['1', '2'] });
+
+  // ── subitens ──
+  const Su = await import('../sidepanel/modules/bases/engine/subitems.js');
+  const sn = [
+    { id: 1, title: 'Projeto', properties: {} },
+    { id: 2, title: 'Tarefa A', properties: { pai: '[[Projeto]]' } },
+    { id: 3, title: 'Subtarefa', properties: { pai: '[[Tarefa A]]' } },
+    { id: 4, title: 'Tarefa B', properties: { pai: 'projeto' } },
+    { id: 5, title: 'Órfã', properties: { pai: '[[Inexistente]]' } },
+  ];
+  const sg = (n, p) => n.properties[p];
+  igual('subitens · hierarquia na ordem de exibição', Su.flattenSubitems(sn, 'pai', sg).map(i => `${i.depth}:${i.note.title}`), ['0:Projeto', '1:Tarefa A', '2:Subtarefa', '1:Tarefa B', '0:Órfã']);
+  igual('subitens · recolher o pai esconde os descendentes', Su.flattenSubitems(sn, 'pai', sg, new Set(['1'])).map(i => i.note.title), ['Projeto', 'Órfã']);
+  igual('subitens · marca quem tem filhos', Su.flattenSubitems(sn, 'pai', sg).map(i => i.hasChildren), [true, true, false, false, false]);
+  const cicloSub = [{ id: 1, title: 'A', properties: { pai: 'B' } }, { id: 2, title: 'B', properties: { pai: 'A' } }, { id: 3, title: 'C', properties: { pai: 'C' } }];
+  igual('subitens · cicloSub e autorreferência viram raiz (sem laço infinito)', Su.flattenSubitems(cicloSub, 'pai', sg).length, 3);
+  igual('subitens · pai fora da lista visível: filho vira raiz', Su.flattenSubitems([sn[1]], 'pai', sg).map(i => i.depth), [0]);
+
+  // ── colar de planilha ──
+  const Pg = await import('../sidepanel/modules/bases/engine/paste-grid.js');
+  igual('colar · TSV simples', Pg.parseClipboardGrid('a\tb\nc\td\n'), [['a', 'b'], ['c', 'd']]);
+  igual('colar · aspas, tabulação e quebra dentro da célula', Pg.parseClipboardGrid('"x\ty"\t"li\nnha ""q"""\nz'), [['x\ty', 'li\nnha "q"'], ['z']]);
+  igual('colar · CRLF do Excel e célula vazia no meio', Pg.parseClipboardGrid('a\t\tc\r\n1\t2\t3\r\n'), [['a', '', 'c'], ['1', '2', '3']]);
+  const pn = [{ id: 1, properties: {} }, { id: 2, properties: { v: 1 } }, { id: 3, properties: {} }];
+  const pc = ['title', 'nome', 'v', 'd', 'ok'];
+  const ps = { title: { type: 'title' }, nome: { type: 'text' }, v: { type: 'number' }, d: { type: 'date' }, ok: { type: 'checkbox' } };
+  const pl = Pg.planPaste([['Ana', '1.250,50', '05/10/2026', 'sim'], ['Bia', '7', '2026-10-06', 'não']], { row: 0, col: 1 }, pn, pc, ps);
+  igual('colar · 2×4 vira 8 gravações sem erro', [pl.writes.length, pl.errors.length], [8, 0]);
+  igual('colar · valores convertidos por tipo', pl.writes.slice(0, 4).map(w => w.value), ['Ana', 1250.5, '2026-10-05', true]);
+  igual('colar · número inválido bloqueia (com a célula)', Pg.planPaste([['abc']], { row: 0, col: 2 }, pn, pc, ps).errors.map(e => [e.row, e.col, e.key]), [[0, 2, 'v']]);
+  igual('colar · data inválida e sim/não inválido', Pg.planPaste([['31/02/x', 'talvez']], { row: 0, col: 3 }, pn, pc, ps).errors.length, 2);
+  igual('colar · título não é colável', Pg.planPaste([['x']], { row: 0, col: 0 }, pn, pc, ps).errors[0].key, 'title');
+  igual('colar · passar da última linha/coluna é ignorado', Pg.planPaste([['a', 'b', 'c', 'd', 'e', 'f'], ['x'], ['y'], ['z']], { row: 1, col: 1 }, pn, pc, ps).skipped > 0, true);
+  igual('colar · célula vazia limpa o valor', Pg.planPaste([['']], { row: 1, col: 2 }, pn, pc, ps).writes[0].value, null);
+  const pp = Pg.writesToPatches([{ noteId: 2, key: 'v', value: null, type: 'number' }, { noteId: 2, key: 'nome', value: 'Zé', type: 'text' }], pn);
+  igual('colar · patches: limpa e define, sem mutar a nota', [pp[0].patch.properties, 'nome' in pn[1].properties], [{ nome: 'Zé' }, false]);
 }

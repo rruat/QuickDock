@@ -374,6 +374,11 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     // duplicados por cima da primeira.
     const regrasCor = normalizeColorRules(currentView);
     const callbacks = {
+      // colar de planilha: patches já validados (tudo ou nada) — grava e recarrega
+      onPasteWrites: async patches => {
+        for (const { id, patch } of patches) await updateNoteMetaById(id, patch);
+        document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { paste: true } }));
+      },
       selection: bulk.selection,
       onSelectionChange: bulk.onSelectionChange,
       rowTone: regrasCor.length ? n => rowTone(n, regrasCor) : null,

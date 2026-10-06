@@ -8,6 +8,8 @@ import { getViewProps, resolveGroupConfig, resolveTableLayout, resolveCalc } fro
 import { groupNotes } from './engine/group-engine.js';
 import { renderTableFooter as desenhaRodape, calcCell } from './table/table-footer.js';
 import { formatAggregate } from './engine/aggregate-engine.js';
+import { flattenSubitems } from './engine/subitems.js';
+import { parseClipboardGrid, planPaste, writesToPatches } from './engine/paste-grid.js';
 import { progressPercent } from './engine/format.js';
 import { getNotePropertyValue, queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { activateCellEditor } from './bases-cell-editors.js';
@@ -24,7 +26,7 @@ import { createNoteRecord } from '../storage.js';
  * @param {Function} params.onDefChange Callback chamado ao alterar a configuração da Base
  * @returns {HTMLElement} Elemento container da Tabela
  */
-export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, rowTone = null, cellTone = null, selection = null, onSelectionChange = () => {} }) {
+export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, rowTone = null, cellTone = null, selection = null, onSelectionChange = () => {}, onPasteWrites = null }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-table-view';
 
@@ -238,6 +240,8 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   }
 
   let visiveisIds = [];
+  let celulaAtiva = null;        // { noteId, key } — onde o colar de planilha começa
+  let linhasVisiveis = [];       // notas na ordem em que aparecem (colar mapeia linhas sobre elas)
 
   const TAMANHO_LOTE = 150;
   let observadorLotes = null;
@@ -284,6 +288,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     // Aplica ordenação
     const sorted = sortBaseNotes(filtered, activeSorts, schema);
     visiveisIds = sorted.map(n => n.id);
+    linhasVisiveis = sorted;
 
     if (countBadge) countBadge.textContent = `${sorted.length} ${sorted.length === 1 ? 'nota' : 'notas'}`;
 
@@ -300,7 +305,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     }
 
     let contador = 0;
-    const buildRow = note => {
+    const buildRow = (note, sub = null) => {
       const numero = ++contador;
       const tr = document.createElement('tr');
       tr.className = 'base-tr';
@@ -341,8 +346,11 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         if (tomCelula) td.classList.add(`tone-${tomCelula}`);
 
         renderCellContent(td, note, colKey, propDef, rawVal);
+        if (sub && colKey === columns[0]) decoraSubitem(td, note, sub);
 
         // Clique simples ativa edição para checkbox; duplo clique ou clique para outros campos
+        td.tabIndex = -1;
+        td.addEventListener('pointerdown', () => { celulaAtiva = { noteId: note.id, key: colKey }; container.querySelectorAll('.is-active-cell').forEach(x => x.classList.remove('is-active-cell')); td.classList.add('is-active-cell'); td.focus({ preventScroll: true }); });
         td.addEventListener('click', e => {
           if (propDef.isDerived) return;
           if (propDef.type === 'checkbox' || propDef.type === 'select' || propDef.type === 'folder') {
@@ -373,7 +381,12 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     // Linhas entram em lotes (cada entrada é uma função que cria a <tr>): o primeiro desenho de
     // uma Base grande é rápido e o resto entra quando a pessoa chega perto do fim da tabela.
     const entradas = [];
-    if (!grupoCfg.prop) {
+    const paiProp = activeView.subItems?.parentProp;
+    if (!grupoCfg.prop && paiProp) {
+      // subitens: filhos indentados sob o pai, com recolher/expandir (guardado na view)
+      const fechadosSub = new Set((activeView.subItems?.collapsed || []).map(String));
+      for (const it of flattenSubitems(sorted, paiProp, getV, fechadosSub)) entradas.push(() => buildRow(it.note, it));
+    } else if (!grupoCfg.prop) {
       for (const note of sorted) entradas.push(() => buildRow(note));
     } else {
       for (const g of groupNotes(sorted, grupoCfg, schema, getV)) {
@@ -412,6 +425,28 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
     desenhaEmLotes(entradas);
     renderTableFooter(sorted);
+  }
+
+  // Subitens: recuo por nível + botão de recolher/expandir ao lado do título
+  function decoraSubitem(td, note, sub) {
+    td.style.paddingLeft = `${10 + sub.depth * 18}px`;
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'base-sub-toggle' + (sub.hasChildren ? '' : ' is-leaf');
+    if (sub.hasChildren) {
+      botao.setAttribute('aria-expanded', String(!sub.collapsed));
+      botao.setAttribute('aria-label', sub.collapsed ? 'Expandir subitens' : 'Recolher subitens');
+      botao.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${sub.collapsed ? 'chevron_right' : 'expand_more'}</span>`;
+      botao.addEventListener('click', e => {
+        e.stopPropagation();
+        const atual = new Set((activeView.subItems?.collapsed || []).map(String));
+        if (atual.has(String(note.id))) atual.delete(String(note.id)); else atual.add(String(note.id));
+        activeView.subItems = { ...(activeView.subItems || {}), collapsed: [...atual] };
+        gravaView({ subItems: { collapsed: [...atual] } });
+        if (!onViewChange) renderTableBody();
+      });
+    } else botao.disabled = true;
+    td.insertBefore(botao, td.firstChild);
   }
 
   // ── 6. Renderização de Célula Individual ────────────────────────────────────
@@ -534,6 +569,28 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       patch => { gravaView(patch); if (!onViewChange) { activeView.calc = { ...resolveCalc(activeView), ...patch.calc }; renderTableFooter(currentFilteredNotes); } });
   }
 
+  // Colar de planilha: a célula clicada é o canto superior esquerdo. Tudo ou nada.
+  container.addEventListener('paste', async e => {
+    if (!onPasteWrites || !celulaAtiva || e.target.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+    const texto = e.clipboardData?.getData('text/plain') ?? '';
+    if (!texto.includes('\t') && !texto.includes('\n')) return;       // um valor só: deixa o fluxo normal
+    const inicio = { row: linhasVisiveis.findIndex(n => n.id === celulaAtiva.noteId), col: columns.indexOf(celulaAtiva.key) };
+    if (inicio.row < 0 || inicio.col < 0) return;
+    e.preventDefault();
+    const plano = planPaste(parseClipboardGrid(texto), inicio, linhasVisiveis, columns, schema);
+    if (plano.errors.length) {
+      // destaca as células com problema e NÃO grava nada
+      for (const er of plano.errors) {
+        const tr = tbody.querySelector(`tr[data-note-id="${linhasVisiveis[er.row]?.id}"]`);
+        tr?.querySelector(`td[data-col="${er.key}"]`)?.classList.add('is-paste-error');
+      }
+      window.alert(`Nada foi colado: ${plano.errors.length} célula(s) com problema.\n\n${plano.errors.slice(0, 6).map(er => `• linha ${er.row + 1}, ${schema[er.key]?.label || er.key}: ${er.motivo}`).join('\n')}${plano.errors.length > 6 ? '\n…' : ''}`);
+      return;
+    }
+    if (!plano.writes.length) return;
+    await onPasteWrites(writesToPatches(plano.writes, linhasVisiveis));
+  });
+
   // Inicializa componentes
   renderTableHeader();
   renderTableBody();
@@ -595,6 +652,7 @@ export function renderBaseTableView(container, notes, schema, viewConfig = {}, c
     onViewChange: callbacks.onUpdateView || null,
     rowTone: callbacks.rowTone,
     cellTone: callbacks.cellTone,
+    onPasteWrites: callbacks.onPasteWrites || null,
     selection: callbacks.selection || null,
     onSelectionChange: callbacks.onSelectionChange || (() => {}),
     showOwnToolbar: callbacks.showOwnToolbar,

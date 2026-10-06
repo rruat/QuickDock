@@ -4,7 +4,7 @@
 import { resolveTableLayout } from '../config/view-model.js';
 import { section, row, selectControl, toggle } from './controls.js';
 
-export function layoutSection({ view, memoria, patch }) {
+export function layoutSection({ view, schema = {}, memoria, patch }) {
   if (view.type !== 'table') return null;
   const cfg = resolveTableLayout(view);
   const s = section('Layout', { chave: 'layout', memoria });
@@ -15,6 +15,11 @@ export function layoutSection({ view, memoria, patch }) {
   })));
   s.body.appendChild(row('Quebrar texto nas células', id => toggle({ id, value: cfg.wrapCells, onChange: v => patch({ layout: { wrapCells: v } }) })));
   s.body.appendChild(row('Numerar linhas', id => toggle({ id, value: cfg.rowNumbers, onChange: v => patch({ layout: { rowNumbers: v } }) })));
+  const candidatas = Object.entries(schema).filter(([k, d]) => !d?.isSystem && ['text', 'link', 'list'].includes(d?.type)).map(([k, d]) => ({ value: d.key || k, label: d.label || k }));
+  s.body.appendChild(row('Subitens (pai em)', id => selectControl({
+    id, value: view.subItems?.parentProp || 'none', options: [{ value: 'none', label: 'Sem subitens' }, ...candidatas],
+    onChange: v => patch({ subItems: v === 'none' ? undefined : { parentProp: v } }),
+  }), { dica: 'Propriedade com o título do item pai ("[[Projeto X]]"). Os filhos aparecem recuados sob o pai.' }));
   s.body.appendChild(row('Seleção em lote', id => toggle({ id, value: cfg.selectable, onChange: v => patch({ layout: { selectable: v } }) }), { dica: 'Caixas de seleção para editar várias notas de uma vez.' }));
   s.body.appendChild(row('Congelar colunas', id => selectControl({
     id, value: cfg.frozenColumns,

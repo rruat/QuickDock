@@ -346,3 +346,14 @@
 .is-reorderable.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
 .base-gallery-card.is-reorderable.drop-before { box-shadow: -3px 0 0 0 var(--accent); }
 .base-gallery-card.is-reorderable.drop-after { box-shadow: 3px 0 0 0 var(--accent); }
+
+/* ── Subitens ── */
+.base-sub-toggle { display: inline-flex; align-items: center; width: 20px; height: 20px; padding: 0; margin-right: 2px; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; vertical-align: middle; border-radius: var(--radius-sm); }
+.base-sub-toggle:hover:not(:disabled) { background: var(--bg-hover); }
+.base-sub-toggle.is-leaf { visibility: hidden; }
+.base-sub-toggle .qd-icon { font-size: 18px; }
+
+/* ── Colar de planilha ── */
+.base-table td.is-active-cell { outline: 2px solid var(--accent); outline-offset: -2px; }
+.base-table td.is-paste-error { outline: 2px solid oklch(55% 0.2 25); outline-offset: -2px; }
+[data-theme="dark"] .base-table td.is-paste-error { outline-color: oklch(72% 0.16 25); }
