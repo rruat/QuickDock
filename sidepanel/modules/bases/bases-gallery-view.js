@@ -139,6 +139,8 @@ export function renderBaseGalleryView(container, notes, schema, viewConfig = {},
     const card = document.createElement('div');
     card.className = 'base-gallery-card';
     card.dataset.noteId = note.id;
+    const tom = callbacks.rowTone?.(note);
+    if (tom) card.classList.add(`tone-${tom}`);
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
     card.appendChild(buildCover(note, coverProp));

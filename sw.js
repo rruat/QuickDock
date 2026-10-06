@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-70';
+const CACHE_NAME = 'quickdock-v3.0.0-72';
 
 const ASSET_PATHS = [
   '',
@@ -39,6 +39,7 @@ const ASSET_PATHS = [
   'sidepanel/css/18-calendar-view.css',
   'sidepanel/css/19-bases-view.css',
   'sidepanel/css/30-bases-calendar.css',
+  'sidepanel/css/31-bases-tones.css',
   'sidepanel/css/20-json-studio.css',
   'sidepanel/css/21-dashboard-zero-tabs.css',
   'sidepanel/css/22-spatial-shell.css',
@@ -163,6 +164,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/bases-list-view.js',
   'sidepanel/modules/bases/bases-calendar-view.js',
   'sidepanel/modules/bases/engine/aggregate-engine.js',
+  'sidepanel/modules/bases/engine/color-rules.js',
   'sidepanel/modules/bases/engine/date-utils.js',
   'sidepanel/modules/bases/engine/group-engine.js',
   'sidepanel/modules/bases/table/table-footer.js',
@@ -190,7 +192,9 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/ui/property-options.js',
   'sidepanel/modules/bases/ui/quick-filters.js',
   'sidepanel/modules/bases/ui/grouped-sections.js',
+  'sidepanel/modules/bases/ui/section-board.js',
   'sidepanel/modules/bases/ui/section-calendar.js',
+  'sidepanel/modules/bases/ui/section-color.js',
   'sidepanel/modules/bases/ui/section-card.js',
   'sidepanel/modules/bases/ui/view-settings-panel.js',
   'sidepanel/modules/bases/ui/view-tabs.js',

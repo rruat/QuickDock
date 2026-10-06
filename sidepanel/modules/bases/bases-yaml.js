@@ -124,6 +124,12 @@ export function parseYamlOrJson(text) {
         if (k) itemObj[k] = v ? parseScalar(v) : {};
         targetArray.push(itemObj);
         stack.push({ indent, container: itemObj, key: k });
+        if (k && !v) {
+          // "- chave:" sem valor: o que vier mais fundo que a chave é FILHO dela (objeto ou lista),
+          // não irmão — a coluna da chave é a do traço + "- "
+          const colunaDaChave = indent + (content.length - content.slice(1).trimStart().length);
+          stack.push({ indent: colunaDaChave, container: itemObj[k], key: null, owner: itemObj, ownerKey: k });
+        }
       } else {
         // Item de lista escalar simples: "- item"
         targetArray.push(parseScalar(rest));
@@ -191,9 +197,10 @@ export function stringifyBaseToYaml(obj, indentLevel = 0) {
           if (typeof item === 'object' && item !== null) {
             const entries = Object.entries(item);
             if (entries.length > 0) {
+              // a 1ª chave vira "- chave: ..." (com filhos, se for objeto/lista) na mesma coluna das demais
               const [firstK, firstV] = entries[0];
-              const firstValStr = (typeof firstV === 'object' && firstV !== null) ? '' : ` ${firstV}`;
-              out += `${pad}  - ${firstK}:${firstValStr}\n`;
+              const primeira = stringifyBaseToYaml({ [firstK]: firstV }, indentLevel + 2);
+              out += `${pad}  - ${primeira.slice((indentLevel + 2) * 2)}`;
               for (let i = 1; i < entries.length; i++) {
                 const [subK, subV] = entries[i];
                 out += stringifyBaseToYaml({ [subK]: subV }, indentLevel + 2);

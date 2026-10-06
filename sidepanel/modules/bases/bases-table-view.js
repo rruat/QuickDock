@@ -23,7 +23,7 @@ import { createNoteRecord } from '../storage.js';
  * @param {Function} params.onDefChange Callback chamado ao alterar a configuração da Base
  * @returns {HTMLElement} Elemento container da Tabela
  */
-export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true }) {
+export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, rowTone = null, cellTone = null }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-table-view';
 
@@ -244,6 +244,8 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       const tr = document.createElement('tr');
       tr.className = 'base-tr';
       tr.dataset.noteId = note.id;
+      const tomLinha = rowTone?.(note);
+      if (tomLinha) tr.classList.add(`tone-${tomLinha}`);
       if (layout.rowNumbers) tr.appendChild(Object.assign(document.createElement('td'), { className: 'base-td base-td-num', textContent: String(numero) }));
 
       for (const colKey of columns) {
@@ -253,6 +255,8 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         const td = document.createElement('td');
         td.className = `base-td base-td-${propDef.type}`;
         td.dataset.col = colKey;
+        const tomCelula = cellTone?.(note, colKey);
+        if (tomCelula) td.classList.add(`tone-${tomCelula}`);
 
         renderCellContent(td, note, colKey, propDef, rawVal);
 
@@ -484,6 +488,8 @@ export function renderBaseTableView(container, notes, schema, viewConfig = {}, c
     schema,
     onDefChange: callbacks.onDefChange || (() => {}),
     onViewChange: callbacks.onUpdateView || null,
+    rowTone: callbacks.rowTone,
+    cellTone: callbacks.cellTone,
     showOwnToolbar: callbacks.showOwnToolbar,
   });
   container.appendChild(tableEl);

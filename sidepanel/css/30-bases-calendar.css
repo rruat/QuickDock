@@ -295,3 +295,11 @@
 /* ── Galeria: proporção e ajuste da capa ── */
 .base-gallery-container [style*="--gallery-aspect"] .base-gallery-cover { height: auto; aspect-ratio: var(--gallery-aspect); }
 .base-gallery-container .fit-contain .base-gallery-cover { background-size: contain; }
+
+/* ── Quadro: tamanho do cartão, WIP, cálculo ── */
+.base-board-small .base-board-column { min-width: 200px; width: 200px; }
+.base-board-large .base-board-column { min-width: 320px; width: 320px; }
+.base-board-column.is-over-wip { box-shadow: inset 0 0 0 2px oklch(62% 0.17 45); }
+[data-theme="dark"] .base-board-column.is-over-wip { box-shadow: inset 0 0 0 2px oklch(72% 0.14 50); }
+.base-column-calc { margin-left: 6px; font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.bset-tone-sample { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 24px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; }

@@ -103,4 +103,30 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('config · calc sobrepõe e remove', V.resolveCalc({ summaries: { a: 'sum', b: 'sum' }, calc: { a: 'max', b: 'none' } }), { a: 'max' });
   igual('config · layout padrão', V.resolveTableLayout({}), { rowHeight: 'medium', wrapCells: false, rowNumbers: false, borders: 'both' });
   igual('config · layout ignora lixo', V.resolveTableLayout({ layout: { rowHeight: 'enorme', borders: 'x' } }).rowHeight, 'medium');
+
+  // ── cor condicional ──
+  const K = await import('../sidepanel/modules/bases/engine/color-rules.js');
+  const regras = K.normalizeColorRules({ color: { rules: [
+    { when: { property: 'valor', operator: 'greater_than', value: 20 }, tone: 'red' },
+    { when: { property: 'st', operator: 'equals', value: 'x' }, tone: 'neon' },       // tom inválido: descartada
+    { when: { property: 'st', operator: 'equals', value: 'Feito' }, tone: 'green', apply: 'cell' },
+  ] } });
+  igual('cor · descarta regra com tom inválido', regras.length, 2);
+  igual('cor · primeira regra de linha que casa', K.rowTone({ properties: { valor: 25 } }, regras), 'red');
+  igual('cor · sem casar devolve nulo', K.rowTone({ properties: { valor: 1 } }, regras), null);
+  igual('cor · célula só vale pra propriedade da regra', [K.cellTone({ properties: { st: 'Feito' } }, regras, 'st'), K.cellTone({ properties: { st: 'Feito' } }, regras, 'valor')], ['green', null]);
+  const { readFile } = await import('node:fs/promises');
+  const tons = await readFile(new URL('../sidepanel/css/31-bases-tones.css', import.meta.url), 'utf8');
+  ok('cor · tons em OKLCH, sem hex/rgb', !/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i.test(tons) && K.TONES.every(t => tons.includes(`.tone-${t.id}`)));
+  // contraste: fundo e texto de cada tom com ΔL ≥ 55 nos dois temas
+  const pares = [...tons.matchAll(/background: oklch\((\d+)%[^;]*;\s*color: oklch\((\d+)%/g)].map(m => Math.abs(m[1] - m[2]));
+  ok('cor · ΔL ≥ 55 em todos os tons (claro e escuro)', pares.length === K.TONES.length * 2 && pares.every(d => d >= 55), JSON.stringify(pares));
+
+  // ── YAML: objetos/listas aninhados DENTRO de item de lista (ida e volta) ──
+  const Y = await import('../sidepanel/modules/bases/bases-yaml.js');
+  const complexo = { views: [{ filters: [{ when: { a: 1 }, tone: 'x' }], c: [{ k: { z: [1, 2] }, m: [{ q: 1 }] }] }] };
+  igual('yaml · ida e volta com objeto na 1ª chave do item', Y.parseYamlOrJson(Y.stringifyBaseToYaml(complexo)), complexo);
+  igual('yaml · "- chave:" sem valor abre filho, não irmão',
+    Y.parseYamlOrJson('views:\n  - type: table\n    color:\n      rules:\n        - when:\n            property: v\n          tone: red\n').views[0].color.rules,
+    [{ when: { property: 'v' }, tone: 'red' }]);
 }

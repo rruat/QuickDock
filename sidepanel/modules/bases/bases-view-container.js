@@ -17,6 +17,7 @@ import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
 import { renderViewTabs as desenhaAbas } from './ui/view-tabs.js';
 import { renderQuickFilters, loadQuickFilters, saveQuickFilters } from './ui/quick-filters.js';
 import { impliedValues } from './engine/filter-tree.js';
+import { normalizeColorRules, rowTone, cellTone } from './engine/color-rules.js';
 import {
   moveView, duplicateViewAt, deleteViewById, renameViewById, setViewLocked, setViewIcon,
   setDefaultView, neighborViewId,
@@ -324,7 +325,10 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     // de cima (headerEl, logo acima) já dá busca + "Nova Nota" — sem isto, a
     // tabela/quadro desenhavam uma segunda barra própria com os dois
     // duplicados por cima da primeira.
+    const regrasCor = normalizeColorRules(currentView);
     const callbacks = {
+      rowTone: regrasCor.length ? n => rowTone(n, regrasCor) : null,
+      cellTone: regrasCor.length ? (n, k) => cellTone(n, regrasCor, k) : null,
       onOpenNote: async (noteId) => {
         await switchToNote(noteId);
       },

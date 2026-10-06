@@ -747,7 +747,7 @@ Navegação por teclado completa (4.12) · contraste ≥ 55 de L (OKLCH) · não
 | 0 | Dívidas + ids + `props` + engine puro + migração v1→v2 + calendário usa `calendar-engine` | 🟡 (bugs 1.3, ids, `props` e datas locais feitos; falta `base-store.js`/JSON v2) |
 | 1 | Painel de configuração + barra de views + filtro/ordenação/agrupamento/propriedades por UI | ✅ (painel, abas com ⋯/arrastar/ícone/bloquear/padrão, grupos E/OU, filtros rápidos, "Novo" herda filtro; falta só formato/largura por propriedade → Fase 3/4) |
 | 2 | Calendário: mês/semana/dia/agenda + config + arrastar/redimensionar/criar + "sem data" | 🟡 (feito, exceto mini-calendário e caixa "sem data") |
-| 3 | Tabela e Quadro profundos (+ Lista e Galeria) | 🟡 (tabela: agrupar/recolher/contagem, cálculo por coluna e por grupo, altura, bordas, numeração; motores puros de agrupamento e agregação prontos; faltam congelar colunas, cor condicional, subitens, virtualização, quadro/lista/galeria profundos) |
+| 3 | Tabela e Quadro profundos (+ Lista e Galeria) | 🟡 (feito: grupos em tabela/lista/galeria, cálculos por coluna/grupo, layout da tabela, quadro com tamanho/WIP/colunas ocultas/cálculo, lista com densidade e caixa, galeria com proporção, cor condicional; faltam congelar colunas, subitens, sub-grupo, ordem manual, colar de planilha, virtualização, prévia de conteúdo) |
 | 4 | Tipos de propriedade + fórmulas + relações/rollups | ⚪ |
 | 5 | Linha do tempo | ⚪ |
 | 6 | Gráficos | ⚪ |

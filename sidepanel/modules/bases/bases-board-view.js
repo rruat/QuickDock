@@ -4,7 +4,9 @@
 // atualizando automaticamente a propriedade correspondente no frontmatter.
 
 import { formatPropertyValue } from './bases-schema.js';
-import { getViewProps, resolveGroupConfig } from './config/view-model.js';
+import { getViewProps, resolveGroupConfig, resolveCalc } from './config/view-model.js';
+import { groupNotes, EMPTY_KEY } from './engine/group-engine.js';
+import { aggregate, formatAggregate } from './engine/aggregate-engine.js';
 import { getNotePropertyValue, queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { createNoteRecord, updateNoteMetaById } from '../storage.js';
 
@@ -19,7 +21,7 @@ import { createNoteRecord, updateNoteMetaById } from '../storage.js';
  * @param {Function} params.onDefChange Callback ao alterar configuração
  * @returns {HTMLElement}
  */
-export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, showOwnToolbar = true }) {
+export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, showOwnToolbar = true, rowTone = null }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-board-view';
 
@@ -64,31 +66,21 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
   boardWrap.className = 'base-board-columns-wrap';
   container.appendChild(boardWrap);
 
-  function getColumnsConfig() {
-    const cols = [];
-
-    // Colunas definidas nas opções de select
-    if (Array.isArray(groupDef.options) && groupDef.options.length > 0) {
-      for (const opt of groupDef.options) {
-        const id = typeof opt === 'string' ? opt : (opt.id || opt.label);
-        const label = typeof opt === 'string' ? opt : (opt.label || opt.id);
-        const color = typeof opt === 'object' && opt.color ? opt.color : 'var(--accent)';
-        cols.push({ id, label, color });
-      }
-    } else {
-      // Descobre valores únicos presentes nas notas
-      const uniqueVals = new Set();
-      for (const n of currentNotes) {
-        const v = getNotePropertyValue(n, groupByProp);
-        if (v !== undefined && v !== null && v !== '') uniqueVals.add(String(v));
-      }
-      for (const val of uniqueVals) {
-        cols.push({ id: val, label: val, color: 'var(--accent)' });
-      }
+  // Colunas = grupos do group-engine (ordem das opções, ocultar vazios/colunas, "Sem valor" no fim)
+  function getColumnsConfig(filtered) {
+    const cfg = { ...resolveGroupConfig(activeView), prop: groupByProp, granularity: null, range: null };
+    const cor = id => {
+      const opt = (groupDef.options || []).find(o => (typeof o === 'string' ? o : (o.id || o.label)) === id);
+      return typeof opt === 'object' && opt?.color ? opt.color : 'var(--accent)';
+    };
+    const cols = groupNotes(filtered, cfg, schema, getNotePropertyValue).map(g => ({
+      id: g.key, label: g.empty ? 'Sem ' + (groupDef.label || groupByProp) : g.label,
+      color: g.empty ? 'var(--text-muted)' : cor(g.key), notes: g.notes,
+    }));
+    // "Sem valor" sempre disponível como destino de arrastar, salvo se a pessoa ocultou
+    if (!cfg.hideEmpty && !cfg.hidden.includes(EMPTY_KEY) && !cols.some(c => c.id === EMPTY_KEY)) {
+      cols.push({ id: EMPTY_KEY, label: 'Sem ' + (groupDef.label || groupByProp), color: 'var(--text-muted)', notes: [] });
     }
-
-    // Coluna "Sem valor" sempre disponível
-    cols.push({ id: '__empty__', label: 'Sem ' + (groupDef.label || groupByProp), color: 'var(--text-muted)' });
     return cols;
   }
 
@@ -103,21 +95,18 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
     });
 
     if (countBadge) countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'nota' : 'notas'}`;
-    const columnsConfig = getColumnsConfig();
+    const columnsConfig = getColumnsConfig(filtered);
+    const calcCfg = resolveCalc(activeView);
+    const limite = Number(activeView.wip) > 0 ? Number(activeView.wip) : 0;
+    boardWrap.className = 'base-board-columns-wrap base-board-' + (['small', 'large'].includes(activeView.card?.size) ? activeView.card.size : 'medium');
 
     for (const col of columnsConfig) {
       const colEl = document.createElement('div');
       colEl.className = 'base-board-column';
       colEl.dataset.colId = col.id;
 
-      // Notas pertencentes a esta coluna
-      const colNotes = filtered.filter(n => {
-        const val = getNotePropertyValue(n, groupByProp);
-        if (col.id === '__empty__') {
-          return val === undefined || val === null || val === '';
-        }
-        return String(val) === col.id;
-      });
+      const colNotes = col.notes;
+      if (limite && colNotes.length > limite) colEl.classList.add('is-over-wip');
 
       // Cabeçalho da coluna
       const colHeader = document.createElement('div');
@@ -138,6 +127,15 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       colCount.textContent = colNotes.length;
 
       titleWrap.append(badge, colCount);
+      if (limite) colCount.textContent = `${colNotes.length}/${limite}`;
+      for (const [k, agg] of Object.entries(calcCfg)) {
+        const r = aggregate(colNotes.map(n => getNotePropertyValue(n, k)), agg, schema[k]?.type);
+        const t = document.createElement('span');
+        t.className = 'base-column-calc';
+        t.title = `${r.label} de ${schema[k]?.label || k}`;
+        t.textContent = formatAggregate(r);
+        titleWrap.appendChild(t);
+      }
 
       const addBtn = document.createElement('button');
       addBtn.className = 'base-column-add-btn';
@@ -183,6 +181,8 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
     card.className = 'base-board-card';
     card.draggable = true;
     card.dataset.noteId = note.id;
+    const tom = rowTone?.(note);
+    if (tom) card.classList.add(`tone-${tom}`);
 
     // Cabeçalho do card: Ícone + Título
     const titleEl = document.createElement('div');
@@ -324,6 +324,7 @@ export function renderBaseBoardView(container, notes, schema, viewConfig = {}, c
     schema,
     onDefChange: callbacks.onDefChange || (() => {}),
     showOwnToolbar: callbacks.showOwnToolbar,
+    rowTone: callbacks.rowTone,
   });
   container.appendChild(boardEl);
 }

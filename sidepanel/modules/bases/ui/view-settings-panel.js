@@ -15,6 +15,8 @@ import { sortSection } from './section-sort.js';
 import { groupSection } from './section-group.js';
 import { layoutSection } from './section-layout.js';
 import { cardSection } from './section-card.js';
+import { boardSection } from './section-board.js';
+import { colorSection } from './section-color.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -81,9 +83,13 @@ export function mountViewSettingsPanel(host, api) {
     corpo.appendChild(propertiesSection(ctx));
     const grupo = groupSection(ctx);
     if (grupo) corpo.appendChild(grupo);
+    const quadro = boardSection(ctx);
+    if (quadro) corpo.appendChild(quadro);
   }
   corpo.appendChild(filterSection(ctx));
   if (view.type !== 'calendar') corpo.appendChild(sortSection(ctx));
+  const cor = colorSection(ctx);
+  if (cor) corpo.appendChild(cor);
 
   const onKey = e => { if (e.key === 'Escape') api.onClose(); };
   host.addEventListener('keydown', onKey);

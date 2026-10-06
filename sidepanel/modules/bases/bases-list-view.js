@@ -30,6 +30,8 @@ export function renderBaseListView(container, notes, schema, viewConfig = {}, ca
     const row = document.createElement('div');
     row.className = 'base-list-row';
     row.dataset.noteId = note.id;
+    const tom = callbacks.rowTone?.(note);
+    if (tom) row.classList.add(`tone-${tom}`);
 
     // Caixa de marcação: grava a propriedade checkbox escolhida (ex.: tarefa concluída)
     if (checkProp) {
