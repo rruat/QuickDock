@@ -458,9 +458,15 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     updateViewport();
   };
 
+  // Atalhos (7.4): Alt+←/→ troca de view · Alt+1…9 vai direto a uma view · Ctrl+Alt+, abre/fecha o painel
   const onKeyViews = e => {
-    if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || !rootContainer.contains(document.activeElement)) return;
-    const id = neighborViewId(baseDef, activeViewId, e.key === 'ArrowRight' ? 1 : -1);
+    if (!rootContainer.contains(document.activeElement)) return;
+    const naoEhCampo = !e.target.closest?.('input, textarea, select, [contenteditable="true"]');
+    if (e.ctrlKey && e.altKey && e.key === ',') { e.preventDefault(); settingsOpen = !settingsOpen; renderSettingsPanel(); return; }
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    let id = null;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') id = neighborViewId(baseDef, activeViewId, e.key === 'ArrowRight' ? 1 : -1);
+    else if (/^[1-9]$/.test(e.key) && naoEhCampo) id = baseDef.views[Number(e.key) - 1]?.id ?? null;
     if (id && id !== activeViewId) { e.preventDefault(); activeViewId = id; renderViewTabs(); updateViewport(); }
   };
   rootContainer.addEventListener('keydown', onKeyViews);

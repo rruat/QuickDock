@@ -125,6 +125,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
   const table = document.createElement('table');
   table.className = 'base-table';
+  table.setAttribute('role', 'grid');
 
   const thead = document.createElement('thead');
   const tbody = document.createElement('tbody');
@@ -353,6 +354,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
         // Clique simples ativa edição para checkbox; duplo clique ou clique para outros campos
         td.tabIndex = -1;
+        td.setAttribute('role', 'gridcell');
         td.addEventListener('pointerdown', () => { celulaAtiva = { noteId: note.id, key: colKey }; container.querySelectorAll('.is-active-cell').forEach(x => x.classList.remove('is-active-cell')); td.classList.add('is-active-cell'); td.focus({ preventScroll: true }); });
         td.addEventListener('click', e => {
           if (propDef.isDerived || SO_LEITURA.has(colKey)) return;
@@ -606,6 +608,30 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     desenhaRodape(tfoot, { notes: currentFilteredNotes, columns, schema, view: activeView, rowNumbers: layout.rowNumbers },
       patch => { gravaView(patch); if (!onViewChange) { activeView.calc = { ...resolveCalc(activeView), ...patch.calc }; renderTableFooter(currentFilteredNotes); } });
   }
+
+  // Teclado (4.12): setas movem entre células, Enter abre a nota (título) ou edita, Espaço marca a linha
+  container.addEventListener('keydown', e => {
+    const td = e.target.closest?.('td.base-td');
+    if (!td || e.target !== td) return;                       // dentro de um editor/controle: não interfere
+    const tr = td.parentElement;
+    const celulas = [...tr.querySelectorAll('td.base-td[data-col]')];
+    const i = celulas.indexOf(td);
+    const vai = alvo => { if (alvo) { e.preventDefault(); alvo.focus(); alvo.dispatchEvent(new Event('pointerdown')); } };
+    switch (e.key) {
+      case 'ArrowRight': vai(celulas[i + 1]); break;
+      case 'ArrowLeft': vai(celulas[i - 1]); break;
+      case 'ArrowDown': { let n = tr.nextElementSibling; while (n && !n.matches('tr.base-tr')) n = n.nextElementSibling; vai(n?.querySelectorAll('td.base-td[data-col]')[i]); break; }
+      case 'ArrowUp': { let n = tr.previousElementSibling; while (n && !n.matches('tr.base-tr')) n = n.previousElementSibling; vai(n?.querySelectorAll('td.base-td[data-col]')[i]); break; }
+      case 'Enter': {
+        e.preventDefault();
+        if (td.dataset.col === 'title') td.querySelector('a')?.click();
+        else td.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        break;
+      }
+      case ' ': { const cb = tr.querySelector('.base-td-sel input'); if (cb) { e.preventDefault(); cb.click(); } break; }
+      default: break;
+    }
+  });
 
   // Colar de planilha: a célula clicada é o canto superior esquerdo. Tudo ou nada.
   container.addEventListener('paste', async e => {

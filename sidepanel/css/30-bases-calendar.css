@@ -364,3 +364,14 @@
 .base-action-btn:disabled { opacity: 0.5; cursor: default; }
 .base-cell-link { color: var(--accent); text-decoration: none; }
 .base-cell-link:hover { text-decoration: underline; }
+
+/* ── Mobile: o painel de configuração vira folha inferior (4.13) ── */
+@media (max-width: 640px) {
+  .base-settings-host { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: 78vh; border-left: 0; border-top: 1px solid var(--border); border-radius: 14px 14px 0 0; box-shadow: 0 -8px 24px oklch(0% 0 0 / 0.2); }
+  .base-settings-host .bset-head { position: sticky; top: 0; background: var(--bg-card); z-index: 1; }
+  .bset-select, .bset-input { height: 34px; }
+  .bset-btn, .bset-seg { min-height: 34px; }
+  .base-tab-more { opacity: 0.7; }
+  .btl-table { display: none; }           /* timeline compacta: só a grade */
+  .base-bulkbar .bset-input, .base-bulkbar .bset-select { max-width: 45%; }
+}
