@@ -99,6 +99,7 @@ export function renderViewTabs(host, { views, activeId, defaultId }, api) {
         { rotulo: 'Renomear', acao: () => renomearInline(host.querySelector(`[data-view-id="${view.id}"] .base-tab-name`) || nome, view.name, n => api.onRename(view.id, n)), desabilitado: view.locked },
         { rotulo: 'Trocar ícone…', acao: () => api.onSetIcon(view.id), desabilitado: view.locked },
         { rotulo: 'Duplicar', acao: () => api.onDuplicate(view.id) },
+        { rotulo: 'Copiar view (para outra Base)', acao: () => api.onCopyView?.(view.id) },
         { rotulo: view.id === defaultId ? 'É a view padrão' : 'Definir como padrão', acao: () => api.onSetDefault(view.id), desabilitado: view.id === defaultId },
         { rotulo: view.locked ? 'Desbloquear' : 'Bloquear', acao: () => api.onToggleLock(view.id) },
         { separador: true },
@@ -119,7 +120,11 @@ export function renderViewTabs(host, { views, activeId, defaultId }, api) {
   add.type = 'button'; add.title = 'Adicionar visão'; add.setAttribute('aria-label', 'Adicionar visão');
   add.addEventListener('click', e => {
     e.stopPropagation();
-    abreMenu(add, Object.entries(VIEW_TYPES).map(([type, m]) => ({ rotulo: m.label, acao: () => api.onAdd(type) })));
+    abreMenu(add, [
+      ...Object.entries(VIEW_TYPES).map(([type, m]) => ({ rotulo: m.label, acao: () => api.onAdd(type) })),
+      { separador: true },
+      { rotulo: 'Colar view copiada', acao: () => api.onPasteView?.() },
+    ]);
   });
   host.appendChild(add);
 }

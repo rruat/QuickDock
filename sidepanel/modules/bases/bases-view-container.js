@@ -22,7 +22,7 @@ import { applyDerivedColumns } from './engine/derived-columns.js';
 import { normalizeColorRules, rowTone, cellTone } from './engine/color-rules.js';
 import {
   moveView, duplicateViewAt, deleteViewById, renameViewById, setViewLocked, setViewIcon,
-  setDefaultView, neighborViewId,
+  setDefaultView, neighborViewId, serializeView, parseViewClipboard, pasteViewInto,
 } from './config/view-actions.js';
 import { switchToNote, absorbDataUrls } from '../note.js';
 
@@ -283,6 +283,22 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         const r = deleteViewById(baseDef, id, activeViewId); aplica(r.baseDef, r.activeId);
       },
       onReorder: (de, para) => aplica(moveView(baseDef, de, para)),
+      // copiar/colar uma view entre Bases (JSON na área de transferência)
+      onCopyView: async id => {
+        const v = baseDef.views.find(x => x.id === id);
+        if (!v) return;
+        try { await navigator.clipboard.writeText(serializeView(v)); }
+        catch { window.prompt('Copie o texto abaixo (Ctrl+C) e cole em outra Base:', serializeView(v)); }
+      },
+      onPasteView: async () => {
+        let texto = '';
+        try { texto = await navigator.clipboard.readText(); }
+        catch { texto = window.prompt('Cole aqui a view copiada (Ctrl+V):') || ''; }
+        const r = parseViewClipboard(texto);
+        if (!r.ok) { window.alert(r.motivo); return; }
+        const res = pasteViewInto(baseDef, r.view);
+        aplica(res.baseDef, res.newId);
+      },
       onToggleLock: id => aplica(setViewLocked(baseDef, id, !baseDef.views.find(v => v.id === id)?.locked)),
       onSetDefault: id => aplica(setDefaultView(baseDef, id)),
       onSetIcon: id => {

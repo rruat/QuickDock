@@ -525,4 +525,15 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('feriados · Consciência Negra só a partir de 2024', [Ho.holidaysBR(2023).has('2023-11-20'), Ho.holidaysBR(2026).has('2026-11-20')], [false, true]);
   igual('feriados · semana de virada de ano pega os dois anos', [...Ho.holidaysForDays(['2026-12-31', '2027-01-01']).keys()].filter(k => k === '2027-01-01' || k === '2026-12-25'), ['2026-12-25', '2027-01-01']);
   igual('feriados · país desconhecido não mostra nada', Ho.holidaysForDays(['2026-01-01'], 'XX').size, 0);
+
+  // ── copiar/colar view entre Bases ──
+  const cv = JSON.parse(A.serializeView({ id: 'x', locked: true, type: 'table', name: 'Minha', props: ['title'], filters: [{ property: 'a', operator: 'equals', value: 1 }] }));
+  igual('copiar · sai sem id e sem bloqueio, com marca e versão', [cv.kind, cv.version, 'id' in cv.view, 'locked' in cv.view, cv.view.props], ['quickdock-base-view', 1, false, false, ['title']]);
+  const pv = A.parseViewClipboard(A.serializeView({ id: 'x', type: 'board', name: 'Q', group: { prop: 'status' } }));
+  igual('colar · aceita o formato próprio', [pv.ok, pv.view?.type, pv.view?.group], [true, 'board', { prop: 'status' }]);
+  igual('colar · recusa lixo, tipo desconhecido, vazio e gigante', [A.parseViewClipboard('oi').ok, A.parseViewClipboard('{"kind":"x"}').ok, A.parseViewClipboard('{"kind":"quickdock-base-view","view":{"type":"hack"}}').ok, A.parseViewClipboard('').ok, A.parseViewClipboard('x'.repeat(300000)).ok], [false, false, false, false, false]);
+  const venenoso = A.parseViewClipboard('{"kind":"quickdock-base-view","view":{"type":"table","__proto__":{"admin":true},"a":{"constructor":1,"b":2}}}');
+  igual('colar · descarta chaves de protótipo', [venenoso.ok, ({}).admin, venenoso.view.admin, 'constructor' in (venenoso.view.a || {}) && Object.keys(venenoso.view.a).includes('constructor'), venenoso.view.a.b], [true, undefined, undefined, false, 2]);
+  const colado = A.pasteViewInto({ views: [{ id: 'a', name: 'Q' }], defaultViewId: 'a' }, { type: 'board', name: 'Q' });
+  igual('colar · id novo e nome diferente quando já existe', [colado.baseDef.views.length, colado.newId !== 'a', colado.baseDef.views[1].name], [2, true, 'Q (colada)']);
 }

@@ -725,7 +725,26 @@ Navegação por teclado completa (4.12) · contraste ≥ 55 de L (OKLCH) · não
 
 ---
 
-## 11. Decisões em aberto (perguntas para você)
+## 11. Decisões — como ficaram na implementação
+
+> Registro do que foi decidido (por falta de resposta, seguindo as recomendações do próprio documento) e onde isso difere do plano original.
+
+1. **Prioridade:** seguiu a ordem recomendada — Fase 0 → 1 → 2 (calendário) → 6 (gráficos) → 5 (timeline) → 4 → 7 → 8, com fatias verticais.
+2. **Fórmulas:** motor próprio (Pratt parser, ~80 funções, sem `eval`, com limite de passos/profundidade, erros como valor e detecção de ciclo).
+3. **Formato da config:** **o YAML continua sendo o formato gravado** (não houve migração para JSON v2). Em vez disso o parser/serializador YAML foi corrigido para objetos e listas aninhados em itens de lista (era o risco apontado em 8.4) e há testes de ida e volta. Chaves antigas continuam sendo lidas (`columns`, `cardProperties`, `groupBy`, `summaries`…) e as novas só são gravadas ao editar. `config/base-store.js` **não foi criado**.
+4. **Ordem manual:** lista de ids **na view** (`manualOrder`, por escopo), como recomendado. Funciona em quadro, lista, galeria e feed; **não** na tabela.
+5. **Views vinculadas:** feitas (`source.base`); a definição da Base de origem é só lida e origem encadeada é ignorada.
+6. **Timeline com dependências:** setas + conflito destacado + reagendamento em cascata **opcional** (`autoShift`, desligado por padrão; nunca puxa para trás).
+7. **Mapa:** depende de rede para os tiles; offline mostra aviso e os pinos seguem funcionando.
+8. **Feriados:** Brasil (nacionais, com os móveis). Municipais/estaduais não entram.
+9. **Copiar view entre Bases:** feito (JSON na área de transferência, validado ao colar).
+10. **Terminologia:** mantida em português (Quadro, Galeria, Linha do tempo, Feed, Mapa, Dashboard).
+
+**Ficou de fora (ou diferente do plano):** arquivos/anexos por propriedade; ordem manual na tabela; arrastar da caixa "Sem data" para a grade do calendário; virtualização real de linhas (a tabela desenha em lotes); "abrir em" é uma **prévia somente leitura**, não o editor emprestado (ver 4.9b); modo "dias" (N dias) do calendário; `config/base-store.js` / JSON v2 (ver decisão 3).
+
+---
+
+## 11b. Decisões em aberto — versão original (histórico)
 
 1. **Prioridade:** começo pela **Fase 0 + Calendário de semana** (ver parte 6), ou prefere o **painel de configuração completo (Fase 1)** antes de qualquer view nova?
 2. **Fórmulas:** vale o motor próprio estilo Notion (Fase 4, GG) ou um subconjunto menor (só `if`, aritmética, `concat`, datas)? Isso muda bastante o custo.
@@ -746,7 +765,7 @@ Navegação por teclado completa (4.12) · contraste ≥ 55 de L (OKLCH) · não
 
 | Fase | Entrega | Estado |
 |---|---|:-:|
-| 0 | Dívidas + ids + `props` + engine puro + migração v1→v2 + calendário usa `calendar-engine` | 🟡 (bugs 1.3, ids, `props` e datas locais feitos; falta `base-store.js`/JSON v2) |
+| 0 | Dívidas + ids + `props` + engine puro + migração v1→v2 + calendário usa `calendar-engine` | ✅ exceto JSON v2 (bugs 1.3, ids estáveis, `props`, datas locais, engine puro, YAML aninhado corrigido; ver decisão 3) |
 | 1 | Painel de configuração + barra de views + filtro/ordenação/agrupamento/propriedades por UI | ✅ (painel, abas com ⋯/arrastar/ícone/bloquear/padrão, grupos E/OU, filtros rápidos, "Novo" herda filtro; falta só formato/largura por propriedade → Fase 3/4) |
 | 2 | Calendário: mês/semana/dia/agenda + config + arrastar/redimensionar/criar + "sem data" | ✅ (caixa "Sem data" com Hoje/dia em foco/data escolhida, mini-calendário lateral com pontos nos dias com eventos; falta só arrastar da caixa "sem data" para a grade) |
 | 3 | Tabela e Quadro profundos (+ Lista e Galeria) | 🟡 (feito: grupos em tabela/lista/galeria, cálculos por coluna/grupo, layout da tabela, quadro com tamanho/WIP/colunas ocultas/cálculo, lista com densidade e caixa, galeria com proporção, cor condicional; faltam só virtualização real e ordem manual na tabela; subitens (recolher/expandir) e colar de planilha (tudo ou nada) feitos; sub-grupo (raias) e ordem manual por arrasto (quadro, lista, galeria, feed; guardada na view) já feitos; colunas congeladas, prévia de conteúdo na galeria e desenho em lotes da tabela já feitos) |
