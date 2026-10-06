@@ -24,7 +24,9 @@ import {
   moveView, duplicateViewAt, deleteViewById, renameViewById, setViewLocked, setViewIcon,
   setDefaultView, neighborViewId, serializeView, parseViewClipboard, pasteViewInto,
 } from './config/view-actions.js';
-import { switchToNote, absorbDataUrls } from '../note.js';
+import { absorbDataUrls } from '../note.js';
+import { openNoteFromBase } from './open-note.js';
+import { normalizeNoteId } from './engine/note-id.js';
 
 /**
  * Renderiza um componente completo de Base num elemento contêiner.
@@ -185,7 +187,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   rootContainer.appendChild(bulkEl);
   const bulk = createBulkController(bulkEl, { getNotes: () => allNotes, onChanged: () => updateViewport() });
 
-  const peek = createNotePeek(rootContainer, { onOpenNote: id => switchToNote(id) });
+  const peek = createNotePeek(rootContainer, { onOpenNote: id => openNoteFromBase(id) });
 
   // 2. Área Principal de Visualização (Viewport) + painel de configuração da view
   // Linha própria: a view ocupa o espaço que sobra e o painel EMPURRA o conteúdo (não flutua por cima)
@@ -355,7 +357,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: noteId } }));
 
       // Abre a nota no editor
-      await switchToNote(noteId);
+      openNoteFromBase(noteId);
     } catch (err) {
       console.error('Erro ao criar nota na base:', err);
     }
@@ -437,9 +439,9 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       // "Abrir em": página (editor) ou prévia lateral/central somente leitura
       onOpenNote: async (noteId) => {
         const modo = view.openIn;
-        const nota = (modo === 'peek-side' || modo === 'peek-center') ? allNotes.find(n => n.id === noteId) : null;
+        const nota = (modo === 'peek-side' || modo === 'peek-center') ? allNotes.find(n => n.id === normalizeNoteId(noteId)) : null;
         if (nota) peek.abrir(nota, modo, { schema, props: getViewProps(view) });
-        else await switchToNote(noteId);
+        else openNoteFromBase(noteId);
       },
       onAddNote: async (extraProps, extraTypes) => {
         await handleCreateNewNote(extraProps, extraTypes);

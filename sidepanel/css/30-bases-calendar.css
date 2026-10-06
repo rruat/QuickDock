@@ -417,3 +417,8 @@
 /* views que preenchem a altura */
 .base-viewport > .base-view-container { min-height: 100%; }
 .base-calendar-container, .base-timeline-container, .base-map-container { height: 100%; }
+
+/* O painel dedicado de Base monta a Base NO PRÓPRIO #bases-body (a classe .bases-body some), então
+   ele precisa ocupar a altura do painel e deixar a view rolar por dentro. */
+#bases-body.base-component-root { flex: 1 1 auto; min-height: 0; height: auto; overflow: hidden; }
+#bases-body.base-component-root .base-body-row { flex: 1 1 auto; min-height: 0; max-height: none; }
