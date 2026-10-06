@@ -628,21 +628,11 @@
     <section class="board-view board-theme-scope" id="board-view" data-id="board" tabindex="0" hidden>
       <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
         <div class="section-header-left">
-          <span class="section-icon"><span class="material-symbols-rounded">space_dashboard</span></span>
-          <span class="section-title">Espaço</span>
-          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
-        </div>
-        <div class="section-header-actions">
-          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
-          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
-          <button class="section-close" type="button" aria-label="Fechar Espaço" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
-        </div>
-      </header>
-      <header class="board-header">
-        <div class="board-header-left">
           <button id="btn-board-back" class="icon-btn board-back-btn" title="Voltar para os documentos" aria-label="Voltar para os documentos">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">arrow_back</span>
           </button>
+          <span class="section-icon"><span class="material-symbols-rounded">space_dashboard</span></span>
+          <span class="section-title">Espaço</span>
           <div class="board-title-group">
             <button id="btn-board-aux-switcher" class="icon-btn aux-view-switcher-btn" title="Alternar visão (Documentos, Espaço, Constelações, Calendário, Base)" aria-label="Alternar visão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
@@ -652,9 +642,42 @@
               <span class="qd-icon material-symbols-rounded status-icon" aria-hidden="true">check</span> salvo
             </span>
           </div>
+          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
         </div>
+        <div class="section-header-actions">
+          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
+          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
+          <button class="section-close" type="button" aria-label="Fechar Espaço" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+        </div>
+      </header>
 
-        <div class="board-header-center">
+      <div id="board-container" class="board-container">
+        <div id="board-world" class="board-world">
+          <svg id="board-svg" class="board-svg">
+            <defs>
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse" markerUnits="strokeWidth">
+                <path d="M 0 0 L 8 3 L 0 6 z" fill="currentColor" />
+              </marker>
+              <marker id="arrowhead-start" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse" markerUnits="strokeWidth">
+                <path d="M 0 0 L 8 3 L 0 6 z" fill="currentColor" />
+              </marker>
+              <marker id="arrowhead-selected" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse" markerUnits="strokeWidth">
+                <path d="M 0 0 L 8 3 L 0 6 z" fill="var(--accent, #3b82f6)" />
+              </marker>
+            </defs>
+            <g id="board-svg-guides"></g>
+            <g id="board-svg-arrows"></g>
+            <path id="board-draft-arrow" class="draft-arrow" d="" marker-end="url(#arrowhead)" hidden />
+          </svg>
+          <div id="board-cards-layer" class="board-cards-layer"></div>
+          <div id="board-selection-box" class="board-selection-box" hidden></div>
+        </div>
+        <div id="board-selection-toolbar" class="board-selection-toolbar" hidden></div>
+      </div>
+
+      <!-- QuickBar Inteligente do Espaço Infinito (Flutuante no Desktop / Rodapé no Mobile) -->
+      <nav id="board-quickbar" class="board-header board-quickbar" role="toolbar" aria-label="Barra de ferramentas do espaço">
+        <div class="board-header-center board-quickbar-tools">
           <div class="board-tools-group">
             <button id="tool-select" class="board-tool-btn active" title="Selecionar e mover (V)" aria-label="Mover e selecionar">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">pan_tool</span>
@@ -691,7 +714,7 @@
           </div>
         </div>
 
-        <div class="board-header-right">
+        <div class="board-header-right board-quickbar-actions">
           <div class="board-zoom-group">
             <button id="btn-zoom-out" class="icon-btn board-btn" title="Diminuir zoom (-)" aria-label="Diminuir zoom">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">remove</span>
@@ -721,31 +744,7 @@
             <span class="open-tab-btn-label">Nova aba</span>
           </button>
         </div>
-      </header>
-
-      <div id="board-container" class="board-container">
-        <div id="board-world" class="board-world">
-          <svg id="board-svg" class="board-svg">
-            <defs>
-              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse" markerUnits="strokeWidth">
-                <path d="M 0 0 L 8 3 L 0 6 z" fill="currentColor" />
-              </marker>
-              <marker id="arrowhead-start" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse" markerUnits="strokeWidth">
-                <path d="M 0 0 L 8 3 L 0 6 z" fill="currentColor" />
-              </marker>
-              <marker id="arrowhead-selected" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse" markerUnits="strokeWidth">
-                <path d="M 0 0 L 8 3 L 0 6 z" fill="var(--accent, #3b82f6)" />
-              </marker>
-            </defs>
-            <g id="board-svg-guides"></g>
-            <g id="board-svg-arrows"></g>
-            <path id="board-draft-arrow" class="draft-arrow" d="" marker-end="url(#arrowhead)" hidden />
-          </svg>
-          <div id="board-cards-layer" class="board-cards-layer"></div>
-          <div id="board-selection-box" class="board-selection-box" hidden></div>
-        </div>
-        <div id="board-selection-toolbar" class="board-selection-toolbar" hidden></div>
-      </div>
+      </nav>
     </section>
 
     <!-- Visão do Calendário de Notas -->

@@ -77,34 +77,66 @@
   padding: 0;
 }
 
-/* ── Cabeçalho Superior ──────────────────────────────────────────────────────── */
-.board-header {
+/* ── Barra Superior / Top Bar do Espaço ─────────────────────────────────────── */
+.board-top-bar {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 52px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  top: 14px;
+  left: 16px;
+  height: 40px;
+  background: var(--bg-card);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
+  padding: 4px 10px;
   z-index: 50;
-  gap: 16px;
-  box-shadow: var(--shadow-sm);
-  /* Última linha de defesa: com os três grupos (esquerda/ferramentas/direita)
-     tudo somado, o cabeçalho não cabe em telas estreitas (extensão, mobile, e
-     até o desktop dividido) — sem isto os botões da direita (exportar, altura,
-     tela cheia, nova aba) ficavam empurrados pra fora da tela, invisíveis e
-     inclicáveis, sem nenhum jeito de alcançá-los. Com scroll, na pior das
-     hipóteses dá pra arrastar até eles. */
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* ── QuickBar Inteligente / Barra Flutuante de Ferramentas ──────────────────── */
+.board-quickbar,
+.board-header {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  top: auto;
+  right: auto;
+  height: auto;
+  min-height: 44px;
+  background: var(--bg-card);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+  z-index: 50;
+  gap: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+  max-width: calc(100% - 32px);
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
 
+.board-quickbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.board-quickbar::-webkit-scrollbar,
 .board-header::-webkit-scrollbar {
   display: none;
 }
@@ -283,7 +315,7 @@
 /* ── Área do Canvas Espacial ─────────────────────────────────────────────────── */
 .board-container {
   position: absolute;
-  top: 52px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -600,7 +632,7 @@
 /* Popover de Busca de Nota, aberto pelo botão "Vincular nota" */
 .board-note-search-popover {
   position: fixed;
-  z-index: 40;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   width: 240px;

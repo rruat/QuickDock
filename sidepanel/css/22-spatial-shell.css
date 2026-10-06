@@ -1342,28 +1342,95 @@ html[data-platform="desktop"] .gallery-back-btn {
    mesmo topo, z-index maior). Only no desktop: mobile/extensão escondem
    .section-header (ver bloco de ocultação logo acima) e usam o board-header
    solto mesmo, do jeito que sempre foi. */
-html[data-platform="desktop"] .board-view > .board-header {
+html[data-platform="desktop"] .board-view {
   position: relative;
-  top: auto;
-  left: auto;
-  right: auto;
-  z-index: auto;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden;
 }
 
-/* .board-container também calculava top:52px pra começar exatamente onde o
-   .board-header (absoluto) parava — com o header agora em fluxo normal
-   (regra acima) e o .section-header por cima dele, esse valor fixo ficaria
-   errado. flex:1 deixa o próprio layout decidir o espaço restante, sem
-   depender de conta de pixel; mantém position:relative porque .board-world
-   (mundo pannable/zoomável) é posicionado como filho absoluto dele. */
+html[data-platform="desktop"] .board-view > .section-header {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
 html[data-platform="desktop"] .board-view > .board-container {
   position: relative;
+  flex: 1 1 0px !important;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
   top: auto;
+  bottom: auto;
   left: auto;
   right: auto;
-  bottom: auto;
-  flex: 1 1 auto;
-  min-height: 0;
+}
+
+/* QuickBar Inteligente no Desktop: Barra flutuante moderna no bottom */
+html[data-platform="desktop"] .board-view .board-quickbar,
+html[data-platform="desktop"] .board-view .board-header {
+  position: absolute !important;
+  bottom: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: auto !important;
+  right: auto !important;
+  width: auto !important;
+  max-width: calc(100% - 32px) !important;
+  height: auto !important;
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 5px 8px !important;
+  background: var(--bg-card) !important;
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  z-index: 60 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+}
+
+html[data-platform="desktop"] .board-view .board-back-btn {
+  display: none !important;
+}
+
+.board-view .section-header .board-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.board-view .section-header .board-title-input {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  max-width: 160px;
+  transition: all 0.15s ease;
+}
+
+.board-view .section-header .board-title-input:hover,
+.board-view .section-header .board-title-input:focus {
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+.board-view .section-header .board-save-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 /* ── FLUIDEZ ESPACIAL DAS VIEWS NO #mMain ────────────────── */
