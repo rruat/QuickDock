@@ -45,6 +45,9 @@ export function calendarSections({ view, schema, memoria, patch }) {
   exib.body.appendChild(row('Mostrar número da semana', id => toggle({
     id, value: cfg.week.showWeekNumber, onChange: v => patch({ week: { showWeekNumber: v } }),
   })));
+  exib.body.appendChild(row('Mini-calendário lateral', id => toggle({
+    id, value: cfg.sidebar.miniCalendar, onChange: v => patch({ sidebar: { miniCalendar: v } }),
+  })));
   saida.push(exib.root);
 
   // ── Datas ──

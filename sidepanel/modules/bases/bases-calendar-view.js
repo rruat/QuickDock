@@ -9,12 +9,13 @@
 
 import { getNotePropertyValue } from './bases-engine.js';
 import { resolveCalendarConfig } from './config/view-model.js';
-import { toYMD, todayYMD } from './engine/date-utils.js';
-import { buildCalendarEvents, bucketEventsByDay, pickDefaultDateProp } from './calendar/calendar-model.js';
+import { toYMD, todayYMD, addMonths } from './engine/date-utils.js';
+import { buildCalendarEvents, bucketEventsByDay, pickDefaultDateProp, eventDays } from './calendar/calendar-model.js';
 import { visibleRange, shiftAnchor, sanitizeAnchor } from './calendar/calendar-nav.js';
 import { buildMovePatch, buildResizePatch, buildCreateProps } from './calendar/calendar-actions.js';
 import { createCalendarToolbar } from './calendar/calendar-toolbar.js';
 import { renderNoDateBox } from './calendar/calendar-nodate.js';
+import { renderMiniCalendar } from './calendar/calendar-minical.js';
 import { renderTimeGrid } from './calendar/calendar-time-grid.js';
 import { renderMonthGrid } from './calendar/calendar-month-grid.js';
 import { renderAgenda } from './calendar/calendar-agenda.js';
@@ -65,9 +66,25 @@ export function renderBaseCalendarView(container, notes, schema, viewConfig = {}
     onSettings: callbacks.onOpenSettings,
   }));
 
+  // Corpo (+ mini-calendário lateral opcional, ao lado da grade)
+  const area = document.createElement('div');
+  area.className = 'bcal-area' + (cfg.sidebar.miniCalendar ? ' has-minical' : '');
+  container.appendChild(area);
+  if (cfg.sidebar.miniCalendar) {
+    const lateral = document.createElement('aside');
+    lateral.setAttribute('aria-label', 'Mini-calendário');
+    area.appendChild(lateral);
+    const mostrado = container._miniShown ? sanitizeAnchor(container._miniShown, anchor) : anchor;
+    const diasComEvento = new Set(events.flatMap(ev => eventDays(ev)));
+    renderMiniCalendar(lateral, {
+      shown: mostrado, anchor, firstDay: cfg.week.firstDay, eventDays: diasComEvento,
+      onPick: ymd => { container._calAnchor = ymd; container._miniShown = ymd; rerender(); },
+      onShift: delta => { container._miniShown = addMonths(mostrado, delta); rerender(); },
+    });
+  }
   const corpo = document.createElement('div');
   corpo.className = 'bcal-body';
-  container.appendChild(corpo);
+  area.appendChild(corpo);
 
   // ── Gestos → propriedades ────────────────────────────────────────────────────
   const gravar = async (resultado) => {

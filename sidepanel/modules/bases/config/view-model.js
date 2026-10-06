@@ -96,6 +96,7 @@ export function calendarDefaults() {
     time: { dayStart: '07:00', dayEnd: '21:00', slot: 30, snap: 15, showNowLine: true },
     card: { props: [], colorBy: null, showTime: true },
     month: { maxPerDay: 3, showOtherMonthDays: true },
+    sidebar: { miniCalendar: false },
   };
 }
 
@@ -154,6 +155,7 @@ export function resolveCalendarConfig(view = {}) {
       colorBy: card.colorBy || null,
       showTime: card.showTime !== false && card.showTime !== 'false',
     },
+    sidebar: { miniCalendar: view.sidebar?.miniCalendar === true || view.sidebar?.miniCalendar === 'true' },
     month: {
       maxPerDay: Math.round(num(month.maxPerDay, 3, 1, 10)),
       showOtherMonthDays: month.showOtherMonthDays !== false && month.showOtherMonthDays !== 'false',
