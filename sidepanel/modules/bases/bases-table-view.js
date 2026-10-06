@@ -239,6 +239,36 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
   let visiveisIds = [];
 
+  const TAMANHO_LOTE = 150;
+  let observadorLotes = null;
+  function desenhaEmLotes(entradas) {
+    observadorLotes?.disconnect();
+    observadorLotes = null;
+    let i = 0;
+    const colunasTotal = columns.length + (layout.rowNumbers ? 1 : 0) + (layout.selectable ? 1 : 0);
+    const proximo = () => {
+      const fim = Math.min(entradas.length, i + TAMANHO_LOTE);
+      for (; i < fim; i++) tbody.appendChild(entradas[i]());
+      if (i >= entradas.length) return;
+      const sentinela = document.createElement('tr');
+      sentinela.className = 'base-more-row';
+      const td = document.createElement('td');
+      td.colSpan = colunasTotal;
+      td.textContent = `Mostrando ${i} de ${entradas.length} — role para ver mais`;
+      sentinela.appendChild(td);
+      tbody.appendChild(sentinela);
+      if (typeof IntersectionObserver !== 'function') { sentinela.remove(); proximo(); return; }
+      observadorLotes = new IntersectionObserver(es => {
+        if (!es.some(e => e.isIntersecting)) return;
+        observadorLotes.disconnect();
+        sentinela.remove();
+        proximo();
+      }, { root: tableWrap, rootMargin: '600px 0px' });
+      observadorLotes.observe(sentinela);
+    };
+    proximo();
+  }
+
   // ── 5. Renderização do Corpo da Tabela ───────────────────────────────────────
   function renderTableBody() {
     tbody.innerHTML = '';
@@ -340,8 +370,11 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     const grupoCfg = resolveGroupConfig(activeView);
     const calcCfg = resolveCalc(activeView);
     const getV = (n, p) => getNotePropertyValue(n, p);
+    // Linhas entram em lotes (cada entrada é uma função que cria a <tr>): o primeiro desenho de
+    // uma Base grande é rápido e o resto entra quando a pessoa chega perto do fim da tabela.
+    const entradas = [];
     if (!grupoCfg.prop) {
-      for (const note of sorted) tbody.appendChild(buildRow(note));
+      for (const note of sorted) entradas.push(() => buildRow(note));
     } else {
       for (const g of groupNotes(sorted, grupoCfg, schema, getV)) {
         const fechado = grupoCfg.collapsed.includes(g.key);
@@ -372,11 +405,12 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
           if (calcCfg[colKey]) td.textContent = formatAggregate(calcCell(g.notes, colKey, calcCfg[colKey], schema));
           gr.appendChild(td);
         });
-        tbody.appendChild(gr);
-        if (!fechado) for (const note of g.notes) tbody.appendChild(buildRow(note));
+        entradas.push(() => gr);
+        if (!fechado) for (const note of g.notes) entradas.push(() => buildRow(note));
       }
     }
 
+    desenhaEmLotes(entradas);
     renderTableFooter(sorted);
   }
 
@@ -517,6 +551,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
   document.addEventListener('quickdock:note-updated', onNoteUpdated);
   container._cleanup = () => {
+    observadorLotes?.disconnect();
     document.removeEventListener('quickdock:note-updated', onNoteUpdated);
   };
 
