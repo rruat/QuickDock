@@ -5,16 +5,26 @@
 
 import { parseYamlOrJson, stringifyBaseToYaml } from './bases-yaml.js';
 import { inferBaseSchema, normalizeBaseDefinition } from './bases-schema.js';
-import { queryBaseNotes, sortBaseNotes } from './bases-engine.js';
-import { renderBaseTableView } from './bases-table-view.js';
-import { renderBaseBoardView } from './bases-board-view.js';
-import { renderBaseGalleryView } from './bases-gallery-view.js';
-import { renderBaseListView } from './bases-list-view.js';
-import { renderBaseCalendarView } from './bases-calendar-view.js';
-import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById } from '../storage.js';
-import { normalizeViews, VIEW_TYPES, createView, duplicateView, newViewId, applyViewPatch } from './config/view-model.js';
+import { runViewPipeline, renderViewByType } from './bases-view-pipeline.js';
+import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, loadAllTemplates, updateNoteBlocksById, getNoteById } from '../storage.js';
+import { parseMarkdownToBlocks, blocksToMarkdown } from '../blocks.js';
+import { normalizeViews, getViewProps, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
-import { switchToNote } from '../note.js';
+import { renderViewTabs as desenhaAbas, abreMenu } from './ui/view-tabs.js';
+import { exportMenuItems } from './ui/export-menu.js';
+import { createBulkController } from './bases-bulk-controller.js';
+import { createNotePeek } from './ui/note-peek.js';
+import { nextId, planMissingIds } from './engine/unique-id.js';
+import { readLinkedDefinition, effectiveSource, effectiveProperties, findBaseNotes } from './engine/linked-base.js';
+import { renderQuickFilters, loadQuickFilters, saveQuickFilters } from './ui/quick-filters.js';
+import { impliedValues } from './engine/filter-tree.js';
+import { applyDerivedColumns } from './engine/derived-columns.js';
+import { normalizeColorRules, rowTone, cellTone } from './engine/color-rules.js';
+import {
+  moveView, duplicateViewAt, deleteViewById, renameViewById, setViewLocked, setViewIcon,
+  setDefaultView, neighborViewId, serializeView, parseViewClipboard, pasteViewInto,
+} from './config/view-actions.js';
+import { switchToNote, absorbDataUrls } from '../note.js';
 
 /**
  * Renderiza um componente completo de Base num elemento contêiner.
@@ -43,6 +53,23 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   let searchQuery = '';
   let showRawConfig = false;
   let allNotes = [];
+  let templates = [];
+  let linked = null;           // definição lida da Base de origem (view vinculada), só leitura
+  const selfUid = () => allNotes.find(n => n.id === options.baseId)?.uid ?? null;
+  const fonteEfetiva = () => effectiveSource(baseDef, linked);
+  const propsEfetivas = () => effectiveProperties(baseDef, linked);
+  async function carregaOrigem() {
+    linked = null;
+    const uid = baseDef.source?.base;
+    if (!uid) return;
+    const meta = allNotes.find(n => n.uid === uid);
+    if (!meta) return;
+    try {
+      const nota = await getNoteById(meta.id);
+      const blocos = nota?.blocks?.length ? nota.blocks : parseMarkdownToBlocks(nota?.content ?? '');
+      linked = readLinkedDefinition(blocos);
+    } catch (err) { console.warn('Base vinculada: não foi possível ler a origem', err); }
+  }
 
   rootContainer.innerHTML = '';
   rootContainer.className = 'base-component-root' + (options.embedded ? ' is-embedded' : '');
@@ -103,6 +130,30 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     rightGroup.appendChild(toggleCodeBtn);
   }
 
+  // Botão ⬇ "Exportar" (CSV, Markdown, JSON das notas visíveis da view ativa)
+  let ultimaVisao = { notes: [], schema: {}, view: {} };
+  const exportBtn = document.createElement('button');
+  exportBtn.className = 'base-header-btn base-btn-export';
+  exportBtn.type = 'button';
+  exportBtn.title = 'Exportar notas desta view';
+  exportBtn.setAttribute('aria-label', 'Exportar');
+  exportBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">download</span>';
+  exportBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    abreMenu(exportBtn, exportMenuItems(() => ({ ...ultimaVisao, baseName: baseDef.name })));
+  });
+  rightGroup.appendChild(exportBtn);
+
+  // Botão ⚙ "Configurar view" (todas as views)
+  const settingsBtn = document.createElement('button');
+  settingsBtn.className = 'base-header-btn base-btn-settings';
+  settingsBtn.type = 'button';
+  settingsBtn.title = 'Configurar view';
+  settingsBtn.setAttribute('aria-label', 'Configurar view');
+  settingsBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">tune</span>';
+  settingsBtn.addEventListener('click', () => { settingsOpen = !settingsOpen; renderSettingsPanel(); });
+  rightGroup.appendChild(settingsBtn);
+
   // Botão "+ Nova Nota"
   const addNoteBtn = document.createElement('button');
   addNoteBtn.className = 'base-header-btn base-btn-primary';
@@ -121,6 +172,21 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   headerEl.appendChild(rightGroup);
   rootContainer.appendChild(headerEl);
 
+  // Filtros rápidos (chips) — entre o cabeçalho e a view
+  const quickEl = document.createElement('div');
+  quickEl.className = 'base-quickfilters';
+  rootContainer.appendChild(quickEl);
+  const baseKey = () => options.baseId || baseDef.name || 'base';
+  let quickFilters = [];
+  let quickFiltersViewId = null;
+
+  // Seleção e edição em lote (barra só aparece com notas selecionadas na tabela)
+  const bulkEl = document.createElement('div');
+  rootContainer.appendChild(bulkEl);
+  const bulk = createBulkController(bulkEl, { getNotes: () => allNotes, onChanged: () => updateViewport() });
+
+  const peek = createNotePeek(rootContainer, { onOpenNote: id => switchToNote(id) });
+
   // 2. Área Principal de Visualização (Viewport) + painel de configuração da view
   const viewportEl = document.createElement('div');
   viewportEl.className = 'base-viewport';
@@ -136,126 +202,131 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const view = baseDef.views[activeIndex()];
     settingsEl.hidden = !settingsOpen || !view;
     rootContainer.classList.toggle('has-settings', !settingsEl.hidden);
+    settingsBtn.classList.toggle('active', !settingsEl.hidden);
+    settingsBtn.setAttribute('aria-pressed', String(!settingsEl.hidden));
     if (settingsEl.hidden) { settingsEl.replaceChildren(); return; }
     const rolagem = settingsEl.querySelector('.bset-body')?.scrollTop ?? 0;
     settingsHandle = mountViewSettingsPanel(settingsEl, {
       getView: () => baseDef.views[activeIndex()],
-      getSchema: () => inferBaseSchema(allNotes, baseDef.properties),
+      getSchema: () => inferBaseSchema(allNotes, propsEfetivas()),
+      getLinkInfo: () => ({ uid: baseDef.source?.base || null, loaded: !!linked, name: linked?.name || '', candidates: findBaseNotes(allNotes, selfUid()).map(n => ({ uid: n.uid, title: n.title || 'Sem título' })) }),
+      onSourcePatch: patch => {
+        const fonte = { ...(baseDef.source || {}) };
+        for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete fonte[k]; else fonte[k] = v; }
+        baseDef = { ...baseDef, source: Object.keys(fonte).length ? fonte : { all: true } };
+        persistBase();
+        carregaOrigem().then(() => updateViewport());
+      },
+      getTemplates: () => templates,
+      getViews: () => baseDef.views,
+      // Gera os IDs que faltam (ação explícita; abrir uma view nunca grava)
+      onFillIds: async (key, def) => {
+        const plano = planMissingIds(allNotes, key, def.prefix || '', def.digits || 0);
+        if (!plano.length) { window.alert('Todas as notas já têm ID.'); return; }
+        if (!window.confirm(`Gerar ${plano.length} ID(s) em ${key}? As notas serão alteradas.`)) return;
+        for (const { id, value } of plano) {
+          const n = allNotes.find(x => x.id === id);
+          await updateNoteMetaById(id, { properties: { ...(n?.properties || {}), [key]: value }, propertyTypes: { ...(n?.propertyTypes || {}), [key]: 'text' } });
+        }
+        document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { ids: true } }));
+      },
+      getBaseProps: () => baseDef.properties || {},
+      onBasePatch: patch => {
+        const props = { ...(baseDef.properties || {}) };
+        for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete props[k]; else props[k] = v; }
+        baseDef = { ...baseDef, properties: props };
+        persistBase(); updateViewport();
+      },
       onPatch: patch => updateActiveView(patch),
       onRename: nome => updateActiveView({ name: nome }),
-      onDuplicate: () => {
-        const copia = duplicateView(baseDef.views[activeIndex()], baseDef.views.map(v => v.id));
-        baseDef.views.splice(activeIndex() + 1, 0, copia);
-        activeViewId = copia.id;
-        persistBase(); renderViewTabs(); updateViewport();
-      },
-      canDelete: () => baseDef.views.length > 1,
-      onDelete: () => {
-        if (baseDef.views.length <= 1) return;
-        baseDef.views.splice(activeIndex(), 1);
-        activeViewId = baseDef.views[Math.min(activeIndex(), baseDef.views.length - 1)].id;
-        if (!baseDef.views.some(v => v.id === baseDef.defaultViewId)) baseDef.defaultViewId = activeViewId;
-        persistBase(); renderViewTabs(); updateViewport();
-      },
+      onDuplicate: () => { const r = duplicateViewAt(baseDef, activeViewId); aplica(r.baseDef, r.newId); },
+      canDelete: () => baseDef.views.length > 1 && !baseDef.views[activeIndex()]?.locked,
+      onDelete: () => { const r = deleteViewById(baseDef, activeViewId, activeViewId); aplica(r.baseDef, r.activeId); },
       onClose: () => { settingsOpen = false; renderSettingsPanel(); },
     });
     const corpo = settingsEl.querySelector('.bset-body');
     if (corpo) corpo.scrollTop = rolagem;
   }
 
-  function updateActiveView(patch) {
-    const i = activeIndex();
+  // Altera uma view pelo id (a ativa, ou um widget do dashboard)
+  function updateViewById(id, patch) {
+    const i = baseDef.views.findIndex(v => v.id === id);
+    if (i < 0) return;
+    // view bloqueada: só renomear/ícone/trava passam pelo menu; o painel e as views não gravam
+    if (baseDef.views[i]?.locked && !('locked' in patch)) return;
     baseDef.views[i] = applyViewPatch(baseDef.views[i], patch);
     persistBase();
     renderViewTabs();
     updateViewport();
   }
+  const updateActiveView = patch => updateViewById(activeViewId, patch);
 
-  // Função para renderizar as abas de visão
+  // Abas de visão (ícone, renomear, arrastar, menu ⋯) — ver ui/view-tabs.js
+  const aplica = (novaDef, ativa = activeViewId) => {
+    baseDef = novaDef;
+    activeViewId = baseDef.views.some(v => v.id === ativa) ? ativa : baseDef.defaultViewId;
+    persistBase(); renderViewTabs(); updateViewport();
+  };
   function renderViewTabs() {
-    tabsEl.innerHTML = '';
-    baseDef.views.forEach((view) => {
-      const tabBtn = document.createElement('button');
-      tabBtn.className = 'base-tab-btn' + (view.id === activeViewId ? ' is-active' : '');
-      const icon = VIEW_TYPES[view.type]?.icon || 'table_chart';
-
-      tabBtn.innerHTML = `
-        <span class="qd-icon material-symbols-rounded base-tab-icon" aria-hidden="true">${icon}</span>
-        <span class="base-tab-name"></span>
-      `;
-      tabBtn.querySelector('.base-tab-name').textContent = view.name || view.type;
-      tabBtn.addEventListener('click', () => {
-        activeViewId = view.id;
-        renderViewTabs();
-        updateViewport();
-      });
-      tabsEl.appendChild(tabBtn);
+    desenhaAbas(tabsEl, { views: baseDef.views, activeId: activeViewId, defaultId: baseDef.defaultViewId }, {
+      onSelect: id => { activeViewId = id; renderViewTabs(); updateViewport(); },
+      onAdd: type => {
+        const nome = VIEW_TYPES[type]?.label || type;
+        const nova = createView(type, { name: nome, id: newViewId(baseDef.views.map(v => v.id)) });
+        aplica({ ...baseDef, views: [...baseDef.views, nova] }, nova.id);
+      },
+      onRename: (id, nome) => aplica(renameViewById(baseDef, id, nome)),
+      onDuplicate: id => { const r = duplicateViewAt(baseDef, id); aplica(r.baseDef, r.newId); },
+      onDelete: id => {
+        const v = baseDef.views.find(x => x.id === id);
+        if (!window.confirm(`Excluir a view "${v?.name || id}"?`)) return;
+        const r = deleteViewById(baseDef, id, activeViewId); aplica(r.baseDef, r.activeId);
+      },
+      onReorder: (de, para) => aplica(moveView(baseDef, de, para)),
+      // copiar/colar uma view entre Bases (JSON na área de transferência)
+      onCopyView: async id => {
+        const v = baseDef.views.find(x => x.id === id);
+        if (!v) return;
+        try { await navigator.clipboard.writeText(serializeView(v)); }
+        catch { window.prompt('Copie o texto abaixo (Ctrl+C) e cole em outra Base:', serializeView(v)); }
+      },
+      onPasteView: async () => {
+        let texto = '';
+        try { texto = await navigator.clipboard.readText(); }
+        catch { texto = window.prompt('Cole aqui a view copiada (Ctrl+V):') || ''; }
+        const r = parseViewClipboard(texto);
+        if (!r.ok) { window.alert(r.motivo); return; }
+        const res = pasteViewInto(baseDef, r.view);
+        aplica(res.baseDef, res.newId);
+      },
+      onToggleLock: id => aplica(setViewLocked(baseDef, id, !baseDef.views.find(v => v.id === id)?.locked)),
+      onSetDefault: id => aplica(setDefaultView(baseDef, id)),
+      onSetIcon: id => {
+        const nome = window.prompt('Nome do ícone (Material Symbols, ex.: star, work). Vazio = padrão do tipo:', baseDef.views.find(v => v.id === id)?.icon || '');
+        if (nome !== null) aplica(setViewIcon(baseDef, id, nome.trim()));
+      },
     });
-
-    // Botão "+ Visão"
-    const addViewBtn = document.createElement('button');
-    addViewBtn.className = 'base-tab-btn base-tab-add';
-    addViewBtn.title = 'Adicionar visão';
-    addViewBtn.textContent = '+';
-    addViewBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openAddViewMenu(addViewBtn);
-    });
-    tabsEl.appendChild(addViewBtn);
-  }
-
-  // Menu suspenso para adicionar nova visão
-  function openAddViewMenu(anchorEl) {
-    const existing = document.querySelector('.base-add-view-dropdown');
-    if (existing) { existing.remove(); return; }
-
-    const menu = document.createElement('div');
-    menu.className = 'base-add-view-dropdown';
-
-    const tipos = [
-      { type: 'table', label: 'Tabela' },
-      { type: 'board', label: 'Quadro (Kanban)' },
-      { type: 'gallery', label: 'Galeria (Cards)' },
-      { type: 'list', label: 'Lista' },
-      { type: 'calendar', label: 'Calendário' },
-    ];
-
-    tipos.forEach(t => {
-      const item = document.createElement('div');
-      item.className = 'base-add-view-item';
-      item.textContent = t.label;
-      item.addEventListener('click', () => {
-        menu.remove();
-        const nova = createView(t.type, { name: t.label, id: newViewId(baseDef.views.map(v => v.id)) });
-        baseDef.views.push(nova);
-        activeViewId = nova.id;
-        persistBase();
-        renderViewTabs();
-        updateViewport();
-      });
-      menu.appendChild(item);
-    });
-
-    document.body.appendChild(menu);
-    const rect = anchorEl.getBoundingClientRect();
-    menu.style.top = `${rect.bottom + 4}px`;
-    menu.style.left = `${rect.left}px`;
-
-    const closeHandler = (e) => {
-      if (!menu.contains(e.target) && e.target !== anchorEl) {
-        menu.remove();
-        document.removeEventListener('click', closeHandler);
-      }
-    };
-    setTimeout(() => document.addEventListener('click', closeHandler), 10);
   }
 
   // Criação de nova nota
   async function handleCreateNewNote(extraProps = {}, extraTypes = {}) {
-    const pasta = baseDef.source?.folder && baseDef.source.folder !== '/' ? baseDef.source.folder : '';
-    const tag = baseDef.source?.tag;
+    const fonte = fonteEfetiva();
+    const pasta = fonte.folder && fonte.folder !== '/' ? fonte.folder : '';
+    const tag = fonte.tag;
 
-    const initialProperties = { ...extraProps };
+    // "Novo" herda o que os filtros da view exigem (ex.: status = Em andamento) — a nota nasce visível
+    const view = baseDef.views[activeIndex()];
+    const implicitos = impliedValues(view?.filters, view?.filterMode ?? view?.filterOperator);
+    for (const [k, v] of Object.entries(impliedValues(quickFilters))) if (!(k in implicitos)) implicitos[k] = v;
+    const reservadas = new Set(['title', 'folder', 'tags', 'createdAt', 'updatedAt', 'tasks']);
+    const herdadas = Object.fromEntries(Object.entries(implicitos).filter(([k]) => !reservadas.has(k)));
+    const initialProperties = { ...herdadas, ...extraProps };
+    // ID único: a nota nova já nasce com o próximo número livre
+    for (const [k, d] of Object.entries(propsEfetivas())) if (d?.type === 'uid' && !(k in initialProperties)) initialProperties[k] = nextId(allNotes, k, d.prefix || '', d.digits || 0);
+    const tiposHerdados = {};
+    const esquema = inferBaseSchema(allNotes, propsEfetivas());
+    for (const k of Object.keys(herdadas)) if (esquema[k]?.type) tiposHerdados[k] = esquema[k].type;
+    extraTypes = { ...tiposHerdados, ...extraTypes };
     if (tag) {
       initialProperties['tags'] = [tag.replace(/^#/, '')];
     }
@@ -267,6 +338,14 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         properties: initialProperties,
         propertyTypes: extraTypes,
       });
+
+      // modelo da view: o markdown do modelo passa pelo mesmo caminho da importação
+      // (imagem em base64 vira arquivo — precisa do id da nota, por isso a nota nasce vazia antes)
+      const tpl = view?.newTemplate ? templates.find(t => t.uid === view.newTemplate && t.kind === 'note') : null;
+      if (tpl) {
+        const blocks = await absorbDataUrls(parseMarkdownToBlocks(tpl.content ?? ''), noteId);
+        await updateNoteBlocksById(noteId, blocks, blocksToMarkdown(blocks));
+      }
 
       document.dispatchEvent(new CustomEvent('quickdock:note-created', { detail: { id: noteId } }));
       document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: noteId } }));
@@ -315,27 +394,48 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     renderSettingsPanel();
 
     // 1. Infere o schema combinando notas + definições explícitas
-    const schema = inferBaseSchema(allNotes, baseDef.properties);
+    const schema = inferBaseSchema(allNotes, propsEfetivas());
+    const notasBase = applyDerivedColumns(allNotes, propsEfetivas());
 
-    // 2. Filtra notas pela fonte (source) e busca rápida
-    const filteredNotes = queryBaseNotes(allNotes, {
-      source: baseDef.source,
-      filters: currentView.filters,
-      filterMode: currentView.filterMode,
-      filterOperator: currentView.filterOperator,
-      quickSearch: searchQuery,
+    if (quickFiltersViewId !== currentView.id) {
+      quickFiltersViewId = currentView.id;
+      quickFilters = loadQuickFilters(baseKey(), currentView.id);
+    }
+
+    // 2. Filtra (origem, filtros da view, filtros rápidos, busca) e ordena — ver bases-view-pipeline.js
+    const opcoesPipeline = () => ({ source: fonteEfetiva(), quickFilters, search: searchQuery });
+    const sortedNotes = runViewPipeline(notasBase, currentView, schema, opcoesPipeline());
+    ultimaVisao = { notes: sortedNotes, schema, view: currentView };
+    bulk.sync(currentView, schema);
+    renderQuickFilters(quickEl, { filters: quickFilters, schema, count: sortedNotes.length }, lista => {
+      quickFilters = lista;
+      saveQuickFilters(baseKey(), currentView.id, lista);
+      updateViewport();
     });
-
-    // 3. Ordena notas
-    const sortedNotes = sortBaseNotes(filteredNotes, currentView.sort, schema);
 
     // Callbacks comuns para as visões. showOwnToolbar: false porque a barra
     // de cima (headerEl, logo acima) já dá busca + "Nova Nota" — sem isto, a
     // tabela/quadro desenhavam uma segunda barra própria com os dois
     // duplicados por cima da primeira.
-    const callbacks = {
+    const montaCallbacks = view => {
+    const regrasCor = normalizeColorRules(view);
+    return {
+      // colar de planilha: patches já validados (tudo ou nada) — grava e recarrega
+      onPasteWrites: async patches => {
+        for (const { id, patch } of patches) await updateNoteMetaById(id, patch);
+        document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { paste: true } }));
+      },
+      selection: bulk.selection,
+      onSelectionChange: bulk.onSelectionChange,
+      rowTone: regrasCor.length ? n => rowTone(n, regrasCor) : null,
+      cellTone: regrasCor.length ? (n, k) => cellTone(n, regrasCor, k) : null,
+      peekActive: view.openIn === 'peek-side' || view.openIn === 'peek-center',
+      // "Abrir em": página (editor) ou prévia lateral/central somente leitura
       onOpenNote: async (noteId) => {
-        await switchToNote(noteId);
+        const modo = view.openIn;
+        const nota = (modo === 'peek-side' || modo === 'peek-center') ? allNotes.find(n => n.id === noteId) : null;
+        if (nota) peek.abrir(nota, modo, { schema, props: getViewProps(view) });
+        else await switchToNote(noteId);
       },
       onAddNote: async (extraProps, extraTypes) => {
         await handleCreateNewNote(extraProps, extraTypes);
@@ -350,35 +450,33 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id } }));
       },
       onOpenSettings: () => { settingsOpen = !settingsOpen; renderSettingsPanel(); },
+      // clicar numa barra/fatia do gráfico vira filtro rápido
+      onQuickFilter: cond => {
+        quickFilters = [...quickFilters, cond];
+        saveQuickFilters(baseKey(), currentView.id, quickFilters);
+        updateViewport();
+      },
       // Ajustes da própria visão (ex.: tamanho dos cartões da galeria) viram parte da Base
-      onUpdateView: patch => updateActiveView(patch),
+      onUpdateView: patch => updateViewById(view.id, patch),
+      // Dashboard: desenha outra view da mesma Base como widget (mesmo caminho: filtros, ordenação, cor…)
+      renderWidget: (host, viewId) => {
+        const alvo = baseDef.views.find(v => v.id === viewId && v.type !== 'dashboard');
+        if (!alvo) { host.textContent = 'View não encontrada.'; return; }
+        renderViewByType(host, alvo, runViewPipeline(notasBase, alvo, schema, opcoesPipeline()), schema, montaCallbacks(alvo));
+      },
       showOwnToolbar: false,
     };
+    };
 
-    // Renderiza a visão ativa correspondente
-    switch (currentView.type) {
-      case 'board':
-        renderBaseBoardView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'gallery':
-        renderBaseGalleryView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'list':
-        renderBaseListView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'calendar':
-        renderBaseCalendarView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'table':
-      default:
-        renderBaseTableView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-    }
+
+    renderViewByType(viewportEl, currentView, sortedNotes, schema, montaCallbacks(currentView));
   }
 
   // Carregamento inicial de notas
   async function loadData() {
     allNotes = await loadAllNotesMeta();
+    await carregaOrigem();
+    try { templates = await loadAllTemplates(); } catch { templates = []; }
     renderViewTabs();
     updateViewport();
   }
@@ -386,15 +484,30 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   // Ouvinte reativo para atualizações externas
   const onNoteEvent = async () => {
     allNotes = await loadAllNotesMeta();
+    if (baseDef.source?.base) await carregaOrigem();
     updateViewport();
   };
 
+  // Atalhos (7.4): Alt+←/→ troca de view · Alt+1…9 vai direto a uma view · Ctrl+Alt+, abre/fecha o painel
+  const onKeyViews = e => {
+    if (!rootContainer.contains(document.activeElement)) return;
+    const naoEhCampo = !e.target.closest?.('input, textarea, select, [contenteditable="true"]');
+    if (e.ctrlKey && e.altKey && e.key === ',') { e.preventDefault(); settingsOpen = !settingsOpen; renderSettingsPanel(); return; }
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    let id = null;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') id = neighborViewId(baseDef, activeViewId, e.key === 'ArrowRight' ? 1 : -1);
+    else if (/^[1-9]$/.test(e.key) && naoEhCampo) id = baseDef.views[Number(e.key) - 1]?.id ?? null;
+    if (id && id !== activeViewId) { e.preventDefault(); activeViewId = id; renderViewTabs(); updateViewport(); }
+  };
+  rootContainer.addEventListener('keydown', onKeyViews);
   document.addEventListener('quickdock:note-updated', onNoteEvent);
   document.addEventListener('quickdock:note-created', onNoteEvent);
 
   rootContainer._cleanup = () => {
+    peek.fechar();
     document.removeEventListener('quickdock:note-updated', onNoteEvent);
     document.removeEventListener('quickdock:note-created', onNoteEvent);
+    rootContainer.removeEventListener('keydown', onKeyViews);
   };
 
   await loadData();

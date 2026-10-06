@@ -157,7 +157,7 @@ function openSelectCellDropdown(cellEl, note, propKey, propDef, currentVal, onSa
       if (label === currentVal) btn.classList.add('active');
 
       btn.innerHTML = `
-        <span class="base-select-badge" style="background: color-mix(in srgb, ${color} 18%, transparent); color: ${color}; border: 1px solid color-mix(in srgb, ${color} 35%, transparent);">
+        <span class="base-select-badge" style="background: color-mix(in oklch, ${color} 18%, transparent); color: color-mix(in oklch, ${color} 45%, var(--text)); border: 1px solid color-mix(in oklch, ${color} 35%, transparent);">
           ${escapeHtml(label)}
         </span>
       `;
@@ -300,7 +300,7 @@ function positionDropdown(dropdown, targetEl) {
 }
 
 function getRandomOptionColor() {
-  const palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
+  const palette = ['oklch(62% 0.17 255)', 'oklch(66% 0.15 160)', 'oklch(75% 0.15 75)', 'oklch(62% 0.2 25)', 'oklch(60% 0.18 295)', 'oklch(66% 0.19 350)', 'oklch(70% 0.12 215)', 'oklch(58% 0.03 260)'];
   return palette[Math.floor(Math.random() * palette.length)];
 }
 
@@ -327,16 +327,16 @@ export function formatSelectBadge(value, options = []) {
     if (!s) return '';
     let color = null;
     if (Array.isArray(options)) {
-      const found = options.find(opt => (typeof opt === 'object' ? opt?.name === s : opt === s));
+      const found = options.find(opt => (typeof opt === 'object' ? (opt?.label === s || opt?.name === s || opt?.id === s) : opt === s));
       if (found && typeof found === 'object' && found.color) color = found.color;
     }
     if (!color) {
-      const palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
+      const palette = ['oklch(62% 0.17 255)', 'oklch(66% 0.15 160)', 'oklch(75% 0.15 75)', 'oklch(62% 0.2 25)', 'oklch(60% 0.18 295)', 'oklch(66% 0.19 350)', 'oklch(70% 0.12 215)', 'oklch(58% 0.03 260)'];
       let hash = 0;
       for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
       color = palette[hash % palette.length];
     }
-    return `<span class="base-select-badge" style="background-color: ${color}20; color: ${color}; border: 1px solid ${color}40;">${escapeHtml(s)}</span>`;
+    return `<span class="base-select-badge" style="background-color: color-mix(in oklch, ${color} 18%, transparent); color: color-mix(in oklch, ${color} 45%, var(--text)); border: 1px solid color-mix(in oklch, ${color} 40%, transparent);">${escapeHtml(s)}</span>`;
   }).join(' ');
 }
 

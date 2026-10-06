@@ -13,6 +13,11 @@ export const VIEW_TYPES = {
   gallery:  { label: 'Galeria',          icon: 'grid_view' },
   list:     { label: 'Lista',            icon: 'format_list_bulleted' },
   calendar: { label: 'Calendário',       icon: 'calendar_today' },
+  timeline: { label: 'Linha do tempo',   icon: 'timeline' },
+  map:      { label: 'Mapa',             icon: 'map' },
+  feed:     { label: 'Feed',             icon: 'dynamic_feed' },
+  dashboard: { label: 'Dashboard',       icon: 'dashboard' },
+  chart:    { label: 'Gráfico',          icon: 'bar_chart' },
 };
 
 // Hash curto e determinístico: uma view SEM id recebe sempre o mesmo id enquanto não for
@@ -91,6 +96,8 @@ export function calendarDefaults() {
     time: { dayStart: '07:00', dayEnd: '21:00', slot: 30, snap: 15, showNowLine: true },
     card: { props: [], colorBy: null, showTime: true },
     month: { maxPerDay: 3, showOtherMonthDays: true },
+    sidebar: { miniCalendar: false },
+    holidays: { country: null },
   };
 }
 
@@ -149,6 +156,8 @@ export function resolveCalendarConfig(view = {}) {
       colorBy: card.colorBy || null,
       showTime: card.showTime !== false && card.showTime !== 'false',
     },
+    holidays: { country: view.holidays?.country === 'BR' ? 'BR' : null },
+    sidebar: { miniCalendar: view.sidebar?.miniCalendar === true || view.sidebar?.miniCalendar === 'true' },
     month: {
       maxPerDay: Math.round(num(month.maxPerDay, 3, 1, 10)),
       showOtherMonthDays: month.showOtherMonthDays !== false && month.showOtherMonthDays !== 'false',
@@ -161,6 +170,11 @@ export function createView(type, { name, id, extra = {} } = {}) {
   const meta = VIEW_TYPES[type] ?? VIEW_TYPES.table;
   const base = { id, type, name: name || meta.label };
   if (type === 'calendar') return { ...base, mode: 'month', date: { fallback: 'createdAt' }, ...extra };
+  if (type === 'dashboard') return { ...base, layout: { columns: 2 }, widgets: [], ...extra };
+  if (type === 'map') return { ...base, cluster: true, ...extra };
+  if (type === 'feed') return { ...base, props: ['tags', 'updatedAt'], ...extra };
+  if (type === 'timeline') return { ...base, scale: 'week', ...extra };
+  if (type === 'chart') return { ...base, chart: { kind: 'bar' }, y: { agg: 'count' }, ...extra };
   if (type === 'gallery') return { ...base, cardSize: 'medium', props: ['title', 'tags', 'updatedAt'], ...extra };
   return { ...base, props: ['title', 'tags', 'updatedAt'], ...extra };
 }
@@ -190,4 +204,50 @@ export function applyViewPatch(view, patch) {
     else saida[k] = v;
   }
   return saida;
+}
+// ── Agrupar · Cálculos · Layout da tabela (compatíveis com as chaves antigas) ──
+
+const SUMMARY_LEGADO = { average: 'avg', percent_checked: 'pct_checked', count_filled: 'filled', count_unique: 'unique' };
+
+/** `group` (novo) ou `groupBy` (antigo, só quadro). Sempre devolve um objeto completo. */
+export function resolveGroupConfig(view = {}) {
+  const g = view.group && typeof view.group === 'object' ? view.group : {};
+  const lista = v => (Array.isArray(v) ? v.map(String) : []);
+  return {
+    prop: g.prop || view.groupBy || null,
+    granularity: ['day', 'week', 'month', 'year'].includes(g.granularity) ? g.granularity : 'month',
+    range: g.range && Number(g.range.step) > 0 ? { step: Number(g.range.step) } : null,
+    order: ['manual', 'asc', 'desc', 'count'].includes(g.order) ? g.order : 'manual',
+    hideEmpty: g.hideEmpty === true || g.hideEmpty === 'true',
+    hidden: lista(g.hidden),
+    collapsed: lista(g.collapsed),
+    showCounts: g.showCounts !== false && g.showCounts !== 'false',
+    byStatusGroup: g.byStatusGroup === true || g.byStatusGroup === 'true',
+  };
+}
+
+/** Sub-grupo do quadro (raias): { prop, collapsed }. */
+export function resolveSubGroup(view = {}) {
+  const g = view.subGroup && typeof view.subGroup === 'object' ? view.subGroup : {};
+  return { prop: g.prop || null, collapsed: Array.isArray(g.collapsed) ? g.collapsed.map(String) : [] };
+}
+
+/** Cálculos por coluna: `calc` (novo) ou `summaries` (antigo, com nomes antigos traduzidos). */
+export function resolveCalc(view = {}) {
+  const calc = {};
+  for (const [k, v] of Object.entries(view.summaries || {})) if (v && v !== 'none') calc[k] = SUMMARY_LEGADO[v] || v;
+  for (const [k, v] of Object.entries(view.calc || {})) { if (v && v !== 'none') calc[k] = v; else delete calc[k]; }
+  return calc;
+}
+
+export function resolveTableLayout(view = {}) {
+  const l = view.layout && typeof view.layout === 'object' ? view.layout : {};
+  return {
+    rowHeight: ['short', 'medium', 'tall'].includes(l.rowHeight) ? l.rowHeight : 'medium',
+    wrapCells: l.wrapCells === true || l.wrapCells === 'true',
+    rowNumbers: l.rowNumbers === true || l.rowNumbers === 'true',
+    borders: ['both', 'rows', 'none'].includes(l.borders) ? l.borders : 'both',
+    selectable: l.selectable === true || l.selectable === 'true',
+    frozenColumns: Math.min(3, Math.max(0, Math.floor(Number(l.frozenColumns)) || 0)),
+  };
 }

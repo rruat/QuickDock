@@ -4,7 +4,14 @@
 // edição inline direta de células e linha de rodapé com somatórios/médias.
 
 import { formatPropertyValue } from './bases-schema.js';
-import { getNotePropertyValue, queryBaseNotes, sortBaseNotes, calculateBaseSummaries } from './bases-engine.js';
+import { getViewProps, resolveGroupConfig, resolveTableLayout, resolveCalc } from './config/view-model.js';
+import { groupNotes } from './engine/group-engine.js';
+import { renderTableFooter as desenhaRodape, calcCell } from './table/table-footer.js';
+import { formatAggregate } from './engine/aggregate-engine.js';
+import { flattenSubitems } from './engine/subitems.js';
+import { parseClipboardGrid, planPaste, writesToPatches } from './engine/paste-grid.js';
+import { progressPercent } from './engine/format.js';
+import { getNotePropertyValue, queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { activateCellEditor } from './bases-cell-editors.js';
 import { createNoteRecord } from '../storage.js';
 
@@ -19,19 +26,40 @@ import { createNoteRecord } from '../storage.js';
  * @param {Function} params.onDefChange Callback chamado ao alterar a configuração da Base
  * @returns {HTMLElement} Elemento container da Tabela
  */
-export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, showOwnToolbar = true }) {
+// propriedades de sistema calculadas a partir da nota: nunca editáveis na célula
+const SO_LEITURA = new Set(['wordCount', 'hasCover', 'createdAt', 'updatedAt', 'tasks']);
+
+export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, onOpenNote = null, rowTone = null, cellTone = null, selection = null, onSelectionChange = () => {}, onPasteWrites = null, onUpdateNote = null }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-table-view';
 
   let currentNotes = [...notes];
   let quickSearchQuery = '';
   let activeSorts = Array.isArray(activeView.sort) ? [...activeView.sort] : [{ property: 'title', direction: 'asc' }];
-  const columns = Array.isArray(activeView.columns) && activeView.columns.length > 0
-    ? [...activeView.columns]
-    : Object.keys(schema).slice(0, 6);
+  const propsView = getViewProps(activeView);
+  const columns = propsView.length > 0 ? propsView : Object.keys(schema).slice(0, 6);
 
   if (!activeView.columnWidths) activeView.columnWidths = {};
-  if (!activeView.summaries) activeView.summaries = { title: 'count' };
+  // grava na Base quando há um callback (container); senão só muta o objeto (uso isolado/testes)
+  const gravaView = patch => { if (onViewChange) onViewChange(patch); else onDefChange(baseDef); };
+  const layout = resolveTableLayout(activeView);
+  container.classList.add(`base-rows-${layout.rowHeight}`, `base-borders-${layout.borders}`);
+  container.classList.toggle('base-wrap-cells', layout.wrapCells);
+  // Colunas congeladas: deslocamento (px) de cada uma = soma das larguras das anteriores (+ coluna do nº da linha)
+  const larguraDe = k => activeView.columnWidths?.[k] || schema[k]?.width || 160;
+  const congeladas = columns.slice(0, layout.frozenColumns).reduce((acc, k, i) => {
+    acc.push({ k, left: i === 0 ? (layout.selectable ? 32 : 0) + (layout.rowNumbers ? 36 : 0) : acc[i - 1].left + larguraDe(acc[i - 1].k) });
+    return acc;
+  }, []);
+  const congelaCelula = (el, colKey) => {
+    const i = congeladas.findIndex(c => c.k === colKey);
+    if (i < 0) return;
+    el.classList.add('base-frozen');
+    if (i === congeladas.length - 1) el.classList.add('is-frozen-edge');
+    el.style.left = `${congeladas[i].left}px`;
+  };
+  const congelaNumero = el => { if (congeladas.length && layout.rowNumbers) { el.classList.add('base-frozen'); el.style.left = `${layout.selectable ? 32 : 0}px`; } };
+  const congelaSel = el => { if (congeladas.length && layout.selectable) { el.classList.add('base-frozen'); el.style.left = '0px'; } };
 
   // ── 1. Barra de ferramentas da Base ─────────────────────────────────────────
   // showOwnToolbar=false quando montada dentro de bases-view-container.js: a
@@ -97,6 +125,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
   const table = document.createElement('table');
   table.className = 'base-table';
+  table.setAttribute('role', 'grid');
 
   const thead = document.createElement('thead');
   const tbody = document.createElement('tbody');
@@ -109,12 +138,25 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   function renderTableHeader() {
     thead.innerHTML = '';
     const tr = document.createElement('tr');
+    if (layout.selectable && selection) {
+      const ths = document.createElement('th'); ths.className = 'base-th base-th-sel';
+      const todas = document.createElement('input'); todas.type = 'checkbox'; todas.setAttribute('aria-label', 'Selecionar todas as linhas visíveis');
+      todas.addEventListener('change', () => {
+        for (const id of visiveisIds) { if (todas.checked) selection.add(id); else selection.delete(id); }
+        onSelectionChange(); renderTableBody();
+      });
+      congelaSel(ths);
+      ths.appendChild(todas); tr.appendChild(ths);
+      container._selectAll = todas;
+    }
+    if (layout.rowNumbers) { const thn = Object.assign(document.createElement('th'), { className: 'base-th base-th-num', textContent: '#' }); congelaNumero(thn); tr.appendChild(thn); }
 
     for (const colKey of columns) {
       const propDef = schema[colKey] || { key: colKey, label: colKey, type: 'text' };
       const th = document.createElement('th');
       th.className = 'base-th';
       th.dataset.col = colKey;
+      congelaCelula(th, colKey);
 
       const w = activeView.columnWidths[colKey] || propDef.width || 160;
       th.style.width = `${w}px`;
@@ -153,9 +195,8 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
           activeSorts = activeSorts.filter(s => s.property !== colKey);
         }
         activeView.sort = activeSorts;
-        renderTableHeader();
-        renderTableBody();
-        onDefChange(baseDef);
+        gravaView({ sort: activeSorts.length ? activeSorts : undefined });
+        if (!onViewChange) { renderTableHeader(); renderTableBody(); }
       });
 
       th.appendChild(content);
@@ -188,7 +229,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
       document.body.classList.remove('base-col-resizing');
-      onDefChange(baseDef);
+      gravaView({ columnWidths: { ...activeView.columnWidths } });
     };
 
     resizer.addEventListener('mousedown', e => {
@@ -200,6 +241,40 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     });
+  }
+
+  let visiveisIds = [];
+  let celulaAtiva = null;        // { noteId, key } — onde o colar de planilha começa
+  let linhasVisiveis = [];       // notas na ordem em que aparecem (colar mapeia linhas sobre elas)
+
+  const TAMANHO_LOTE = 150;
+  let observadorLotes = null;
+  function desenhaEmLotes(entradas) {
+    observadorLotes?.disconnect();
+    observadorLotes = null;
+    let i = 0;
+    const colunasTotal = columns.length + (layout.rowNumbers ? 1 : 0) + (layout.selectable ? 1 : 0);
+    const proximo = () => {
+      const fim = Math.min(entradas.length, i + TAMANHO_LOTE);
+      for (; i < fim; i++) tbody.appendChild(entradas[i]());
+      if (i >= entradas.length) return;
+      const sentinela = document.createElement('tr');
+      sentinela.className = 'base-more-row';
+      const td = document.createElement('td');
+      td.colSpan = colunasTotal;
+      td.textContent = `Mostrando ${i} de ${entradas.length} — role para ver mais`;
+      sentinela.appendChild(td);
+      tbody.appendChild(sentinela);
+      if (typeof IntersectionObserver !== 'function') { sentinela.remove(); proximo(); return; }
+      observadorLotes = new IntersectionObserver(es => {
+        if (!es.some(e => e.isIntersecting)) return;
+        observadorLotes.disconnect();
+        sentinela.remove();
+        proximo();
+      }, { root: tableWrap, rootMargin: '600px 0px' });
+      observadorLotes.observe(sentinela);
+    };
+    proximo();
   }
 
   // ── 5. Renderização do Corpo da Tabela ───────────────────────────────────────
@@ -216,6 +291,8 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
     // Aplica ordenação
     const sorted = sortBaseNotes(filtered, activeSorts, schema);
+    visiveisIds = sorted.map(n => n.id);
+    linhasVisiveis = sorted;
 
     if (countBadge) countBadge.textContent = `${sorted.length} ${sorted.length === 1 ? 'nota' : 'notas'}`;
 
@@ -223,7 +300,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       const emptyRow = document.createElement('tr');
       const emptyTd = document.createElement('td');
       emptyTd.className = 'base-td-empty';
-      emptyTd.colSpan = columns.length;
+      emptyTd.colSpan = columns.length + (layout.rowNumbers ? 1 : 0) + (layout.selectable ? 1 : 0);
       emptyTd.innerHTML = '<span class="qd-icon material-symbols-rounded">inbox</span><span>Nenhuma nota encontrada</span>';
       emptyRow.appendChild(emptyTd);
       tbody.appendChild(emptyRow);
@@ -231,10 +308,35 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       return;
     }
 
-    for (const note of sorted) {
+    let contador = 0;
+    const buildRow = (note, sub = null) => {
+      const numero = ++contador;
       const tr = document.createElement('tr');
       tr.className = 'base-tr';
       tr.dataset.noteId = note.id;
+      const tomLinha = rowTone?.(note);
+      if (tomLinha) tr.classList.add(`tone-${tomLinha}`);
+      if (layout.selectable && selection) {
+        const tds = document.createElement('td'); tds.className = 'base-td base-td-sel';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = selection.has(note.id);
+        cb.setAttribute('aria-label', `Selecionar ${note.title || 'nota'}`);
+        tr.classList.toggle('is-selected', cb.checked);
+        cb.addEventListener('click', e => e.stopPropagation());
+        cb.addEventListener('change', e => {
+          // Shift+clique seleciona o intervalo desde a última marcada
+          if (e.shiftKey && container._lastSel != null) {
+            const a = visiveisIds.indexOf(container._lastSel), b2 = visiveisIds.indexOf(note.id);
+            if (a >= 0 && b2 >= 0) for (const id of visiveisIds.slice(Math.min(a, b2), Math.max(a, b2) + 1)) selection.add(id);
+          } else if (cb.checked) selection.add(note.id); else selection.delete(note.id);
+          container._lastSel = note.id;
+          tr.classList.toggle('is-selected', selection.has(note.id));
+          onSelectionChange();
+          if (e.shiftKey) renderTableBody();
+        });
+        congelaSel(tds);
+        tds.appendChild(cb); tr.appendChild(tds);
+      }
+      if (layout.rowNumbers) { const tdn = Object.assign(document.createElement('td'), { className: 'base-td base-td-num', textContent: String(numero) }); congelaNumero(tdn); tr.appendChild(tdn); }
 
       for (const colKey of columns) {
         const propDef = schema[colKey] || { key: colKey, type: 'text' };
@@ -243,11 +345,19 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         const td = document.createElement('td');
         td.className = `base-td base-td-${propDef.type}`;
         td.dataset.col = colKey;
+        congelaCelula(td, colKey);
+        const tomCelula = cellTone?.(note, colKey);
+        if (tomCelula) td.classList.add(`tone-${tomCelula}`);
 
         renderCellContent(td, note, colKey, propDef, rawVal);
+        if (sub && colKey === columns[0]) decoraSubitem(td, note, sub);
 
         // Clique simples ativa edição para checkbox; duplo clique ou clique para outros campos
+        td.tabIndex = -1;
+        td.setAttribute('role', 'gridcell');
+        td.addEventListener('pointerdown', () => { celulaAtiva = { noteId: note.id, key: colKey }; container.querySelectorAll('.is-active-cell').forEach(x => x.classList.remove('is-active-cell')); td.classList.add('is-active-cell'); td.focus({ preventScroll: true }); });
         td.addEventListener('click', e => {
+          if (propDef.isDerived || propDef.isUniqueId || SO_LEITURA.has(colKey)) return;
           if (propDef.type === 'checkbox' || propDef.type === 'select' || propDef.type === 'folder') {
             activateCellEditor(td, note, colKey, propDef, () => {
               renderTableBody();
@@ -256,6 +366,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         });
 
         td.addEventListener('dblclick', () => {
+          if (propDef.isDerived || propDef.isUniqueId || SO_LEITURA.has(colKey)) return;
           if (propDef.type !== 'checkbox' && propDef.type !== 'select' && propDef.type !== 'folder') {
             activateCellEditor(td, note, colKey, propDef, () => {
               renderTableBody();
@@ -266,10 +377,81 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         tr.appendChild(td);
       }
 
-      tbody.appendChild(tr);
+      return tr;
+    };
+
+    const grupoCfg = resolveGroupConfig(activeView);
+    const calcCfg = resolveCalc(activeView);
+    const getV = (n, p) => getNotePropertyValue(n, p);
+    // Linhas entram em lotes (cada entrada é uma função que cria a <tr>): o primeiro desenho de
+    // uma Base grande é rápido e o resto entra quando a pessoa chega perto do fim da tabela.
+    const entradas = [];
+    const paiProp = activeView.subItems?.parentProp;
+    if (!grupoCfg.prop && paiProp) {
+      // subitens: filhos indentados sob o pai, com recolher/expandir (guardado na view)
+      const fechadosSub = new Set((activeView.subItems?.collapsed || []).map(String));
+      for (const it of flattenSubitems(sorted, paiProp, getV, fechadosSub)) entradas.push(() => buildRow(it.note, it));
+    } else if (!grupoCfg.prop) {
+      for (const note of sorted) entradas.push(() => buildRow(note));
+    } else {
+      for (const g of groupNotes(sorted, grupoCfg, schema, getV)) {
+        const fechado = grupoCfg.collapsed.includes(g.key);
+        const gr = document.createElement('tr');
+        gr.className = 'base-group-row' + (fechado ? ' is-collapsed' : '');
+        gr.dataset.groupKey = g.key;
+        const tdTitulo = document.createElement('td');
+        tdTitulo.colSpan = 1 + (layout.rowNumbers ? 1 : 0) + (layout.selectable ? 1 : 0);
+        const toggle = document.createElement('button');
+        toggle.type = 'button'; toggle.className = 'base-group-toggle';
+        toggle.setAttribute('aria-expanded', String(!fechado));
+        toggle.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${fechado ? 'chevron_right' : 'expand_more'}</span>`;
+        const nome = document.createElement('span'); nome.className = 'base-group-label'; nome.textContent = g.label;
+        toggle.appendChild(nome);
+        if (grupoCfg.showCounts) { const c = document.createElement('span'); c.className = 'base-group-count'; c.textContent = String(g.count); toggle.appendChild(c); }
+        toggle.addEventListener('click', () => {
+          const novo = fechado ? grupoCfg.collapsed.filter(k => k !== g.key) : [...grupoCfg.collapsed, g.key];
+          activeView.group = { ...(activeView.group || {}), prop: grupoCfg.prop, collapsed: novo };
+          gravaView({ group: { collapsed: novo } });
+          if (!onViewChange) renderTableBody();
+        });
+        tdTitulo.appendChild(toggle);
+        gr.appendChild(tdTitulo);
+        // demais colunas: cálculo do grupo
+        columns.slice(1).forEach(colKey => {
+          const td = document.createElement('td');
+          td.className = 'base-group-calc';
+          if (calcCfg[colKey]) td.textContent = formatAggregate(calcCell(g.notes, colKey, calcCfg[colKey], schema));
+          gr.appendChild(td);
+        });
+        entradas.push(() => gr);
+        if (!fechado) for (const note of g.notes) entradas.push(() => buildRow(note));
+      }
     }
 
+    desenhaEmLotes(entradas);
     renderTableFooter(sorted);
+  }
+
+  // Subitens: recuo por nível + botão de recolher/expandir ao lado do título
+  function decoraSubitem(td, note, sub) {
+    td.style.paddingLeft = `${10 + sub.depth * 18}px`;
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'base-sub-toggle' + (sub.hasChildren ? '' : ' is-leaf');
+    if (sub.hasChildren) {
+      botao.setAttribute('aria-expanded', String(!sub.collapsed));
+      botao.setAttribute('aria-label', sub.collapsed ? 'Expandir subitens' : 'Recolher subitens');
+      botao.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${sub.collapsed ? 'chevron_right' : 'expand_more'}</span>`;
+      botao.addEventListener('click', e => {
+        e.stopPropagation();
+        const atual = new Set((activeView.subItems?.collapsed || []).map(String));
+        if (atual.has(String(note.id))) atual.delete(String(note.id)); else atual.add(String(note.id));
+        activeView.subItems = { ...(activeView.subItems || {}), collapsed: [...atual] };
+        gravaView({ subItems: { collapsed: [...atual] } });
+        if (!onViewChange) renderTableBody();
+      });
+    } else botao.disabled = true;
+    td.insertBefore(botao, td.firstChild);
   }
 
   // ── 6. Renderização de Célula Individual ────────────────────────────────────
@@ -296,11 +478,46 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
       titleLink.addEventListener('click', e => {
         e.preventDefault();
-        document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
+        if (onOpenNote) onOpenNote(note.id); else document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
       });
 
       td.appendChild(titleLink);
       return;
+    }
+
+    // Botão (ação): grava um valor numa propriedade desta nota
+    if (propDef.type === 'button') {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'base-action-btn';
+      b.textContent = propDef.buttonLabel || 'Executar';
+      const alvo = propDef.set;
+      b.disabled = !alvo?.prop || !onUpdateNote;
+      b.title = alvo?.prop ? `Define ${schema[alvo.prop]?.label || alvo.prop} = ${alvo.value}` : 'Botão sem ação configurada';
+      b.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!alvo?.prop) return;
+        b.disabled = true;
+        await onUpdateNote(note, { [alvo.prop]: alvo.value }, schema[alvo.prop]?.type ? { [alvo.prop]: schema[alvo.prop].type } : {});
+      });
+      td.appendChild(b);
+      return;
+    }
+
+    // E-mail, telefone e URL viram links (href montado só de valores validados)
+    if ((propDef.type === 'email' || propDef.type === 'phone' || propDef.type === 'url') && rawVal) {
+      const texto = String(rawVal).trim();
+      let href = null;
+      if (propDef.type === 'email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto)) href = `mailto:${texto}`;
+      else if (propDef.type === 'phone' && /^\+?[\d\s().-]{6,}$/.test(texto)) href = `tel:${texto.replace(/[^\d+]/g, '')}`;
+      else if (propDef.type === 'url' && /^https?:\/\//i.test(texto)) href = texto;
+      if (href) {
+        const a = document.createElement('a');
+        a.href = href; a.textContent = texto; a.className = 'base-cell-link';
+        if (propDef.type === 'url') { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+        a.addEventListener('click', e => e.stopPropagation());
+        td.appendChild(a);
+        return;
+      }
     }
 
     if (propDef.type === 'checkbox') {
@@ -319,9 +536,9 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         const color = typeof opt === 'object' && opt?.color ? opt.color : 'var(--accent)';
         const badge = document.createElement('span');
         badge.className = 'base-select-badge';
-        badge.style.background = `color-mix(in srgb, ${color} 18%, transparent)`;
-        badge.style.color = color;
-        badge.style.border = `1px solid color-mix(in srgb, ${color} 35%, transparent)`;
+        badge.style.background = `color-mix(in oklch, ${color} 18%, transparent)`;
+        badge.style.color = `color-mix(in oklch, ${color} 45%, var(--text))`;
+        badge.style.border = `1px solid color-mix(in oklch, ${color} 35%, transparent)`;
         badge.textContent = String(rawVal);
         td.appendChild(badge);
       } else {
@@ -364,52 +581,79 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       return;
     }
 
+    // Número com barra/anel de progresso (formato da propriedade)
+    if (propDef.type === 'number' && rawVal !== undefined && rawVal !== null && rawVal !== ''
+        && (propDef.format?.kind === 'progress-bar' || propDef.format?.kind === 'progress-ring')) {
+      const pct = Math.round(progressPercent(rawVal, propDef.format));
+      const caixa = document.createElement('div');
+      caixa.className = 'base-tasks-progress';
+      caixa.title = `${pct}%`;
+      const barra = document.createElement('div'); barra.className = 'base-tasks-bar';
+      const fill = document.createElement('div'); fill.className = 'base-tasks-fill'; fill.style.width = `${pct}%`;
+      barra.appendChild(fill);
+      const t = document.createElement('span'); t.className = 'base-tasks-text'; t.textContent = `${pct}%`;
+      caixa.append(barra, t);
+      td.appendChild(caixa);
+      return;
+    }
+
     // Texto, número, data e outros tipos padrão
     const formatted = formatPropertyValue(rawVal, propDef.type, propDef);
     td.textContent = formatted || '—';
     if (!formatted) td.classList.add('base-cell-empty');
   }
 
-  // ── 7. Renderização do Rodapé com Cálculos e Resumos ─────────────────────────
+  // ── 7. Rodapé com cálculos por coluna (ver table/table-footer.js) ───────────
   function renderTableFooter(currentFilteredNotes) {
-    tfoot.innerHTML = '';
-    const tr = document.createElement('tr');
-    tr.className = 'base-tfoot-tr';
-
-    const summaries = calculateBaseSummaries(currentFilteredNotes, activeView.summaries, schema);
-
-    for (const colKey of columns) {
-      const propDef = schema[colKey] || { key: colKey, type: 'text' };
-      const td = document.createElement('td');
-      td.className = 'base-tfoot-td';
-      td.dataset.col = colKey;
-
-      const summary = summaries[colKey];
-      if (summary) {
-        td.innerHTML = `
-          <div class="base-summary-content" title="${summary.metric}">
-            <span class="base-summary-label">${summary.metric}:</span>
-            <span class="base-summary-value">${typeof summary.value === 'number' ? summary.value.toLocaleString('pt-BR') : summary.value}</span>
-          </div>
-        `;
-      } else {
-        // Botão sutil para adicionar resumo se coluna numérica
-        const addSummaryBtn = document.createElement('button');
-        addSummaryBtn.className = 'base-add-summary-btn';
-        addSummaryBtn.textContent = '+ Calcular';
-        addSummaryBtn.onclick = () => {
-          activeView.summaries[colKey] = propDef.type === 'number' ? 'sum' : 'count';
-          onDefChange(baseDef);
-          renderTableFooter(currentFilteredNotes);
-        };
-        td.appendChild(addSummaryBtn);
-      }
-
-      tr.appendChild(td);
-    }
-
-    tfoot.appendChild(tr);
+    desenhaRodape(tfoot, { notes: currentFilteredNotes, columns, schema, view: activeView, rowNumbers: layout.rowNumbers },
+      patch => { gravaView(patch); if (!onViewChange) { activeView.calc = { ...resolveCalc(activeView), ...patch.calc }; renderTableFooter(currentFilteredNotes); } });
   }
+
+  // Teclado (4.12): setas movem entre células, Enter abre a nota (título) ou edita, Espaço marca a linha
+  container.addEventListener('keydown', e => {
+    const td = e.target.closest?.('td.base-td');
+    if (!td || e.target !== td) return;                       // dentro de um editor/controle: não interfere
+    const tr = td.parentElement;
+    const celulas = [...tr.querySelectorAll('td.base-td[data-col]')];
+    const i = celulas.indexOf(td);
+    const vai = alvo => { if (alvo) { e.preventDefault(); alvo.focus(); alvo.dispatchEvent(new Event('pointerdown')); } };
+    switch (e.key) {
+      case 'ArrowRight': vai(celulas[i + 1]); break;
+      case 'ArrowLeft': vai(celulas[i - 1]); break;
+      case 'ArrowDown': { let n = tr.nextElementSibling; while (n && !n.matches('tr.base-tr')) n = n.nextElementSibling; vai(n?.querySelectorAll('td.base-td[data-col]')[i]); break; }
+      case 'ArrowUp': { let n = tr.previousElementSibling; while (n && !n.matches('tr.base-tr')) n = n.previousElementSibling; vai(n?.querySelectorAll('td.base-td[data-col]')[i]); break; }
+      case 'Enter': {
+        e.preventDefault();
+        if (td.dataset.col === 'title') td.querySelector('a')?.click();
+        else td.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        break;
+      }
+      case ' ': { const cb = tr.querySelector('.base-td-sel input'); if (cb) { e.preventDefault(); cb.click(); } break; }
+      default: break;
+    }
+  });
+
+  // Colar de planilha: a célula clicada é o canto superior esquerdo. Tudo ou nada.
+  container.addEventListener('paste', async e => {
+    if (!onPasteWrites || !celulaAtiva || e.target.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+    const texto = e.clipboardData?.getData('text/plain') ?? '';
+    if (!texto.includes('\t') && !texto.includes('\n')) return;       // um valor só: deixa o fluxo normal
+    const inicio = { row: linhasVisiveis.findIndex(n => n.id === celulaAtiva.noteId), col: columns.indexOf(celulaAtiva.key) };
+    if (inicio.row < 0 || inicio.col < 0) return;
+    e.preventDefault();
+    const plano = planPaste(parseClipboardGrid(texto), inicio, linhasVisiveis, columns, schema);
+    if (plano.errors.length) {
+      // destaca as células com problema e NÃO grava nada
+      for (const er of plano.errors) {
+        const tr = tbody.querySelector(`tr[data-note-id="${linhasVisiveis[er.row]?.id}"]`);
+        tr?.querySelector(`td[data-col="${er.key}"]`)?.classList.add('is-paste-error');
+      }
+      window.alert(`Nada foi colado: ${plano.errors.length} célula(s) com problema.\n\n${plano.errors.slice(0, 6).map(er => `• linha ${er.row + 1}, ${schema[er.key]?.label || er.key}: ${er.motivo}`).join('\n')}${plano.errors.length > 6 ? '\n…' : ''}`);
+      return;
+    }
+    if (!plano.writes.length) return;
+    await onPasteWrites(writesToPatches(plano.writes, linhasVisiveis));
+  });
 
   // Inicializa componentes
   renderTableHeader();
@@ -428,6 +672,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
   document.addEventListener('quickdock:note-updated', onNoteUpdated);
   container._cleanup = () => {
+    observadorLotes?.disconnect();
     document.removeEventListener('quickdock:note-updated', onNoteUpdated);
   };
 
@@ -468,6 +713,15 @@ export function renderBaseTableView(container, notes, schema, viewConfig = {}, c
     activeView: viewConfig,
     schema,
     onDefChange: callbacks.onDefChange || (() => {}),
+    onViewChange: callbacks.onUpdateView || null,
+    rowTone: callbacks.rowTone,
+    // só intercepta o clique quando a view abre em prévia; senão mantém o caminho antigo (evento de ativar nota)
+    onOpenNote: callbacks.peekActive ? callbacks.onOpenNote : null,
+    cellTone: callbacks.cellTone,
+    onPasteWrites: callbacks.onPasteWrites || null,
+    onUpdateNote: callbacks.onUpdateNoteProperties || null,
+    selection: callbacks.selection || null,
+    onSelectionChange: callbacks.onSelectionChange || (() => {}),
     showOwnToolbar: callbacks.showOwnToolbar,
   });
   container.appendChild(tableEl);

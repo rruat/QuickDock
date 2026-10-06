@@ -1,0 +1,22 @@
+/* ── 31-bases-tones.css — tons de formatação condicional das Bases (OKLCH) ──
+   Fundo e texto definidos juntos; diferença de L ≥ 55 nos dois temas
+   (claro: fundo 93 / texto 33 → 60; escuro: fundo 32 / texto 90 → 58). ── */
+.tone-gray { background: oklch(93% 0.015 260); color: oklch(33% 0.01 260); }
+.tone-red { background: oklch(93% 0.06 25); color: oklch(33% 0.12 25); }
+.tone-orange { background: oklch(93% 0.06 55); color: oklch(33% 0.12 55); }
+.tone-yellow { background: oklch(93% 0.06 95); color: oklch(33% 0.12 95); }
+.tone-green { background: oklch(93% 0.06 150); color: oklch(33% 0.12 150); }
+.tone-teal { background: oklch(93% 0.06 190); color: oklch(33% 0.12 190); }
+.tone-blue { background: oklch(93% 0.06 250); color: oklch(33% 0.12 250); }
+.tone-purple { background: oklch(93% 0.06 300); color: oklch(33% 0.12 300); }
+.tone-pink { background: oklch(93% 0.06 350); color: oklch(33% 0.12 350); }
+
+[data-theme="dark"] .tone-gray { background: oklch(32% 0.02 260); color: oklch(90% 0.01 260); }
+[data-theme="dark"] .tone-red { background: oklch(32% 0.07 25); color: oklch(90% 0.06 25); }
+[data-theme="dark"] .tone-orange { background: oklch(32% 0.07 55); color: oklch(90% 0.06 55); }
+[data-theme="dark"] .tone-yellow { background: oklch(32% 0.07 95); color: oklch(90% 0.06 95); }
+[data-theme="dark"] .tone-green { background: oklch(32% 0.07 150); color: oklch(90% 0.06 150); }
+[data-theme="dark"] .tone-teal { background: oklch(32% 0.07 190); color: oklch(90% 0.06 190); }
+[data-theme="dark"] .tone-blue { background: oklch(32% 0.07 250); color: oklch(90% 0.06 250); }
+[data-theme="dark"] .tone-purple { background: oklch(32% 0.07 300); color: oklch(90% 0.06 300); }
+[data-theme="dark"] .tone-pink { background: oklch(32% 0.07 350); color: oklch(90% 0.06 350); }

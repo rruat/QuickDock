@@ -4,6 +4,10 @@
 // atualizando automaticamente a propriedade correspondente no frontmatter.
 
 import { formatPropertyValue } from './bases-schema.js';
+import { getViewProps, resolveGroupConfig, resolveSubGroup, resolveCalc } from './config/view-model.js';
+import { groupNotes, EMPTY_KEY } from './engine/group-engine.js';
+import { aggregate, formatAggregate } from './engine/aggregate-engine.js';
+import { resolveManualOrder, manualOrderActive, applyManualOrder, moveInOrder, dropBeforeId, scopeKey } from './engine/manual-order.js';
 import { getNotePropertyValue, queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { createNoteRecord, updateNoteMetaById } from '../storage.js';
 
@@ -18,15 +22,16 @@ import { createNoteRecord, updateNoteMetaById } from '../storage.js';
  * @param {Function} params.onDefChange Callback ao alterar configuração
  * @returns {HTMLElement}
  */
-export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, showOwnToolbar = true }) {
+export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, onOpenNote = null, rowTone = null }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-board-view';
 
   let currentNotes = [...notes];
   let quickSearchQuery = '';
-  const groupByProp = activeView.groupBy || 'status';
+  const groupByProp = resolveGroupConfig(activeView).prop || 'status';
   const groupDef = schema[groupByProp] || { key: groupByProp, type: 'select', options: [] };
-  const cardProps = Array.isArray(activeView.cardProperties) ? activeView.cardProperties : ['tags', 'prazo', 'prioridade'];
+  const cardProps = Array.isArray(activeView.props ?? activeView.cardProperties)
+    ? getViewProps(activeView) : ['tags', 'prazo', 'prioridade'];
 
   // ── Barra de ferramentas do Kanban ──────────────────────────────────────────
   // showOwnToolbar=false quando montada dentro de bases-view-container.js —
@@ -62,31 +67,21 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
   boardWrap.className = 'base-board-columns-wrap';
   container.appendChild(boardWrap);
 
-  function getColumnsConfig() {
-    const cols = [];
-
-    // Colunas definidas nas opções de select
-    if (Array.isArray(groupDef.options) && groupDef.options.length > 0) {
-      for (const opt of groupDef.options) {
-        const id = typeof opt === 'string' ? opt : (opt.id || opt.label);
-        const label = typeof opt === 'string' ? opt : (opt.label || opt.id);
-        const color = typeof opt === 'object' && opt.color ? opt.color : 'var(--accent)';
-        cols.push({ id, label, color });
-      }
-    } else {
-      // Descobre valores únicos presentes nas notas
-      const uniqueVals = new Set();
-      for (const n of currentNotes) {
-        const v = getNotePropertyValue(n, groupByProp);
-        if (v !== undefined && v !== null && v !== '') uniqueVals.add(String(v));
-      }
-      for (const val of uniqueVals) {
-        cols.push({ id: val, label: val, color: 'var(--accent)' });
-      }
+  // Colunas = grupos do group-engine (ordem das opções, ocultar vazios/colunas, "Sem valor" no fim)
+  function getColumnsConfig(filtered) {
+    const cfg = { ...resolveGroupConfig(activeView), prop: groupByProp, granularity: null, range: null };
+    const cor = id => {
+      const opt = (groupDef.options || []).find(o => (typeof o === 'string' ? o : (o.id || o.label)) === id);
+      return typeof opt === 'object' && opt?.color ? opt.color : 'var(--accent)';
+    };
+    const cols = groupNotes(filtered, cfg, schema, getNotePropertyValue).map(g => ({
+      id: g.key, label: g.empty ? 'Sem ' + (groupDef.label || groupByProp) : g.label,
+      color: g.empty ? 'var(--text-muted)' : cor(g.key), notes: g.notes,
+    }));
+    // "Sem valor" sempre disponível como destino de arrastar, salvo se a pessoa ocultou
+    if (!cfg.hideEmpty && !cfg.hidden.includes(EMPTY_KEY) && !cols.some(c => c.id === EMPTY_KEY)) {
+      cols.push({ id: EMPTY_KEY, label: 'Sem ' + (groupDef.label || groupByProp), color: 'var(--text-muted)', notes: [] });
     }
-
-    // Coluna "Sem valor" sempre disponível
-    cols.push({ id: '__empty__', label: 'Sem ' + (groupDef.label || groupByProp), color: 'var(--text-muted)' });
     return cols;
   }
 
@@ -101,21 +96,53 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
     });
 
     if (countBadge) countBadge.textContent = `${filtered.length} ${filtered.length === 1 ? 'nota' : 'notas'}`;
-    const columnsConfig = getColumnsConfig();
+    const columnsConfig = getColumnsConfig(filtered);
+    const calcCfg = resolveCalc(activeView);
+    const limite = Number(activeView.wip) > 0 ? Number(activeView.wip) : 0;
+    boardWrap.className = 'base-board-columns-wrap base-board-' + (['small', 'large'].includes(activeView.card?.size) ? activeView.card.size : 'medium');
 
+    // Sub-grupo (raias): cada valor da propriedade vira uma faixa horizontal com as MESMAS colunas
+    const subCfg = resolveSubGroup(activeView);
+    if (!subCfg.prop) {
+      desenhaColunas(boardWrap, columnsConfig, null);
+    } else {
+      boardWrap.classList.add('has-lanes');
+      for (const raia of groupNotes(filtered, { prop: subCfg.prop, order: 'manual' }, schema, getNotePropertyValue)) {
+        const fechada = subCfg.collapsed.includes(raia.key);
+        const sec = document.createElement('section');
+        sec.className = 'base-lane' + (fechada ? ' is-collapsed' : '');
+        const cab = document.createElement('button');
+        cab.type = 'button'; cab.className = 'base-group-header base-lane-header';
+        cab.setAttribute('aria-expanded', String(!fechada));
+        cab.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${fechada ? 'chevron_right' : 'expand_more'}</span>`;
+        const nome = document.createElement('span'); nome.className = 'base-group-label'; nome.textContent = raia.label;
+        const cont = document.createElement('span'); cont.className = 'base-group-count'; cont.textContent = String(raia.count);
+        cab.append(nome, cont);
+        cab.addEventListener('click', () => onViewChange?.({ subGroup: { collapsed: fechada ? subCfg.collapsed.filter(k => k !== raia.key) : [...subCfg.collapsed, raia.key] } }));
+        sec.appendChild(cab);
+        if (!fechada) {
+          const corpo = document.createElement('div');
+          corpo.className = 'base-lane-columns';
+          const naRaia = new Set(raia.notes);
+          desenhaColunas(corpo, columnsConfig.map(c => ({ ...c, notes: c.notes.filter(n => naRaia.has(n)) })), raia);
+          sec.appendChild(corpo);
+        }
+        boardWrap.appendChild(sec);
+      }
+    }
+  }
+
+  function desenhaColunas(host, columnsConfig, raia) {
+    const calcCfg = resolveCalc(activeView);
+    const limite = Number(activeView.wip) > 0 ? Number(activeView.wip) : 0;
     for (const col of columnsConfig) {
       const colEl = document.createElement('div');
       colEl.className = 'base-board-column';
       colEl.dataset.colId = col.id;
 
-      // Notas pertencentes a esta coluna
-      const colNotes = filtered.filter(n => {
-        const val = getNotePropertyValue(n, groupByProp);
-        if (col.id === '__empty__') {
-          return val === undefined || val === null || val === '';
-        }
-        return String(val) === col.id;
-      });
+      const escopo = scopeKey(raia && !raia.empty ? raia.key : null, col.id);
+      const colNotes = manualOrderActive(activeView) ? applyManualOrder(col.notes, resolveManualOrder(activeView)[escopo]) : col.notes;
+      if (limite && colNotes.length > limite) colEl.classList.add('is-over-wip');
 
       // Cabeçalho da coluna
       const colHeader = document.createElement('div');
@@ -126,9 +153,9 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
 
       const badge = document.createElement('span');
       badge.className = 'base-column-badge';
-      badge.style.background = `color-mix(in srgb, ${col.color} 20%, transparent)`;
-      badge.style.color = col.color;
-      badge.style.borderColor = `color-mix(in srgb, ${col.color} 40%, transparent)`;
+      badge.style.background = `color-mix(in oklch, ${col.color} 20%, transparent)`;
+      badge.style.color = `color-mix(in oklch, ${col.color} 45%, var(--text))`;
+      badge.style.borderColor = `color-mix(in oklch, ${col.color} 40%, transparent)`;
       badge.textContent = col.label;
 
       const colCount = document.createElement('span');
@@ -136,6 +163,15 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       colCount.textContent = colNotes.length;
 
       titleWrap.append(badge, colCount);
+      if (limite) colCount.textContent = `${colNotes.length}/${limite}`;
+      for (const [k, agg] of Object.entries(calcCfg)) {
+        const r = aggregate(colNotes.map(n => getNotePropertyValue(n, k)), agg, schema[k]?.type);
+        const t = document.createElement('span');
+        t.className = 'base-column-calc';
+        t.title = `${r.label} de ${schema[k]?.label || k}`;
+        t.textContent = formatAggregate(r);
+        titleWrap.appendChild(t);
+      }
 
       const addBtn = document.createElement('button');
       addBtn.className = 'base-column-add-btn';
@@ -144,6 +180,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       addBtn.onclick = async () => {
         const initialProps = {};
         if (col.id !== '__empty__') initialProps[groupByProp] = col.id;
+        if (raia && !raia.empty) initialProps[resolveSubGroup(activeView).prop] = raia.key;
         if (baseDef.source?.tag) initialProps.tags = [baseDef.source.tag.replace(/^#/, '')];
 
         const nova = await createNoteRecord({
@@ -164,7 +201,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       const cardsList = document.createElement('div');
       cardsList.className = 'base-column-cards';
 
-      setupDropZone(cardsList, col.id);
+      setupDropZone(cardsList, col.id, raia);
 
       for (const note of colNotes) {
         const cardEl = renderBoardCard(note, cardProps, schema);
@@ -172,7 +209,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       }
 
       colEl.appendChild(cardsList);
-      boardWrap.appendChild(colEl);
+      host.appendChild(colEl);
     }
   }
 
@@ -181,6 +218,8 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
     card.className = 'base-board-card';
     card.draggable = true;
     card.dataset.noteId = note.id;
+    const tom = rowTone?.(note);
+    if (tom) card.classList.add(`tone-${tom}`);
 
     // Cabeçalho do card: Ícone + Título
     const titleEl = document.createElement('div');
@@ -202,7 +241,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
 
     titleEl.onclick = e => {
       e.stopPropagation();
-      document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
+      if (onOpenNote) onOpenNote(note.id); else document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: note.id } }));
     };
 
     // Propriedades exibidas no card
@@ -251,7 +290,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
     return card;
   }
 
-  function setupDropZone(cardsList, targetColId) {
+  function setupDropZone(cardsList, targetColId, raia = null) {
     cardsList.addEventListener('dragover', e => {
       e.preventDefault();
       cardsList.classList.add('drag-over');
@@ -273,15 +312,35 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       const note = currentNotes.find(n => n.id === noteId);
       if (!note) return;
 
+      // posição do soltar: antes do primeiro cartão cujo meio está abaixo do ponteiro
+      const cartoes = [...cardsList.querySelectorAll('.base-board-card')].filter(c => Number(c.dataset.noteId) !== noteId);
+      const antesDe = dropBeforeId(cartoes.map(c => { const r = c.getBoundingClientRect(); return { id: c.dataset.noteId, top: r.top, height: r.height }; }), e.clientY);
+      const idsAtuais = cartoes.map(c => c.dataset.noteId);
+
       const newVal = targetColId === '__empty__' ? null : targetColId;
       if (!note.properties) note.properties = {};
+      const antes = JSON.stringify([note.properties[groupByProp], raia ? note.properties[resolveSubGroup(activeView).prop] : null]);
       if (newVal === null) delete note.properties[groupByProp];
       else note.properties[groupByProp] = newVal;
+      // soltar numa raia também muda o valor do sub-grupo (o cartão muda de faixa)
+      if (raia) {
+        const sp = resolveSubGroup(activeView).prop;
+        if (raia.empty) delete note.properties[sp]; else note.properties[sp] = raia.key;
+      }
+      const mudou = antes !== JSON.stringify([note.properties[groupByProp], raia ? note.properties[resolveSubGroup(activeView).prop] : null]);
 
-      await updateNoteMetaById(note.id, { properties: { ...note.properties } });
+      if (mudou) {
+        await updateNoteMetaById(note.id, { properties: { ...note.properties } });
+        document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id, note } }));
+      }
 
-      document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id, note } }));
-      renderBoard();
+      // ordem manual da coluna (guardada na view); ordenar por propriedade fica desligado a partir daqui
+      if (onViewChange) {
+        const escopo = scopeKey(raia && !raia.empty ? raia.key : null, targetColId);
+        onViewChange({ manualOrder: { [escopo]: moveInOrder(idsAtuais, noteId, antesDe) }, sort: undefined });
+      } else {
+        renderBoard();
+      }
     });
   }
 
@@ -322,6 +381,10 @@ export function renderBaseBoardView(container, notes, schema, viewConfig = {}, c
     schema,
     onDefChange: callbacks.onDefChange || (() => {}),
     showOwnToolbar: callbacks.showOwnToolbar,
+    rowTone: callbacks.rowTone,
+    // só intercepta o clique quando a view abre em prévia; senão mantém o caminho antigo (evento de ativar nota)
+    onOpenNote: callbacks.peekActive ? callbacks.onOpenNote : null,
+    onViewChange: callbacks.onUpdateView || null,
   });
   container.appendChild(boardEl);
 }

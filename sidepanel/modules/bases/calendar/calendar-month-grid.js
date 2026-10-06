@@ -57,6 +57,8 @@ export function renderMonthGrid(body, ctx) {
 
       const topo = el('div', 'bcal-month-cell-head');
       topo.appendChild(el('span', 'bcal-month-day-num', String(Number(ymd.slice(8)))));
+      const feriado = ctx.holidays?.get(ymd);
+      if (feriado) { const f = el('span', 'bcal-holiday', feriado); f.title = feriado; cel.classList.add('is-holiday'); topo.appendChild(f); }
       const add = el('button', 'bcal-day-add');
       add.type = 'button';
       add.title = `Nova nota em ${ymd.split('-').reverse().join('/')}`;

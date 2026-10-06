@@ -9,6 +9,23 @@
 import { VIEW_TYPES } from '../config/view-model.js';
 import { el, section, row } from './controls.js';
 import { calendarSections } from './section-calendar.js';
+import { propertiesSection } from './section-properties.js';
+import { filterSection } from './section-filter.js';
+import { sortSection } from './section-sort.js';
+import { groupSection } from './section-group.js';
+import { layoutSection } from './section-layout.js';
+import { cardSection } from './section-card.js';
+import { boardSection } from './section-board.js';
+import { colorSection } from './section-color.js';
+import { derivedSection } from './section-derived.js';
+import { formatSection } from './section-format.js';
+import { chartSections } from './section-chart.js';
+import { timelineSections } from './section-timeline.js';
+import { mapSections } from './section-map.js';
+import { newNoteSection } from './section-new.js';
+import { statusSection } from './section-status.js';
+import { sourceSection } from './section-source.js';
+import { dashboardSections } from './section-dashboard.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -65,12 +82,42 @@ export function mountViewSettingsPanel(host, api) {
   corpo.appendChild(secaoGeral(api));
 
   const patch = p => api.onPatch(p);
+  if (view.locked) corpo.appendChild(el('p', 'bset-hint bset-locked', '🔒 View bloqueada: desbloqueie pelo menu ⋯ da aba para alterar filtros, ordenação e layout.'));
+  const ctx = { view, schema: api.getSchema(), memoria, patch };
   if (view.type === 'calendar') {
-    for (const s of calendarSections({ view, schema: api.getSchema(), memoria, patch })) corpo.appendChild(s);
+    for (const s of calendarSections(ctx)) corpo.appendChild(s);
+  } else if (view.type === 'chart') {
+    for (const s of chartSections(ctx)) corpo.appendChild(s);
+  } else if (view.type === 'dashboard') {
+    for (const s of dashboardSections({ view, views: api.getViews ? api.getViews() : [], memoria, patch })) corpo.appendChild(s);
+  } else if (view.type === 'map') {
+    for (const s of mapSections(ctx)) corpo.appendChild(s);
+  } else if (view.type === 'timeline') {
+    for (const s of timelineSections(ctx)) corpo.appendChild(s);
+    corpo.appendChild(propertiesSection(ctx));
+    const gt = groupSection(ctx);
+    if (gt) corpo.appendChild(gt);
   } else {
-    const aviso = el('p', 'bset-hint', 'Mais configurações deste tipo de view chegam nas próximas etapas.');
-    corpo.appendChild(aviso);
+    const lay = layoutSection(ctx) || cardSection(ctx);
+    if (lay) corpo.appendChild(lay);
+    corpo.appendChild(propertiesSection(ctx));
+    const grupo = groupSection(ctx);
+    if (grupo) corpo.appendChild(grupo);
+    const quadro = boardSection(ctx);
+    if (quadro) corpo.appendChild(quadro);
   }
+  if (view.type !== 'dashboard') corpo.appendChild(filterSection(ctx));
+  if (!['calendar', 'chart', 'timeline', 'map', 'dashboard'].includes(view.type)) corpo.appendChild(sortSection(ctx));
+  const cor = colorSection(ctx);
+  if (cor) corpo.appendChild(cor);
+  corpo.appendChild(newNoteSection({ view, templates: api.getTemplates ? api.getTemplates() : [], memoria, patch }));
+  if (api.getBaseProps) {
+    const fmt = formatSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) });
+    if (fmt) corpo.appendChild(fmt);
+  }
+  if (api.getLinkInfo) corpo.appendChild(sourceSection({ info: api.getLinkInfo(), memoria, patchSource: p => api.onSourcePatch(p) }));
+  if (api.getBaseProps) corpo.appendChild(statusSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) }));
+  if (api.getBaseProps) corpo.appendChild(derivedSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p), fillIds: (k, d) => api.onFillIds?.(k, d) }));
 
   const onKey = e => { if (e.key === 'Escape') api.onClose(); };
   host.addEventListener('keydown', onKey);

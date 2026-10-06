@@ -3,6 +3,7 @@
 // Funções puras sem DOM nem Dexie — 100% testável no Node.js.
 
 import { PROPERTY_TYPES, inferirTipoPropriedade } from '../property-types.js';
+import { formatNumber, formatDateValue } from './engine/format.js';
 
 /**
  * Catálogo estendido de tipos de propriedade suportados nas Bases:
@@ -14,6 +15,11 @@ export const BASE_PROPERTY_TYPES = {
   link:     { icon: 'link',                   label: 'Link interno' },
   url:      { icon: 'open_in_new',            label: 'URL' },
   formula:  { icon: 'functions',              label: 'Fórmula' },
+  email:    { icon: 'mail',                   label: 'E-mail' },
+  phone:    { icon: 'call',                   label: 'Telefone' },
+  button:   { icon: 'smart_button',           label: 'Botão' },
+  uid:      { icon: 'tag',                    label: 'ID único' },
+  reverse:  { icon: 'swap_horiz',             label: 'Relação inversa' },
   folder:   { icon: 'folder',                 label: 'Pasta' },
   tasks:    { icon: 'checklist_rtl',          label: 'Tarefas' },
 };
@@ -23,6 +29,10 @@ export const BASE_PROPERTY_TYPES = {
  */
 export function formatPropertyValue(val, type = 'text', options = {}) {
   if (val === null || val === undefined) return '';
+  // formato novo (objeto em options.format) — ver engine/format.js; o formato antigo é texto ('currency_brl')
+  const fmt = options && typeof options.format === 'object' ? options.format : null;
+  if (fmt && type === 'number') { const t = formatNumber(val, fmt); if (t !== null) return t; }
+  if (fmt && (type === 'date' || type === 'datetime')) { const t = formatDateValue(val, fmt); if (t !== null) return t; }
 
   switch (type) {
     case 'checkbox':
@@ -167,6 +177,24 @@ export function parsePropertyInput(rawInput, type = 'text') {
  * @param {Object} explicitProperties Propriedades declaradas na base
  * @returns {Object} Mapa de propriedades: chave -> { key, label, type, options, width, isSystem }
  */
+export const STATUS_GROUPS = [
+  { id: 'todo', label: 'A fazer', color: 'oklch(50% 0.03 260)' },
+  { id: 'progress', label: 'Em andamento', color: 'oklch(50% 0.16 255)' },
+  { id: 'complete', label: 'Concluído', color: 'oklch(48% 0.14 150)' },
+];
+
+/** Opções de status normalizadas: { id, label, group, color } (cor padrão = a do grupo). */
+export function normalizeStatusOptions(options) {
+  const grupo = id => STATUS_GROUPS.find(g => g.id === id) || STATUS_GROUPS[0];
+  return (Array.isArray(options) ? options : [])
+    .map(o => (typeof o === 'string' ? { label: o } : o))
+    .filter(o => o && (o.label || o.id))
+    .map(o => {
+      const g = grupo(o.group);
+      return { id: o.id || o.label, label: o.label || o.id, group: g.id, color: o.color || g.color };
+    });
+}
+
 export function inferBaseSchema(notes = [], explicitProperties = {}) {
   const schema = {};
 
@@ -219,6 +247,22 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
     isSystem: true,
   };
 
+  schema['wordCount'] = {
+    key: 'wordCount',
+    label: 'Palavras',
+    type: 'number',
+    width: 100,
+    isSystem: true,
+  };
+
+  schema['hasCover'] = {
+    key: 'hasCover',
+    label: 'Tem capa',
+    type: 'checkbox',
+    width: 100,
+    isSystem: true,
+  };
+
   // Descobre propriedades de frontmatter nas notas
   for (const note of notes) {
     if (!note || !note.properties || typeof note.properties !== 'object') continue;
@@ -237,6 +281,8 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
       } else if (typeof propVal === 'string') {
         if (/^\d{4}-\d{2}-\d{2}$/.test(propVal)) detectedType = 'date';
         else if (/^https?:\/\//i.test(propVal)) detectedType = 'url';
+        else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(propVal)) detectedType = 'email';
+        else if (/^\+?[\d\s().-]{8,}$/.test(propVal) && (propVal.match(/\d/g) || []).length >= 8) detectedType = 'phone';
         else if (/^\[\[.+\]\]$/.test(propVal)) detectedType = 'link';
         else detectedType = inferirTipoPropriedade(propKey, note.propertyTypes);
       }
@@ -257,16 +303,43 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
       schema[key] = {
         key,
         label: def.label || key,
-        type: def.type || 'text',
+        type: (def.type === 'formula' || def.type === 'rollup') ? (def.result || (def.type === 'rollup' ? 'number' : 'text')) : (def.type || 'text'),
         width: def.width || 160,
         options: def.options || [],
         isSystem: false,
+        ...(def.format ? { format: def.format } : {}),
+        ...(def.type === 'reverse' ? { type: 'list', isDerived: 'reverse' } : {}),
+        ...(def.type === 'uid' ? { type: 'text', isUniqueId: true, idPrefix: def.prefix || '', idDigits: def.digits || 0 } : {}),
+        ...(def.type === 'button' ? { type: 'button', isDerived: 'button', buttonLabel: def.label || 'Executar', set: def.set || null } : {}),
+        ...(def.type === 'status' ? { type: 'select', isStatus: true, options: normalizeStatusOptions(def.options) } : {}),
+        ...((def.type === 'formula' || def.type === 'rollup') ? { isDerived: def.type, expr: def.expr } : {}),
       };
     } else {
       if (def.label)   schema[key].label = def.label;
       if (def.type)    schema[key].type = def.type;
+      if (def.type === 'button') {
+        // Botão (ação): grava `set.value` em `set.prop` da nota da linha; não é um valor editável
+        schema[key].type = 'button';
+        schema[key].isDerived = 'button';
+        schema[key].buttonLabel = def.label || 'Executar';
+        schema[key].set = def.set && typeof def.set === 'object' ? { prop: def.set.prop, value: def.set.value } : null;
+      }
+      if (def.type === 'reverse') { schema[key].type = 'list'; schema[key].isDerived = 'reverse'; }
+      if (def.type === 'uid') { schema[key].type = 'text'; schema[key].isUniqueId = true; schema[key].idPrefix = def.prefix || ''; schema[key].idDigits = def.digits || 0; }
+      if (def.type === 'formula' || def.type === 'rollup') {
+        schema[key].type = def.result || (def.type === 'rollup' ? 'number' : 'text');
+        schema[key].isDerived = def.type;
+        if (def.expr !== undefined) schema[key].expr = def.expr;
+      }
       if (def.width)   schema[key].width = def.width;
       if (def.options) schema[key].options = def.options;
+      if (def.format)  schema[key].format = def.format;
+      if (def.type === 'status') {
+        // Status = seleção cujas opções pertencem a grupos (A fazer · Em andamento · Concluído)
+        schema[key].type = 'select';
+        schema[key].isStatus = true;
+        schema[key].options = normalizeStatusOptions(def.options);
+      }
     }
   }
 

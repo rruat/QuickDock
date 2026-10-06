@@ -9,11 +9,14 @@
 
 import { getNotePropertyValue } from './bases-engine.js';
 import { resolveCalendarConfig } from './config/view-model.js';
-import { toYMD, todayYMD } from './engine/date-utils.js';
-import { buildCalendarEvents, bucketEventsByDay, pickDefaultDateProp } from './calendar/calendar-model.js';
+import { toYMD, todayYMD, addMonths } from './engine/date-utils.js';
+import { buildCalendarEvents, bucketEventsByDay, pickDefaultDateProp, eventDays } from './calendar/calendar-model.js';
 import { visibleRange, shiftAnchor, sanitizeAnchor } from './calendar/calendar-nav.js';
 import { buildMovePatch, buildResizePatch, buildCreateProps } from './calendar/calendar-actions.js';
 import { createCalendarToolbar } from './calendar/calendar-toolbar.js';
+import { renderNoDateBox } from './calendar/calendar-nodate.js';
+import { renderMiniCalendar } from './calendar/calendar-minical.js';
+import { holidaysForDays } from './engine/holidays.js';
 import { renderTimeGrid } from './calendar/calendar-time-grid.js';
 import { renderMonthGrid } from './calendar/calendar-month-grid.js';
 import { renderAgenda } from './calendar/calendar-agenda.js';
@@ -64,9 +67,25 @@ export function renderBaseCalendarView(container, notes, schema, viewConfig = {}
     onSettings: callbacks.onOpenSettings,
   }));
 
+  // Corpo (+ mini-calendário lateral opcional, ao lado da grade)
+  const area = document.createElement('div');
+  area.className = 'bcal-area' + (cfg.sidebar.miniCalendar ? ' has-minical' : '');
+  container.appendChild(area);
+  if (cfg.sidebar.miniCalendar) {
+    const lateral = document.createElement('aside');
+    lateral.setAttribute('aria-label', 'Mini-calendário');
+    area.appendChild(lateral);
+    const mostrado = container._miniShown ? sanitizeAnchor(container._miniShown, anchor) : anchor;
+    const diasComEvento = new Set(events.flatMap(ev => eventDays(ev)));
+    renderMiniCalendar(lateral, {
+      shown: mostrado, anchor, firstDay: cfg.week.firstDay, eventDays: diasComEvento,
+      onPick: ymd => { container._calAnchor = ymd; container._miniShown = ymd; rerender(); },
+      onShift: delta => { container._miniShown = addMonths(mostrado, delta); rerender(); },
+    });
+  }
   const corpo = document.createElement('div');
   corpo.className = 'bcal-body';
-  container.appendChild(corpo);
+  area.appendChild(corpo);
 
   // ── Gestos → propriedades ────────────────────────────────────────────────────
   const gravar = async (resultado) => {
@@ -86,11 +105,26 @@ export function renderBaseCalendarView(container, notes, schema, viewConfig = {}
     onRerender: rerender,
   };
 
-  const ctx = { cfg, days: range.days, buckets, events, schema, hoje, callbacks: acoes, anchor };
+  // feriados do período (inclui os dias de outros meses que aparecem na grade)
+  const holidays = cfg.holidays.country ? holidaysForDays(range.days, cfg.holidays.country) : new Map();
+  const ctx = { cfg, days: range.days, buckets, events, schema, hoje, callbacks: acoes, anchor, holidays };
   let vista;
   if (mode === 'month') vista = renderMonthGrid(corpo, { ...ctx, weeks: range.weeks });
   else if (mode === 'agenda') vista = renderAgenda(corpo, ctx);
   else vista = renderTimeGrid(corpo, ctx);   // semana e dia
+
+  // Notas sem data: caixa recolhível; escolher um dia posiciona a nota no calendário
+  const comData = new Set(events.map(e => e.id));
+  renderNoDateBox(container, {
+    notes: notes.filter(n => !comData.has(String(n.id))),
+    startProp: cfg.date.start,
+    anchor,
+    onOpen: id => callbacks.onOpenNote?.(id),
+    onSetDate: async (note, ymd) => {
+      await callbacks.onUpdateNoteProperties?.(note, { [cfg.date.start]: ymd }, { [cfg.date.start]: 'date' });
+      rerender();
+    },
+  });
 
   container._calendarCleanup = () => { vista?.destroy?.(); container._calendarCleanup = null; };
 }

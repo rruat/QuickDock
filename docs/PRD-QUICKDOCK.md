@@ -107,7 +107,7 @@ O QuickDock foi construído para atender quatro perfis operacionais principais:
 - Workspace integrado em mosaico multi-seções (Spatial Shell).
 - Editor de notas ricas em blocos com 15+ tipos de bloco.
 - Suporte a Markdown puro com live preview, wikilinks e tags.
-- Bases de dados relacionais estilo Notion (Tabela, Kanban, Galeria, Lista).
+- Bases de dados relacionais estilo Notion (Tabela, Quadro, Galeria, Lista, Calendário, Linha do tempo, Gráfico, Mapa, Feed e Dashboard) — ver `docs/PLANEJAMENTO-BASES-VIEWS-NOTION.md`.
 - Quadro Infinito bidimensional vetorial (cartões, formas de fluxo, setas inteligentes, snapping).
 - Grafo de conhecimento interativo 2D com física de forças e amortecimento.
 - Calendário temporal com visualização Mês/Semana/Agenda e suporte a períodos.
@@ -351,10 +351,11 @@ O QuickDock é estruturado em 12 módulos de software principais:
 - **Folha de Cálculo Inline (`calc.js`, `math-parser.js`):** Avaliação aritmética recursiva de cima para baixo sem `eval()`; suporte a moeda brasileira `R$ 1.250,50`, percentuais relativos (`1000 - 15%`), funções `soma()`, `media()`, `arredondar()` e variável especial `acima` para somatórios de colunas.
 
 ### MOD-03: Bases de Dados Relacionais (QuickDock Bases)
-- **4 Visualizações Flexíveis:** Tabela estruturada (linhas e colunas), Quadro Kanban (colunas por categoria/status), Galeria (cartões com pré-visualização de imagem e propriedades) e Lista (compacta).
+- **10 Visualizações:** Tabela (grupos, cálculos, subitens, colunas congeladas, seleção em lote, colar de planilha), Quadro Kanban (sub-grupo em raias, WIP, ordem manual), Galeria (capa ou prévia do conteúdo), Lista, Calendário (mês, semana, dia e agenda; feriados BR), Linha do tempo (Gantt com dependências), Gráfico (barras, linha, pizza, número), Mapa (Leaflet com cluster), Feed (conteúdo das notas) e Dashboard (widgets = outras views). Cada view tem painel de configuração próprio, filtros em grupos E/OU, filtros rápidos, ordenação, cor condicional e exportação CSV/Markdown/JSON.
 - **Tipagem Completa de Propriedades:** `text`, `number` (com formatação monetária BRL e percentual), `date`, `datetime`, `checkbox`, `select` (com paleta de cores), `list` (tags múltiplas), `link` (wikilinks), `url`, `formula`, `folder` e `tasks` (contagem e barra de progresso de checklists).
 - **Motor de Consultas & Filtros (`bases-engine.js`):** Suporte a filtros individuais e grupos compostos (`AND` / `OR`) com operadores `equals`, `not_equals`, `contains`, `does_not_contain`, `starts_with`, `ends_with`, `>`, `>=`, `<`, `<=`, `is_checked`, `is_unchecked`, `is_today`, `is_this_week`, `is_this_month`, `is_empty`, `is_not_empty`.
-- **Estatísticas e Agregações de Coluna:** `count`, `sum`, `avg`, `min`, `max`, `checked_count`, `unchecked_count`, `percent_checked` e `unique`.
+- **Estatísticas e Agregações de Coluna:** `count`, `sum`, `avg`, `median`, `min`, `max`, `range`, `earliest`, `latest`, `checked`, `percent_checked`, `unique` e outras (por tipo), na coluna e por grupo.
+- **Propriedades calculadas:** fórmulas sem `eval` (~80 funções), rollup, relação inversa, ID único, Status com grupos, e-mail/telefone e botão-ação.
 
 ### MOD-04: Espaço Infinito (Infinite Board)
 - **Canvas Espacial Bidimensional (`board-engine.js`):** Área infinita de ideação livre com zoom focal (10% a 500%), pan com botão do meio do mouse ou barra de espaço, e atalho de centralização (`0`).
@@ -908,7 +909,7 @@ sequenceDiagram
 - **Rastreabilidade:** `content/content.js`, `sidepanel/modules/documents.js`.
 
 ### RF-004: Bases de Dados Relacionais e Visões Múltiplas
-- **Descrição:** O sistema deve estruturar dados de notas em propriedades tipadas e permitir visualização em Tabela, Kanban, Galeria e Lista com filtros e agrupamentos.
+- **Descrição:** O sistema deve estruturar dados de notas em propriedades tipadas e permitir visualização em Tabela, Quadro, Galeria, Lista, Calendário, Linha do tempo, Gráfico, Mapa, Feed e Dashboard, com filtros, agrupamentos, ordenação e cálculos configuráveis pela interface.
 - **Rastreabilidade:** `sidepanel/modules/bases/*`.
 
 ### RF-005: Quadro Espacial Infinito e Conexões
