@@ -749,7 +749,7 @@ Navegação por teclado completa (4.12) · contraste ≥ 55 de L (OKLCH) · não
 | 2 | Calendário: mês/semana/dia/agenda + config + arrastar/redimensionar/criar + "sem data" | 🟡 (feito, exceto mini-calendário e caixa "sem data") |
 | 3 | Tabela e Quadro profundos (+ Lista e Galeria) | 🟡 (feito: grupos em tabela/lista/galeria, cálculos por coluna/grupo, layout da tabela, quadro com tamanho/WIP/colunas ocultas/cálculo, lista com densidade e caixa, galeria com proporção, cor condicional; faltam congelar colunas, subitens, sub-grupo, ordem manual, colar de planilha, virtualização, prévia de conteúdo) |
 | 4 | Tipos de propriedade + fórmulas + relações/rollups | 🟡 (motor de fórmulas sem `eval` com ~80 funções, ciclos/erros/limites, propriedades calculadas e rollup por UI, tudo testado; faltam tipo Status com grupos, e-mail/telefone/arquivos/ID único, formatos de número/data e opções de seleção centralizadas na Base) |
-| 5 | Linha do tempo | ⚪ |
+| 5 | Linha do tempo | 🟡 (etapa 1 feita: barras, marco, 5 escalas com zoom que mantém o centro, tabela lateral sincronizada, grupos, cor, hoje, mover/esticar por arrasto e por teclado; falta etapa 2: dependências e reagendamento) |
 | 6 | Gráficos | ✅ (barras vertical/horizontal agrupadas/empilhadas/100%, linha, pizza, número; séries, acumulado, meta, clique filtra; SVG próprio em OKLCH; falta só tooltip rico além do título nativo) |
 | 7 | Mapa e Feed | ⚪ |
 | 8 | Vinculadas, templates, lote, peek, exportar, dashboard | ⚪ |

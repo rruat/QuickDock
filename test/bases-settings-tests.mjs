@@ -252,4 +252,43 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('rótulos · tira os que colidem', Cl.thinLabels(10, 200, 50), [0, 3, 6, 9]);
   const cssCh = await readFile(new URL('../sidepanel/css/32-bases-charts.css', import.meta.url), 'utf8');
   ok('gráfico · CSS só em OKLCH', !/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i.test(cssCh) && /--bch-c7: oklch/.test(cssCh));
+
+  // ── linha do tempo ──
+  const Ts = await import('../sidepanel/modules/bases/timeline/timeline-scale.js');
+  const Tm = await import('../sidepanel/modules/bases/timeline/timeline-model.js');
+  const Ta = await import('../sidepanel/modules/bases/timeline/timeline-actions.js');
+  const rg = Ts.visibleRange([{ startYmd: '2026-10-05', endYmd: '2026-10-12' }], '2026-10-06', 'week');
+  igual('timeline · faixa alinhada à semana (segunda)', [rg.start, rg.end], ['2026-09-21', '2026-11-01']);
+  igual('timeline · dias na faixa', rg.days, 42);
+  ok('timeline · hoje sempre cabe na faixa', Ts.visibleRange([{ startYmd: '2026-01-01', endYmd: '2026-01-05' }], '2026-10-06', 'month').end >= '2026-10-06');
+  igual('timeline · x do dia', Ts.xOf('2026-09-28', rg, 18), 7 * 18);
+  igual('timeline · dia sob o x (ida e volta)', Ts.ymdAtX(7 * 18 + 5, rg, 18), '2026-09-28');
+  igual('timeline · dia sob x é limitado à faixa', [Ts.ymdAtX(-50, rg, 18), Ts.ymdAtX(99999, rg, 18)], ['2026-09-21', '2026-11-01']);
+  igual('timeline · barra de 3 dias', Ts.barGeometry({ startYmd: '2026-10-05', endYmd: '2026-10-07' }, rg, 18), { left: 252, width: 54 });
+  ok('timeline · barra nunca some (largura mínima)', Ts.barGeometry({ startYmd: '2026-10-05', endYmd: '2026-10-05' }, rg, 0.8).width >= 6);
+  const hc = Ts.headerCells(rg, 'week');
+  igual('timeline · cabeçalho cobre a faixa sem buracos', [hc.top[0].from, hc.top[hc.top.length - 1].to, hc.top.map(c => c.label)], ['2026-09-21', '2026-11-01', ['set 2026', 'out 2026', 'nov 2026']]);
+  igual('timeline · trimestres', Ts.headerCells({ start: '2026-01-01', end: '2026-12-31', days: 365 }, 'quarter').bottom.map(c => c.label), ['T1', 'T2', 'T3', 'T4']);
+  igual('timeline · unitStart/End', [Ts.unitStart('2026-10-06', 'quarter'), Ts.unitEnd('2026-10-06', 'quarter'), Ts.unitStart('2026-10-06', 'week')], ['2026-10-01', '2026-12-31', '2026-10-05']);
+  const tn = [
+    { id: 1, title: 'A', properties: { ini: '2026-10-05', fim: '2026-10-09' } },
+    { id: 2, title: 'B', properties: { ini: '2026-10-07' } },
+    { id: 3, title: 'C', properties: {} },
+    { id: 4, title: 'D', properties: { ini: '2026-10-10', fim: '2026-10-01' } },   // fim antes do início: ignora o fim
+  ];
+  const tcfg = Tm.resolveTimelineConfig({ date: { start: 'ini', end: 'fim' } });
+  const ti = Tm.buildTimelineItems(tn, tcfg, (n, p) => n.properties[p]);
+  igual('timeline · itens e sem data', [ti.items.map(i => i.id), ti.noDate.map(n => n.id)], [['1', '2', '4'], [3]]);
+  igual('timeline · fim antes do início vira 1 dia', [ti.items[2].startYmd, ti.items[2].endYmd], ['2026-10-10', '2026-10-10']);
+  igual('timeline · sem propriedade de fim = marco', Tm.buildTimelineItems(tn, Tm.resolveTimelineConfig({ date: { start: 'ini' } }), (n, p) => n.properties[p]).items.every(i => i.milestone), true);
+  igual('timeline · mover 2 dias muda início e fim', Ta.moveItemPatch(ti.items[0], 2).patch, { ini: '2026-10-07', fim: '2026-10-11' });
+  igual('timeline · esticar fim', Ta.resizeEndPatch(ti.items[0], '2026-10-12').patch, { fim: '2026-10-12' });
+  igual('timeline · fim não passa antes do início', Ta.resizeEndPatch(ti.items[0], '2026-10-01').patch, { fim: '2026-10-05' });
+  igual('timeline · esticar início', Ta.resizeStartPatch(ti.items[0], '2026-10-03').patch, { ini: '2026-10-03' });
+  igual('timeline · início não passa do fim', Ta.resizeStartPatch(ti.items[0], '2026-12-01').patch, { ini: '2026-10-09' });
+  igual('timeline · sem gesto, sem patch', Ta.moveItemPatch(ti.items[0], 0), null);
+  igual('timeline · px → dias', [Ta.daysFromPixels(40, 18), Ta.daysFromPixels(-26, 18), Ta.daysFromPixels(8, 18)], [2, -1, 0]);
+  const linhasT = Tm.buildRows(ti.items, { group: { prop: 'x' } }, { x: { type: 'text' } }, (n, p) => (p === 'x' ? 'g' : n.properties[p]));
+  igual('timeline · linhas com grupo', linhasT.map(r => r.type), ['group', 'item', 'item', 'item']);
+  igual('timeline · grupo recolhido esconde itens', Tm.buildRows(ti.items, { group: { prop: 'x' } }, { x: { type: 'text' } }, () => 'g', ['g']).length, 1);
 }

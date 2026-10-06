@@ -10,6 +10,7 @@ const PADRAO = {
   board: ['tags'],
   list: [],
   gallery: ['tags', 'updatedAt'],
+  timeline: [],
 };
 
 export function propertiesSection({ view, schema, memoria, patch }) {

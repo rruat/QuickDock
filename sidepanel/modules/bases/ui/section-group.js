@@ -9,7 +9,7 @@ const NENHUM = '__none__';
 const ehData = t => ['date', 'datetime', 'daterange'].includes(t);
 
 export function groupSection({ view, schema, memoria, patch }) {
-  if (!['table', 'board', 'list', 'gallery'].includes(view.type)) return null;
+  if (!['table', 'board', 'list', 'gallery', 'timeline'].includes(view.type)) return null;
   const cfg = resolveGroupConfig(view);
   const quadro = view.type === 'board';
   const s = section('Agrupar', { chave: 'group', memoria, dica: quadro ? 'Cada valor da propriedade vira uma coluna.' : 'Separa as notas em grupos recolhíveis.' });
@@ -39,6 +39,6 @@ export function groupSection({ view, schema, memoria, patch }) {
     onChange: v => grava({ prop: cfg.prop, order: v }),
   })));
   s.body.appendChild(row('Ocultar grupos vazios', id => toggle({ id, value: cfg.hideEmpty, onChange: v => grava({ prop: cfg.prop, hideEmpty: v }) })));
-  if (!quadro) s.body.appendChild(row('Mostrar contagem', id => toggle({ id, value: cfg.showCounts, onChange: v => grava({ prop: cfg.prop, showCounts: v }) })));
+  if (!quadro && view.type !== 'timeline') s.body.appendChild(row('Mostrar contagem', id => toggle({ id, value: cfg.showCounts, onChange: v => grava({ prop: cfg.prop, showCounts: v }) })));
   return s.root;
 }
