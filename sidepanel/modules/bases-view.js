@@ -114,6 +114,7 @@ async function renderCurrentNoteBase() {
   lastMountedConfig = baseBlocks[0].config;
   await renderBaseComponent(bodyEl, baseBlocks[0].config, {
     embedded: true,
+    baseId: noteId,
     onConfigChange: (newYaml) => {
       lastMountedConfig = newYaml;
       escreverConfigDeVolta(noteId, newYaml);

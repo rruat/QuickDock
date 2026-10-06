@@ -12,8 +12,15 @@ import { renderBaseGalleryView } from './bases-gallery-view.js';
 import { renderBaseListView } from './bases-list-view.js';
 import { renderBaseCalendarView } from './bases-calendar-view.js';
 import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById } from '../storage.js';
-import { normalizeViews, VIEW_TYPES, createView, duplicateView, newViewId, applyViewPatch } from './config/view-model.js';
+import { normalizeViews, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
+import { renderViewTabs as desenhaAbas } from './ui/view-tabs.js';
+import { renderQuickFilters, loadQuickFilters, saveQuickFilters } from './ui/quick-filters.js';
+import { impliedValues } from './engine/filter-tree.js';
+import {
+  moveView, duplicateViewAt, deleteViewById, renameViewById, setViewLocked, setViewIcon,
+  setDefaultView, neighborViewId,
+} from './config/view-actions.js';
 import { switchToNote } from '../note.js';
 
 /**
@@ -121,6 +128,14 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   headerEl.appendChild(rightGroup);
   rootContainer.appendChild(headerEl);
 
+  // Filtros rápidos (chips) — entre o cabeçalho e a view
+  const quickEl = document.createElement('div');
+  quickEl.className = 'base-quickfilters';
+  rootContainer.appendChild(quickEl);
+  const baseKey = () => options.baseId || baseDef.name || 'base';
+  let quickFilters = [];
+  let quickFiltersViewId = null;
+
   // 2. Área Principal de Visualização (Viewport) + painel de configuração da view
   const viewportEl = document.createElement('div');
   viewportEl.className = 'base-viewport';
@@ -143,20 +158,9 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       getSchema: () => inferBaseSchema(allNotes, baseDef.properties),
       onPatch: patch => updateActiveView(patch),
       onRename: nome => updateActiveView({ name: nome }),
-      onDuplicate: () => {
-        const copia = duplicateView(baseDef.views[activeIndex()], baseDef.views.map(v => v.id));
-        baseDef.views.splice(activeIndex() + 1, 0, copia);
-        activeViewId = copia.id;
-        persistBase(); renderViewTabs(); updateViewport();
-      },
-      canDelete: () => baseDef.views.length > 1,
-      onDelete: () => {
-        if (baseDef.views.length <= 1) return;
-        baseDef.views.splice(activeIndex(), 1);
-        activeViewId = baseDef.views[Math.min(activeIndex(), baseDef.views.length - 1)].id;
-        if (!baseDef.views.some(v => v.id === baseDef.defaultViewId)) baseDef.defaultViewId = activeViewId;
-        persistBase(); renderViewTabs(); updateViewport();
-      },
+      onDuplicate: () => { const r = duplicateViewAt(baseDef, activeViewId); aplica(r.baseDef, r.newId); },
+      canDelete: () => baseDef.views.length > 1 && !baseDef.views[activeIndex()]?.locked,
+      onDelete: () => { const r = deleteViewById(baseDef, activeViewId, activeViewId); aplica(r.baseDef, r.activeId); },
       onClose: () => { settingsOpen = false; renderSettingsPanel(); },
     });
     const corpo = settingsEl.querySelector('.bset-body');
@@ -165,89 +169,43 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
 
   function updateActiveView(patch) {
     const i = activeIndex();
+    // view bloqueada: só renomear/ícone/trava passam pelo menu; o painel e as views não gravam
+    if (baseDef.views[i]?.locked && !('locked' in patch)) return;
     baseDef.views[i] = applyViewPatch(baseDef.views[i], patch);
     persistBase();
     renderViewTabs();
     updateViewport();
   }
 
-  // Função para renderizar as abas de visão
+  // Abas de visão (ícone, renomear, arrastar, menu ⋯) — ver ui/view-tabs.js
+  const aplica = (novaDef, ativa = activeViewId) => {
+    baseDef = novaDef;
+    activeViewId = baseDef.views.some(v => v.id === ativa) ? ativa : baseDef.defaultViewId;
+    persistBase(); renderViewTabs(); updateViewport();
+  };
   function renderViewTabs() {
-    tabsEl.innerHTML = '';
-    baseDef.views.forEach((view) => {
-      const tabBtn = document.createElement('button');
-      tabBtn.className = 'base-tab-btn' + (view.id === activeViewId ? ' is-active' : '');
-      const icon = VIEW_TYPES[view.type]?.icon || 'table_chart';
-
-      tabBtn.innerHTML = `
-        <span class="qd-icon material-symbols-rounded base-tab-icon" aria-hidden="true">${icon}</span>
-        <span class="base-tab-name"></span>
-      `;
-      tabBtn.querySelector('.base-tab-name').textContent = view.name || view.type;
-      tabBtn.addEventListener('click', () => {
-        activeViewId = view.id;
-        renderViewTabs();
-        updateViewport();
-      });
-      tabsEl.appendChild(tabBtn);
+    desenhaAbas(tabsEl, { views: baseDef.views, activeId: activeViewId, defaultId: baseDef.defaultViewId }, {
+      onSelect: id => { activeViewId = id; renderViewTabs(); updateViewport(); },
+      onAdd: type => {
+        const nome = VIEW_TYPES[type]?.label || type;
+        const nova = createView(type, { name: nome, id: newViewId(baseDef.views.map(v => v.id)) });
+        aplica({ ...baseDef, views: [...baseDef.views, nova] }, nova.id);
+      },
+      onRename: (id, nome) => aplica(renameViewById(baseDef, id, nome)),
+      onDuplicate: id => { const r = duplicateViewAt(baseDef, id); aplica(r.baseDef, r.newId); },
+      onDelete: id => {
+        const v = baseDef.views.find(x => x.id === id);
+        if (!window.confirm(`Excluir a view "${v?.name || id}"?`)) return;
+        const r = deleteViewById(baseDef, id, activeViewId); aplica(r.baseDef, r.activeId);
+      },
+      onReorder: (de, para) => aplica(moveView(baseDef, de, para)),
+      onToggleLock: id => aplica(setViewLocked(baseDef, id, !baseDef.views.find(v => v.id === id)?.locked)),
+      onSetDefault: id => aplica(setDefaultView(baseDef, id)),
+      onSetIcon: id => {
+        const nome = window.prompt('Nome do ícone (Material Symbols, ex.: star, work). Vazio = padrão do tipo:', baseDef.views.find(v => v.id === id)?.icon || '');
+        if (nome !== null) aplica(setViewIcon(baseDef, id, nome.trim()));
+      },
     });
-
-    // Botão "+ Visão"
-    const addViewBtn = document.createElement('button');
-    addViewBtn.className = 'base-tab-btn base-tab-add';
-    addViewBtn.title = 'Adicionar visão';
-    addViewBtn.textContent = '+';
-    addViewBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openAddViewMenu(addViewBtn);
-    });
-    tabsEl.appendChild(addViewBtn);
-  }
-
-  // Menu suspenso para adicionar nova visão
-  function openAddViewMenu(anchorEl) {
-    const existing = document.querySelector('.base-add-view-dropdown');
-    if (existing) { existing.remove(); return; }
-
-    const menu = document.createElement('div');
-    menu.className = 'base-add-view-dropdown';
-
-    const tipos = [
-      { type: 'table', label: 'Tabela' },
-      { type: 'board', label: 'Quadro (Kanban)' },
-      { type: 'gallery', label: 'Galeria (Cards)' },
-      { type: 'list', label: 'Lista' },
-      { type: 'calendar', label: 'Calendário' },
-    ];
-
-    tipos.forEach(t => {
-      const item = document.createElement('div');
-      item.className = 'base-add-view-item';
-      item.textContent = t.label;
-      item.addEventListener('click', () => {
-        menu.remove();
-        const nova = createView(t.type, { name: t.label, id: newViewId(baseDef.views.map(v => v.id)) });
-        baseDef.views.push(nova);
-        activeViewId = nova.id;
-        persistBase();
-        renderViewTabs();
-        updateViewport();
-      });
-      menu.appendChild(item);
-    });
-
-    document.body.appendChild(menu);
-    const rect = anchorEl.getBoundingClientRect();
-    menu.style.top = `${rect.bottom + 4}px`;
-    menu.style.left = `${rect.left}px`;
-
-    const closeHandler = (e) => {
-      if (!menu.contains(e.target) && e.target !== anchorEl) {
-        menu.remove();
-        document.removeEventListener('click', closeHandler);
-      }
-    };
-    setTimeout(() => document.addEventListener('click', closeHandler), 10);
   }
 
   // Criação de nova nota
@@ -255,7 +213,17 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const pasta = baseDef.source?.folder && baseDef.source.folder !== '/' ? baseDef.source.folder : '';
     const tag = baseDef.source?.tag;
 
-    const initialProperties = { ...extraProps };
+    // "Novo" herda o que os filtros da view exigem (ex.: status = Em andamento) — a nota nasce visível
+    const view = baseDef.views[activeIndex()];
+    const implicitos = impliedValues(view?.filters, view?.filterMode ?? view?.filterOperator);
+    for (const [k, v] of Object.entries(impliedValues(quickFilters))) if (!(k in implicitos)) implicitos[k] = v;
+    const reservadas = new Set(['title', 'folder', 'tags', 'createdAt', 'updatedAt', 'tasks']);
+    const herdadas = Object.fromEntries(Object.entries(implicitos).filter(([k]) => !reservadas.has(k)));
+    const initialProperties = { ...herdadas, ...extraProps };
+    const tiposHerdados = {};
+    const esquema = inferBaseSchema(allNotes, baseDef.properties);
+    for (const k of Object.keys(herdadas)) if (esquema[k]?.type) tiposHerdados[k] = esquema[k].type;
+    extraTypes = { ...tiposHerdados, ...extraTypes };
     if (tag) {
       initialProperties['tags'] = [tag.replace(/^#/, '')];
     }
@@ -317,8 +285,14 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     // 1. Infere o schema combinando notas + definições explícitas
     const schema = inferBaseSchema(allNotes, baseDef.properties);
 
-    // 2. Filtra notas pela fonte (source) e busca rápida
+    if (quickFiltersViewId !== currentView.id) {
+      quickFiltersViewId = currentView.id;
+      quickFilters = loadQuickFilters(baseKey(), currentView.id);
+    }
+
+    // 2. Filtra notas pela fonte (source), filtros da view, filtros rápidos e busca
     const filteredNotes = queryBaseNotes(allNotes, {
+      quickFilters,
       source: baseDef.source,
       filters: currentView.filters,
       filterMode: currentView.filterMode,
@@ -328,6 +302,11 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
 
     // 3. Ordena notas
     const sortedNotes = sortBaseNotes(filteredNotes, currentView.sort, schema);
+    renderQuickFilters(quickEl, { filters: quickFilters, schema, count: sortedNotes.length }, lista => {
+      quickFilters = lista;
+      saveQuickFilters(baseKey(), currentView.id, lista);
+      updateViewport();
+    });
 
     // Callbacks comuns para as visões. showOwnToolbar: false porque a barra
     // de cima (headerEl, logo acima) já dá busca + "Nova Nota" — sem isto, a
@@ -389,12 +368,19 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     updateViewport();
   };
 
+  const onKeyViews = e => {
+    if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || !rootContainer.contains(document.activeElement)) return;
+    const id = neighborViewId(baseDef, activeViewId, e.key === 'ArrowRight' ? 1 : -1);
+    if (id && id !== activeViewId) { e.preventDefault(); activeViewId = id; renderViewTabs(); updateViewport(); }
+  };
+  rootContainer.addEventListener('keydown', onKeyViews);
   document.addEventListener('quickdock:note-updated', onNoteEvent);
   document.addEventListener('quickdock:note-created', onNoteEvent);
 
   rootContainer._cleanup = () => {
     document.removeEventListener('quickdock:note-updated', onNoteEvent);
     document.removeEventListener('quickdock:note-created', onNoteEvent);
+    rootContainer.removeEventListener('keydown', onKeyViews);
   };
 
   await loadData();

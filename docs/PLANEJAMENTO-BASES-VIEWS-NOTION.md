@@ -745,7 +745,7 @@ Navegação por teclado completa (4.12) · contraste ≥ 55 de L (OKLCH) · não
 | Fase | Entrega | Estado |
 |---|---|:-:|
 | 0 | Dívidas + ids + `props` + engine puro + migração v1→v2 + calendário usa `calendar-engine` | 🟡 (bugs 1.3, ids, `props` e datas locais feitos; falta `base-store.js`/JSON v2) |
-| 1 | Painel de configuração + barra de views + filtro/ordenação/agrupamento/propriedades por UI | 🟡 (painel com Propriedades/Filtro/Ordenar/Agrupar-quadro feito; faltam grupos E/OU aninhados, filtros rápidos, barra de views com arrastar/ícone/bloquear, "Novo" herdando filtro) |
+| 1 | Painel de configuração + barra de views + filtro/ordenação/agrupamento/propriedades por UI | ✅ (painel, abas com ⋯/arrastar/ícone/bloquear/padrão, grupos E/OU, filtros rápidos, "Novo" herda filtro; falta só formato/largura por propriedade → Fase 3/4) |
 | 2 | Calendário: mês/semana/dia/agenda + config + arrastar/redimensionar/criar + "sem data" | 🟡 (feito, exceto mini-calendário e caixa "sem data") |
 | 3 | Tabela e Quadro profundos (+ Lista e Galeria) | ⚪ |
 | 4 | Tipos de propriedade + fórmulas + relações/rollups | ⚪ |

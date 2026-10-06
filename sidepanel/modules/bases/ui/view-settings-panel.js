@@ -69,6 +69,7 @@ export function mountViewSettingsPanel(host, api) {
   corpo.appendChild(secaoGeral(api));
 
   const patch = p => api.onPatch(p);
+  if (view.locked) corpo.appendChild(el('p', 'bset-hint bset-locked', '🔒 View bloqueada: desbloqueie pelo menu ⋯ da aba para alterar filtros, ordenação e layout.'));
   const ctx = { view, schema: api.getSchema(), memoria, patch };
   if (view.type === 'calendar') {
     for (const s of calendarSections(ctx)) corpo.appendChild(s);

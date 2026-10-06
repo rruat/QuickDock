@@ -233,3 +233,33 @@
 .bset-pair { display: flex; gap: 6px; }
 .bset-icon-btn { flex: none; width: 24px; height: 24px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); cursor: pointer; }
 .bset-icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+/* ── Abas de view: menu ⋯, renomear, arrastar ── */
+.base-tab-btn { cursor: pointer; }
+.base-tab-more { display: inline-flex; border: 0; background: transparent; color: inherit; opacity: 0; padding: 0 2px; margin-left: 2px; border-radius: var(--radius-sm); cursor: pointer; }
+.base-tab-btn:hover .base-tab-more, .base-tab-btn:focus-within .base-tab-more, .base-tab-btn.is-active .base-tab-more { opacity: 0.7; }
+.base-tab-more:hover { opacity: 1; background: var(--bg-hover); }
+.base-tab-more .base-tab-icon { margin: 0; }
+.base-tab-lock { margin: 0 0 0 4px; opacity: 0.6; }
+.base-tab-rename { width: 120px; height: 22px; padding: 0 4px; font: inherit; font-size: 12px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
+.base-tab-btn.is-dragging { opacity: 0.45; }
+.base-tab-btn.is-drop { box-shadow: inset 2px 0 0 var(--accent); }
+.base-menu-sep { height: 1px; margin: 4px 0; background: var(--border); }
+.base-add-view-item { display: block; width: 100%; text-align: left; background: transparent; border: 0; font: inherit; color: inherit; }
+.base-add-view-item:disabled { opacity: 0.4; cursor: default; }
+.base-add-view-item.is-danger { color: oklch(45% 0.18 25); }
+[data-theme="dark"] .base-add-view-item.is-danger { color: oklch(78% 0.13 25); }
+.bset-locked { padding: 8px 0; }
+
+/* ── Filtro: grupos aninhados ── */
+.bset-group { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-left: 3px solid var(--accent); background: var(--bg-hover); border-radius: var(--radius-sm); }
+.bset-group-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); }
+
+/* ── Filtros rápidos (barra sob o cabeçalho) ── */
+.base-quickfilters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 10px; border-bottom: 1px solid var(--border); }
+.base-quickfilters[hidden] { display: none; }
+.bqf-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-card); }
+.bqf-chip .bset-select, .bqf-chip .bset-input { max-width: 130px; min-width: 0; height: 24px; border-color: transparent; background: transparent; }
+.bqf-add { height: 24px; padding: 0 8px; border: 1px dashed var(--border); border-radius: 12px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+.bqf-add:hover { background: var(--bg-hover); color: var(--text); }
+.bqf-count { margin-left: auto; font-size: 11.5px; color: var(--text-muted); }

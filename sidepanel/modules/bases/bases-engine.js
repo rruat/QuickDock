@@ -11,6 +11,7 @@ import { formatPropertyValue } from './bases-schema.js';
 import {
   toYMD, todayYMD, addDays, addMonths, startOfWeek, startOfMonth, endOfMonth, compareYMD,
 } from './engine/date-utils.js';
+import { evaluateFilterNode } from './engine/filter-tree.js';
 
 export function getNotePropertyValue(note, propKey) {
   if (!note) return undefined;
@@ -228,7 +229,7 @@ export function intervaloRelativo(operator, hoje, value) {
  * lista de filtros (AND/OR) e busca rápida.
  */
 export function queryBaseNotes(notes = [], options = {}) {
-  const { source = {}, filters = [], quickSearch = '', now } = options;
+  const { source = {}, filters = [], quickFilters = [], quickSearch = '', now } = options;
   // O modo E/OU já foi gravado com dois nomes (filterMode e filterOperator): vale qualquer um
   const filterMode = String(options.filterMode ?? options.filterOperator ?? 'and').toLowerCase() === 'or' ? 'or' : 'and';
   const ctx = { now };
@@ -265,15 +266,13 @@ export function queryBaseNotes(notes = [], options = {}) {
     }
 
     // 2. Filtros de visualização (filters)
+    const avalia = (n, f) => evaluateFilterNode(n, f, (x, c) => evaluateFilterCondition(x, c, ctx));
     if (Array.isArray(filters) && filters.length > 0) {
-      if (filterMode === 'or') {
-        const passesAny = filters.some(f => evaluateFilterCondition(note, f, ctx));
-        if (!passesAny) return false;
-      } else {
-        const passesAll = filters.every(f => evaluateFilterCondition(note, f, ctx));
-        if (!passesAll) return false;
-      }
+      const passa = filterMode === 'or' ? filters.some(f => avalia(note, f)) : filters.every(f => avalia(note, f));
+      if (!passa) return false;
     }
+    // Filtros rápidos (chips da barra): sempre E, por cima dos filtros salvos na view
+    if (Array.isArray(quickFilters) && quickFilters.length > 0 && !quickFilters.every(f => avalia(note, f))) return false;
 
     // 3. Busca rápida (quickSearch)
     if (quickSearch && typeof quickSearch === 'string' && quickSearch.trim()) {
