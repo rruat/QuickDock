@@ -613,7 +613,18 @@
   #mMain,
   html[data-platform="mobile"] #mHeader,
   html[data-platform="mobile"] #mMain {
-    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1) !important;
+    /* Posição vem de --push-x (classe de estado ou arrasto via JS) — sem !important
+       em transform/transition para o arrasto inline poder vencer. */
+    transform: translate3d(var(--push-x, 0px), 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  /* Durante o arrasto: sem transição (o dedo manda) e camada promovida só agora */
+  html body.is-dragging-drawer #mHeader,
+  html body.is-dragging-drawer #mMain,
+  html body.is-dragging-drawer #mAside,
+  html body.is-dragging-drawer #mobileRightDrawer {
+    transition: none;
     will-change: transform;
   }
 
@@ -624,7 +635,7 @@
   #app.has-left-drawer-open #mMain,
   #app:has(#mAside.is-open-mobile) #mHeader,
   #app:has(#mAside.is-open-mobile) #mMain {
-    transform: translate3d(min(85vw, 320px), 0, 0) !important;
+    --push-x: min(85vw, 320px);
   }
 
   /* Quando o drawer direito abre: empurra o header e a nota para a esquerda */
@@ -634,7 +645,7 @@
   #app.has-right-drawer-open #mMain,
   #app:has(#mobileRightDrawer.is-open-mobile) #mHeader,
   #app:has(#mobileRightDrawer.is-open-mobile) #mMain {
-    transform: translate3d(calc(-1 * min(85vw, 340px)), 0, 0) !important;
+    --push-x: calc(-1 * min(85vw, 340px));
   }
 
   /* 5. Aside como Left Drawer estilo Obsidian Mobile (empurra a nota para a direita) */
@@ -649,8 +660,8 @@
     height: 100dvh !important;
     max-height: 100dvh !important;
     z-index: 100 !important;
-    transform: translate3d(-100%, 0, 0) !important;
-    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease !important;
+    transform: translate3d(var(--aside-x, -100%), 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease;
     background-color: var(--bg) !important;
     border-right: 1px solid var(--border) !important;
     border-top: none !important;
@@ -668,7 +679,7 @@
 
   #mAside.is-open-mobile,
   html[data-platform="mobile"] #mAside.is-open-mobile {
-    transform: translate3d(0, 0, 0) !important;
+    --aside-x: 0px;
     box-shadow: 4px 0 20px oklch(0% 0 0 / 0.2) !important;
     pointer-events: auto !important;
     visibility: visible !important;
@@ -746,8 +757,8 @@
     height: 100dvh !important;
     max-height: 100dvh !important;
     z-index: 100 !important;
-    transform: translate3d(100%, 0, 0) !important;
-    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease !important;
+    transform: translate3d(var(--right-x, 100%), 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease;
     background-color: var(--bg) !important;
     border-left: 1px solid var(--border) !important;
     display: flex !important;
@@ -762,7 +773,7 @@
 
   #mobileRightDrawer.is-open-mobile,
   html[data-platform="mobile"] #mobileRightDrawer.is-open-mobile {
-    transform: translate3d(0, 0, 0) !important;
+    --right-x: 0px;
     box-shadow: -4px 0 20px oklch(0% 0 0 / 0.2) !important;
     pointer-events: auto !important;
     visibility: visible !important;
