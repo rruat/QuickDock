@@ -324,3 +324,11 @@
 .base-th-sel, .base-td-sel { width: 32px; min-width: 32px; text-align: center; }
 .base-tr.is-selected td { background: color-mix(in oklch, var(--accent) 12%, transparent); }
 .base-more-row td { text-align: center; padding: 10px; font-size: 12px; color: var(--text-muted); }
+
+/* ── Calendário: caixa "Sem data" ── */
+.bcal-nodate { border-top: 1px solid var(--border); padding: 6px 10px; font-size: 12px; color: var(--text-secondary); }
+.bcal-nodate summary { cursor: pointer; }
+.bcal-nodate-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.bcal-nodate-list li { display: flex; align-items: center; gap: 6px; }
+.bcal-nodate-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.bcal-nodate-list .bset-input { max-width: 140px; height: 24px; }

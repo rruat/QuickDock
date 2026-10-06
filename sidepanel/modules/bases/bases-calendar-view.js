@@ -14,6 +14,7 @@ import { buildCalendarEvents, bucketEventsByDay, pickDefaultDateProp } from './c
 import { visibleRange, shiftAnchor, sanitizeAnchor } from './calendar/calendar-nav.js';
 import { buildMovePatch, buildResizePatch, buildCreateProps } from './calendar/calendar-actions.js';
 import { createCalendarToolbar } from './calendar/calendar-toolbar.js';
+import { renderNoDateBox } from './calendar/calendar-nodate.js';
 import { renderTimeGrid } from './calendar/calendar-time-grid.js';
 import { renderMonthGrid } from './calendar/calendar-month-grid.js';
 import { renderAgenda } from './calendar/calendar-agenda.js';
@@ -91,6 +92,19 @@ export function renderBaseCalendarView(container, notes, schema, viewConfig = {}
   if (mode === 'month') vista = renderMonthGrid(corpo, { ...ctx, weeks: range.weeks });
   else if (mode === 'agenda') vista = renderAgenda(corpo, ctx);
   else vista = renderTimeGrid(corpo, ctx);   // semana e dia
+
+  // Notas sem data: caixa recolhível; escolher um dia posiciona a nota no calendário
+  const comData = new Set(events.map(e => e.id));
+  renderNoDateBox(container, {
+    notes: notes.filter(n => !comData.has(String(n.id))),
+    startProp: cfg.date.start,
+    anchor,
+    onOpen: id => callbacks.onOpenNote?.(id),
+    onSetDate: async (note, ymd) => {
+      await callbacks.onUpdateNoteProperties?.(note, { [cfg.date.start]: ymd }, { [cfg.date.start]: 'date' });
+      rerender();
+    },
+  });
 
   container._calendarCleanup = () => { vista?.destroy?.(); container._calendarCleanup = null; };
 }
