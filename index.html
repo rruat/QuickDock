@@ -662,7 +662,7 @@
                 <path d="M 0 0 L 8 3 L 0 6 z" fill="currentColor" />
               </marker>
               <marker id="arrowhead-selected" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto-start-reverse" markerUnits="strokeWidth">
-                <path d="M 0 0 L 8 3 L 0 6 z" fill="var(--accent, #3b82f6)" />
+                <path d="M 0 0 L 8 3 L 0 6 z" fill="var(--accent, oklch(62.3% 0.188 259.8))" />
               </marker>
             </defs>
             <g id="board-svg-guides"></g>
@@ -677,6 +677,8 @@
 
       <!-- QuickBar Inteligente do Espaço Infinito (Flutuante no Desktop / Rodapé no Mobile) -->
       <nav id="board-quickbar" class="board-header board-quickbar" role="toolbar" aria-label="Barra de ferramentas do espaço">
+        <div id="board-quickbar-panel" class="board-quickbar-panel" aria-live="polite"><div class="board-qbp-inner"></div></div>
+        <div class="board-quickbar-row">
         <div class="board-header-center board-quickbar-tools">
           <div class="board-tools-group">
             <button id="tool-card" class="board-tool-btn" title="Adicionar cartão (C)" aria-label="Adicionar cartão">
@@ -727,6 +729,7 @@
             <span class="open-tab-btn-label">Nova aba</span>
           </button>
         </div>
+      </div>
       </nav>
       <!-- Zoom flutuante, à direita -->
       <div id="board-zoom-dock" class="board-zoom-dock" role="group" aria-label="Zoom do espaço">

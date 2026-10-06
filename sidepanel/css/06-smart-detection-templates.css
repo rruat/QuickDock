@@ -43,35 +43,35 @@
 
 .note-section.ctrl-active .note-editor-blocks mark {
   color: var(--accent);
-  background: rgba(35, 131, 226, 0.09);
+  background: oklch(60.58% 0.1674 252.7 / 0.09);
   border-bottom: 1.5px solid var(--accent);
   cursor: pointer;
   transition: background 0.1s;
 }
 .note-section.ctrl-active .note-editor-blocks mark:hover {
-  background: rgba(35, 131, 226, 0.20);
+  background: oklch(60.58% 0.1674 252.7 / 0.2);
 }
 
 /* Período — roxo */
 .note-section.ctrl-active .note-editor-blocks mark.daterange,
 .note-section.ctrl-active .note-editor-blocks mark.datetimerange {
-  color: #7c3aed;
-  background: rgba(124, 58, 237, 0.09);
-  border-bottom: 1.5px solid #7c3aed;
+  color: oklch(54.1% 0.247 293);
+  background: oklch(54.1% 0.247 293 / 0.09);
+  border-bottom: 1.5px solid oklch(54.1% 0.247 293);
 }
 .note-section.ctrl-active .note-editor-blocks mark.daterange:hover,
 .note-section.ctrl-active .note-editor-blocks mark.datetimerange:hover {
-  background: rgba(124, 58, 237, 0.20);
+  background: oklch(54.1% 0.247 293 / 0.2);
 }
 
 /* Intervalo de horas — ciano */
 .note-section.ctrl-active .note-editor-blocks mark.timerange {
-  color: #0891b2;
-  background: rgba(8, 145, 178, 0.09);
-  border-bottom: 1.5px solid #0891b2;
+  color: oklch(60.9% 0.111 221.7);
+  background: oklch(60.9% 0.111 221.7 / 0.09);
+  border-bottom: 1.5px solid oklch(60.9% 0.111 221.7);
 }
 .note-section.ctrl-active .note-editor-blocks mark.timerange:hover {
-  background: rgba(8, 145, 178, 0.20);
+  background: oklch(60.9% 0.111 221.7 / 0.2);
 }
 
 /* ── Badge de validação (CPF / CNPJ) ── */
@@ -84,46 +84,46 @@
   display: inline-block;
   letter-spacing: 0.2px;
 }
-.copy-menu-badge.valid   { background: rgba(22, 163, 74, 0.13); color: #16a34a; }
-.copy-menu-badge.invalid { background: rgba(220, 38, 38, 0.13); color: #dc2626; }
+.copy-menu-badge.valid   { background: oklch(62.7% 0.17 149.2 / 0.13); color: oklch(62.7% 0.17 149.2); }
+.copy-menu-badge.invalid { background: oklch(57.7% 0.215 27.3 / 0.13); color: oklch(57.7% 0.215 27.3); }
 
 /* CPF / CNPJ inválido: sublinhado vermelho pontilhado sempre visível */
 .note-editor-blocks mark.cpf.invalid,
 .note-editor-blocks mark.cnpj.invalid {
-  border-bottom: 1.5px dotted #dc2626;
+  border-bottom: 1.5px dotted oklch(57.7% 0.215 27.3);
 }
 
 /* Cores no modo Ctrl: válido = verde, inválido = vermelho */
 .note-section.ctrl-active .note-editor-blocks mark.cpf.valid,
 .note-section.ctrl-active .note-editor-blocks mark.cnpj.valid {
-  color: #16a34a;
-  background: rgba(22, 163, 74, 0.09);
-  border-bottom: 1.5px solid #16a34a;
+  color: oklch(62.7% 0.17 149.2);
+  background: oklch(62.7% 0.17 149.2 / 0.09);
+  border-bottom: 1.5px solid oklch(62.7% 0.17 149.2);
 }
 .note-section.ctrl-active .note-editor-blocks mark.cpf.valid:hover,
 .note-section.ctrl-active .note-editor-blocks mark.cnpj.valid:hover {
-  background: rgba(22, 163, 74, 0.20);
+  background: oklch(62.7% 0.17 149.2 / 0.2);
 }
 
 .note-section.ctrl-active .note-editor-blocks mark.cpf.invalid,
 .note-section.ctrl-active .note-editor-blocks mark.cnpj.invalid {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.09);
-  border-bottom: 1.5px solid #dc2626;
+  color: oklch(57.7% 0.215 27.3);
+  background: oklch(57.7% 0.215 27.3 / 0.09);
+  border-bottom: 1.5px solid oklch(57.7% 0.215 27.3);
 }
 .note-section.ctrl-active .note-editor-blocks mark.cpf.invalid:hover,
 .note-section.ctrl-active .note-editor-blocks mark.cnpj.invalid:hover {
-  background: rgba(220, 38, 38, 0.20);
+  background: oklch(57.7% 0.215 27.3 / 0.2);
 }
 
 /* Cor âmbar pro cálculo, pra distinguir do azul de CPF/CNPJ/telefone */
 .note-section.ctrl-active .note-editor-blocks mark.math {
-  color: #d97706;
-  background: rgba(217, 119, 6, 0.09);
-  border-bottom-color: #d97706;
+  color: oklch(66.58% 0.1574 58.32);
+  background: oklch(66.58% 0.1574 58.32 / 0.09);
+  border-bottom-color: oklch(66.58% 0.1574 58.32);
 }
 .note-section.ctrl-active .note-editor-blocks mark.math:hover {
-  background: rgba(217, 119, 6, 0.20);
+  background: oklch(66.58% 0.1574 58.32 / 0.2);
 }
 
 /* ===== MENU "/" (trocar tipo de bloco) ===== */
@@ -272,9 +272,9 @@
   height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(147, 51, 234, 0.12);
+  background: oklch(55.75% 0.2525 302.32 / 0.12);
   color: var(--accent);
-  border: 1px solid rgba(147, 51, 234, 0.25);
+  border: 1px solid oklch(55.75% 0.2525 302.32 / 0.25);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -317,7 +317,7 @@
 .template-bar-name:focus {
   background: var(--bg);
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 0 0 2px oklch(54.1% 0.247 293 / 0.15);
 }
 
 .template-bar-select-wrap {
@@ -372,14 +372,14 @@
 .template-bar-primary {
   background: var(--accent) !important;
   border: 1px solid var(--accent) !important;
-  color: #ffffff !important;
-  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.25);
+  color: oklch(100% 0 0) !important;
+  box-shadow: 0 1px 3px oklch(54.1% 0.247 293 / 0.25);
 }
 
 .template-bar-primary:hover {
   opacity: 0.94;
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 3px 8px oklch(54.1% 0.247 293 / 0.35);
 }
 
 .template-bar-primary:active {

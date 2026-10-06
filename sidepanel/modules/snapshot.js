@@ -114,7 +114,7 @@ export async function blocksToPngBlob(blocos) {
   );
 
   const corDeFundo = estiloEditor.backgroundColor === 'rgba(0, 0, 0, 0)'
-    ? (estiloRaiz.getPropertyValue('--bg').trim() || '#ffffff')
+    ? (estiloRaiz.getPropertyValue('--bg').trim() || 'oklch(100% 0 0)')
     : estiloEditor.backgroundColor;
 
   // ── Monta a página da imagem ───────────────────────────────────────────────

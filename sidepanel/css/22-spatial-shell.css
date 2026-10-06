@@ -166,7 +166,7 @@
   background-color: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2), 0 0 0.6rem var(--border);
+  box-shadow: 0 10px 28px oklch(0% 0 0 / 0.2), 0 0 0.6rem var(--border);
   z-index: 500;
   overflow: hidden;
   animation: searchDropdownFade 150ms ease;
@@ -268,7 +268,7 @@
 .search-item:hover .search-item-icon,
 .search-item.is-selected .search-item-icon {
   background-color: var(--text);
-  color: #ffffff;
+  color: oklch(100% 0 0);
 }
 
 .search-no-results {
@@ -334,7 +334,7 @@
   width: var(--nav-item-size, 40px);
   height: var(--nav-item-size, 40px);
   background-color: var(--text);
-  color: #ffffff;
+  color: oklch(100% 0 0);
   border-radius: 50%;
   cursor: pointer;
   display: grid;
@@ -479,7 +479,7 @@
   background-color: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 0.65rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px oklch(0% 0 0 / 0.12);
   z-index: 100;
   padding: 0.35rem;
   display: flex;
@@ -530,7 +530,7 @@
 
 .add-view-opt:hover .opt-icon {
   background-color: var(--text);
-  color: #ffffff;
+  color: oklch(100% 0 0);
 }
 
 .add-view-opt .opt-info {
@@ -640,7 +640,7 @@
 
 .aside-section-item:hover.is-open .aside-item-badge {
   background-color: var(--text);
-  color: #ffffff;
+  color: oklch(100% 0 0);
 }
 
 /* Alça de redimensionamento da Aside (.aside-indicator) */
@@ -699,7 +699,7 @@
 .aside-indicator:hover,
 body.is-resizing-col .aside-indicator {
   background-color: var(--accent);
-  box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 0.5rem oklch(0% 0 0 / 0.15);
   border-radius: 2px;
 }
 
@@ -980,7 +980,7 @@ body.is-resizing-col .aside-indicator .indicator-dots .dot {
   place-items: center;
   font-size: 2rem;
   font-weight: 700;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px oklch(0% 0 0 / 0.05);
 }
 
 .empty-state-title {
@@ -1013,7 +1013,7 @@ body.is-resizing-col .aside-indicator .indicator-dots .dot {
 }
 
 .empty-state-btn:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 14px oklch(0% 0 0 / 0.15);
   transform: translateY(-1px);
 }
 
@@ -1258,7 +1258,7 @@ body.is-resizing-row .section-divider .indicator-dots .dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #22c55e;
+  background-color: oklch(72.3% 0.192 149.6);
 }
 
 .footer-divider {
@@ -1381,20 +1381,19 @@ html[data-platform="desktop"] .board-view .board-header {
   height: auto !important;
   min-height: 44px !important;
   display: flex !important;
-  align-items: center !important;
-  gap: 4px !important;
-  padding: 4px 6px !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  padding: 0 !important;
   background: var(--bg-card) !important;
   background: color-mix(in srgb, var(--bg-card) 92%, transparent) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
   border: 1px solid var(--border) !important;
   border-radius: 14px !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 10px 30px oklch(0% 0 0 / 0.16), 0 2px 8px oklch(0% 0 0 / 0.08) !important;
   z-index: 60 !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  scrollbar-width: none !important;
+  overflow: hidden !important; /* a rolagem fica na .board-quickbar-row; o painel cresce pra cima */
 }
 
 html[data-platform="desktop"] .board-view .board-back-btn {

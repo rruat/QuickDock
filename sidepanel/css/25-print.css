@@ -32,8 +32,8 @@
   gap: 12px;
   padding: 8px 16px;
   background: var(--bg-card);
-  border-bottom: 2px solid var(--accent, #6366f1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border-bottom: 2px solid var(--accent, oklch(58.5% 0.204 277.1));
+  box-shadow: 0 4px 20px oklch(0% 0 0 / 0.15);
   animation: printToolbarSlideDown 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   flex-wrap: wrap;
 }
@@ -62,8 +62,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(37, 211, 102, 0.12);
-  color: #22c55e;
+  background: oklch(76.1% 0.2015 149.74 / 0.12);
+  color: oklch(72.3% 0.192 149.6);
 }
 
 .note-print-icon-badge .qd-icon {
@@ -126,7 +126,7 @@
 
 .btn-print-exit:hover {
   background: var(--bg-hover);
-  color: var(--danger, #ef4444);
+  color: var(--danger, oklch(63.7% 0.208 25.3));
 }
 
 /* ── Estilo de Seleção Interativa de Blocos (Estilo WhatsApp) ─────────────── */
@@ -234,14 +234,14 @@ body.is-print-mode .section.note-property-section {
   align-items: center;
   justify-content: center;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.15);
   flex-shrink: 0;
 }
 
 .print-select-handle.is-checked .print-checkbox-indicator {
-  background: #22c55e;
-  border: 2px solid #22c55e;
-  color: #ffffff;
+  background: oklch(72.3% 0.192 149.6);
+  border: 2px solid oklch(72.3% 0.192 149.6);
+  color: oklch(100% 0 0);
 }
 
 .print-select-handle.is-unchecked .print-checkbox-indicator {
@@ -282,7 +282,7 @@ body.is-print-mode .print-selectable-item {
 
 body.is-print-mode .print-selectable-item:hover,
 body.is-print-mode .print-selectable-item.print-hover {
-  outline: 1px dashed var(--accent, #6366f1);
+  outline: 1px dashed var(--accent, oklch(58.5% 0.204 277.1));
   outline-offset: 3px;
 }
 
@@ -329,30 +329,30 @@ body.is-print-mode .print-selectable-item.print-excluded.print-hover {
   html,
   html[data-theme="dark"],
   html[data-theme="light"] {
-    --bg: #ffffff;
-    --bg-secondary: #ffffff;
-    --bg-card: #ffffff;
-    --bg-hover: #f1f1f1;
-    --border: #d4d4d4;
-    --text: #000000;
-    --text-secondary: #333333;
-    --text-muted: #555555;
-    --accent: #000000;
+    --bg: oklch(100% 0 0);
+    --bg-secondary: oklch(100% 0 0);
+    --bg-card: oklch(100% 0 0);
+    --bg-hover: oklch(95.8% 0 0);
+    --border: oklch(87% 0 0);
+    --text: oklch(0% 0 0);
+    --text-secondary: oklch(32.1% 0 0);
+    --text-muted: oklch(45% 0 0);
+    --accent: oklch(0% 0 0);
     --note-max-width: none;
 
     /* Cores de sintaxe de código em impressão: alto contraste para papel branco */
-    --code-kw: #cf222e;
-    --code-fn: #8250df;
-    --code-str: #0a3069;
-    --code-num: #0550ae;
-    --code-com: #6e7781;
-    --code-op: #cf222e;
-    --code-type: #953800;
-    --code-lit: #0550ae;
-    --code-tag: #116329;
-    --code-attr: #8250df;
-    --code-prop: #0550ae;
-    --code-punc: #24292f;
+    --code-kw: oklch(55.2% 0.205 24.5);
+    --code-fn: oklch(56.3% 0.207 295);
+    --code-str: oklch(32.1% 0.108 259.1);
+    --code-num: oklch(45.1% 0.164 258.2);
+    --code-com: oklch(56.5% 0.019 251);
+    --code-op: oklch(55.2% 0.205 24.5);
+    --code-type: oklch(46.6% 0.137 43.3);
+    --code-lit: oklch(45.1% 0.164 258.2);
+    --code-tag: oklch(43.9% 0.118 148.1);
+    --code-attr: oklch(56.3% 0.207 295);
+    --code-prop: oklch(45.1% 0.164 258.2);
+    --code-punc: oklch(27.9% 0.013 253);
   }
 
   html,
@@ -365,8 +365,8 @@ body.is-print-mode .print-selectable-item.print-excluded.print-hover {
     overflow: visible !important;
     padding: 0 !important;
     margin: 0 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: oklch(100% 0 0) !important;
+    color: oklch(0% 0 0) !important;
   }
 
   /* Tudo que é interface do app */
@@ -457,7 +457,7 @@ body.is-print-mode .print-selectable-item.print-excluded.print-hover {
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    background: #ffffff !important;
+    background: oklch(100% 0 0) !important;
     transform: none !important;
   }
 

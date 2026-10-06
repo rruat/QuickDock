@@ -114,10 +114,10 @@ export function renderEmptyDashboardContent(container) {
     return card;
   };
 
-  actionsGrid.appendChild(createActionCard('edit_note', 'var(--accent)', 'rgba(37, 99, 235, 0.1)', 'Nova nota', 'Começar nota em branco', () => createBlankNote()));
-  actionsGrid.appendChild(createActionCard('view_kanban', '#a855f7', 'rgba(168, 85, 247, 0.1)', 'Nova Base', 'Tabelas e quadros dinâmicos', () => createNewBaseNote()));
-  actionsGrid.appendChild(createActionCard('folder_open', '#22c55e', 'rgba(34, 197, 94, 0.1)', 'Todas as notas', 'Navegar em pastas e arquivos', () => openNotesAsideDrawer()));
-  actionsGrid.appendChild(createActionCard('auto_stories', '#eab308', 'rgba(234, 179, 8, 0.1)', 'Modelos', 'Explorar modelos prontos', () => switchView('templates')));
+  actionsGrid.appendChild(createActionCard('edit_note', 'var(--accent)', 'oklch(54.6% 0.215 262.9 / 0.1)', 'Nova nota', 'Começar nota em branco', () => createBlankNote()));
+  actionsGrid.appendChild(createActionCard('view_kanban', 'oklch(62.7% 0.233 303.9)', 'oklch(62.7% 0.233 303.9 / 0.1)', 'Nova Base', 'Tabelas e quadros dinâmicos', () => createNewBaseNote()));
+  actionsGrid.appendChild(createActionCard('folder_open', 'oklch(72.3% 0.192 149.6)', 'oklch(72.3% 0.192 149.6 / 0.1)', 'Todas as notas', 'Navegar em pastas e arquivos', () => openNotesAsideDrawer()));
+  actionsGrid.appendChild(createActionCard('auto_stories', 'oklch(79.52% 0.1617 86.05)', 'oklch(79.52% 0.1617 86.05 / 0.1)', 'Modelos', 'Explorar modelos prontos', () => switchView('templates')));
 
   actionsSection.appendChild(actionsGrid);
   inner.appendChild(actionsSection);

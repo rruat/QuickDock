@@ -44,7 +44,7 @@
 }
 
 .reminder-active-card.is-completed {
-  border-left-color: var(--color-success, #10b981);
+  border-left-color: var(--color-success, oklch(69.6% 0.149 162.5));
   opacity: 0.65;
 }
 
@@ -55,7 +55,7 @@
 }
 
 .reminder-active-card.is-completed .reminder-icon {
-  color: var(--color-success, #10b981);
+  color: var(--color-success, oklch(69.6% 0.149 162.5));
 }
 
 .reminder-info {
@@ -110,15 +110,15 @@
 }
 
 .reminder-btn-action.complete:hover {
-  color: #10b981;
+  color: oklch(69.6% 0.149 162.5);
 }
 
 .reminder-btn-action.snooze:hover {
-  color: #f59e0b;
+  color: oklch(76.86% 0.1647 70.08);
 }
 
 .reminder-btn-action.remove:hover {
-  color: #ef4444;
+  color: oklch(63.7% 0.208 25.3);
 }
 
 .reminder-btn-action .qd-icon {
@@ -177,13 +177,13 @@
 }
 
 .note-header-badge.badge-reminder {
-  border-color: rgba(245, 158, 11, 0.4);
-  color: #d97706;
+  border-color: oklch(76.86% 0.1647 70.08 / 0.4);
+  color: oklch(66.58% 0.1574 58.32);
 }
 
 .note-header-badge.badge-location {
-  border-color: rgba(59, 130, 246, 0.4);
-  color: #2563eb;
+  border-color: oklch(62.3% 0.188 259.8 / 0.4);
+  color: oklch(54.6% 0.215 262.9);
 }
 
 /* ── Popovers de Lembrete e Localização ───────────────────────────────────── */
@@ -326,8 +326,8 @@
 }
 
 .preset-btn.test-btn.remove {
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.4);
+  color: oklch(63.7% 0.208 25.3);
+  border-color: oklch(63.7% 0.208 25.3 / 0.4);
 }
 
 /* ── Localização & Mapa ───────────────────────────────────────────────────── */
@@ -477,7 +477,7 @@
   justify-content: center;
   font-size: 26px;
   line-height: 1;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 3px 6px oklch(0% 0 0 / 0.45));
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -488,7 +488,7 @@
 .pin-pulse {
   width: 12px;
   height: 6px;
-  background: rgba(0, 0, 0, 0.25);
+  background: oklch(0% 0 0 / 0.25);
   border-radius: 50%;
   margin-top: -2px;
 }
@@ -516,7 +516,7 @@
 /* Controles Leaflet estilizados */
 .leaflet-bar {
   border: 1px solid var(--border) !important;
-  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,0.15)) !important;
+  box-shadow: var(--shadow-sm, 0 1px 4px oklch(0% 0 0 / 0.15)) !important;
   border-radius: 6px !important;
   overflow: hidden;
 }
@@ -600,7 +600,7 @@
   width: calc(100% - 44px);
   box-sizing: border-box;
   gap: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px oklch(0% 0 0 / 0.04);
   animation: expand-card-in 0.16s ease-out;
 }
 
@@ -684,7 +684,7 @@
 }
 
 .note-header-action-btn.section-active {
-  background: var(--accent-light, rgba(59, 130, 246, 0.14)) !important;
+  background: var(--accent-light, oklch(62.3% 0.188 259.8 / 0.14)) !important;
   color: var(--accent) !important;
   border-color: var(--accent) !important;
 }
@@ -714,37 +714,37 @@
 }
 
 .location-gps-status.is-success {
-  background: rgba(16, 185, 129, 0.1);
+  background: oklch(69.6% 0.149 162.5 / 0.1);
   color: var(--text);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid oklch(69.6% 0.149 162.5 / 0.25);
 }
 
 .location-gps-status.is-success .qd-icon {
-  color: #10b981;
+  color: oklch(69.6% 0.149 162.5);
   font-size: 15px;
   flex-shrink: 0;
 }
 
 .location-gps-status.is-warning {
-  background: rgba(245, 158, 11, 0.1);
+  background: oklch(76.86% 0.1647 70.08 / 0.1);
   color: var(--text);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  border: 1px solid oklch(76.86% 0.1647 70.08 / 0.25);
 }
 
 .location-gps-status.is-warning .qd-icon {
-  color: #f59e0b;
+  color: oklch(76.86% 0.1647 70.08);
   font-size: 15px;
   flex-shrink: 0;
 }
 
 .location-gps-status.is-error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: oklch(63.7% 0.208 25.3 / 0.1);
+  color: oklch(63.7% 0.208 25.3);
+  border: 1px solid oklch(63.7% 0.208 25.3 / 0.25);
 }
 
 .location-gps-status.is-error .qd-icon {
-  color: #ef4444;
+  color: oklch(63.7% 0.208 25.3);
   font-size: 15px;
   flex-shrink: 0;
 }
@@ -774,12 +774,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--bg, #1e1e1e);
-  border: 1.5px solid var(--accent, #3b82f6);
-  border-left: 5px solid var(--accent, #3b82f6);
+  background: var(--bg, oklch(23.5% 0 0));
+  border: 1.5px solid var(--accent, oklch(62.3% 0.188 259.8));
+  border-left: 5px solid var(--accent, oklch(62.3% 0.188 259.8));
   border-radius: 8px;
   padding: 10px 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 24px oklch(0% 0 0 / 0.35);
   animation: banner-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -800,13 +800,13 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: var(--accent-light, rgba(59, 130, 246, 0.15));
+  background: var(--accent-light, oklch(62.3% 0.188 259.8 / 0.15));
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .alarm-pulse-icon {
-  color: var(--accent, #3b82f6);
+  color: var(--accent, oklch(62.3% 0.188 259.8));
   font-size: 20px;
   animation: alarm-pulse 1.2s ease-in-out infinite;
 }
@@ -828,7 +828,7 @@
 .alarm-banner-title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text, #fff);
+  color: var(--text, oklch(100% 0 0));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -836,7 +836,7 @@
 
 .alarm-banner-desc {
   font-size: 11px;
-  color: var(--text-muted, #aaa);
+  color: var(--text-muted, oklch(73.8% 0 0));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -867,7 +867,7 @@
 
 .alarm-banner-btn.complete-btn {
   background: var(--accent);
-  color: #fff;
+  color: oklch(100% 0 0);
   border-color: var(--accent);
 }
 
@@ -953,7 +953,7 @@
 
 .appearance-cover-status .qd-icon {
   font-size: 15px;
-  color: #10b981;
+  color: oklch(69.6% 0.149 162.5);
 }
 
 .appearance-cover-actions-group {
@@ -980,7 +980,7 @@
 
 .appearance-cover-error-msg {
   font-size: 11px;
-  color: #ef4444;
+  color: oklch(63.7% 0.208 25.3);
   padding: 2px 4px;
 }
 
@@ -993,7 +993,7 @@
 }
 
 .note-folder-btn.section-active {
-  background: var(--accent-light, rgba(59, 130, 246, 0.14)) !important;
+  background: var(--accent-light, oklch(62.3% 0.188 259.8 / 0.14)) !important;
   color: var(--accent) !important;
   border-color: var(--accent) !important;
 }

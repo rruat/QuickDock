@@ -309,13 +309,13 @@
 
 .property-type-chip.active {
   background: var(--accent);
-  color: #ffffff;
+  color: oklch(100% 0 0);
   border-color: var(--accent);
   font-weight: 600;
 }
 
 .property-type-chip.active .qd-icon {
-  color: #ffffff;
+  color: oklch(100% 0 0);
 }
 
 .property-type-chip .qd-icon {
@@ -472,8 +472,8 @@
 }
 
 .property-drawer-delete-btn:hover {
-  background: rgba(220, 38, 38, 0.08);
-  border-color: rgba(220, 38, 38, 0.2);
+  background: oklch(57.7% 0.215 27.3 / 0.08);
+  border-color: oklch(57.7% 0.215 27.3 / 0.2);
 }
 
 .property-drawer-delete-btn .qd-icon {
@@ -500,7 +500,7 @@
 
 .note-property-trigger:hover .property-input,
 .note-property-trigger:hover .property-select {
-  border-color: rgba(170, 170, 170, 0.35);
+  border-color: oklch(73.8% 0 0 / 0.35);
 }
 
 .property-input:hover,
@@ -512,7 +512,7 @@
 .property-select:focus {
   border-color: var(--accent) !important;
   background: var(--bg-card);
-  box-shadow: 0 0 0 1.5px rgba(28, 27, 24, 0.15);
+  box-shadow: 0 0 0 1.5px oklch(22.2% 0.006 91.6 / 0.15);
 }
 
 .property-input-date {
@@ -636,7 +636,7 @@
 }
 
 .property-location-chip.has-location {
-  background: rgba(28, 27, 24, 0.08);
+  background: oklch(22.2% 0.006 91.6 / 0.08);
   border-color: var(--accent);
   color: var(--text);
 }
@@ -673,7 +673,7 @@
 
 .property-location-chip .chip-location-radius {
   font-size: 9.5px;
-  background: rgba(0, 0, 0, 0.12);
+  background: oklch(0% 0 0 / 0.12);
   border-radius: 4px;
   padding: 1px 4px;
   color: var(--text-muted);
@@ -696,7 +696,7 @@
 }
 
 .property-location-chip .chip-location-clear:hover {
-  background: rgba(220, 38, 38, 0.15);
+  background: oklch(57.7% 0.215 27.3 / 0.15);
   color: var(--danger);
 }
 

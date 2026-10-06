@@ -759,7 +759,7 @@ function desenharIconeDoNo(ctx, node, cx, cy, r) {
   ctx.font = `${Math.round(r * 1.4)}px "Material Symbols Rounded"`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = 'oklch(100% 0 0)';
   ctx.fillText(node.icon, cx, cy + 1);
 }
 
@@ -779,9 +779,9 @@ function render() {
   ctx.scale(zoom, zoom);
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3b82f6';
-  const defaultLineColor = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)';
-  const dimmedLineColor = isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)';
+  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || 'oklch(62.3% 0.188 259.8)';
+  const defaultLineColor = isDark ? 'oklch(100% 0 0 / 0.15)' : 'oklch(0% 0 0 / 0.12)';
+  const dimmedLineColor = isDark ? 'oklch(100% 0 0 / 0.03)' : 'oklch(0% 0 0 / 0.03)';
   const activeNeighborSet = hoveredNode ? neighborMap.get(hoveredNode.id) : null;
 
   // 1. Desenha arestas
@@ -860,10 +860,10 @@ function render() {
 
     ctx.shadowBlur = 0; // Desativa blur para manter a borda nítida
     if (isActiveNote) {
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = 'oklch(100% 0 0)';
       ctx.lineWidth = 2.8;
     } else {
-      ctx.strokeStyle = isHovered ? '#ffffff' : (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.2)');
+      ctx.strokeStyle = isHovered ? 'oklch(100% 0 0)' : (isDark ? 'oklch(100% 0 0 / 0.4)' : 'oklch(0% 0 0 / 0.2)');
       ctx.lineWidth = isHovered ? 2.5 : 1.2;
     }
     ctx.stroke();
@@ -876,7 +876,7 @@ function render() {
     const shouldShowLabel = isActiveNote || isHovered || isNeighbor || config.alwaysShowLabels || zoom >= 0.75 || node.degree > 1;
     if (shouldShowLabel) {
       ctx.font = (isActiveNote || isHovered) ? '600 12px system-ui, sans-serif' : '11px system-ui, sans-serif';
-      ctx.fillStyle = isActiveNote ? accentColor : (isDark ? '#e4e4e7' : '#18181b');
+      ctx.fillStyle = isActiveNote ? accentColor : (isDark ? 'oklch(92% 0.004 286.3)' : 'oklch(21% 0.006 285.9)');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
 

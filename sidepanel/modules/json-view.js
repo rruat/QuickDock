@@ -292,12 +292,12 @@ function showTypeSelectorPopover(anchorEl, currentType, onSelect) {
   pop.className = 'json-type-popover';
 
   const types = [
-    { id: 'string', label: 'Texto (string)', icon: 'format_quote', color: '#10b981' },
-    { id: 'number', label: 'Número (number)', icon: 'numbers', color: '#3b82f6' },
-    { id: 'boolean', label: 'Booleano (boolean)', icon: 'toggle_on', color: '#8b5cf6' },
-    { id: 'null', label: 'Nulo (null)', icon: 'block', color: '#64748b' },
-    { id: 'object', label: 'Objeto ({})', icon: 'data_object', color: '#0284c7' },
-    { id: 'array', label: 'Lista ([])', icon: 'data_array', color: '#f59e0b' }
+    { id: 'string', label: 'Texto (string)', icon: 'format_quote', color: 'oklch(69.6% 0.149 162.5)' },
+    { id: 'number', label: 'Número (number)', icon: 'numbers', color: 'oklch(62.3% 0.188 259.8)' },
+    { id: 'boolean', label: 'Booleano (boolean)', icon: 'toggle_on', color: 'oklch(60.6% 0.219 292.7)' },
+    { id: 'null', label: 'Nulo (null)', icon: 'block', color: 'oklch(55.4% 0.041 257.4)' },
+    { id: 'object', label: 'Objeto ({})', icon: 'data_object', color: 'oklch(58.8% 0.139 242)' },
+    { id: 'array', label: 'Lista ([])', icon: 'data_array', color: 'oklch(76.86% 0.1647 70.08)' }
   ];
 
   pop.innerHTML = `

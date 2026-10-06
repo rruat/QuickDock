@@ -168,7 +168,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 6px 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px oklch(0% 0 0 / 0.2);
   font-family: inherit;
   white-space: nowrap;
 }
@@ -206,7 +206,7 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 30px oklch(0% 0 0 / 0.2);
   z-index: 120;
   display: flex;
   flex-direction: column;
@@ -338,10 +338,10 @@
   width: 14px;
   left: 2px;
   bottom: 2px;
-  background-color: #ffffff;
+  background-color: oklch(100% 0 0);
   transition: 0.2s;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.25);
 }
 
 .graph-switch input:checked + .graph-switch-slider {

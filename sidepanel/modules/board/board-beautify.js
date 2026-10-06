@@ -1,13 +1,16 @@
 // ── board-beautify.js ───────────────────────────────────────────────────────
 // Auto-organização de fluxos ("Beautify"): recebe cartões + setas e devolve as
-// novas posições, em camadas, na direção pedida. Função pura — não toca no DOM
-// nem no estado do quadro; quem chama aplica o resultado.
+// novas posições na direção pedida — vertical, horizontal ou radial
+// (multidirecional, espalhando a partir da origem). Função pura — não toca no
+// DOM nem no estado do quadro; quem chama aplica o resultado.
 //
 // Método (versão enxuta de Sugiyama): 1) quebra ciclos ignorando arestas de
 // retorno, 2) camadas por caminho mais longo, 3) ordem dentro da camada por
 // baricentro (partindo da ordem visual atual, pra preservar a intenção de
-// quem desenhou), 4) coordenadas puxando cada nó pra perto dos vizinhos sem
-// sobrepor, 5) cartões soltos (sem setas) ficam numa grade depois do fluxo.
+// quem desenhou), 4) coordenadas — linear (puxando cada nó pra perto dos
+// vizinhos sem sobrepor) ou radial (camadas viram anéis concêntricos, cada nó
+// no ângulo médio dos pais), 5) cartões soltos (sem setas) ficam numa grade
+// depois do fluxo.
 
 const GAP_LAYER = 90;
 const GAP_NODE = 48;
@@ -18,11 +21,12 @@ const snap = v => Math.round(v / SNAP) * SNAP;
 /**
  * @param {Array<{id:string,x:number,y:number,w:number,h:number,type?:string}>} cards
  * @param {Array<{id:string,from:string,to:string}>} arrows
- * @param {'vertical'|'horizontal'} direction  vertical: fluxo de cima pra baixo
+ * @param {'vertical'|'horizontal'|'radial'} direction
  * @returns {{ positions: Map<string,{x:number,y:number}>,
- *             sides: Map<string,{fromSide:string,toSide:string}> }}
+ *             sides: Map<string,{fromSide:string|null,toSide:string|null}> }}
  */
 export function computeBeautifyLayout(cards, arrows, direction = 'vertical') {
+  const radial = direction === 'radial';
   const vertical = direction !== 'horizontal';
   const nodes = cards.filter(c => c && c.type !== 'group');
   const byId = new Map(nodes.map(n => [n.id, n]));
@@ -110,8 +114,7 @@ export function computeBeautifyLayout(cards, arrows, direction = 'vertical') {
 
   // ── 3) Ordem dentro da camada: baricentro ─────────────────────────────────
   const indexIn = new Map();
-  const reindex = () => layers.forEach(ids => ids.forEach((id, i) => indexIn.set(id, i)));
-  reindex();
+  layers.forEach(ids => ids.forEach((id, i) => indexIn.set(id, i)));
   const sweep = (from, to, step, neighbors) => {
     for (let l = from; l !== to; l += step) {
       const bary = new Map();
@@ -128,7 +131,126 @@ export function computeBeautifyLayout(cards, arrows, direction = 'vertical') {
     sweep(layers.length - 2, -1, -1, succs);
   }
 
-  // ── 4) Coordenadas ────────────────────────────────────────────────────────
+  // ── 4) Coordenadas (canto superior esquerdo, sem âncora) ──────────────────
+  let raw;
+  if (radial) {
+    const rl = radialLayers(flowNodes, edges, byId);
+    raw = placeRadial(rl.layers, byId, rl.preds);
+  } else {
+    raw = placeLinear(layers, byId, preds, succs, vertical, along, across);
+  }
+
+  // ── 5) Cartões soltos: grade depois do fluxo (abaixo, ou à direita no horizontal) ─
+  if (loose.length) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [id, p] of raw) {
+      const n = byId.get(id);
+      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x + n.w); maxY = Math.max(maxY, p.y + n.h);
+    }
+    const has = Number.isFinite(minX);
+    if (!has) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
+    const flowRight = !vertical && !radial; // horizontal: coluna nova à direita
+    const startC = flowRight ? minY : minX;
+    const span = Math.max((flowRight ? maxY - minY : maxX - minX), 720);
+    let cursorC = startC;
+    let cursorA = has ? (flowRight ? maxX : maxY) + GAP_LAYER : 0;
+    let rowThickness = 0;
+    const acr = n => (flowRight ? n.h : n.w);
+    const alg = n => (flowRight ? n.w : n.h);
+    for (const n of loose) {
+      if (cursorC > startC && cursorC + acr(n) > startC + span) {
+        cursorC = startC;
+        cursorA += rowThickness + GAP_NODE;
+        rowThickness = 0;
+      }
+      raw.set(n.id, flowRight ? { x: cursorA, y: cursorC } : { x: cursorC, y: cursorA });
+      cursorC += acr(n) + GAP_NODE;
+      rowThickness = Math.max(rowThickness, alg(n));
+    }
+  }
+
+  // ── 6) Âncora: mantém o canto superior esquerdo de onde o fluxo já estava ─
+  let rawMinX = Infinity, rawMinY = Infinity;
+  for (const p of raw.values()) { rawMinX = Math.min(rawMinX, p.x); rawMinY = Math.min(rawMinY, p.y); }
+  const origMinX = Math.min(...nodes.map(n => n.x));
+  const origMinY = Math.min(...nodes.map(n => n.y));
+  for (const [id, p] of raw) {
+    positions.set(id, { x: snap(origMinX + p.x - rawMinX), y: snap(origMinY + p.y - rawMinY) });
+  }
+
+  // ── 7) Lados das setas ────────────────────────────────────────────────────
+  if (radial) {
+    // sai/entra pelo lado voltado pro outro cartão, já nas posições finais
+    const center = id => {
+      const p = positions.get(id), n = byId.get(id);
+      return { x: p.x + n.w / 2, y: p.y + n.h / 2 };
+    };
+    for (const e of edges) {
+      const a = center(e.from), b = center(e.to);
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const horizontal = Math.abs(dx) > Math.abs(dy);
+      sides.set(e.id, horizontal
+        ? { fromSide: dx > 0 ? 'right' : 'left', toSide: dx > 0 ? 'left' : 'right' }
+        : { fromSide: dy > 0 ? 'bottom' : 'top', toSide: dy > 0 ? 'top' : 'bottom' });
+    }
+  } else {
+    const [fwdFrom, fwdTo] = vertical ? ['bottom', 'top'] : ['right', 'left'];
+    const backSide = vertical ? 'right' : 'bottom';
+    for (const e of edges) {
+      sides.set(e.id, e.back
+        ? { fromSide: backSide, toSide: backSide }
+        : { fromSide: fwdFrom, toSide: fwdTo });
+    }
+  }
+
+  return { positions, sides };
+}
+
+// Radial: o centro é o cartão mais conectado (o "hub" do fluxo) e os anéis são a
+// distância em setas até ele, ignorando o sentido — por isso o fluxo se abre pra
+// todos os lados. Dentro de cada anel, a ordem inicial segue o ângulo em que os
+// cartões já estavam em relação ao hub (preserva a intenção de quem desenhou).
+function radialLayers(flowNodes, edges, byId) {
+  const adj = new Map(flowNodes.map(n => [n.id, new Set()]));
+  const inDegree = new Map(flowNodes.map(n => [n.id, 0]));
+  for (const e of edges) {
+    adj.get(e.from).add(e.to);
+    adj.get(e.to).add(e.from);
+    inDegree.set(e.to, inDegree.get(e.to) + 1);
+  }
+  const hub = [...flowNodes].sort((a, b) =>
+    (adj.get(b.id).size - adj.get(a.id).size) || (inDegree.get(a.id) - inDegree.get(b.id)))[0];
+  const hubC = { x: hub.x + hub.w / 2, y: hub.y + hub.h / 2 };
+  const visualAngle = id => {
+    const n = byId.get(id);
+    return Math.atan2(n.y + n.h / 2 - hubC.y, n.x + n.w / 2 - hubC.x);
+  };
+
+  const dist = new Map([[hub.id, 0]]);
+  const queue = [hub.id];
+  while (queue.length) {
+    const id = queue.shift();
+    for (const nb of adj.get(id)) {
+      if (!dist.has(nb)) { dist.set(nb, dist.get(id) + 1); queue.push(nb); }
+    }
+  }
+  const layers = [];
+  const preds = new Map(flowNodes.map(n => [n.id, []]));
+  for (const n of flowNodes) {
+    // pedaços desconectados do hub entram no anel seguinte ao último
+    const d = dist.has(n.id) ? dist.get(n.id) : (Math.max(...dist.values()) + 1);
+    (layers[d] ||= []).push(n.id);
+    for (const nb of adj.get(n.id)) if (dist.get(nb) === d - 1) preds.get(n.id).push(nb);
+  }
+  for (let l = 0; l < layers.length; l++) {
+    layers[l] ||= [];
+    if (l > 0) layers[l].sort((a, b) => visualAngle(a) - visualAngle(b));
+  }
+  return { layers, preds };
+}
+// Camadas lado a lado num eixo, cada nó puxado pra perto dos vizinhos.
+function placeLinear(layers, byId, preds, succs, vertical, along, across) {
   const pos = new Map(); // id → início no eixo "across"
   for (const ids of layers) {
     const total = ids.reduce((s, id) => s + across(byId.get(id)), 0) + GAP_NODE * Math.max(0, ids.length - 1);
@@ -141,6 +263,7 @@ export function computeBeautifyLayout(cards, arrows, direction = 'vertical') {
   const centerOf = id => pos.get(id) + across(byId.get(id)) / 2;
   const relax = (l, neighbors) => {
     const ids = layers[l];
+    if (!ids.length) return;
     const want = ids.map(id => {
       const ns = neighbors.get(id);
       return ns.length ? ns.reduce((s, x) => s + centerOf(x), 0) / ns.length : centerOf(id);
@@ -168,9 +291,8 @@ export function computeBeautifyLayout(cards, arrows, direction = 'vertical') {
   const layerStart = [];
   let acc = 0;
   thickness.forEach((t, l) => { layerStart[l] = acc; acc += t + GAP_LAYER; });
-  const flowEnd = acc - GAP_LAYER;
 
-  const raw = new Map(); // id → {x,y} sem âncora
+  const raw = new Map();
   layers.forEach((ids, l) => {
     for (const id of ids) {
       const n = byId.get(id);
@@ -179,50 +301,76 @@ export function computeBeautifyLayout(cards, arrows, direction = 'vertical') {
       raw.set(id, vertical ? { x: c, y: a } : { x: a, y: c });
     }
   });
+  return raw;
+}
 
-  // ── 5) Cartões soltos: grade depois do fluxo ──────────────────────────────
-  if (loose.length) {
-    let minC = Infinity, maxC = -Infinity;
-    for (const [id, p] of raw) {
-      const n = byId.get(id);
-      const c = vertical ? p.x : p.y;
-      minC = Math.min(minC, c);
-      maxC = Math.max(maxC, c + across(n));
+// Camadas viram anéis concêntricos; cada nó vai pro ângulo médio dos pais, com
+// separação mínima pelo tamanho dos cartões (o anel cresce se não couber).
+function placeRadial(layers, byId, preds) {
+  const TAU = Math.PI * 2;
+  const radiusOf = id => Math.hypot(byId.get(id).w, byId.get(id).h) / 2;
+  const angle = new Map();
+  const ringR = [];
+  const raw = new Map();
+
+  layers.forEach((ids, l) => {
+    if (!ids.length) { ringR[l] = ringR[l - 1] || 0; return; }
+    const maxR = Math.max(...ids.map(radiusOf));
+    const circumference = ids.reduce((s, id) => s + radiusOf(id) * 2 + GAP_NODE, 0);
+
+    if (l === 0) {
+      ringR[0] = ids.length === 1 ? 0 : Math.max(circumference / TAU, maxR + GAP_NODE);
+    } else {
+      const prevMax = Math.max(0, ...layers[l - 1].map(radiusOf));
+      ringR[l] = Math.max(ringR[l - 1] + prevMax + maxR + GAP_LAYER, circumference / TAU);
     }
-    const span = Math.max(maxC - minC, 720);
-    let cursorC = Number.isFinite(minC) ? minC : 0;
-    let cursorA = Number.isFinite(flowEnd) && flowEnd > 0 ? flowEnd + GAP_LAYER : 0;
-    let rowThickness = 0;
-    const start = cursorC;
-    for (const n of loose) {
-      if (cursorC > start && cursorC + across(n) > start + span) {
-        cursorC = start;
-        cursorA += rowThickness + GAP_NODE;
-        rowThickness = 0;
+    const R = ringR[l];
+
+    // ângulo desejado: média circular dos pais; sem pai, distribui por posição
+    const want = ids.map((id, i) => {
+      const ps = ringR[l - 1] > 0 ? preds.get(id).filter(p => angle.has(p)) : [];
+      if (ps.length) {
+        const s = ps.reduce((a, p) => a + Math.sin(angle.get(p)), 0);
+        const c = ps.reduce((a, p) => a + Math.cos(angle.get(p)), 0);
+        return Math.atan2(s, c);
       }
-      raw.set(n.id, vertical ? { x: cursorC, y: cursorA } : { x: cursorA, y: cursorC });
-      cursorC += across(n) + GAP_NODE;
-      rowThickness = Math.max(rowThickness, along(n));
+      return -Math.PI / 2 + (TAU * i) / ids.length;
+    });
+
+    if (R === 0) { // origem única no centro
+      angle.set(ids[0], 0);
+      raw.set(ids[0], { x: -byId.get(ids[0]).w / 2, y: -byId.get(ids[0]).h / 2 });
+      return;
     }
-  }
 
-  // ── 6) Âncora: mantém o canto superior esquerdo de onde o fluxo já estava ─
-  let rawMinX = Infinity, rawMinY = Infinity;
-  for (const p of raw.values()) { rawMinX = Math.min(rawMinX, p.x); rawMinY = Math.min(rawMinY, p.y); }
-  const origMinX = Math.min(...nodes.map(n => n.x));
-  const origMinY = Math.min(...nodes.map(n => n.y));
-  for (const [id, p] of raw) {
-    positions.set(id, { x: snap(origMinX + p.x - rawMinX), y: snap(origMinY + p.y - rawMinY) });
-  }
-
-  // ── 7) Lados das setas: entra e sai pelo eixo do fluxo ────────────────────
-  const [fwdFrom, fwdTo] = vertical ? ['bottom', 'top'] : ['right', 'left'];
-  const backSide = vertical ? 'right' : 'bottom';
-  for (const e of edges) {
-    sides.set(e.id, e.back
-      ? { fromSide: backSide, toSide: backSide }
-      : { fromSide: fwdFrom, toSide: fwdTo });
-  }
-
-  return { positions, sides };
+    // ordena por ângulo, começando pelo maior "vão" pra minimizar empurrões
+    const order = ids.map((id, i) => ({ id, a: ((want[i] % TAU) + TAU) % TAU })).sort((p, q) => p.a - q.a);
+    let startIdx = 0;
+    if (order.length > 1) {
+      let best = -1;
+      order.forEach((o, i) => {
+        const next = order[(i + 1) % order.length].a + (i === order.length - 1 ? TAU : 0);
+        if (next - o.a > best) { best = next - o.a; startIdx = (i + 1) % order.length; }
+      });
+    }
+    const seq = [...order.slice(startIdx), ...order.slice(0, startIdx)];
+    // desenrola numa reta crescente e empurra pra respeitar a separação mínima
+    const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+    const placed = [];
+    seq.forEach((o, i) => {
+      let a = o.a;
+      while (a < seq[0].a - 1e-9) a += TAU;
+      const sep = i ? (radiusOf(o.id) + radiusOf(seq[i - 1].id) + GAP_NODE) / R : 0;
+      placed.push(i ? Math.max(a, placed[i - 1] + sep) : a);
+    });
+    // recentra pra o empurrão não rodar o anel inteiro
+    const drift = seq.reduce((s, o, i) => s + wrap(o.a - placed[i]), 0) / seq.length;
+    seq.forEach((o, i) => {
+      const a = placed[i] + drift;
+      angle.set(o.id, a);
+      const n = byId.get(o.id);
+      raw.set(o.id, { x: R * Math.cos(a) - n.w / 2, y: R * Math.sin(a) - n.h / 2 });
+    });
+  });
+  return raw;
 }

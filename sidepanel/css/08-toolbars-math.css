@@ -102,7 +102,7 @@
 .math-result-value {
   font-size: 18px;
   font-weight: 700;
-  color: #d97706;
+  color: oklch(66.58% 0.1574 58.32);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.5px;
   cursor: pointer;
@@ -111,7 +111,7 @@
   transition: background 0.1s;
 }
 .math-result-value:hover {
-  background: rgba(217, 119, 6, 0.12);
+  background: oklch(66.58% 0.1574 58.32 / 0.12);
 }
 
 .math-divider {
@@ -169,7 +169,7 @@
 .math-hist-res {
   font-size: 11px;
   font-weight: 700;
-  color: #d97706;
+  color: oklch(66.58% 0.1574 58.32);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -180,7 +180,7 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 24px oklch(0% 0 0 / 0.15), 0 2px 6px oklch(0% 0 0 / 0.08);
   z-index: 10000;
   min-width: 152px;
   padding: 4px;

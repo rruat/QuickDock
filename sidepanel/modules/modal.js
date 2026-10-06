@@ -276,7 +276,7 @@ function onKeyDown(e) {
 function setupImageViewer(url) {
   toolbar.classList.remove('hidden');
 
-  body.style.cssText = 'overflow:hidden; padding:0; background:#111;';
+  body.style.cssText = 'overflow:hidden; padding:0; background:oklch(17.8% 0 0);';
 
   viewerWrap = document.createElement('div');
   viewerWrap.className = 'img-viewer';

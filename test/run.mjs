@@ -3794,7 +3794,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('quadro · duplo clique no cartão de nota abre a nota de verdade',
     boardJsSource.includes("addEventListener('dblclick'") && boardJsSource.includes('abrirNotaDoQuadro(nota.uid)'));
   ok('quadro · botão "Vincular nota" busca por título e cria o cartão no local escolhido',
-    boardJsSource.includes('function toggleNoteSearchPopover(') && boardJsSource.includes('addNoteCard('));
+    boardJsSource.includes('function openNoteSearchPanel(') && boardJsSource.includes('addNoteCard('));
   ok('quadro · botão "Nova nota" cria a nota (createNoteRecord) e já solta o cartão vinculado',
     boardJsSource.includes('async function criarNotaEAdicionar()') &&
     boardJsSource.includes('await createNoteRecord({ title:'));
@@ -3961,14 +3961,15 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     boardStyleSource.includes('.board-selection-toolbar'));
 
   // 27.8: Paleta de Cores: 7 cores do arco-íris + personalizada com z-index 10000
+  const boardColorsSource = await readFile(new URL('../sidepanel/modules/board/board-colors.js', import.meta.url), 'utf8');
   ok('canvas obsidian 2.0 · paleta com 7 cores do arco-íris e seletor customizado',
-    boardJsSource.includes("name: 'Vermelho'") &&
-    boardJsSource.includes("name: 'Laranja'") &&
-    boardJsSource.includes("name: 'Amarelo'") &&
-    boardJsSource.includes("name: 'Verde'") &&
-    boardJsSource.includes("name: 'Azul'") &&
-    boardJsSource.includes("name: 'Índigo'") &&
-    boardJsSource.includes("name: 'Violeta'") &&
+    boardColorsSource.includes("name: 'Vermelho'") &&
+    boardColorsSource.includes("name: 'Laranja'") &&
+    boardColorsSource.includes("name: 'Amarelo'") &&
+    boardColorsSource.includes("name: 'Verde'") &&
+    boardColorsSource.includes("name: 'Azul'") &&
+    boardColorsSource.includes("name: 'Índigo'") &&
+    boardColorsSource.includes("name: 'Violeta'") &&
     boardJsSource.includes("'board-color-swatch is-custom'") &&
     boardStyleSource.includes('z-index: 10000;'));
 
@@ -4026,7 +4027,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('canvas obsidian 2.0 · suporte completo para fluxogramas (decisão, terminal, dados, documento)',
     boardJsSource.includes('FLOWCHART_SHAPES') &&
     boardJsSource.includes('function toggleShapePopover(') &&
-    boardJsSource.includes('function toggleFlowchartToolbarPopover(') &&
+    boardJsSource.includes('function toggleFlowchartPanel(') &&
     boardJsSource.includes('function addFlowchartCard(') &&
     boardHtmlSource.includes('id="tool-flowchart"') &&
     sidepanelHtmlSource.includes('id="tool-flowchart"') &&
@@ -5748,10 +5749,10 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     !baseCssSource.includes('--code-bg') &&
     !baseCssSource.includes('--code-border') &&
     !baseCssSource.includes('--code-fg') &&
-    baseCssSource.includes('--code-kw: #cf222e;') &&
-    baseCssSource.includes('--code-kw: #ff79c6;') &&
-    baseCssSource.includes('--code-fn: #50fa7b;') &&
-    baseCssSource.includes('--code-str: #f1fa8c;'));
+    baseCssSource.includes('--code-kw: oklch(55.2% 0.205 24.5);') &&
+    baseCssSource.includes('--code-kw: oklch(75.5% 0.183 346.8);') &&
+    baseCssSource.includes('--code-fn: oklch(87.1% 0.22 148);') &&
+    baseCssSource.includes('--code-str: oklch(95.5% 0.134 112.8);'));
 
   ok('03-blocks.css · bloco de código não altera background e usa tokens de sistema para container',
     blocksCssSource.includes('background: var(--bg-secondary);') &&
@@ -5762,9 +5763,9 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     blocksCssSource.includes('color-mix(in srgb, var(--border) 50%, transparent);'));
 
   ok('25-print.css · garante tokens legíveis de sintaxe para saída em papel claro',
-    printCssSource.includes('--code-kw: #cf222e;') &&
-    printCssSource.includes('--code-str: #0a3069;') &&
-    printCssSource.includes('--code-punc: #24292f;'));
+    printCssSource.includes('--code-kw: oklch(55.2% 0.205 24.5);') &&
+    printCssSource.includes('--code-str: oklch(32.1% 0.108 259.1);') &&
+    printCssSource.includes('--code-punc: oklch(27.9% 0.013 253);'));
 }
 
 // ── 44. Sincronização de Quadros Infinitos (.canvas) no Drive e Pasta Local ──
@@ -5923,6 +5924,19 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('beautify · ciclo não trava: a aresta de retorno contorna pela lateral',
     ciclo.positions.get('P').y < ciclo.positions.get('Q').y && ciclo.sides.get('b').fromSide === 'right');
 
+  const rad = computeBeautifyLayout(cards, arrows, 'radial');
+  const ctr = id => { const p = rad.positions.get(id); const n = cards.find(c => c.id === id); return { x: p.x + n.w / 2, y: p.y + n.h / 2 }; };
+  const sobrepoe = (a, b) => { const A = rad.positions.get(a), B = rad.positions.get(b); return A.x < B.x + 160 && B.x < A.x + 160 && A.y < B.y + 80 && B.y < A.y + 80; };
+  const ids = cards.map(c => c.id);
+  let colide = false;
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) if (sobrepoe(ids[i], ids[j])) colide = true;
+  ok('beautify · radial: espalha em várias direções (esquerda/direita e cima/baixo) sem sobrepor', !colide &&
+    new Set(['A','B','C','D'].map(id => Math.sign(Math.round(ctr(id).x - ctr('A').x)) + ':' + Math.sign(Math.round(ctr(id).y - ctr('A').y)))).size >= 3);
+  ok('beautify · radial: cada camada fica mais longe da origem que a anterior',
+    Math.hypot(ctr('B').x - ctr('A').x, ctr('B').y - ctr('A').y) > 0 &&
+    Math.hypot(ctr('D').x - ctr('A').x, ctr('D').y - ctr('A').y) >= Math.hypot(ctr('B').x - ctr('A').x, ctr('B').y - ctr('A').y) - 1);
+  ok('beautify · radial: setas escolhem o lado voltado pro destino', ['right','left','top','bottom'].includes(rad.sides.get('1').fromSide));
+
   ok('mídia · youtube vira embed seguro (nocookie)',
     mediaFromUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')?.embed === 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
   ok('mídia · extensão decide imagem/vídeo/áudio e o resto é link',
@@ -5934,6 +5948,25 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     normalizeUrl('javascript:alert(1)') === null && normalizeUrl('data:text/html,hi') === null && normalizeUrl('isso não é link') === null);
   ok('mídia · arquivo local classifica pelo mime',
     kindFromFile({ type: 'video/mp4' }) === 'video' && kindFromFile({ type: 'application/pdf' }) === 'file');
+}
+
+// ── Cores do Quadro: padrão OKLCH com tema claro e escuro ──
+{
+  const { readFile } = await import('node:fs/promises');
+  const css = await readFile(new URL('../board/style.css', import.meta.url), 'utf8');
+  const colors = await readFile(new URL('../sidepanel/modules/board/board-colors.js', import.meta.url), 'utf8');
+  const doc = await readFile(new URL('../docs/PADRAO-DE-CORES-OKLCH.md', import.meta.url), 'utf8');
+  const claudeMd = await readFile(new URL('../CLAUDE.md', import.meta.url), 'utf8');
+
+  const ini = css.indexOf('/* Cores de Cartões');
+  const fim = css.indexOf('/* Cartão selecionado em seleção múltipla */');
+  const bloco = css.slice(ini, fim);
+  ok('cores · cartões coloridos usam OKLCH e nenhum hex', ini > 0 && bloco.includes('oklch(') && !/#[0-9a-fA-F]{3,8}\b/.test(bloco));
+  ok('cores · tokens de tema claro e escuro (e texto do cartão) definidos',
+    bloco.includes('[data-theme="dark"] .board-card[data-color="red"]') && bloco.includes('--card-fg:') && bloco.includes('color: var(--card-fg)'));
+  ok('cores · amostras e cores de seta em OKLCH', !/#[0-9a-fA-F]{6}/.test(colors) && colors.includes('ARROW_COLORS'));
+  ok('cores · documento do padrão existe e o CLAUDE.md aponta pra ele',
+    doc.includes('Regra permanente') && claudeMd.includes('docs/PADRAO-DE-CORES-OKLCH.md'));
 }
 
 if (falhas.length) {

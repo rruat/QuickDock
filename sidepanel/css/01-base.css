@@ -23,19 +23,19 @@ html:not([data-theme="dark"]) {
      --border / --border-hover                       TODA borda neutra usa --border
      --text / --text-secondary / --text-muted        textos
      --accent / --accent-light / --danger            destaque e alerta */
-  --bg: #F0EEE8;
-  --bg-secondary: #E7E4DC;
-  --bg-card: #ffffff;
-  --bg-hover: #E2DDD3;
-  --border: #aaaaaa;
-  --border-hover: #777777;
-  --text: #1C1B18;
-  --text-secondary: #58554D;
-  --text-muted: #7E7A70;
-  --accent: #1C1B18;
-  --accent-light: rgba(160, 130, 60, 0.12);
-  --danger: #dc2626;
-  --tab-active-border-default: #1C1B18;
+  --bg: oklch(94.9% 0.008 91.5);
+  --bg-secondary: oklch(91.9% 0.011 89.7);
+  --bg-card: oklch(100% 0 0);
+  --bg-hover: oklch(89.9% 0.015 84.6);
+  --border: oklch(73.8% 0 0);
+  --border-hover: oklch(56.9% 0 0);
+  --text: oklch(22.2% 0.006 91.6);
+  --text-secondary: oklch(45% 0.013 89.8);
+  --text-muted: oklch(58% 0.016 88.7);
+  --accent: oklch(22.2% 0.006 91.6);
+  --accent-light: oklch(62.1% 0.096 86.1 / 0.12);
+  --danger: oklch(57.7% 0.215 27.3);
+  --tab-active-border-default: oklch(22.2% 0.006 91.6);
   --radius: 12px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -43,48 +43,48 @@ html:not([data-theme="dark"]) {
   --font-mono: 'Cascadia Code', Consolas, 'Courier New', Courier, monospace;
 
   /* Cores de sintaxe de código de programação (Light Mode) */
-  --code-kw: #cf222e;
-  --code-fn: #8250df;
-  --code-str: #0a3069;
-  --code-num: #0550ae;
-  --code-com: #6e7781;
-  --code-op: #cf222e;
-  --code-type: #953800;
-  --code-lit: #0550ae;
-  --code-tag: #116329;
-  --code-attr: #8250df;
-  --code-prop: #0550ae;
-  --code-punc: #24292f;
+  --code-kw: oklch(55.2% 0.205 24.5);
+  --code-fn: oklch(56.3% 0.207 295);
+  --code-str: oklch(32.1% 0.108 259.1);
+  --code-num: oklch(45.1% 0.164 258.2);
+  --code-com: oklch(56.5% 0.019 251);
+  --code-op: oklch(55.2% 0.205 24.5);
+  --code-type: oklch(46.6% 0.137 43.3);
+  --code-lit: oklch(45.1% 0.164 258.2);
+  --code-tag: oklch(43.9% 0.118 148.1);
+  --code-attr: oklch(56.3% 0.207 295);
+  --code-prop: oklch(45.1% 0.164 258.2);
+  --code-punc: oklch(27.9% 0.013 253);
 }
 
 [data-theme="dark"] {
-  --bg: #242321;
-  --bg-secondary: #1C1B19;
-  --bg-card: #2C2B27;
-  --bg-hover: #383632;
-  --border: #3D3B36;
-  --border-hover: #5E5B53;
-  --text: #ECEAE4;
-  --text-secondary: #ADA9A0;
-  --text-muted: #7D7A72;
-  --accent: #ECEAE4;
-  --accent-light: rgba(236, 234, 228, 0.12);
-  --danger: #f87171;
-  --tab-active-border-default: #ECEAE4;
+  --bg: oklch(25.6% 0.004 84.6);
+  --bg-secondary: oklch(22.2% 0.004 84.6);
+  --bg-card: oklch(28.9% 0.007 95.3);
+  --bg-hover: oklch(33.4% 0.007 84.6);
+  --border: oklch(35.3% 0.009 88.7);
+  --border-hover: oklch(47.1% 0.013 89.8);
+  --text: oklch(93.7% 0.008 91.5);
+  --text-secondary: oklch(73.6% 0.014 86.8);
+  --text-muted: oklch(58% 0.013 89.8);
+  --accent: oklch(93.7% 0.008 91.5);
+  --accent-light: oklch(93.7% 0.008 91.5 / 0.12);
+  --danger: oklch(71.1% 0.166 22.2);
+  --tab-active-border-default: oklch(93.7% 0.008 91.5);
 
   /* Cores de sintaxe de código de programação — Tema Dracula VSCode (Dark Mode) */
-  --code-kw: #ff79c6;
-  --code-fn: #50fa7b;
-  --code-str: #f1fa8c;
-  --code-num: #bd93f9;
-  --code-com: #6272a4;
-  --code-op: #ff79c6;
-  --code-type: #8be9fd;
-  --code-lit: #bd93f9;
-  --code-tag: #ff79c6;
-  --code-attr: #50fa7b;
-  --code-prop: #8be9fd;
-  --code-punc: #f8f8f2;
+  --code-kw: oklch(75.5% 0.183 346.8);
+  --code-fn: oklch(87.1% 0.22 148);
+  --code-str: oklch(95.5% 0.134 112.8);
+  --code-num: oklch(74.2% 0.149 301.9);
+  --code-com: oklch(56% 0.08 270.1);
+  --code-op: oklch(75.5% 0.183 346.8);
+  --code-type: oklch(88.26% 0.0934 212.85);
+  --code-lit: oklch(74.2% 0.149 301.9);
+  --code-tag: oklch(75.5% 0.183 346.8);
+  --code-attr: oklch(87.1% 0.22 148);
+  --code-prop: oklch(88.26% 0.0934 212.85);
+  --code-punc: oklch(97.7% 0.008 106.5);
 }
 
 /* ===== RESET E HERANÇA GLOBAL DE TIPOGRAFIA ===== */

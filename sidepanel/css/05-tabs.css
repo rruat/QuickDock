@@ -178,13 +178,13 @@
 
 /* "Nenhuma cor" — círculo com uma linha diagonal, convenção comum de "sem preenchimento" */
 .color-swatch-none {
-  background: linear-gradient(135deg, transparent 46%, #dc2626 46%, #dc2626 54%, transparent 54%);
+  background: linear-gradient(135deg, transparent 46%, oklch(57.7% 0.215 27.3) 46%, oklch(57.7% 0.215 27.3) 54%, transparent 54%);
   border: 1px solid var(--border);
 }
 
 /* "Outra cor" — arco-íris até escolherem uma; aí o inline style assume. */
 .color-swatch-custom {
-  background: conic-gradient(#ef4444, #f97316, #eab308, #22c55e, #3b82f6, #6366f1, #a855f7, #ef4444);
+  background: conic-gradient(oklch(63.7% 0.208 25.3), oklch(70.49% 0.1867 47.6), oklch(79.52% 0.1617 86.05), oklch(72.3% 0.192 149.6), oklch(62.3% 0.188 259.8), oklch(58.5% 0.204 277.1), oklch(62.7% 0.233 303.9), oklch(63.7% 0.208 25.3));
   overflow: hidden;
 }
 

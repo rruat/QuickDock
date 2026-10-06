@@ -562,8 +562,8 @@ function renderReminderSection(container, note, onSaved) {
     const textoOriginal = btn ? btn.innerHTML : '';
     if (btn) {
       btn.innerHTML = '<span class="qd-icon material-symbols-rounded">check_circle</span> Alarme e Som Disparados!';
-      btn.style.borderColor = 'var(--color-success, #10b981)';
-      btn.style.color = 'var(--color-success, #10b981)';
+      btn.style.borderColor = 'var(--color-success, oklch(69.6% 0.149 162.5))';
+      btn.style.color = 'var(--color-success, oklch(69.6% 0.149 162.5))';
     }
 
     await testarAlarmeFoco(note);

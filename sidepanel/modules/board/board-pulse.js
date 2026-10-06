@@ -6,8 +6,6 @@
 //
 // Dados: `arrow.pulse` (boolean) e `arrow.pulseShape` ('circle' | 'star').
 
-import { positionPopover } from '../popover.js';
-
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const PARTICLES = 3;        // cabeça + 2 de rastro
 const LAG = 0.06;           // atraso do rastro, em fração do ciclo
@@ -95,54 +93,36 @@ export function removeArrowPulse(dom) {
   dom.pulse = null;
 }
 
-// ── Popover do botão Pulse ──────────────────────────────────────────────────
-let aberto = null;
-
-export function closePulsePopover() {
-  aberto?.remove();
-  aberto = null;
-}
-
+// ── Painel do botão Pulse (quickbar) ────────────────────────────────────────
 /**
- * @param {HTMLElement} anchor
+ * @param {HTMLElement} body
  * @param {{ getArrows:()=>Array<object>, scopeLabel:()=>string, onChange:()=>void }} ctx
  *   getArrows → setas no escopo (selecionadas ou todas); onChange → re-render + salvar
  */
-export function togglePulsePopover(anchor, ctx) {
-  if (aberto) { closePulsePopover(); return; }
-
-  const pop = document.createElement('div');
-  pop.className = 'board-pulse-popover board-theme-scope';
-
+export function renderPulsePanel(body, ctx) {
   const render = () => {
     const arrows = ctx.getArrows();
     const allOn = arrows.length > 0 && arrows.every(a => a.pulse);
     const shape = arrows.find(a => a.pulse)?.pulseShape === 'star' ? 'star' : 'circle';
-    pop.innerHTML = '';
-
-    const title = document.createElement('div');
-    title.className = 'board-popover-title';
-    title.textContent = `Pulse · ${ctx.scopeLabel()}`;
-    pop.appendChild(title);
+    body.innerHTML = '';
 
     if (arrows.length === 0) {
       const vazio = document.createElement('div');
       vazio.className = 'board-insert-hint';
       vazio.textContent = 'Nenhuma seta aqui ainda. Conecte cartões para ver o fluxo pulsar.';
-      pop.appendChild(vazio);
+      body.appendChild(vazio);
       return;
     }
 
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = `board-pulse-toggle ${allOn ? 'is-on' : ''}`;
-    toggle.innerHTML = `<span class="qd-icon material-symbols-rounded">${allOn ? 'toggle_on' : 'toggle_off'}</span><span>${allOn ? 'Pulse ligado' : 'Ligar pulse'} (${arrows.length} seta${arrows.length > 1 ? 's' : ''})</span>`;
+    toggle.innerHTML = `<span class="qd-icon material-symbols-rounded">${allOn ? 'toggle_on' : 'toggle_off'}</span><span>${allOn ? 'Pulse ligado' : 'Ligar pulse'} · ${ctx.scopeLabel()} (${arrows.length} seta${arrows.length > 1 ? 's' : ''})</span>`;
     toggle.addEventListener('click', () => {
       for (const a of arrows) a.pulse = !allOn;
       ctx.onChange();
       render();
     });
-    pop.appendChild(toggle);
 
     const row = document.createElement('div');
     row.className = 'board-popover-row';
@@ -164,19 +144,7 @@ export function togglePulsePopover(anchor, ctx) {
       group.appendChild(b);
     }
     row.append(label, group);
-    pop.appendChild(row);
+    body.append(toggle, row);
   };
-
   render();
-  pop.addEventListener('pointerdown', e => e.stopPropagation());
-  pop.addEventListener('click', e => e.stopPropagation());
-  document.body.appendChild(pop);
-  positionPopover(pop, anchor);
-  aberto = pop;
-}
-
-if (typeof document !== 'undefined') {
-  document.addEventListener('pointerdown', e => {
-    if (aberto && !aberto.contains(e.target) && !e.target.closest('#tool-pulse')) closePulsePopover();
-  }, true);
 }

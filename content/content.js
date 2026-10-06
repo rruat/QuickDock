@@ -114,8 +114,8 @@ function createOverlay(el, kind, files) {
     left: ${rect.left}px;
     width: ${rect.width}px;
     height: ${Math.max(rect.height, 32)}px;
-    background: rgba(35,131,226,0.18);
-    border: 2px solid #2383e2;
+    background: oklch(60.58% 0.1674 252.7 / 0.18);
+    border: 2px solid oklch(60.58% 0.1674 252.7);
     border-radius: 5px;
     z-index: 2147483647;
     cursor: pointer;
@@ -130,8 +130,8 @@ function createOverlay(el, kind, files) {
   const label = document.createElement('span');
   label.textContent = '📥 Clique para enviar';
   label.style.cssText = `
-    background: #2383e2;
-    color: #fff;
+    background: oklch(60.58% 0.1674 252.7);
+    color: oklch(100% 0 0);
     font-size: 11px;
     font-family: -apple-system, sans-serif;
     padding: 3px 8px;
@@ -142,10 +142,10 @@ function createOverlay(el, kind, files) {
   ov.appendChild(label);
 
   ov.addEventListener('mouseenter', () => {
-    ov.style.background = 'rgba(35,131,226,0.28)';
+    ov.style.background = 'oklch(60.58% 0.1674 252.7 / 0.28)';
   });
   ov.addEventListener('mouseleave', () => {
-    ov.style.background = 'rgba(35,131,226,0.18)';
+    ov.style.background = 'oklch(60.58% 0.1674 252.7 / 0.18)';
   });
   ov.addEventListener('click', () => injectIntoElement(el, kind, files));
 

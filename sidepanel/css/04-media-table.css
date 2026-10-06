@@ -155,7 +155,7 @@
   height: auto;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: #000;
+  background: oklch(0% 0 0);
   max-height: 320px;
   object-fit: contain;
 }
@@ -195,12 +195,12 @@
 .image-btn-accent {
   background: var(--note-accent, var(--accent));
   border-color: transparent;
-  color: #fff;
+  color: oklch(100% 0 0);
   font-weight: 600;
 }
 .image-btn-accent:hover {
-  background: color-mix(in srgb, var(--note-accent, var(--accent)) 85%, #000);
-  color: #fff;
+  background: color-mix(in srgb, var(--note-accent, var(--accent)) 85%, oklch(0% 0 0));
+  color: oklch(100% 0 0);
 }
 
 .alt-menu { min-width: 230px; padding: 8px; }

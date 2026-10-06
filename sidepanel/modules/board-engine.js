@@ -47,6 +47,7 @@ import {
 import {
   NAMED_COLORS,
   RAINBOW_COLORS,
+  ARROW_COLORS,
   applyCardColor as _applyCardColor,
 } from './board/board-colors.js';
 import {
@@ -60,10 +61,11 @@ import {
   MEDIA_DEFAULT_SIZE, MEDIA_FILE_ACCEPT, mediaFromUrl, kindFromFile, mediaHandleLabel,
   buildMediaBody, releaseMediaFile,
 } from './board/board-media.js';
-import { toggleInsertPopover } from './board/board-insert-popover.js';
+import { toggleQuickbarPanel, openQuickbarPanel, closeQuickbarPanel } from './board/board-quickbar-panel.js';
+import { renderInsertPanel } from './board/board-insert-panel.js';
 import { computeBeautifyLayout } from './board/board-beautify.js';
-import { toggleBeautifyPopover } from './board/board-beautify-popover.js';
-import { syncArrowPulse, removeArrowPulse, togglePulsePopover } from './board/board-pulse.js';
+import { renderBeautifyPanel } from './board/board-beautify-panel.js';
+import { syncArrowPulse, removeArrowPulse, renderPulsePanel } from './board/board-pulse.js';
 import {
   computeMarqueeBounds as _computeMarqueeBounds,
   getCardsIntersectingBox as _getCardsIntersectingBox,
@@ -105,7 +107,6 @@ let connectingHandlePos = null;
 let hoveredConnectTargetCard = null;
 let hoveredConnectTargetSide = null;
 let openShapePopover = null;
-let openFlowchartToolbarPopover = null;
 let openArrowPopover = null;
 
 // Elementos do DOM — atribuídos em `initBoardEngine`, nunca em `const` de
@@ -600,13 +601,13 @@ export async function toggleBoardListPopover(anchor) {
     z-index: 1000;
     min-width: 220px;
     max-width: 320px;
-    background: var(--bg-card, #1e1e1e);
-    border: 1px solid var(--border, #333);
+    background: var(--bg-card, oklch(23.5% 0 0));
+    border: 1px solid var(--border, oklch(32.1% 0 0));
     border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px oklch(0% 0 0 / 0.3);
     padding: 6px;
     font-size: 13px;
-    color: var(--text, #eee);
+    color: var(--text, oklch(94.9% 0 0));
   `;
 
   const head = document.createElement('div');
@@ -627,7 +628,7 @@ export async function toggleBoardListPopover(anchor) {
       width: 100%;
       padding: 6px 8px;
       border-radius: 6px;
-      background: ${isCurrent ? 'var(--bg-hover, rgba(255,255,255,0.08))' : 'transparent'};
+      background: ${isCurrent ? 'var(--bg-hover, oklch(100% 0 0 / 0.08))' : 'transparent'};
       border: none;
       color: var(--text);
       cursor: pointer;
@@ -663,7 +664,7 @@ export async function toggleBoardListPopover(anchor) {
 
   const btnNew = document.createElement('button');
   btnNew.type = 'button';
-  btnNew.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;background:transparent;border:none;color:var(--accent,#3b82f6);cursor:pointer;font-size:12px;font-weight:500;';
+  btnNew.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;background:transparent;border:none;color:var(--accent,oklch(62.3% 0.188 259.8));cursor:pointer;font-size:12px;font-weight:500;';
   btnNew.innerHTML = '<span class="qd-icon material-symbols-rounded" style="font-size:16px;">add</span><span>Novo Espaço</span>';
   btnNew.addEventListener('click', async () => {
     closeBoardListPopover();
@@ -677,7 +678,7 @@ export async function toggleBoardListPopover(anchor) {
   if (allBoards.length > 1) {
     const btnDel = document.createElement('button');
     btnDel.type = 'button';
-    btnDel.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;background:transparent;border:none;color:var(--danger,#ef4444);cursor:pointer;font-size:12px;';
+    btnDel.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;background:transparent;border:none;color:var(--danger,oklch(63.7% 0.208 25.3));cursor:pointer;font-size:12px;';
     btnDel.innerHTML = '<span class="qd-icon material-symbols-rounded" style="font-size:16px;">delete</span><span>Excluir este espaço</span>';
     btnDel.addEventListener('click', async () => {
       if (!btnDel.dataset.confirming) {
@@ -1074,18 +1075,7 @@ function toggleColorPopover(anchorBtn, cardOrCards, cardEl) {
   pop.className = 'board-color-popover';
   pop.dataset.anchorCardId = card.id;
 
-  const rainbowColors = [
-    { name: 'Padrão', value: 'default', class: 'is-default' },
-    { name: 'Vermelho', value: 'red', bg: '#ef4444' },
-    { name: 'Laranja', value: 'orange', bg: '#f97316' },
-    { name: 'Amarelo', value: 'yellow', bg: '#eab308' },
-    { name: 'Verde', value: 'green', bg: '#22c55e' },
-    { name: 'Azul', value: 'blue', bg: '#3b82f6' },
-    { name: 'Índigo', value: 'indigo', bg: '#6366f1' },
-    { name: 'Violeta', value: 'violet', bg: '#a855f7' }
-  ];
-
-  for (const c of rainbowColors) {
+  for (const c of RAINBOW_COLORS) {
     const swatch = document.createElement('button');
     swatch.type = 'button';
     swatch.className = `board-color-swatch ${c.class || ''} ${card.color === c.value ? 'is-active' : ''}`;
@@ -1140,146 +1130,97 @@ function toggleColorPopover(anchorBtn, cardOrCards, cardEl) {
   openColorPopover = pop;
 }
 
-// ── Vincular Nota Existente ───────────────────────────────────────────────────
-let openNoteSearchPopover = null;
+// ── Painéis da quickbar que dependem dos dados do quadro ──────────────────────
+// Vincular nota existente: busca por título e solta o cartão no centro da tela.
+function openNoteSearchPanel(anchor) {
+  refreshNotesCache().then(() => openQuickbarPanel('note-search', {
+    title: 'Vincular nota', icon: 'link', anchor,
+    render: (body, api) => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'Buscar nota pelo título...';
+      input.className = 'board-note-search-input';
+      const list = document.createElement('div');
+      list.className = 'board-note-search-list';
+      body.append(input, list);
 
-function closeNoteSearchPopover() {
-  openNoteSearchPopover?.remove();
-  openNoteSearchPopover = null;
+      const renderList = filtro => {
+        const termo = filtro.trim().toLowerCase();
+        const notas = termo
+          ? allNotesCache.filter(n => (n.title || '').toLowerCase().includes(termo))
+          : allNotesCache;
+        list.innerHTML = '';
+        if (notas.length === 0) {
+          const vazio = document.createElement('div');
+          vazio.className = 'board-note-search-empty';
+          vazio.textContent = 'Nenhuma nota encontrada.';
+          list.appendChild(vazio);
+          return;
+        }
+        for (const nota of notas.slice(0, 50)) {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'board-note-search-item';
+          item.innerHTML = `
+            <span class="qd-icon material-symbols-rounded">${escHtml(nota.icon || 'description')}</span>
+            <span>${escHtml(nota.title || 'Sem título')}</span>
+          `;
+          item.addEventListener('click', () => {
+            api.close();
+            const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
+            addNoteCard(center.x - 110, center.y - 45, nota.uid);
+          });
+          list.appendChild(item);
+        }
+      };
+      renderList('');
+      input.addEventListener('input', () => renderList(input.value));
+      input.addEventListener('keydown', e => e.stopPropagation());
+      setTimeout(() => input.focus(), 60);
+    },
+  }));
 }
 
-async function toggleNoteSearchPopover(anchorBtn) {
-  if (openNoteSearchPopover) { closeNoteSearchPopover(); return; }
-  await refreshNotesCache();
-
-  const pop = document.createElement('div');
-  pop.className = 'board-note-search-popover';
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.placeholder = 'Buscar nota pelo título...';
-  input.className = 'board-note-search-input';
-  pop.appendChild(input);
-
-  const list = document.createElement('div');
-  list.className = 'board-note-search-list';
-  pop.appendChild(list);
-
-  const renderList = filtro => {
-    const termo = filtro.trim().toLowerCase();
-    const notas = termo
-      ? allNotesCache.filter(n => (n.title || '').toLowerCase().includes(termo))
-      : allNotesCache;
-    list.innerHTML = '';
-    if (notas.length === 0) {
-      const vazio = document.createElement('div');
-      vazio.className = 'board-note-search-empty';
-      vazio.textContent = 'Nenhuma nota encontrada.';
-      list.appendChild(vazio);
-      return;
-    }
-    for (const nota of notas.slice(0, 50)) {
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'board-note-search-item';
-      item.innerHTML = `
-        <span class="qd-icon material-symbols-rounded">${escHtml(nota.icon || 'description')}</span>
-        <span>${escHtml(nota.title || 'Sem título')}</span>
-      `;
-      item.addEventListener('click', () => {
-        closeNoteSearchPopover();
-        const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
-        addNoteCard(center.x - 110, center.y - 45, nota.uid);
-      });
-      list.appendChild(item);
-    }
-  };
-  renderList('');
-  input.addEventListener('input', () => renderList(input.value));
-  input.addEventListener('keydown', e => e.stopPropagation());
-
-  document.body.appendChild(pop);
-  const r = anchorBtn.getBoundingClientRect();
-  const popRect = pop.getBoundingClientRect();
-  let left = r.left;
-  if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
-  let top = r.bottom + 6;
-  if (top + popRect.height > window.innerHeight - 8) top = r.top - popRect.height - 6;
-  pop.style.left = `${Math.max(8, left)}px`;
-  pop.style.top = `${Math.max(8, top)}px`;
-
-  openNoteSearchPopover = pop;
-  input.focus();
-}
-
-// Popover genérico inline para entrada de texto (substitui window.prompt nativo)
-let openInlineInputPopover = null;
-function closeInlineInputPopover() {
-  openInlineInputPopover?.remove();
-  openInlineInputPopover = null;
-}
-
-function showInlineInputPopover(anchorEl, titleText, placeholder, onConfirm) {
-  closeInlineInputPopover();
-  closeColorPopover();
-  closeArrowPopover();
-
-  const pop = document.createElement('div');
-  pop.className = 'board-inline-input-popover';
-  pop.innerHTML = `
-    <div class="board-popover-title">${escHtml(titleText)}</div>
-    <input type="text" class="board-popover-input pop-inline-input" placeholder="${escHtml(placeholder)}" />
-    <div class="board-popover-actions">
-      <button type="button" class="board-btn pop-cancel-btn">Cancelar</button>
-      <button type="button" class="board-btn pop-confirm-btn" style="background:var(--accent);color:#fff;border-color:var(--accent);">Criar</button>
-    </div>
-  `;
-
-  const input = pop.querySelector('.pop-inline-input');
-  const onCommit = () => {
-    const val = input.value.trim();
-    closeInlineInputPopover();
-    if (val) onConfirm(val);
-  };
-
-  pop.querySelector('.pop-confirm-btn').addEventListener('click', onCommit);
-  pop.querySelector('.pop-cancel-btn').addEventListener('click', closeInlineInputPopover);
-  input.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter') onCommit();
-    if (ev.key === 'Escape') closeInlineInputPopover();
-  });
-
-  pop.addEventListener('click', ev => ev.stopPropagation());
-  pop.addEventListener('pointerdown', ev => ev.stopPropagation());
-
-  document.body.appendChild(pop);
-
-  const r = anchorEl?.getBoundingClientRect?.() || { left: window.innerWidth / 2 - 125, bottom: window.innerHeight / 2 - 50 };
-  let left = r.left;
-  let top = r.bottom + 8;
-  if (left + 250 > window.innerWidth - 12) left = window.innerWidth - 262;
-  if (top + 130 > window.innerHeight - 12) top = window.innerHeight - 142;
-  pop.style.left = `${Math.max(12, left)}px`;
-  pop.style.top = `${Math.max(12, top)}px`;
-
-  openInlineInputPopover = pop;
-  setTimeout(() => input.focus(), 30);
-}
-
-// Cria a nota de verdade inline (sem window.prompt nativo)
+// Cria a nota de verdade pelo painel (sem window.prompt nativo)
 async function criarNotaEAdicionar() {
-  const anchorBtn = document.getElementById('tool-insert');
-  showInlineInputPopover(anchorBtn, 'Criar Nova Nota', 'Título da nova nota...', async titulo => {
-    const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-    await createNoteRecord({ title: titulo, uid });
-    await refreshNotesCache();
-    const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
-    addNoteCard(center.x - 110, center.y - 45, uid);
+  openQuickbarPanel('note-create', {
+    title: 'Criar nota', icon: 'note_add', anchor: document.getElementById('tool-insert'),
+    render: (body, api) => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'board-popover-input';
+      input.placeholder = 'Título da nova nota...';
+      const confirmar = document.createElement('button');
+      confirmar.type = 'button';
+      confirmar.className = 'board-btn board-insert-url-ok';
+      confirmar.textContent = 'Criar';
+      const linha = document.createElement('div');
+      linha.className = 'board-insert-url-row';
+      linha.append(input, confirmar);
+      body.appendChild(linha);
+
+      const criar = async () => {
+        const titulo = input.value.trim();
+        if (!titulo) return;
+        api.close();
+        const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+        await createNoteRecord({ title: titulo, uid });
+        await refreshNotesCache();
+        const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
+        addNoteCard(center.x - 110, center.y - 45, uid);
+      };
+      confirmar.addEventListener('click', criar);
+      input.addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.key === 'Enter') criar();
+        if (e.key === 'Escape') api.close();
+      });
+      setTimeout(() => input.focus(), 60);
+    },
   });
 }
-
 // ── Menu Contextual da Conexão / Seta (Sem alert nem prompt) ───────────────────
 function closeArrowPopover() {
   openArrowPopover?.remove();
@@ -1325,7 +1266,6 @@ function showArrowPopover(e, arrow) {
   closeArrowPopover();
   closeColorPopover();
   closeShapePopover();
-  closeInlineInputPopover();
 
   const pop = document.createElement('div');
   pop.className = 'board-arrow-popover';
@@ -1391,13 +1331,7 @@ function showArrowPopover(e, arrow) {
       <span class="board-popover-label">Cor:</span>
       <div class="board-popover-colors">
         <button type="button" class="board-color-swatch is-default ${!arrow.color ? 'is-active' : ''}" data-color="default" title="Padrão"></button>
-        <button type="button" class="board-color-swatch ${arrow.color === '#ef4444' ? 'is-active' : ''}" data-color="#ef4444" style="background:#ef4444" title="Vermelho"></button>
-        <button type="button" class="board-color-swatch ${arrow.color === '#f97316' ? 'is-active' : ''}" data-color="#f97316" style="background:#f97316" title="Laranja"></button>
-        <button type="button" class="board-color-swatch ${arrow.color === '#eab308' ? 'is-active' : ''}" data-color="#eab308" style="background:#eab308" title="Amarelo"></button>
-        <button type="button" class="board-color-swatch ${arrow.color === '#22c55e' ? 'is-active' : ''}" data-color="#22c55e" style="background:#22c55e" title="Verde"></button>
-        <button type="button" class="board-color-swatch ${arrow.color === '#3b82f6' ? 'is-active' : ''}" data-color="#3b82f6" style="background:#3b82f6" title="Azul"></button>
-        <button type="button" class="board-color-swatch ${arrow.color === '#6366f1' ? 'is-active' : ''}" data-color="#6366f1" style="background:#6366f1" title="Índigo"></button>
-        <button type="button" class="board-color-swatch ${arrow.color === '#a855f7' ? 'is-active' : ''}" data-color="#a855f7" style="background:#a855f7" title="Violeta"></button>
+        ${ARROW_COLORS.map(c => `<button type="button" class="board-color-swatch ${arrow.color === c.value ? 'is-active' : ''}" data-color="${c.value}" style="background:${c.value}" title="${c.name}"></button>`).join('')}
       </div>
     </div>
 
@@ -1533,7 +1467,6 @@ function toggleShapePopover(buttonEl, card, cardEl) {
   }
   closeColorPopover();
   closeArrowPopover();
-  closeInlineInputPopover();
 
   const pop = document.createElement('div');
   pop.className = 'board-shape-popover board-theme-scope';
@@ -1598,63 +1531,32 @@ function toggleShapePopover(buttonEl, card, cardEl) {
   openShapePopover = pop;
 }
 
-function closeFlowchartToolbarPopover() {
-  openFlowchartToolbarPopover?.remove();
-  openFlowchartToolbarPopover = null;
-}
-
-function toggleFlowchartToolbarPopover(buttonEl) {
-  if (openFlowchartToolbarPopover) {
-    closeFlowchartToolbarPopover();
-    return;
-  }
+function toggleFlowchartPanel(anchor) {
   closeColorPopover();
   closeArrowPopover();
   closeShapePopover();
-  closeNoteSearchPopover();
-  closeInlineInputPopover();
-
-  const pop = document.createElement('div');
-  pop.className = 'board-shape-popover board-theme-scope';
-  pop.innerHTML = `
-    <div class="board-popover-title">Adicionar Elemento de Fluxo</div>
-    <div class="board-shape-grid">
-      ${FLOWCHART_SHAPES.map(s => `
+  toggleQuickbarPanel('flowchart', {
+    title: 'Elementos de fluxo', icon: 'shapes', anchor,
+    render: body => {
+      const grid = document.createElement('div');
+      grid.className = 'board-shape-grid';
+      grid.innerHTML = FLOWCHART_SHAPES.map(s => `
         <button type="button" class="board-shape-item" data-shape="${s.id}" title="${s.desc}">
           <span class="qd-icon material-symbols-rounded">${s.icon}</span>
           <span class="board-shape-item-label">${s.label}</span>
         </button>
-      `).join('')}
-    </div>
-  `;
-
-  pop.querySelectorAll('[data-shape]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const shapeId = btn.dataset.shape;
-      addFlowchartCard(shapeId);
-      closeFlowchartToolbarPopover();
-    });
+      `).join('');
+      grid.querySelectorAll('[data-shape]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          addFlowchartCard(btn.dataset.shape);
+          closeQuickbarPanel();
+        });
+      });
+      body.appendChild(grid);
+    },
   });
-
-  pop.addEventListener('pointerdown', ev => ev.stopPropagation());
-  document.body.appendChild(pop);
-
-  const rect = buttonEl.getBoundingClientRect();
-  const popW = pop.offsetWidth || 240;
-  const popH = pop.offsetHeight || 260;
-  let left = rect.left;
-  let top = rect.bottom + 8;
-  if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
-  if (left < 12) left = 12;
-  if (top + popH > window.innerHeight - 12) top = rect.top - popH - 8;
-  if (top < 12) top = 12;
-  pop.style.left = `${left}px`;
-  pop.style.top = `${top}px`;
-
-  openFlowchartToolbarPopover = pop;
 }
-
 function addFlowchartCard(shapeId) {
   const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
   const shapeDef = FLOWCHART_SHAPES.find(s => s.id === shapeId) || FLOWCHART_SHAPES[0];
@@ -1716,20 +1618,11 @@ function addFlowchartCard(shapeId) {
 
 if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', e => {
-    if (openNoteSearchPopover && !openNoteSearchPopover.contains(e.target) && !e.target.closest('#tool-insert')) {
-      closeNoteSearchPopover();
-    }
     if (openArrowPopover && !openArrowPopover.contains(e.target) && !e.target.closest('.board-arrow-path') && !e.target.closest('.board-arrow-hit-area')) {
       closeArrowPopover();
     }
     if (openShapePopover && !openShapePopover.contains(e.target) && !e.target.closest('.btn-shape')) {
       closeShapePopover();
-    }
-    if (openFlowchartToolbarPopover && !openFlowchartToolbarPopover.contains(e.target) && !e.target.closest('#tool-flowchart')) {
-      closeFlowchartToolbarPopover();
-    }
-    if (openInlineInputPopover && !openInlineInputPopover.contains(e.target) && !e.target.closest('#tool-insert')) {
-      closeInlineInputPopover();
     }
   }, true);
 }
@@ -2360,11 +2253,11 @@ function setupEventListeners(getEl) {
   // Ferramenta de Fluxograma (Abre popover de formas de fluxo)
   getEl('tool-flowchart')?.addEventListener('click', e => {
     e.stopPropagation();
-    toggleFlowchartToolbarPopover(e.currentTarget);
+    toggleFlowchartPanel(e.currentTarget);
   });
 
   // Inserir: link/vídeo/áudio/imagem por URL, arquivo local, nota existente
-  // ou nota nova — tudo num popover só (ver board/board-insert-popover.js).
+  // ou nota nova — tudo num painel só (ver board/board-insert-panel.js).
   const fileInput = getEl('board-image-upload-input');
   if (fileInput) {
     fileInput.multiple = true;
@@ -2372,16 +2265,17 @@ function setupEventListeners(getEl) {
   }
   getEl('tool-insert')?.addEventListener('click', e => {
     e.stopPropagation();
-    closeNoteSearchPopover();
-    closeInlineInputPopover();
-    toggleInsertPopover(e.currentTarget, {
-      onAddUrl: url => addMediaFromUrl(url),
-      onPickFile: () => fileInput?.click(),
-      onLinkNote: anchor => toggleNoteSearchPopover(anchor),
-      onCreateNote: criarNotaEAdicionar,
+    const anchor = e.currentTarget;
+    toggleQuickbarPanel('insert', {
+      title: 'Adicionar ao espaço', icon: 'add_photo_alternate', anchor,
+      render: (body, api) => renderInsertPanel(body, api, {
+        onAddUrl: url => addMediaFromUrl(url),
+        onPickFile: () => fileInput?.click(),
+        onLinkNote: () => openNoteSearchPanel(anchor),
+        onCreateNote: criarNotaEAdicionar,
+      }),
     });
   });
-
   fileInput?.addEventListener('change', async () => {
     const files = [...(fileInput.files || [])];
     fileInput.value = '';
@@ -2391,20 +2285,25 @@ function setupEventListeners(getEl) {
   // Organizar fluxo (beautify) e Pulse
   getEl('tool-beautify')?.addEventListener('click', e => {
     e.stopPropagation();
-    toggleBeautifyPopover(e.currentTarget, {
-      scopeLabel: () => (beautifyScope().usarSelecao ? 'seleção' : 'todo o espaço'),
-      onApply: applyBeautify,
+    toggleQuickbarPanel('beautify', {
+      title: 'Organizar fluxo', icon: 'auto_fix_high', anchor: e.currentTarget,
+      render: (body, api) => renderBeautifyPanel(body, api, {
+        scopeLabel: beautifyScope().usarSelecao ? 'seleção' : 'todo o espaço',
+        onApply: applyBeautify,
+      }),
     });
   });
   getEl('tool-pulse')?.addEventListener('click', e => {
     e.stopPropagation();
-    togglePulsePopover(e.currentTarget, {
-      getArrows: pulseScopeArrows,
-      scopeLabel: () => (selectedCardIds.size > 0 ? 'seleção' : 'todo o espaço'),
-      onChange: () => { renderArrows(); scheduleSave(); updatePulseButton(); },
+    toggleQuickbarPanel('pulse', {
+      title: 'Pulse do fluxo', icon: 'radio_button_checked', anchor: e.currentTarget,
+      render: body => renderPulsePanel(body, {
+        getArrows: pulseScopeArrows,
+        scopeLabel: () => (selectedCardIds.size > 0 ? 'seleção' : 'todo o espaço'),
+        onChange: () => { renderArrows(); scheduleSave(); updatePulseButton(); },
+      }),
     });
   });
-
   // Ferramenta de Grupo (Obsidian Canvas Group)
   getEl('tool-group')?.addEventListener('click', () => {
     const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
@@ -2436,15 +2335,6 @@ function setupEventListeners(getEl) {
       e.stopPropagation();
     }
   });
-
-  // Vincular nota existente / Criar nota nova — ações imediatas, não modos
-  // persistentes como os três botões acima: cada clique já resolve tudo
-  // (busca e solta, ou cria e solta) no centro da tela.
-  getEl('tool-note-link')?.addEventListener('click', e => {
-    e.stopPropagation();
-    toggleNoteSearchPopover(e.currentTarget);
-  });
-  getEl('tool-note-create')?.addEventListener('click', criarNotaEAdicionar);
 
   // Colar Imagem — mesmo mecanismo dos anexos de nota (Blob na tabela
   // `files` do Dexie, nunca base64 solto no JSON do quadro), só que aqui
@@ -2760,8 +2650,6 @@ function onContainerPointerUp(e) {
       clearSelection();
       closeColorPopover();
       closeArrowPopover();
-      closeInlineInputPopover();
-      closeNoteSearchPopover();
     }
     scheduleSave();
   }

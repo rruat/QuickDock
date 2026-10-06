@@ -20,9 +20,9 @@ export function renderAgendaView(containerEl, itensAgendados, dataHoje = new Dat
   const amanhaYMD = `${amanha.getFullYear()}-${String(amanha.getMonth() + 1).padStart(2, '0')}-${String(amanha.getDate()).padStart(2, '0')}`;
 
   const grupos = {
-    atrasadas: { titulo: 'Atrasadas', itens: [], cor: '#ef4444' },
+    atrasadas: { titulo: 'Atrasadas', itens: [], cor: 'oklch(63.7% 0.208 25.3)' },
     hoje:      { titulo: 'Hoje', itens: [], cor: 'var(--accent)' },
-    amanha:    { titulo: 'Amanhã', itens: [], cor: '#3b82f6' },
+    amanha:    { titulo: 'Amanhã', itens: [], cor: 'oklch(62.3% 0.188 259.8)' },
     futuras:   { titulo: 'Próximas', itens: [], cor: 'var(--text-muted)' }
   };
 

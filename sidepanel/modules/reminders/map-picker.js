@@ -157,8 +157,8 @@ export function createMapPicker(containerEl, options = {}) {
         if (!circle) {
           circle = L.circle([targetLat, targetLng], {
             radius: currentRadius,
-            color: '#2563eb',
-            fillColor: '#3b82f6',
+            color: 'oklch(54.6% 0.215 262.9)',
+            fillColor: 'oklch(62.3% 0.188 259.8)',
             fillOpacity: 0.22,
             weight: 2
           }).addTo(map);

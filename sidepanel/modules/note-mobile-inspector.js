@@ -487,7 +487,7 @@ export async function renderMobileLocalGraph(noteId = getCurrentNoteId()) {
         vy: 0,
         radius: 14,
         isCenter: true,
-        color: note.color || '#6366f1'
+        color: note.color || 'oklch(58.5% 0.204 277.1)'
       }
     ];
 
@@ -510,7 +510,7 @@ export async function renderMobileLocalGraph(noteId = getCurrentNoteId()) {
         vy: 0,
         radius: 9,
         isCenter: false,
-        color: nb.color || '#94a3b8'
+        color: nb.color || 'oklch(71.1% 0.035 256.8)'
       });
 
       localGraphEdges.push({
@@ -570,8 +570,8 @@ function drawLocalGraph(width, height) {
   graphCtx.scale(scale, scale);
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const lineColor = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)';
-  const textColor = isDark ? '#e2e8f0' : '#1e293b';
+  const lineColor = isDark ? 'oklch(100% 0 0 / 0.15)' : 'oklch(0% 0 0 / 0.12)';
+  const textColor = isDark ? 'oklch(92.9% 0.013 255.5)' : 'oklch(27.9% 0.037 260)';
 
   // 1. Arestas
   graphCtx.lineWidth = 1.5;
@@ -593,16 +593,16 @@ function drawLocalGraph(width, height) {
     if (node.isCenter) {
       graphCtx.beginPath();
       graphCtx.arc(node.x, node.y, node.radius + 4, 0, Math.PI * 2);
-      graphCtx.fillStyle = 'rgba(99, 102, 241, 0.22)';
+      graphCtx.fillStyle = 'oklch(58.5% 0.204 277.1 / 0.22)';
       graphCtx.fill();
     }
 
     graphCtx.beginPath();
     graphCtx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-    graphCtx.fillStyle = node.color || '#6366f1';
+    graphCtx.fillStyle = node.color || 'oklch(58.5% 0.204 277.1)';
     graphCtx.fill();
     graphCtx.lineWidth = 1.5;
-    graphCtx.strokeStyle = isDark ? '#1e293b' : '#ffffff';
+    graphCtx.strokeStyle = isDark ? 'oklch(27.9% 0.037 260)' : 'oklch(100% 0 0)';
     graphCtx.stroke();
 
     // Rótulo de texto

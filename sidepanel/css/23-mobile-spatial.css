@@ -290,6 +290,28 @@
     user-select: none !important;
   }
 
+  /* A barra virou coluna: painel expansível em cima, linha de ferramentas (que rola) embaixo */
+  .board-quickbar,
+  .board-view .board-header,
+  html[data-platform="mobile"] .board-quickbar,
+  html[data-platform="mobile"] .board-view .board-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    height: auto !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: visible !important;
+  }
+
+  .board-view .board-quickbar-row,
+  html[data-platform="mobile"] .board-view .board-quickbar-row {
+    height: 44px !important;
+    padding: 0 6px !important;
+    gap: 4px !important;
+    justify-content: flex-start !important;
+  }
+
   .board-view .board-quickbar-divider,
   html[data-platform="mobile"] .board-view .board-quickbar-divider {
     display: none !important;
@@ -322,7 +344,7 @@
   .board-view .board-tool-btn.active,
   html[data-platform="mobile"] .board-view .board-tool-btn.active {
     background: var(--accent) !important;
-    color: #ffffff !important;
+    color: oklch(100% 0 0) !important;
   }
 
   .board-view .board-tool-btn .tool-btn-label,
@@ -647,7 +669,7 @@
   #mAside.is-open-mobile,
   html[data-platform="mobile"] #mAside.is-open-mobile {
     transform: translate3d(0, 0, 0) !important;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2) !important;
+    box-shadow: 4px 0 20px oklch(0% 0 0 / 0.2) !important;
     pointer-events: auto !important;
     visibility: visible !important;
   }
@@ -741,7 +763,7 @@
   #mobileRightDrawer.is-open-mobile,
   html[data-platform="mobile"] #mobileRightDrawer.is-open-mobile {
     transform: translate3d(0, 0, 0) !important;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2) !important;
+    box-shadow: -4px 0 20px oklch(0% 0 0 / 0.2) !important;
     pointer-events: auto !important;
     visibility: visible !important;
   }
@@ -800,7 +822,7 @@
   .mobile-right-tab.active {
     background: var(--bg-card);
     color: var(--text);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 4px oklch(0% 0 0 / 0.15);
   }
 
   .mobile-tab-badge {
@@ -819,7 +841,7 @@
 
   .mobile-right-tab.active .mobile-tab-badge {
     background: var(--accent);
-    color: #fff;
+    color: oklch(100% 0 0);
   }
 
   .mobile-right-body {
@@ -873,7 +895,7 @@
   }
 
   .mobile-outline-item.active {
-    background: var(--accent-light, rgba(99, 102, 241, 0.12));
+    background: var(--accent-light, oklch(58.5% 0.204 277.1 / 0.12));
     color: var(--accent);
     font-weight: 500;
   }
@@ -1073,7 +1095,7 @@
     position: fixed !important;
     top: 0 !important;
     bottom: 0 !important;
-    background: rgba(0, 0, 0, 0.08) !important;
+    background: oklch(0% 0 0 / 0.08) !important;
     z-index: 105 !important;
     opacity: 0 !important;
     pointer-events: none !important;

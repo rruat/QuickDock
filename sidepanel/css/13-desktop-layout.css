@@ -534,7 +534,7 @@
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 18px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 8px oklch(0% 0 0 / 0.08), 0 1px 3px oklch(0% 0 0 / 0.04);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     display: inline-flex !important;
@@ -553,7 +553,7 @@
     background: var(--bg-hover);
     color: var(--accent);
     border-color: var(--accent);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 12px oklch(0% 0 0 / 0.12);
     transform: translateY(-1px);
   }
 
@@ -724,7 +724,7 @@
     border-color: var(--accent);
     color: var(--accent);
     font-weight: 600;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px oklch(0% 0 0 / 0.04);
   }
 
   html[data-platform="desktop"] .aside-nav-label {
@@ -743,7 +743,7 @@
 
   html[data-platform="desktop"] #btn-nav-templates.active .aside-nav-badge {
     background: var(--accent);
-    color: #ffffff;
+    color: oklch(100% 0 0);
   }
 
   html[data-platform="desktop"] .aside-search-label {
@@ -793,7 +793,7 @@
     border-color: var(--active-accent, var(--tab-active-border-default));
     color: var(--text);
     font-weight: 500;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 4px oklch(0% 0 0 / 0.06);
   }
 
   html[data-platform="desktop"] .note-tab-title {

@@ -1,5 +1,9 @@
 # QuickDock — regras de arquitetura
 
+## Cores: sempre OKLCH (regra permanente)
+
+Toda cor nova ou alterada — CSS, JS, SVG — é escrita em **`oklch()`** (e misturas com `color-mix(in oklch, …)`), nunca `#hex`/`rgb()`/`hsl()`. Cada cor de fundo precisa de valor para tema claro **e** escuro, com o texto definido junto e diferença de L ≥ 55 entre os dois. Detalhes, paleta de referência, exceções e checklist: [`docs/PADRAO-DE-CORES-OKLCH.md`](docs/PADRAO-DE-CORES-OKLCH.md). Leia antes de mexer em qualquer cor. Ao tocar numa regra legada em hex, converta aquela regra no mesmo commit.
+
 ## Arquivos pequenos (regra permanente)
 
 Este projeto está migrando de arquivos monolíticos para módulos pequenos e coesos. Isso vale tanto para código existente quanto para qualquer código novo, escrito por mim ou por qualquer agente de IA (Claude, Gemini, etc.).

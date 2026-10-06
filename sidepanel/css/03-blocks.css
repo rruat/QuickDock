@@ -157,8 +157,8 @@
 /* Excluir é o único que não tem volta fácil: fica vermelho ao passar o mouse,
    pra que o gesto errado se anuncie antes do clique. */
 .block-menu-quick.is-danger:hover {
-  background: color-mix(in srgb, #ef4444 14%, transparent);
-  color: #ef4444;
+  background: color-mix(in srgb, oklch(63.7% 0.208 25.3) 14%, transparent);
+  color: oklch(63.7% 0.208 25.3);
 }
 
 .block-menu-quick .material-symbols-rounded {
@@ -306,11 +306,11 @@
 
    --callout carrega a cor e --callout-label o rótulo, pra que cada tipo caiba
    numa linha só e o resto do estilo seja escrito uma vez. */
-.note-editor-blocks .block[data-callout="note"]      { --callout: #2383e2; --callout-label: 'ℹ️ Nota'; }
-.note-editor-blocks .block[data-callout="tip"]       { --callout: #16a34a; --callout-label: '💡 Dica'; }
-.note-editor-blocks .block[data-callout="important"] { --callout: #a855f7; --callout-label: '❗ Importante'; }
-.note-editor-blocks .block[data-callout="warning"]   { --callout: #d97706; --callout-label: '⚠️ Atenção'; }
-.note-editor-blocks .block[data-callout="caution"]   { --callout: #ef4444; --callout-label: '🛑 Cuidado'; }
+.note-editor-blocks .block[data-callout="note"]      { --callout: oklch(60.58% 0.1674 252.7); --callout-label: 'ℹ️ Nota'; }
+.note-editor-blocks .block[data-callout="tip"]       { --callout: oklch(62.7% 0.17 149.2); --callout-label: '💡 Dica'; }
+.note-editor-blocks .block[data-callout="important"] { --callout: oklch(62.7% 0.233 303.9); --callout-label: '❗ Importante'; }
+.note-editor-blocks .block[data-callout="warning"]   { --callout: oklch(66.58% 0.1574 58.32); --callout-label: '⚠️ Atenção'; }
+.note-editor-blocks .block[data-callout="caution"]   { --callout: oklch(63.7% 0.208 25.3); --callout-label: '🛑 Cuidado'; }
 
 .note-editor-blocks .block[data-callout] {
   border-left-color: var(--callout);
@@ -533,12 +533,12 @@
 /* Confirmação no próprio lugar em que se clicou — é onde o olho já está. */
 .calc-result.copiado,
 .calc-result.copiado:hover {
-  background: color-mix(in srgb, #16a34a 22%, transparent);
-  color: #16a34a;
+  background: color-mix(in srgb, oklch(62.7% 0.17 149.2) 22%, transparent);
+  color: oklch(62.7% 0.17 149.2);
 }
 
 .block-calc[data-calc-erro] .calc-result {
-  color: #dc2626;
+  color: oklch(57.7% 0.215 27.3);
   font-size: 11px;
   opacity: 0.85;
 }
@@ -598,8 +598,8 @@
   border-color: var(--border-hover);
 }
 .code-copy-btn.copied {
-  color: var(--color-success, #10b981);
-  border-color: var(--color-success, #10b981);
+  color: var(--color-success, oklch(69.6% 0.149 162.5));
+  border-color: var(--color-success, oklch(69.6% 0.149 162.5));
 }
 .code-copy-icon {
   display: inline-block;
@@ -733,7 +733,7 @@
 /* Formatação de texto destacado (==texto==) */
 .note-editor-blocks mark.md-highlight,
 .note-editor-blocks mark[data-syntax="=="] {
-  background: var(--highlight-bg, rgba(250, 204, 21, 0.35));
+  background: var(--highlight-bg, oklch(86.06% 0.1731 91.94 / 0.35));
   color: inherit;
   border-radius: 2px;
   padding: 0 2px;
