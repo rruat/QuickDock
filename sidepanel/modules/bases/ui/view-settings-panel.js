@@ -9,6 +9,10 @@
 import { VIEW_TYPES } from '../config/view-model.js';
 import { el, section, row } from './controls.js';
 import { calendarSections } from './section-calendar.js';
+import { propertiesSection } from './section-properties.js';
+import { filterSection } from './section-filter.js';
+import { sortSection } from './section-sort.js';
+import { groupSection } from './section-group.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -65,12 +69,16 @@ export function mountViewSettingsPanel(host, api) {
   corpo.appendChild(secaoGeral(api));
 
   const patch = p => api.onPatch(p);
+  const ctx = { view, schema: api.getSchema(), memoria, patch };
   if (view.type === 'calendar') {
-    for (const s of calendarSections({ view, schema: api.getSchema(), memoria, patch })) corpo.appendChild(s);
+    for (const s of calendarSections(ctx)) corpo.appendChild(s);
   } else {
-    const aviso = el('p', 'bset-hint', 'Mais configurações deste tipo de view chegam nas próximas etapas.');
-    corpo.appendChild(aviso);
+    corpo.appendChild(propertiesSection(ctx));
+    const grupo = groupSection(ctx);
+    if (grupo) corpo.appendChild(grupo);
   }
+  corpo.appendChild(filterSection(ctx));
+  if (view.type !== 'calendar') corpo.appendChild(sortSection(ctx));
 
   const onKey = e => { if (e.key === 'Escape') api.onClose(); };
   host.addEventListener('keydown', onKey);

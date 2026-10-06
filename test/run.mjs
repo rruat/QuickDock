@@ -6077,6 +6077,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   await runBasesCalendarTests({ ok, igual });
 }
 
+{
+  const { runBasesSettingsTests } = await import('./bases-settings-tests.mjs');
+  await runBasesSettingsTests({ ok, igual });
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

@@ -6,6 +6,7 @@
 
 import { getNotePropertyValue } from './bases-engine.js';
 import { formatPropertyValue } from './bases-schema.js';
+import { getViewProps } from './config/view-model.js';
 import { formatSelectBadge } from './bases-cell-editors.js';
 import { loadFileBlob } from '../storage.js';
 
@@ -78,8 +79,7 @@ function colocarPlaceholder(cover, note) {
 }
 
 function propriedadesVisiveis(viewConfig, coverProp) {
-  const lista = viewConfig.visibleProperties || viewConfig.properties || viewConfig.columns || [];
-  return (Array.isArray(lista) ? lista : [])
+  return getViewProps(viewConfig)
     .filter(p => p && !['title', 'name', coverProp].includes(p));
 }
 

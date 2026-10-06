@@ -4,6 +4,7 @@
 
 import { getNotePropertyValue } from './bases-engine.js';
 import { formatPropertyValue } from './bases-schema.js';
+import { getViewProps } from './config/view-model.js';
 import { formatSelectBadge } from './bases-cell-editors.js';
 
 /**
@@ -18,7 +19,7 @@ export function renderBaseListView(container, notes, schema, viewConfig = {}, ca
   container.innerHTML = '';
   container.className = 'base-view-container base-list-container';
 
-  const visibleProps = viewConfig.visibleProperties || [];
+  const visibleProps = getViewProps(viewConfig);
 
   const listEl = document.createElement('div');
   listEl.className = 'base-list-items';

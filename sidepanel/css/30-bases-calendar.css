@@ -224,3 +224,12 @@
 .bset-btn-danger { color: oklch(45% 0.18 25); border-color: oklch(70% 0.1 25); }
 [data-theme="dark"] .bset-btn-danger { color: oklch(78% 0.13 25); border-color: oklch(45% 0.1 25); }
 @media (max-width: 640px) { .base-settings-host { width: 100%; } }
+
+/* ── Painel: regras de filtro/ordenação (todas as views) ── */
+.bset-rule { display: flex; align-items: center; gap: 6px; }
+.bset-rule .bset-select { max-width: none; min-width: 0; flex: 1; }
+.bset-filter { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.bset-filter .bset-input { max-width: 100%; width: 100%; box-sizing: border-box; }
+.bset-pair { display: flex; gap: 6px; }
+.bset-icon-btn { flex: none; width: 24px; height: 24px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); cursor: pointer; }
+.bset-icon-btn:hover { background: var(--bg-hover); color: var(--text); }

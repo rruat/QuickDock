@@ -4,6 +4,7 @@
 // edição inline direta de células e linha de rodapé com somatórios/médias.
 
 import { formatPropertyValue } from './bases-schema.js';
+import { getViewProps } from './config/view-model.js';
 import { getNotePropertyValue, queryBaseNotes, sortBaseNotes, calculateBaseSummaries } from './bases-engine.js';
 import { activateCellEditor } from './bases-cell-editors.js';
 import { createNoteRecord } from '../storage.js';
@@ -26,9 +27,8 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   let currentNotes = [...notes];
   let quickSearchQuery = '';
   let activeSorts = Array.isArray(activeView.sort) ? [...activeView.sort] : [{ property: 'title', direction: 'asc' }];
-  const columns = Array.isArray(activeView.columns) && activeView.columns.length > 0
-    ? [...activeView.columns]
-    : Object.keys(schema).slice(0, 6);
+  const propsView = getViewProps(activeView);
+  const columns = propsView.length > 0 ? propsView : Object.keys(schema).slice(0, 6);
 
   if (!activeView.columnWidths) activeView.columnWidths = {};
   if (!activeView.summaries) activeView.summaries = { title: 'count' };
