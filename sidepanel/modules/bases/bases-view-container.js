@@ -11,6 +11,7 @@ import { renderBaseBoardView } from './bases-board-view.js';
 import { renderBaseGalleryView } from './bases-gallery-view.js';
 import { renderBaseListView } from './bases-list-view.js';
 import { renderBaseCalendarView } from './bases-calendar-view.js';
+import { renderBaseChartView } from './bases-chart-view.js';
 import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById } from '../storage.js';
 import { normalizeViews, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
@@ -354,6 +355,12 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id } }));
       },
       onOpenSettings: () => { settingsOpen = !settingsOpen; renderSettingsPanel(); },
+      // clicar numa barra/fatia do gráfico vira filtro rápido
+      onQuickFilter: cond => {
+        quickFilters = [...quickFilters, cond];
+        saveQuickFilters(baseKey(), currentView.id, quickFilters);
+        updateViewport();
+      },
       // Ajustes da própria visão (ex.: tamanho dos cartões da galeria) viram parte da Base
       onUpdateView: patch => updateActiveView(patch),
       showOwnToolbar: false,
@@ -369,6 +376,9 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         break;
       case 'list':
         renderBaseListView(viewportEl, sortedNotes, schema, currentView, callbacks);
+        break;
+      case 'chart':
+        renderBaseChartView(viewportEl, sortedNotes, schema, currentView, callbacks);
         break;
       case 'calendar':
         renderBaseCalendarView(viewportEl, sortedNotes, schema, currentView, callbacks);

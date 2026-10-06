@@ -208,4 +208,48 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('formato · formatPropertyValue usa o formato novo', Sc.formatPropertyValue(0.5, 'number', { format: { kind: 'percent' } }), '50%');
   igual('formato · formato antigo em texto continua valendo', Sc.formatPropertyValue(0.5, 'number', { format: 'percent' }), '50.0%');
   igual('formato · schema herda format da Base', Sc.inferBaseSchema([{ properties: { p: 1 } }], { p: { type: 'number', format: { kind: 'currency' } } }).p.format, { kind: 'currency' });
+
+  // ── gráficos ──
+  const Cm = await import('../sidepanel/modules/bases/chart/chart-model.js');
+  const Cl = await import('../sidepanel/modules/bases/chart/chart-layout.js');
+  const gn = [
+    { title: 'a', properties: { st: 'Fazendo', pr: 'alta', v: 10, d: '2026-01-05' } },
+    { title: 'b', properties: { st: 'Fazendo', pr: 'baixa', v: 5, d: '2026-01-20' } },
+    { title: 'c', properties: { st: 'Feito', pr: 'alta', v: 20, d: '2026-02-02' } },
+    { title: 'd', properties: { v: 1 } },
+  ];
+  const gsc = { st: { type: 'select', options: ['Fazendo', 'Feito'] }, pr: { type: 'select' }, v: { type: 'number' }, d: { type: 'date' } };
+  const dadosG = view => Cm.buildChartData(gn, Cm.resolveChartConfig(view), gsc);
+  const d1 = dadosG({ chart: { kind: 'bar' }, x: { prop: 'st' } });
+  igual('gráfico · contagem por status', d1.categories.map((c, i) => `${c.key}:${d1.values[0][i]}`), ['Fazendo:2', 'Feito:1', '__empty__:1']);
+  const d2 = dadosG({ chart: { kind: 'bar' }, x: { prop: 'st', omitEmpty: true }, y: { agg: 'sum', prop: 'v' } });
+  igual('gráfico · soma de v por status, sem vazio', d2.values[0], [15, 20]);
+  const d3 = dadosG({ chart: { kind: 'bar', stack: 'stacked' }, x: { prop: 'st' }, series: { prop: 'pr' } });
+  igual('gráfico · empilhado soma = contagem total', d3.values.flat().reduce((a, b) => a + b, 0), 4);
+  igual('gráfico · séries por prioridade', d3.series.map(s => s.key), ['alta', 'baixa', '__empty__']);
+  const d4 = dadosG({ chart: { kind: 'line' }, x: { prop: 'd', granularity: 'month' } });
+  igual('gráfico · datas por mês em ordem cronológica', d4.categories.map(c => c.key), ['2026-01', '2026-02', '__empty__']);
+  igual('gráfico · acumulado', dadosG({ chart: { kind: 'line' }, x: { prop: 'd' }, style: { cumulative: true } }).values[0], [2, 3, 4]);
+  igual('gráfico · ordenar por maior valor', dadosG({ chart: { kind: 'bar' }, x: { prop: 'st' }, y: { agg: 'sum', prop: 'v' }, x2: 0 }).categories.length, 3);
+  igual('gráfico · maior valor primeiro', dadosG({ chart: { kind: 'bar' }, x: { prop: 'st', sort: 'value' }, y: { agg: 'sum', prop: 'v' } }).categories[0].key, 'Feito');
+  igual('gráfico · número', dadosG({ chart: { kind: 'number' }, y: { agg: 'sum', prop: 'v' } }).single, 36);
+  igual('gráfico · omitir zeros', dadosG({ chart: { kind: 'bar' }, x: { prop: 'st' }, style: { omitZeros: true }, y: { agg: 'sum', prop: 'v' } }).categories.length, 3);
+  const muitas = Array.from({ length: 12 }, (_, i) => ({ title: String(i), properties: { c: `c${i}` } }));
+  const dm = Cm.buildChartData(muitas, Cm.resolveChartConfig({ chart: { kind: 'bar' }, x: { prop: 'c' }, series: { prop: 'c' } }), { c: { type: 'text' } });
+  igual('gráfico · mais de 8 séries agrupa em "Outros"', [dm.series.length, dm.series[7].label], [8, 'Outros']);
+  igual('gráfico · config ignora lixo', Cm.resolveChartConfig({ chart: { kind: 'radar' }, style: { height: 99999 } }).kind, 'bar');
+  igual('gráfico · altura limitada', Cm.resolveChartConfig({ style: { height: 99999 } }).style.height, 600);
+  igual('ticks · passo 1-2-5', [Cl.niceTicks(7).ticks, Cl.niceTicks(23).step, Cl.niceTicks(0).max], [[0, 2, 4, 6, 8], 5, 1]);
+  ok('ticks · cobre o máximo', [3, 99, 1234, 0.37].every(m => Cl.niceTicks(m).max >= m));
+  igual('ticks · rótulos curtos', [Cl.tickLabel(1500), Cl.tickLabel(25000), Cl.tickLabel(3e6)], ['1.500', '25 mil', '3 mi']);
+  const lb = Cl.layoutBars([[1, 2], [3, 4]], 'stacked');
+  igual('barras · empilhada acumula', [lb.max, lb.bars.filter(b => b.c === 1).map(b => [b.from, b.to])], [6, [[0, 2], [2, 6]]]);
+  igual('barras · 100%', Cl.layoutBars([[1], [3]], 'percent').bars.map(b => b.to), [25, 100]);
+  igual('barras · lado a lado usa bandas', Cl.layoutBars([[1], [3]], 'grouped').bars.map(b => [b.band, b.bands]), [[0, 2], [1, 2]]);
+  const fat = Cl.layoutDonut([1, 1, 2]);
+  ok('pizza · fatias somam 2π', Math.abs(fat[fat.length - 1].a1 - fat[0].a0 - Math.PI * 2) < 1e-9);
+  igual('pizza · fração', fat.map(f => f.frac), [0.25, 0.25, 0.5]);
+  igual('rótulos · tira os que colidem', Cl.thinLabels(10, 200, 50), [0, 3, 6, 9]);
+  const cssCh = await readFile(new URL('../sidepanel/css/32-bases-charts.css', import.meta.url), 'utf8');
+  ok('gráfico · CSS só em OKLCH', !/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i.test(cssCh) && /--bch-c7: oklch/.test(cssCh));
 }

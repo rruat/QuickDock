@@ -19,6 +19,7 @@ import { boardSection } from './section-board.js';
 import { colorSection } from './section-color.js';
 import { derivedSection } from './section-derived.js';
 import { formatSection } from './section-format.js';
+import { chartSections } from './section-chart.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -79,6 +80,8 @@ export function mountViewSettingsPanel(host, api) {
   const ctx = { view, schema: api.getSchema(), memoria, patch };
   if (view.type === 'calendar') {
     for (const s of calendarSections(ctx)) corpo.appendChild(s);
+  } else if (view.type === 'chart') {
+    for (const s of chartSections(ctx)) corpo.appendChild(s);
   } else {
     const lay = layoutSection(ctx) || cardSection(ctx);
     if (lay) corpo.appendChild(lay);
@@ -89,7 +92,7 @@ export function mountViewSettingsPanel(host, api) {
     if (quadro) corpo.appendChild(quadro);
   }
   corpo.appendChild(filterSection(ctx));
-  if (view.type !== 'calendar') corpo.appendChild(sortSection(ctx));
+  if (view.type !== 'calendar' && view.type !== 'chart') corpo.appendChild(sortSection(ctx));
   const cor = colorSection(ctx);
   if (cor) corpo.appendChild(cor);
   if (api.getBaseProps) {

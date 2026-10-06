@@ -13,6 +13,7 @@ export const VIEW_TYPES = {
   gallery:  { label: 'Galeria',          icon: 'grid_view' },
   list:     { label: 'Lista',            icon: 'format_list_bulleted' },
   calendar: { label: 'Calendário',       icon: 'calendar_today' },
+  chart:    { label: 'Gráfico',          icon: 'bar_chart' },
 };
 
 // Hash curto e determinístico: uma view SEM id recebe sempre o mesmo id enquanto não for
@@ -161,6 +162,7 @@ export function createView(type, { name, id, extra = {} } = {}) {
   const meta = VIEW_TYPES[type] ?? VIEW_TYPES.table;
   const base = { id, type, name: name || meta.label };
   if (type === 'calendar') return { ...base, mode: 'month', date: { fallback: 'createdAt' }, ...extra };
+  if (type === 'chart') return { ...base, chart: { kind: 'bar' }, y: { agg: 'count' }, ...extra };
   if (type === 'gallery') return { ...base, cardSize: 'medium', props: ['title', 'tags', 'updatedAt'], ...extra };
   return { ...base, props: ['title', 'tags', 'updatedAt'], ...extra };
 }

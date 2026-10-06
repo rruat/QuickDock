@@ -8,7 +8,7 @@ import { operatorsForType, valueKindFor, defaultValueFor, newCondition, OPERATOR
 import { campoValor } from './section-filter.js';
 
 export function colorSection({ view, schema, memoria, patch }) {
-  if (view.type === 'calendar') return null;
+  if (view.type === 'calendar' || view.type === 'chart') return null;
   const s = section('Cor condicional', { chave: 'color', memoria, dica: 'A primeira regra que casar colore a linha, o cartão ou a célula.' });
   const regras = normalizeColorRules(view);
   const props = Object.entries(schema).map(([key, def]) => ({ value: def?.key || key, label: def?.label || key }));
