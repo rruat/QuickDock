@@ -9,6 +9,11 @@ const NENHUMA = '__none__';
 export function cardSection({ view, schema, memoria, patch }) {
   if (view.type === 'gallery') {
     const s = section('Cartão', { chave: 'card', memoria });
+    s.body.appendChild(row('Prévia', id => selectControl({
+      id, value: view.card?.preview === 'content' ? 'content' : 'cover',
+      options: [{ value: 'cover', label: 'Capa da nota' }, { value: 'content', label: 'Conteúdo da nota' }],
+      onChange: v => patch({ card: { preview: v === 'content' ? 'content' : undefined } }),
+    })));
     s.body.appendChild(row('Proporção da capa', id => selectControl({
       id, value: view.card?.aspect || NENHUMA,
       options: [{ value: NENHUMA, label: 'Padrão (por tamanho)' }, { value: '1/1', label: 'Quadrada (1:1)' }, { value: '4/3', label: 'Clássica (4:3)' }, { value: '16/9', label: 'Panorâmica (16:9)' }, { value: '3/4', label: 'Retrato (3:4)' }],

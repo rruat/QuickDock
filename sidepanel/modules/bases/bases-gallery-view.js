@@ -8,6 +8,7 @@ import { getNotePropertyValue } from './bases-engine.js';
 import { formatPropertyValue } from './bases-schema.js';
 import { getViewProps } from './config/view-model.js';
 import { renderGrouped } from './ui/grouped-sections.js';
+import { hydrateNoteContent, lazyHydrate } from './note-preview.js';
 import { formatSelectBadge } from './bases-cell-editors.js';
 import { loadFileBlob } from '../storage.js';
 
@@ -130,6 +131,12 @@ export function renderBaseGalleryView(container, notes, schema, viewConfig = {},
   }
   container.appendChild(bar);
 
+  const previewConteudo = viewConfig.card?.preview === 'content';
+  const lazy = previewConteudo
+    ? lazyHydrate(card => hydrateNoteContent(card.querySelector('.base-gallery-preview-body'), card._noteId))
+    : { observe() {}, disconnect() {} };
+  container._galleryCleanup?.();
+  container._galleryCleanup = () => lazy.disconnect();
   const gridHost = document.createElement('div');
   const aspect = ['1/1', '4/3', '16/9', '3/4'].includes(viewConfig.card?.aspect) ? viewConfig.card.aspect : null;
   if (aspect) gridHost.style.setProperty('--gallery-aspect', aspect.replace('/', ' / '));
@@ -143,7 +150,19 @@ export function renderBaseGalleryView(container, notes, schema, viewConfig = {},
     if (tom) card.classList.add(`tone-${tom}`);
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
-    card.appendChild(buildCover(note, coverProp));
+    if (previewConteudo) {
+      // prévia do conteúdo da nota no lugar da capa (carrega quando o cartão chega perto da tela)
+      const prev = document.createElement('div');
+      prev.className = 'base-gallery-cover base-gallery-preview';
+      const corpoPrev = document.createElement('div');
+      corpoPrev.className = 'bfeed-body base-gallery-preview-body';
+      prev.appendChild(corpoPrev);
+      card._noteId = note.id;
+      card.appendChild(prev);
+      lazy.observe(card);
+    } else {
+      card.appendChild(buildCover(note, coverProp));
+    }
 
     const bodyEl = document.createElement('div');
     bodyEl.className = 'base-gallery-body';

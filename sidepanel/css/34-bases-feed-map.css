@@ -42,3 +42,9 @@
   .bmap-map { min-height: 360px !important; }
   .base-chart-container, .base-timeline-container, .base-map-container { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Galeria: prévia do conteúdo no lugar da capa */
+.base-gallery-preview { display: block; align-items: stretch; overflow: hidden; background: var(--bg-card); padding: 8px 10px; }
+.base-gallery-preview-body { font-size: 11px; line-height: 1.4; max-height: 100%; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, oklch(0% 0 0) 65%, transparent); mask-image: linear-gradient(to bottom, oklch(0% 0 0) 65%, transparent); }
+.base-gallery-preview-body.note-editor-blocks h1.block, .base-gallery-preview-body.note-editor-blocks h2.block, .base-gallery-preview-body.note-editor-blocks h3.block { font-size: 13px; line-height: 1.3; margin: 0 0 4px; padding: 0; }
+.base-gallery-preview-body.note-editor-blocks .block { margin-top: 0; margin-bottom: 2px; padding-top: 0; padding-bottom: 0; }
