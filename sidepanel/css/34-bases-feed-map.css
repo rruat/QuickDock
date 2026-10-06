@@ -1,0 +1,30 @@
+/* ── 34-bases-feed-map.css — Feed e Mapa das Bases (cores em OKLCH) ── */
+.base-feed-container { padding: 12px; overflow-y: auto; }
+.bfeed-list { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.bfeed-card { position: relative; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); padding: 12px 14px; }
+.bfeed-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.bfeed-title { font-size: 15px; font-weight: 600; color: inherit; text-decoration: none; }
+.bfeed-title:hover { text-decoration: underline; }
+.bfeed-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; opacity: 0.8; }
+.bfeed-prop-name { font-weight: 600; }
+.bfeed-body { max-height: calc(var(--bfeed-lines, 14) * 1.5em); overflow: hidden; font-size: 13.5px; line-height: 1.5; }
+.bfeed-card.is-expanded .bfeed-body { max-height: none; }
+.bfeed-card.is-clipped:not(.is-expanded) .bfeed-body { -webkit-mask-image: linear-gradient(to bottom, oklch(0% 0 0) 70%, transparent); mask-image: linear-gradient(to bottom, oklch(0% 0 0) 70%, transparent); }
+.bfeed-more { display: none; margin-top: 6px; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 0; }
+.bfeed-card.is-clipped .bfeed-more { display: inline-block; }
+.bfeed-loading, .bfeed-empty { color: var(--text-muted); font-size: 12.5px; margin: 0; }
+.bfeed-card.tone-gray .bfeed-body, .bfeed-card[class*="tone-"] .bfeed-body { color: inherit; }
+
+/* Mapa */
+.base-map-container { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.bmap-toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); }
+.bmap-map { flex: 1; min-height: 240px; background: var(--bg-secondary); }
+.bmap-offline { padding: 6px 10px; font-size: 12px; background: var(--bg-hover); color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+.bmap-pin, .bmap-cluster { display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid oklch(98% 0 0); font-size: 12px; font-weight: 700; box-shadow: 0 1px 4px oklch(0% 0 0 / 0.35); }
+.bmap-cluster { background: oklch(30% 0.03 260); color: oklch(97% 0 0); }
+.bmap-pin { width: 16px; height: 16px; }
+.bmap-cluster { width: 34px; height: 34px; }
+.bmap-popup-title { font-weight: 600; margin-bottom: 4px; }
+.bmap-popup-btn { border: 0; background: transparent; color: var(--accent); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
+.bmap-nolocation { padding: 6px 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); }
+.bmap-nolocation ul { display: flex; flex-wrap: wrap; gap: 4px 12px; list-style: none; margin: 6px 0 0; padding: 0; }

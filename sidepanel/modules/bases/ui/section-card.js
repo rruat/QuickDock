@@ -36,5 +36,14 @@ export function cardSection({ view, schema, memoria, patch }) {
     }), { dica: caixas.length ? '' : 'Crie uma propriedade do tipo caixa de seleção para usar aqui.' }));
     return s.root;
   }
+  if (view.type === 'feed') {
+    const s = section('Cartão', { chave: 'feedcard', memoria });
+    s.body.appendChild(row('Altura máxima do texto', id => selectControl({
+      id, value: view.card?.maxLines || 14,
+      options: [6, 10, 14, 20, 30].map(n => ({ value: n, label: `${n} linhas` })),
+      onChange: v => patch({ card: { maxLines: Number(v) } }),
+    }), { dica: 'Acima disso aparece "Ver mais".' }));
+    return s.root;
+  }
   return null;
 }

@@ -1,10 +1,10 @@
 /* ── 32-bases-charts.css — gráficos das Bases (SVG próprio, cores em OKLCH) ──
    Paleta categórica: 8 matizes igualmente espaçados, mesmo L/C por tema (não depende só de cor:
    cada marca tem rótulo/aria-label e título). Texto usa var(--text); contraste do texto é do tema. */
-.base-chart-container { --bch-c0: oklch(60% 0.15 25); --bch-c1: oklch(62% 0.14 70); --bch-c2: oklch(62% 0.14 120); --bch-c3: oklch(60% 0.12 165);
+.base-chart-container, .base-map-container, .base-timeline-container { --bch-c0: oklch(60% 0.15 25); --bch-c1: oklch(62% 0.14 70); --bch-c2: oklch(62% 0.14 120); --bch-c3: oklch(60% 0.12 165);
   --bch-c4: oklch(60% 0.12 210); --bch-c5: oklch(58% 0.15 255); --bch-c6: oklch(58% 0.16 300); --bch-c7: oklch(62% 0.15 350);
   padding: 12px; overflow: auto; }
-[data-theme="dark"] .base-chart-container { --bch-c0: oklch(72% 0.14 25); --bch-c1: oklch(76% 0.13 70); --bch-c2: oklch(74% 0.14 120); --bch-c3: oklch(72% 0.12 165);
+[data-theme="dark"] .base-chart-container, [data-theme="dark"] .base-map-container, [data-theme="dark"] .base-timeline-container { --bch-c0: oklch(72% 0.14 25); --bch-c1: oklch(76% 0.13 70); --bch-c2: oklch(74% 0.14 120); --bch-c3: oklch(72% 0.12 165);
   --bch-c4: oklch(72% 0.11 210); --bch-c5: oklch(70% 0.14 255); --bch-c6: oklch(70% 0.15 300); --bch-c7: oklch(74% 0.14 350); }
 .bch-s0 { fill: var(--bch-c0); stroke: var(--bch-c0); background: var(--bch-c0); } .bch-s1 { fill: var(--bch-c1); stroke: var(--bch-c1); background: var(--bch-c1); }
 .bch-s2 { fill: var(--bch-c2); stroke: var(--bch-c2); background: var(--bch-c2); } .bch-s3 { fill: var(--bch-c3); stroke: var(--bch-c3); background: var(--bch-c3); }

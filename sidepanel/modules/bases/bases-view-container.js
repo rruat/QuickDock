@@ -13,6 +13,8 @@ import { renderBaseListView } from './bases-list-view.js';
 import { renderBaseCalendarView } from './bases-calendar-view.js';
 import { renderBaseChartView } from './bases-chart-view.js';
 import { renderBaseTimelineView } from './bases-timeline-view.js';
+import { renderBaseFeedView } from './bases-feed-view.js';
+import { renderBaseMapView } from './bases-map-view.js';
 import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById } from '../storage.js';
 import { normalizeViews, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
@@ -377,6 +379,12 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         break;
       case 'list':
         renderBaseListView(viewportEl, sortedNotes, schema, currentView, callbacks);
+        break;
+      case 'feed':
+        renderBaseFeedView(viewportEl, sortedNotes, schema, currentView, callbacks);
+        break;
+      case 'map':
+        renderBaseMapView(viewportEl, sortedNotes, schema, currentView, callbacks).catch(err => console.warn('Mapa:', err));
         break;
       case 'timeline':
         renderBaseTimelineView(viewportEl, sortedNotes, schema, currentView, callbacks);

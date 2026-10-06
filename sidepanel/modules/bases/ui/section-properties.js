@@ -11,6 +11,7 @@ const PADRAO = {
   list: [],
   gallery: ['tags', 'updatedAt'],
   timeline: [],
+  feed: ['tags', 'updatedAt'],
 };
 
 export function propertiesSection({ view, schema, memoria, patch }) {

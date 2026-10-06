@@ -14,6 +14,8 @@ export const VIEW_TYPES = {
   list:     { label: 'Lista',            icon: 'format_list_bulleted' },
   calendar: { label: 'Calendário',       icon: 'calendar_today' },
   timeline: { label: 'Linha do tempo',   icon: 'timeline' },
+  map:      { label: 'Mapa',             icon: 'map' },
+  feed:     { label: 'Feed',             icon: 'dynamic_feed' },
   chart:    { label: 'Gráfico',          icon: 'bar_chart' },
 };
 
@@ -163,6 +165,8 @@ export function createView(type, { name, id, extra = {} } = {}) {
   const meta = VIEW_TYPES[type] ?? VIEW_TYPES.table;
   const base = { id, type, name: name || meta.label };
   if (type === 'calendar') return { ...base, mode: 'month', date: { fallback: 'createdAt' }, ...extra };
+  if (type === 'map') return { ...base, cluster: true, ...extra };
+  if (type === 'feed') return { ...base, props: ['tags', 'updatedAt'], ...extra };
   if (type === 'timeline') return { ...base, scale: 'week', ...extra };
   if (type === 'chart') return { ...base, chart: { kind: 'bar' }, y: { agg: 'count' }, ...extra };
   if (type === 'gallery') return { ...base, cardSize: 'medium', props: ['title', 'tags', 'updatedAt'], ...extra };

@@ -751,7 +751,7 @@ Navegação por teclado completa (4.12) · contraste ≥ 55 de L (OKLCH) · não
 | 4 | Tipos de propriedade + fórmulas + relações/rollups | 🟡 (motor de fórmulas sem `eval` com ~80 funções, ciclos/erros/limites, propriedades calculadas e rollup por UI, tudo testado; faltam tipo Status com grupos, e-mail/telefone/arquivos/ID único, formatos de número/data e opções de seleção centralizadas na Base) |
 | 5 | Linha do tempo | 🟡 (etapa 1 feita: barras, marco, 5 escalas com zoom que mantém o centro, tabela lateral sincronizada, grupos, cor, hoje, mover/esticar por arrasto e por teclado; falta etapa 2: dependências e reagendamento) |
 | 6 | Gráficos | ✅ (barras vertical/horizontal agrupadas/empilhadas/100%, linha, pizza, número; séries, acumulado, meta, clique filtra; SVG próprio em OKLCH; falta só tooltip rico além do título nativo) |
-| 7 | Mapa e Feed | ⚪ |
+| 7 | Mapa e Feed | ✅ (Mapa: Leaflet, pinos coloridos, cluster por grade sem plugin, aviso offline, lista "sem localização"; Feed: conteúdo da nota em blocos, carregamento preguiçoso, "ver mais", grupos) |
 | 8 | Vinculadas, templates, lote, peek, exportar, dashboard | ⚪ |
 
 ---

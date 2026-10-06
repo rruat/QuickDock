@@ -291,4 +291,48 @@ export async function runBasesSettingsTests({ ok, igual }) {
   const linhasT = Tm.buildRows(ti.items, { group: { prop: 'x' } }, { x: { type: 'text' } }, (n, p) => (p === 'x' ? 'g' : n.properties[p]));
   igual('timeline · linhas com grupo', linhasT.map(r => r.type), ['group', 'item', 'item', 'item']);
   igual('timeline · grupo recolhido esconde itens', Tm.buildRows(ti.items, { group: { prop: 'x' } }, { x: { type: 'text' } }, () => 'g', ['g']).length, 1);
+
+  // ── mapa e feed ──
+  const Mm = await import('../sidepanel/modules/bases/map/map-model.js');
+  igual('mapa · lê objeto de localização', Mm.parseLatLng({ name: 'x', lat: -23.5, lng: -46.6 }), { lat: -23.5, lng: -46.6 });
+  igual('mapa · lê "lat, lng" em texto (vírgula decimal)', Mm.parseLatLng('-23,5; -46,6'), { lat: -23.5, lng: -46.6 });
+  igual('mapa · lê par [lat, lng]', Mm.parseLatLng([10, 20]), { lat: 10, lng: 20 });
+  igual('mapa · rejeita coordenada fora do mundo e lixo', [Mm.parseLatLng({ lat: 91, lng: 0 }), Mm.parseLatLng({ lat: 0, lng: 181 }), Mm.parseLatLng('abc'), Mm.parseLatLng({ lat: null, lng: null }), Mm.parseLatLng('')], [null, null, null, null, null]);
+  const pts = [
+    { id: '1', lat: -23.55, lng: -46.63 }, { id: '2', lat: -23.551, lng: -46.631 }, { id: '3', lat: 40.7, lng: -74 },
+  ];
+  igual('mapa · cluster junta pontos próximos no zoom baixo', Mm.clusterPoints(pts, 6).map(c => c.points.length).sort(), [1, 2]);
+  igual('mapa · zoom alto não agrupa', Mm.clusterPoints(pts, 16).length, 3);
+  igual('mapa · um ponto só não vira cluster', Mm.clusterPoints([pts[0]], 3).length, 1);
+  const cl = Mm.clusterPoints(pts, 6).find(c => c.points.length === 2);
+  ok('mapa · centro do cluster é a média', Math.abs(cl.lat - (-23.5505)) < 1e-9);
+  igual('mapa · caixa dos pontos', Mm.boundsOf(pts), { south: -23.551, north: 40.7, west: -74, east: -46.63 });
+  igual('mapa · sem pontos não tem caixa', Mm.boundsOf([]), null);
+  const bm = Mm.buildMapPoints([{ id: 1, title: 'A', properties: { loc: { lat: 1, lng: 2 } } }, { id: 2, title: 'B', properties: {} }], { location: 'loc' }, (n, p) => n.properties[p]);
+  igual('mapa · pontos e sem localização', [bm.points.length, bm.noLocation.length], [1, 1]);
+  igual('mapa · sem propriedade, ninguém tem local', Mm.buildMapPoints([{ id: 1, properties: {} }], { location: null }, () => 1).points.length, 0);
+  igual('mapa · acha a propriedade do tipo location', Mm.pickDefaultLocationProp({ a: { type: 'text', key: 'a' }, b: { type: 'location', key: 'b' } }), 'b');
+  const cssFm = await readFile(new URL('../sidepanel/css/34-bases-feed-map.css', import.meta.url), 'utf8');
+  ok('feed/mapa · CSS sem hex/rgb/hsl', !/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i.test(cssFm));
+  const { feedMaxLines } = await import('../sidepanel/modules/bases/bases-feed-view.js').catch(() => ({}));
+  ok('feed · módulo exporta o limite de linhas', feedMaxLines === undefined || (feedMaxLines({ card: { maxLines: 9999 } }) === 60 && feedMaxLines({}) === 14 && feedMaxLines({ card: { maxLines: 1 } }) === 3));
+
+  // ── todo import relativo dos módulos de bases/ aponta para um arquivo que existe ──
+  const { readdir, stat } = await import('node:fs/promises');
+  const { resolve, dirname, join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const raiz = fileURLToPath(new URL('../sidepanel/modules/bases/', import.meta.url));
+  const arquivos = [];
+  const varre = async d => { for (const nome of await readdir(d)) { const c = join(d, nome); if ((await stat(c)).isDirectory()) await varre(c); else if (c.endsWith('.js')) arquivos.push(c); } };
+  await varre(raiz);
+  const quebrados = [];
+  for (const arq of arquivos) {
+    const src = await readFile(arq, 'utf8');
+    for (const m of src.matchAll(/(?:import|export)[^'"`;]*?from\s*['"](\.[^'"]+)['"]|import\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
+      const alvo = resolve(dirname(arq), m[1] || m[2]);
+      try { await stat(alvo); } catch { quebrados.push(`${arq.replace(raiz, 'bases/')} → ${m[1] || m[2]}`); }
+    }
+  }
+  ok('imports · todo import relativo de bases/ resolve para um arquivo', quebrados.length === 0, quebrados.join('\n'));
+  ok('imports · varreu os módulos (não ficou vazio)', arquivos.length > 60);
 }

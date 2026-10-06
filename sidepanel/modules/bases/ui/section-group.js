@@ -9,7 +9,7 @@ const NENHUM = '__none__';
 const ehData = t => ['date', 'datetime', 'daterange'].includes(t);
 
 export function groupSection({ view, schema, memoria, patch }) {
-  if (!['table', 'board', 'list', 'gallery', 'timeline'].includes(view.type)) return null;
+  if (!['table', 'board', 'list', 'gallery', 'timeline', 'feed'].includes(view.type)) return null;
   const cfg = resolveGroupConfig(view);
   const quadro = view.type === 'board';
   const s = section('Agrupar', { chave: 'group', memoria, dica: quadro ? 'Cada valor da propriedade vira uma coluna.' : 'Separa as notas em grupos recolhíveis.' });

@@ -21,6 +21,7 @@ import { derivedSection } from './section-derived.js';
 import { formatSection } from './section-format.js';
 import { chartSections } from './section-chart.js';
 import { timelineSections } from './section-timeline.js';
+import { mapSections } from './section-map.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -83,6 +84,8 @@ export function mountViewSettingsPanel(host, api) {
     for (const s of calendarSections(ctx)) corpo.appendChild(s);
   } else if (view.type === 'chart') {
     for (const s of chartSections(ctx)) corpo.appendChild(s);
+  } else if (view.type === 'map') {
+    for (const s of mapSections(ctx)) corpo.appendChild(s);
   } else if (view.type === 'timeline') {
     for (const s of timelineSections(ctx)) corpo.appendChild(s);
     corpo.appendChild(propertiesSection(ctx));
@@ -98,7 +101,7 @@ export function mountViewSettingsPanel(host, api) {
     if (quadro) corpo.appendChild(quadro);
   }
   corpo.appendChild(filterSection(ctx));
-  if (!['calendar', 'chart', 'timeline'].includes(view.type)) corpo.appendChild(sortSection(ctx));
+  if (!['calendar', 'chart', 'timeline', 'map'].includes(view.type)) corpo.appendChild(sortSection(ctx));
   const cor = colorSection(ctx);
   if (cor) corpo.appendChild(cor);
   if (api.getBaseProps) {
