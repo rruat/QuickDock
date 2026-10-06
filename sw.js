@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-91';
+const CACHE_NAME = 'quickdock-v3.0.0-92';
 
 const ASSET_PATHS = [
   '',
@@ -168,11 +168,13 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/bases-bulk-controller.js',
   'sidepanel/modules/bases/bases-calendar-view.js',
   'sidepanel/modules/bases/bases-chart-view.js',
+  'sidepanel/modules/bases/bases-dashboard-view.js',
   'sidepanel/modules/bases/bases-feed-view.js',
   'sidepanel/modules/bases/bases-map-view.js',
   'sidepanel/modules/bases/map/map-model.js',
   'sidepanel/modules/bases/note-preview.js',
   'sidepanel/modules/bases/bases-timeline-view.js',
+  'sidepanel/modules/bases/bases-view-pipeline.js',
   'sidepanel/modules/bases/timeline/timeline-actions.js',
   'sidepanel/modules/bases/timeline/timeline-bars.js',
   'sidepanel/modules/bases/timeline/timeline-deps.js',
@@ -233,6 +235,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/ui/section-calendar.js',
   'sidepanel/modules/bases/ui/section-chart.js',
   'sidepanel/modules/bases/ui/section-color.js',
+  'sidepanel/modules/bases/ui/section-dashboard.js',
   'sidepanel/modules/bases/ui/section-derived.js',
   'sidepanel/modules/bases/ui/section-format.js',
   'sidepanel/modules/bases/ui/section-map.js',

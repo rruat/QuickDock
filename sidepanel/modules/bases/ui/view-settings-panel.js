@@ -25,6 +25,7 @@ import { mapSections } from './section-map.js';
 import { newNoteSection } from './section-new.js';
 import { statusSection } from './section-status.js';
 import { sourceSection } from './section-source.js';
+import { dashboardSections } from './section-dashboard.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -87,6 +88,8 @@ export function mountViewSettingsPanel(host, api) {
     for (const s of calendarSections(ctx)) corpo.appendChild(s);
   } else if (view.type === 'chart') {
     for (const s of chartSections(ctx)) corpo.appendChild(s);
+  } else if (view.type === 'dashboard') {
+    for (const s of dashboardSections({ view, views: api.getViews ? api.getViews() : [], memoria, patch })) corpo.appendChild(s);
   } else if (view.type === 'map') {
     for (const s of mapSections(ctx)) corpo.appendChild(s);
   } else if (view.type === 'timeline') {
@@ -103,8 +106,8 @@ export function mountViewSettingsPanel(host, api) {
     const quadro = boardSection(ctx);
     if (quadro) corpo.appendChild(quadro);
   }
-  corpo.appendChild(filterSection(ctx));
-  if (!['calendar', 'chart', 'timeline', 'map'].includes(view.type)) corpo.appendChild(sortSection(ctx));
+  if (view.type !== 'dashboard') corpo.appendChild(filterSection(ctx));
+  if (!['calendar', 'chart', 'timeline', 'map', 'dashboard'].includes(view.type)) corpo.appendChild(sortSection(ctx));
   const cor = colorSection(ctx);
   if (cor) corpo.appendChild(cor);
   corpo.appendChild(newNoteSection({ view, templates: api.getTemplates ? api.getTemplates() : [], memoria, patch }));

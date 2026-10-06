@@ -5,16 +5,7 @@
 
 import { parseYamlOrJson, stringifyBaseToYaml } from './bases-yaml.js';
 import { inferBaseSchema, normalizeBaseDefinition } from './bases-schema.js';
-import { queryBaseNotes, sortBaseNotes } from './bases-engine.js';
-import { renderBaseTableView } from './bases-table-view.js';
-import { renderBaseBoardView } from './bases-board-view.js';
-import { renderBaseGalleryView } from './bases-gallery-view.js';
-import { renderBaseListView } from './bases-list-view.js';
-import { renderBaseCalendarView } from './bases-calendar-view.js';
-import { renderBaseChartView } from './bases-chart-view.js';
-import { renderBaseTimelineView } from './bases-timeline-view.js';
-import { renderBaseFeedView } from './bases-feed-view.js';
-import { renderBaseMapView } from './bases-map-view.js';
+import { runViewPipeline, renderViewByType } from './bases-view-pipeline.js';
 import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, loadAllTemplates, updateNoteBlocksById, getNoteById } from '../storage.js';
 import { parseMarkdownToBlocks, blocksToMarkdown } from '../blocks.js';
 import { normalizeViews, getViewProps, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
@@ -226,6 +217,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         carregaOrigem().then(() => updateViewport());
       },
       getTemplates: () => templates,
+      getViews: () => baseDef.views,
       getBaseProps: () => baseDef.properties || {},
       onBasePatch: patch => {
         const props = { ...(baseDef.properties || {}) };
@@ -244,8 +236,10 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     if (corpo) corpo.scrollTop = rolagem;
   }
 
-  function updateActiveView(patch) {
-    const i = activeIndex();
+  // Altera uma view pelo id (a ativa, ou um widget do dashboard)
+  function updateViewById(id, patch) {
+    const i = baseDef.views.findIndex(v => v.id === id);
+    if (i < 0) return;
     // view bloqueada: só renomear/ícone/trava passam pelo menu; o painel e as views não gravam
     if (baseDef.views[i]?.locked && !('locked' in patch)) return;
     baseDef.views[i] = applyViewPatch(baseDef.views[i], patch);
@@ -253,6 +247,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     renderViewTabs();
     updateViewport();
   }
+  const updateActiveView = patch => updateViewById(activeViewId, patch);
 
   // Abas de visão (ícone, renomear, arrastar, menu ⋯) — ver ui/view-tabs.js
   const aplica = (novaDef, ativa = activeViewId) => {
@@ -377,18 +372,9 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       quickFilters = loadQuickFilters(baseKey(), currentView.id);
     }
 
-    // 2. Filtra notas pela fonte (source), filtros da view, filtros rápidos e busca
-    const filteredNotes = queryBaseNotes(notasBase, {
-      quickFilters,
-      source: fonteEfetiva(),
-      filters: currentView.filters,
-      filterMode: currentView.filterMode,
-      filterOperator: currentView.filterOperator,
-      quickSearch: searchQuery,
-    });
-
-    // 3. Ordena notas
-    const sortedNotes = sortBaseNotes(filteredNotes, currentView.sort, schema);
+    // 2. Filtra (origem, filtros da view, filtros rápidos, busca) e ordena — ver bases-view-pipeline.js
+    const opcoesPipeline = () => ({ source: fonteEfetiva(), quickFilters, search: searchQuery });
+    const sortedNotes = runViewPipeline(notasBase, currentView, schema, opcoesPipeline());
     ultimaVisao = { notes: sortedNotes, schema, view: currentView };
     bulk.sync(currentView, schema);
     renderQuickFilters(quickEl, { filters: quickFilters, schema, count: sortedNotes.length }, lista => {
@@ -401,8 +387,9 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     // de cima (headerEl, logo acima) já dá busca + "Nova Nota" — sem isto, a
     // tabela/quadro desenhavam uma segunda barra própria com os dois
     // duplicados por cima da primeira.
-    const regrasCor = normalizeColorRules(currentView);
-    const callbacks = {
+    const montaCallbacks = view => {
+    const regrasCor = normalizeColorRules(view);
+    return {
       // colar de planilha: patches já validados (tudo ou nada) — grava e recarrega
       onPasteWrites: async patches => {
         for (const { id, patch } of patches) await updateNoteMetaById(id, patch);
@@ -412,12 +399,12 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       onSelectionChange: bulk.onSelectionChange,
       rowTone: regrasCor.length ? n => rowTone(n, regrasCor) : null,
       cellTone: regrasCor.length ? (n, k) => cellTone(n, regrasCor, k) : null,
-      peekActive: currentView.openIn === 'peek-side' || currentView.openIn === 'peek-center',
+      peekActive: view.openIn === 'peek-side' || view.openIn === 'peek-center',
       // "Abrir em": página (editor) ou prévia lateral/central somente leitura
       onOpenNote: async (noteId) => {
-        const modo = currentView.openIn;
+        const modo = view.openIn;
         const nota = (modo === 'peek-side' || modo === 'peek-center') ? allNotes.find(n => n.id === noteId) : null;
-        if (nota) peek.abrir(nota, modo, { schema, props: getViewProps(currentView) });
+        if (nota) peek.abrir(nota, modo, { schema, props: getViewProps(view) });
         else await switchToNote(noteId);
       },
       onAddNote: async (extraProps, extraTypes) => {
@@ -440,41 +427,19 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         updateViewport();
       },
       // Ajustes da própria visão (ex.: tamanho dos cartões da galeria) viram parte da Base
-      onUpdateView: patch => updateActiveView(patch),
+      onUpdateView: patch => updateViewById(view.id, patch),
+      // Dashboard: desenha outra view da mesma Base como widget (mesmo caminho: filtros, ordenação, cor…)
+      renderWidget: (host, viewId) => {
+        const alvo = baseDef.views.find(v => v.id === viewId && v.type !== 'dashboard');
+        if (!alvo) { host.textContent = 'View não encontrada.'; return; }
+        renderViewByType(host, alvo, runViewPipeline(notasBase, alvo, schema, opcoesPipeline()), schema, montaCallbacks(alvo));
+      },
       showOwnToolbar: false,
     };
+    };
 
-    // Renderiza a visão ativa correspondente
-    switch (currentView.type) {
-      case 'board':
-        renderBaseBoardView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'gallery':
-        renderBaseGalleryView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'list':
-        renderBaseListView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'feed':
-        renderBaseFeedView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'map':
-        renderBaseMapView(viewportEl, sortedNotes, schema, currentView, callbacks).catch(err => console.warn('Mapa:', err));
-        break;
-      case 'timeline':
-        renderBaseTimelineView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'chart':
-        renderBaseChartView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'calendar':
-        renderBaseCalendarView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-      case 'table':
-      default:
-        renderBaseTableView(viewportEl, sortedNotes, schema, currentView, callbacks);
-        break;
-    }
+
+    renderViewByType(viewportEl, currentView, sortedNotes, schema, montaCallbacks(currentView));
   }
 
   // Carregamento inicial de notas

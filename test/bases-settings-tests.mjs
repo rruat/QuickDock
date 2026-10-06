@@ -472,4 +472,11 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('vinculada · sem bloco de Base, nulo', Lk.readLinkedDefinition([{ type: 'paragraph' }]), null);
   igual('vinculada · origem efetiva', [Lk.effectiveSource({ source: { base: 'u1' } }, lkDef), Lk.effectiveSource({ source: { base: 'u1' } }, null), Lk.effectiveSource({ source: { folder: 'x' } }, lkDef)], [{ folder: 'Projetos' }, { all: true }, { folder: 'x' }]);
   igual('vinculada · propriedades próprias vencem as da origem', Lk.effectiveProperties({ properties: { custo: { type: 'text' }, novo: { type: 'date' } } }, lkDef).custo.type, 'text');
+
+  // ── dashboard ──
+  const Db = await import('../sidepanel/modules/bases/bases-dashboard-view.js');
+  igual('dashboard · padrão: 2 colunas, sem widgets', Db.resolveDashboardConfig({}), { columns: 2, widgets: [] });
+  igual('dashboard · largura limitada às colunas, altura válida', Db.resolveDashboardConfig({ layout: { columns: 3 }, widgets: [{ view: 'a', span: 9, height: 999 }, { view: 'b' }] }).widgets, [{ view: 'a', span: 3, height: 320 }, { view: 'b', span: 1, height: 320 }]);
+  igual('dashboard · descarta widget sem view', Db.resolveDashboardConfig({ widgets: [{ span: 2 }, null, { view: '' }, { view: 'x' }] }).widgets.length, 1);
+  igual('dashboard · colunas inválidas voltam a 2', Db.resolveDashboardConfig({ layout: { columns: 9 } }).columns, 2);
 }

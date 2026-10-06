@@ -43,3 +43,11 @@
 .btl-dep.is-conflict { stroke: oklch(55% 0.2 25); stroke-width: 2; stroke-dasharray: 5 3; }
 [data-theme="dark"] .btl-dep.is-conflict { stroke: oklch(72% 0.16 25); }
 .btl-seta-ponta { fill: var(--text-secondary); }
+
+/* ── Dashboard (widgets = outras views da Base) ── */
+.base-dashboard-container { padding: 12px; overflow-y: auto; }
+.bdash-grid { display: grid; grid-template-columns: repeat(var(--bdash-cols, 2), minmax(0, 1fr)); gap: 12px; align-items: start; }
+.bdash-widget { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); overflow: hidden; min-width: 0; }
+.bdash-widget-body { max-height: var(--bdash-h, 320px); min-height: 120px; overflow: auto; position: relative; }
+.bdash-widget-body > .base-view-container { height: auto; }
+@media (max-width: 720px) { .bdash-grid { grid-template-columns: minmax(0, 1fr); } .bdash-widget { grid-column: auto !important; } }
