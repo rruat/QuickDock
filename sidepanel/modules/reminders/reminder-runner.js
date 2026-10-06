@@ -167,7 +167,15 @@ async function verificarLembretesAtivos() {
 
     for (const nota of notas) {
       const props = nota.properties || {};
-      const rem = props.reminder || props.lembrete;
+      let rem = props.reminder || props.lembrete || props.Lembrete;
+      if (!rem && nota.propertyTypes) {
+        for (const [key, tipo] of Object.entries(nota.propertyTypes)) {
+          if (tipo === 'reminder' && props[key]) {
+            rem = props[key];
+            break;
+          }
+        }
+      }
       if (!rem || rem.active === false || rem.completed) continue;
 
       if (deveDispararLembrete(rem, agora)) {

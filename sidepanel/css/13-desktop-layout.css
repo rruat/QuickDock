@@ -555,23 +555,7 @@
   }
 
   html[data-platform="desktop"] #btn-note-outline-toggle-desktop {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-
-  html[data-platform="desktop"] #btn-note-outline-toggle-desktop:hover,
-  html[data-platform="desktop"] #btn-note-outline-toggle-desktop.active {
-    background: var(--bg-hover);
-    color: var(--text);
+    display: none !important;
   }
 
   html[data-platform="desktop"] #tab-btn-outline {

@@ -299,7 +299,7 @@ if (toggleOutlineHeaderBtn) {
   toggleOutlineHeaderBtn.addEventListener('click', () => setOutlineSidebarOpen(!outlineSidebarOpen));
 }
 if (floatingOutlineToggleBtn) {
-  floatingOutlineToggleBtn.addEventListener('click', () => setOutlineSidebarOpen(true));
+  floatingOutlineToggleBtn.addEventListener('click', () => setOutlineSidebarOpen(!outlineSidebarOpen));
 }
 
 setOutlineSidebarOpen(outlineSidebarOpen);

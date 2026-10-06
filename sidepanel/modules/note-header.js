@@ -80,9 +80,11 @@ export function renderNoteHeader(note) {
 
   renderNoteCover(note);
 
-  // Renderiza badges de Lembrete de Foco e Localização Maps
+  // Badges no cabeçalho mantidos ocultos para layout limpo;
+  // Lembretes e localização agora são exibidos exclusivamente via propriedades da nota.
   if (headerBadgesEl) {
     headerBadgesEl.innerHTML = '';
+    headerBadgesEl.hidden = true;
     const props = note.properties || {};
     const rem = props.reminder || props.lembrete;
     const loc = props.location || props.localizacao;
@@ -120,7 +122,7 @@ export function renderNoteHeader(note) {
         e.stopPropagation();
         toggleNoteSection('reminder', note, () => renderNoteHeader(note));
       });
-      headerBadgesEl.appendChild(badgeRem);
+      // headerBadgesEl.appendChild(badgeRem);
       headerReminderBtn?.classList.add('is-active');
     } else {
       headerReminderBtn?.classList.remove('is-active');
@@ -136,7 +138,7 @@ export function renderNoteHeader(note) {
         e.stopPropagation();
         toggleNoteSection('location', note, () => renderNoteHeader(note));
       });
-      headerBadgesEl.appendChild(badgeLoc);
+      // headerBadgesEl.appendChild(badgeLoc);
       headerLocationBtn?.classList.add('is-active');
     } else {
       headerLocationBtn?.classList.remove('is-active');

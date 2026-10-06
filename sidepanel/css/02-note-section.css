@@ -140,6 +140,15 @@ body:not(.booting) .note-editor-blocks {
   box-sizing: border-box;
 }
 
+#btn-note-header-reminder,
+#btn-note-header-location,
+#btn-note-outline-toggle-desktop,
+.note-header-action-btn,
+.note-header-outline-btn,
+.note-header-badges {
+  display: none !important;
+}
+
 .note-header-icon-btn {
   display: flex;
   align-items: center;
