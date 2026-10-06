@@ -34,4 +34,19 @@ export async function runMobileTests({ ok, igual }) {
     /transform:\s*translate3d\(var\(--aside-x, -100%\), 0, 0\);/.test(css)
     && /transform:\s*translate3d\(var\(--right-x, 100%\), 0, 0\);/.test(css)
     && /transform:\s*translate3d\(var\(--push-x, 0px\), 0, 0\);/.test(css));
+
+  // As três cópias do HTML precisam ter os controles mobile (a da raiz estava defasada)
+  for (const f of ['index.html', '404.html', 'sidepanel/index.html']) {
+    const html = await readFile(new URL('../' + f, import.meta.url), 'utf8');
+    ok(`html · ${f} tem o botão do drawer e o título mobile`,
+      html.includes('id="btn-mobile-left-drawer"') && html.includes('id="mobile-header-note-title"')
+      && html.includes('id="btn-touch-select"') && html.includes('id="btn-note-appearance-mobile"'));
+  }
+
+  const tabs = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
+  ok('mobile · escolher uma view fecha o drawer por inteiro (body.has-left-drawer-open)',
+    /closeMobileLeftDrawer\(\);\s*\n\s*document\.getElementById\('mobileDrawerScrim'\)/.test(tabs));
+  const back = await readFile(new URL('../sidepanel/modules/shell/shell-mobile-back.js', import.meta.url), 'utf8');
+  ok('mobile · botão voltar ouve o foco do shell e o popstate',
+    back.includes("'quickdock:shell-focus'") && back.includes("'popstate'"));
 }

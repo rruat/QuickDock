@@ -1423,3 +1423,16 @@
   }
 }
 
+/* ── Botão voltar do header mobile (shell-mobile-back.js) ───────────────── */
+html body #btn-mobile-back {
+  display: none !important;
+}
+html[data-platform="mobile"] body #btn-mobile-back.is-visible {
+  display: grid !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+}
+html[data-platform="mobile"] body.has-view-back #mLogo {
+  display: none !important;
+}
