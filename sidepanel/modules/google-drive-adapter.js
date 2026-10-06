@@ -193,7 +193,7 @@ export class GoogleDriveAdapter {
               await varrer(item.id, subCaminho, nivel + 1);
             }
           } else {
-            if (prefixo !== 'imagens' && !item.name.endsWith('.md')) continue;
+            if (prefixo !== 'imagens' && !item.name.endsWith('.md') && !item.name.endsWith('.canvas') && !item.name.endsWith('.json')) continue;
             const caminho = `${prefixo}/${item.name}`;
             this.idsPorCaminho.set(caminho, item);
             mudancas.push({ caminho, rev: item.headRevisionId ?? item.modifiedTime, apagado: false });
@@ -201,7 +201,7 @@ export class GoogleDriveAdapter {
         }
       };
 
-      for (const sub of ['notas', 'modelos', 'imagens']) {
+      for (const sub of ['notas', 'modelos', 'imagens', 'quadros']) {
         const pastaId = await this._pasta(sub, raiz);
         if (!pastaId) continue;
         this.caminhosPorPastaId.set(pastaId, sub);
@@ -338,6 +338,7 @@ export class GoogleDriveAdapter {
 
   _tipoDe(caminho) {
     if (/\.md$/i.test(caminho)) return 'text/markdown';
+    if (/\.canvas$/i.test(caminho) || /\.json$/i.test(caminho)) return 'application/json';
     if (/\.png$/i.test(caminho)) return 'image/png';
     if (/\.jpe?g$/i.test(caminho)) return 'image/jpeg';
     if (/\.webp$/i.test(caminho)) return 'image/webp';

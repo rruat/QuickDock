@@ -52,6 +52,7 @@ export class LocalFolderAdapter {
       await this.obterOuCriarDiretorio('notas');
       await this.obterOuCriarDiretorio('modelos');
       await this.obterOuCriarDiretorio('imagens');
+      await this.obterOuCriarDiretorio('quadros');
 
       return { ok: true };
     } catch (err) {
@@ -92,7 +93,10 @@ export class LocalFolderAdapter {
     const varrer = async (dirHandle, prefixo, nivel) => {
       for await (const [nome, handle] of dirHandle.entries()) {
         if (nome.startsWith('.')) continue;
-        if (handle.kind === 'file' && nome.endsWith('.md')) {
+        const ehDocSincronizavel = nome.endsWith('.md')
+          || nome.endsWith('.canvas')
+          || (prefixo.startsWith('quadros') && nome.endsWith('.json'));
+        if (handle.kind === 'file' && ehDocSincronizavel) {
           const caminho = prefixo ? `${prefixo}/${nome}` : nome;
           encontrados.add(caminho);
 
@@ -132,7 +136,7 @@ export class LocalFolderAdapter {
     try {
       const handle = await this.resolverHandleArquivo(caminho, false);
       const file = await handle.getFile();
-      const isTexto = caminho.endsWith('.md') || caminho.endsWith('.txt');
+      const isTexto = caminho.endsWith('.md') || caminho.endsWith('.txt') || caminho.endsWith('.canvas') || caminho.endsWith('.json');
       const texto = isTexto ? await file.text() : '';
       const rev = this.gerarRev(file);
       return { texto, blob: file, file, rev };

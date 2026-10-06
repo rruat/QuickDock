@@ -13,6 +13,7 @@ export class InMemoryStore {
     this.estados = new Map();
     this.arquivos = new Map();
     this.modelos = new Map();
+    this.quadros = new Map();
     this.arquivoSeq = 0;
     this.cursor = null;
   }
@@ -56,6 +57,20 @@ export class InMemoryStore {
 
   async excluirModeloLocal(uid) {
     this.modelos.delete(uid);
+  }
+
+  async listarQuadrosLocais() {
+    return [...this.quadros.values()];
+  }
+  async obterQuadroPorUid(uid) {
+    return this.quadros.get(uid) ?? null;
+  }
+  async salvarQuadroLocal(q) {
+    this.quadros.set(q.uid, { ...q });
+    return q.uid;
+  }
+  async excluirQuadroLocal(uid) {
+    this.quadros.delete(uid);
   }
   async listarNotasLocais() {
     return [...this.notas.values()];

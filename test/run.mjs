@@ -5767,6 +5767,126 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     printCssSource.includes('--code-punc: #24292f;'));
 }
 
+// ── 44. Sincronização de Quadros Infinitos (.canvas) no Drive e Pasta Local ──
+{
+  const {
+    SyncEngine,
+    ehCaminhoDeQuadro,
+    serializarQuadro,
+    parseQuadroFile,
+    hashDoQuadro,
+  } = await import('../sidepanel/modules/sync-engine.js');
+  const { MemorySyncAdapter } = await import('../sidepanel/modules/sync-adapter.js');
+  const { InMemoryStore } = await import('./memory-store.mjs');
+
+  // 44.1: Reconhecimento de caminhos de quadro
+  ok('quadros sync · reconhece .canvas na pasta quadros/', ehCaminhoDeQuadro('quadros/meu-quadro.canvas'));
+  ok('quadros sync · reconhece .canvas em subpasta de quadros/', ehCaminhoDeQuadro('quadros/projetos/fluxo.canvas'));
+  ok('quadros sync · reconhece legado .json na pasta quadros/', ehCaminhoDeQuadro('quadros/antigo.json'));
+  ok('quadros sync · reconhece arquivo .canvas na raiz', ehCaminhoDeQuadro('diagrama.canvas'));
+  ok('quadros sync · não confunde notas com quadros', !ehCaminhoDeQuadro('notas/nota.md'));
+  ok('quadros sync · não confunde modelos com quadros', !ehCaminhoDeQuadro('modelos/modelo.md'));
+  ok('quadros sync · não confunde imagens com quadros', !ehCaminhoDeQuadro('imagens/foto.png'));
+
+  // 44.2: Serialização com compatibilidade Obsidian JSON Canvas
+  const quadroTeste = {
+    uid: 'b_alpha_1',
+    title: 'Arquitetura do Sistema',
+    pasta: 'Engenharia',
+    viewport: { x: 100, y: 200, zoom: 1.5 },
+    bgMode: 'grid',
+    cards: [
+      { id: 'c1', type: 'text', x: 10, y: 20, w: 200, h: 100, text: 'Serviço Auth', color: 'blue' },
+      { id: 'c2', type: 'group', x: 0, y: 0, w: 500, h: 400, label: 'Cluster Backend', color: null },
+      { id: 'c3', type: 'note', x: 250, y: 20, w: 200, h: 100, noteUid: 'u_doc_1' },
+    ],
+    arrows: [
+      { id: 'a1', from: 'c1', to: 'c3', fromSide: 'right', toSide: 'left', color: 'blue', label: 'token' }
+    ]
+  };
+
+  const jsonSerialized = serializarQuadro(quadroTeste);
+  const parsedObsidian = JSON.parse(jsonSerialized);
+
+  ok('quadros json canvas · payload inclui nodes e edges para o Obsidian',
+    Array.isArray(parsedObsidian.nodes) && Array.isArray(parsedObsidian.edges));
+  igual('quadros json canvas · nodes mapeiam grupos e arquivos corretamente',
+    parsedObsidian.nodes.map(n => n.type), ['text', 'group', 'file']);
+  igual('quadros json canvas · edges preservam id, fromNode, toNode e lados',
+    parsedObsidian.edges[0], { id: 'a1', fromNode: 'c1', toNode: 'c3', fromSide: 'right', toSide: 'left', color: 'blue', label: 'token' });
+
+  // 44.3: Round-trip via parseQuadroFile
+  const restaurado = parseQuadroFile(jsonSerialized);
+  igual('quadros roundtrip · restaura uid e título', [restaurado.uid, restaurado.title], ['b_alpha_1', 'Arquitetura do Sistema']);
+  igual('quadros roundtrip · restaura pasta', restaurado.pasta, 'Engenharia');
+  igual('quadros roundtrip · restaura cartões e conexões intactos', [restaurado.cards.length, restaurado.arrows.length], [3, 1]);
+
+  // 44.4: Importação direta de Obsidian JSON Canvas externo (apenas nodes e edges)
+  const obsidianPuro = JSON.stringify({
+    nodes: [
+      { id: 'n1', type: 'text', text: 'Nota Externa Obsidian', x: 50, y: 50, width: 250, height: 140 },
+      { id: 'n2', type: 'group', label: 'Grupo Obsidian', x: 0, y: 0, width: 400, height: 300 }
+    ],
+    edges: [
+      { id: 'e1', fromNode: 'n1', toNode: 'n2', fromSide: 'bottom', toSide: 'top' }
+    ]
+  });
+  const doObsidian = parseQuadroFile(obsidianPuro);
+  ok('quadros obsidian import · reconhece nodes do Obsidian como cartões', doObsidian && doObsidian.cards.length === 2);
+  ok('quadros obsidian import · reconhece edges do Obsidian como setas', doObsidian && doObsidian.arrows.length === 1);
+  igual('quadros obsidian import · converte nós para tipos nativos QuickDock', doObsidian.cards[0].text, 'Nota Externa Obsidian');
+
+  // 44.5: Hash do quadro é determinístico e ignora timestamps
+  const hash1 = hashDoQuadro(jsonSerialized);
+  const jsonComOutroTime = JSON.stringify({ ...JSON.parse(jsonSerialized), updatedAt: '2026-10-06T15:00:00.000Z' });
+  const hash2 = hashDoQuadro(jsonComOutroTime);
+  igual('quadros hash · ignora alteração isolada de updatedAt', hash1, hash2);
+
+  // 44.6: Sincronização ponta a ponta com dois clientes (Envio, Recepção, Atualização e Exclusão)
+  const adapter = new MemorySyncAdapter();
+  const storeA = new InMemoryStore();
+  const storeB = new InMemoryStore();
+  const engineA = new SyncEngine({ adapter, store: storeA, deviceName: 'AparelhoA' });
+  const engineB = new SyncEngine({ adapter, store: storeB, deviceName: 'AparelhoB' });
+
+  // 1. Aparelho A cria quadro
+  await storeA.salvarQuadroLocal(quadroTeste);
+  const resEnvio = await engineA.sincronizar();
+  igual('quadros sync · aparelho A envia o quadro criado', resEnvio.enviadas, 1);
+
+  const arqDestino = await adapter.ler('quadros/Engenharia/arquitetura-do-sistema.canvas');
+  ok('quadros sync · arquivo gerado no caminho quadros/<pasta>/<slug>.canvas', arqDestino !== null);
+
+  // 2. Aparelho B baixa o quadro
+  const resBaixa = await engineB.sincronizar();
+  igual('quadros sync · aparelho B baixa o quadro', resBaixa.baixadas, 1);
+  const quadroB = await storeB.obterQuadroPorUid('b_alpha_1');
+  ok('quadros sync · quadro salvo no banco do aparelho B', quadroB !== null);
+  igual('quadros sync · dados preservados no aparelho B', quadroB.cards.length, 3);
+
+  // 3. Aparelho B edita o quadro e envia de volta
+  quadroB.cards.push({ id: 'c4', type: 'text', x: 300, y: 300, w: 150, h: 80, text: 'Novo Microserviço' });
+  await storeB.salvarQuadroLocal(quadroB);
+  const resBAtualiza = await engineB.sincronizar();
+  igual('quadros sync · aparelho B sobe alteração', resBAtualiza.enviadas, 1);
+
+  // 4. Aparelho A recebe a alteração
+  const resARecebe = await engineA.sincronizar();
+  igual('quadros sync · aparelho A baixa a atualização remota', resARecebe.baixadas, 1);
+  const quadroAAtualizado = await storeA.obterQuadroPorUid('b_alpha_1');
+  igual('quadros sync · aparelho A tem os 4 cartões atualizados', quadroAAtualizado.cards.length, 4);
+
+  // 5. Aparelho A exclui o quadro
+  await storeA.excluirQuadroLocal('b_alpha_1');
+  const resAExclui = await engineA.sincronizar();
+  igual('quadros sync · aparelho A remove arquivo do destino', resAExclui.apagadas, 1);
+  ok('quadros sync · arquivo removido do adapter', (await adapter.ler('quadros/Engenharia/arquitetura-do-sistema.canvas')) === null);
+
+  // 6. Aparelho B propaga a exclusão
+  const resBExclui = await engineB.sincronizar();
+  igual('quadros sync · aparelho B recebe exclusão remota', resBExclui.apagadas, 1);
+  igual('quadros sync · quadro excluído do store B', await storeB.obterQuadroPorUid('b_alpha_1'), null);
+}
 
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);

@@ -89,6 +89,152 @@ export function extrairPastaDoCaminho(caminho) {
   return relativo.slice(0, ultimoSlash);
 }
 
+export function extrairPastaDoCaminhoQuadro(caminho) {
+  if (!caminho) return '';
+  const relativo = caminho.startsWith('quadros/') ? caminho.slice('quadros/'.length) : caminho;
+  const ultimoSlash = relativo.lastIndexOf('/');
+  if (ultimoSlash === -1) return '';
+  return relativo.slice(0, ultimoSlash);
+}
+
+export function ehCaminhoDeQuadro(caminho) {
+  if (!caminho || typeof caminho !== 'string') return false;
+  const c = caminho.toLowerCase();
+  if (c.startsWith('modelos/') || c.startsWith('imagens/') || c.startsWith('notas/')) return false;
+  if (c.startsWith('quadros/') && (c.endsWith('.canvas') || c.endsWith('.json'))) return true;
+  if (c.endsWith('.canvas')) return true;
+  return false;
+}
+
+export function hashDoQuadro(texto) {
+  try {
+    const obj = JSON.parse(texto);
+    if (obj && typeof obj === 'object') {
+      const clone = { ...obj };
+      delete clone.updatedAt;
+      delete clone.createdAt;
+      delete clone.atualizadoEm;
+      delete clone.criadoEm;
+      return hashConteudo(JSON.stringify(clone));
+    }
+  } catch {}
+  return hashConteudo(
+    String(texto ?? '')
+      .replace(/^"?(?:updatedAt|createdAt|atualizadoEm|criadoEm)"?:.*\r?\n?/gm, '')
+  );
+}
+
+export function serializarQuadro(quadro) {
+  const cards = Array.isArray(quadro.cards) ? quadro.cards : [];
+  const arrows = Array.isArray(quadro.arrows) ? quadro.arrows : [];
+
+  // Mapeamento compatível com a especificação JSON Canvas (Obsidian Canvas)
+  const nodes = cards.map(c => {
+    const node = {
+      id: c.id,
+      x: c.x ?? 0,
+      y: c.y ?? 0,
+      width: c.w ?? 220,
+      height: c.h ?? 120,
+    };
+    if (c.type === 'group') {
+      node.type = 'group';
+      node.label = c.label || '';
+    } else if (c.type === 'image') {
+      node.type = 'file';
+      node.file = c.alt || `imagem-${c.id}`;
+    } else if (c.type === 'note') {
+      node.type = 'file';
+      node.file = c.noteUid || '';
+    } else {
+      node.type = 'text';
+      node.text = c.text || '';
+    }
+    if (c.color && c.color !== 'default') node.color = c.color;
+    return node;
+  });
+
+  const edges = arrows.map(a => {
+    const edge = {
+      id: a.id,
+      fromNode: a.from,
+      toNode: a.to,
+    };
+    if (a.fromSide) edge.fromSide = a.fromSide;
+    if (a.toSide) edge.toSide = a.toSide;
+    if (a.color) edge.color = a.color;
+    if (a.label) edge.label = a.label;
+    return edge;
+  });
+
+  const payload = {
+    quickdock: 1,
+    id: quadro.uid,
+    title: quadro.title || 'Espaço Sem Título',
+    pasta: quadro.pasta || undefined,
+    viewport: quadro.viewport || { x: 0, y: 0, zoom: 1 },
+    bgMode: quadro.bgMode || 'stars',
+    cards,
+    arrows,
+    nodes,
+    edges,
+    createdAt: quadro.createdAt ? (typeof quadro.createdAt === 'number' ? new Date(quadro.createdAt).toISOString() : quadro.createdAt) : undefined,
+    updatedAt: quadro.updatedAt ? (typeof quadro.updatedAt === 'number' ? new Date(quadro.updatedAt).toISOString() : quadro.updatedAt) : undefined,
+  };
+
+  return JSON.stringify(payload, null, 2);
+}
+
+export function parseQuadroFile(texto) {
+  try {
+    const obj = JSON.parse(texto);
+    if (!obj || typeof obj !== 'object') return null;
+
+    let cards = Array.isArray(obj.cards) ? obj.cards : null;
+    let arrows = Array.isArray(obj.arrows) ? obj.arrows : null;
+
+    if (!cards && Array.isArray(obj.nodes)) {
+      cards = obj.nodes.map(n => {
+        if (n.type === 'group') {
+          return { id: n.id, x: n.x, y: n.y, w: n.width, h: n.height, type: 'group', label: n.label || 'Grupo', color: n.color || null };
+        } else if (n.type === 'file') {
+          return { id: n.id, x: n.x, y: n.y, w: n.width, h: n.height, type: 'note', noteUid: n.file, color: n.color || null };
+        } else {
+          return { id: n.id, x: n.x, y: n.y, w: n.width, h: n.height, text: n.text || '', color: n.color || 'default' };
+        }
+      });
+    }
+
+    if (!arrows && Array.isArray(obj.edges)) {
+      arrows = obj.edges.map(e => ({
+        id: e.id,
+        from: e.fromNode,
+        to: e.toNode,
+        fromSide: e.fromSide || null,
+        toSide: e.toSide || null,
+        color: e.color || null,
+        label: e.label || null,
+        style: 'solid',
+        lineStyle: 'straight'
+      }));
+    }
+
+    return {
+      uid: obj.id || obj.uid,
+      title: obj.title || obj.titulo || 'Espaço Sem Título',
+      pasta: obj.pasta || '',
+      viewport: obj.viewport || { x: 0, y: 0, zoom: 1 },
+      bgMode: obj.bgMode || 'stars',
+      cards: cards || [],
+      arrows: arrows || [],
+      createdAt: obj.createdAt ? new Date(obj.createdAt).getTime() : undefined,
+      updatedAt: obj.updatedAt ? new Date(obj.updatedAt).getTime() : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 const MAX_SLUG = 60;
 
 function cortarNoHifen(s, max) {
@@ -197,6 +343,12 @@ export class SyncEngine {
     return pasta ? `notas/${pasta}/${slug}.md` : `notas/${slug}.md`;
   }
 
+  _caminhoDesejadoQuadro(quadro) {
+    const slug = slugTitulo(quadro.title || 'espaco');
+    const pasta = quadro.pasta ? String(quadro.pasta).trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : '';
+    return pasta ? `quadros/${pasta}/${slug}.canvas` : `quadros/${slug}.canvas`;
+  }
+
   _prefixoRelativoImagens(caminhoNota) {
     const slashes = (caminhoNota.match(/\//g) || []).length;
     return '../'.repeat(slashes) + 'imagens/';
@@ -218,8 +370,8 @@ export class SyncEngine {
       // Só a capa por endereço viaja: a enviada é um arquivo local (como as imagens
       // não sincronizadas) e não tem como chegar ao outro aparelho.
       capa: nota.coverUrl || undefined,
-      capaPosicao: typeof nota.coverPosition === 'number' ? nota.coverPosition : undefined,
-      capaAltura: (typeof nota.coverHeight === 'number' || typeof nota.coverHeight === 'string') ? nota.coverHeight : undefined,
+      capaPosicao: (nota.coverUrl && typeof nota.coverPosition === 'number') ? nota.coverPosition : undefined,
+      capaAltura: (nota.coverUrl && (typeof nota.coverHeight === 'number' || typeof nota.coverHeight === 'string')) ? nota.coverHeight : undefined,
       // Ícone com imagem: só o endereço e o corte viajam (arquivo enviado é local).
       iconeImagem: nota.iconImage?.url || undefined,
       iconeCorte: nota.iconImage?.url
@@ -332,9 +484,10 @@ export class SyncEngine {
       const { caminho, rev, apagado } = mudanca;
 
       const ehModelo = caminho.startsWith('modelos/') && caminho.endsWith('.md');
-      const ehNota = !ehModelo && caminho.endsWith('.md');
+      const ehQuadro = ehCaminhoDeQuadro(caminho);
+      const ehNota = !ehModelo && !ehQuadro && caminho.endsWith('.md');
 
-      if (!ehNota && !ehModelo) {
+      if (!ehNota && !ehModelo && !ehQuadro) {
         if (!tevePulo && Number(rev) > Number(maiorCursor || 0)) maiorCursor = rev;
         continue;
       }
@@ -458,6 +611,136 @@ export class SyncEngine {
               caminho,
               rev: revRemotaMod,
               hash: hashRemotoMod,
+              sincronizadoEm: Date.now(),
+            });
+            resultado.conflitos++;
+            resultado.baixadas++;
+          }
+        }
+        if (!tevePulo && Number(rev) > Number(maiorCursor || 0)) maiorCursor = rev;
+        continue;
+      }
+
+      // Tratamento de quadros infinitos (.canvas / .json em quadros/)
+      if (ehQuadro) {
+        if (apagado) {
+          if (!estadoLocal) continue;
+          const quadroLocal = this.store.obterQuadroPorUid ? await this.store.obterQuadroPorUid(estadoLocal.uid) : null;
+          if (!quadroLocal) {
+            await this.store.excluirEstadoSync(estadoLocal.uid);
+            continue;
+          }
+          const textoLocalQ = serializarQuadro(quadroLocal);
+          if (hashDoQuadro(textoLocalQ) === estadoLocal.hash) {
+            if (this.store.excluirQuadroLocal) await this.store.excluirQuadroLocal(quadroLocal.uid);
+            await this.store.excluirEstadoSync(quadroLocal.uid);
+            resultado.apagadas++;
+          } else {
+            await this.store.salvarEstadoSync({ ...estadoLocal, rev: null, hash: null });
+          }
+          if (!tevePulo && Number(rev) > Number(maiorCursor || 0)) maiorCursor = rev;
+          continue;
+        }
+
+        const arqQ = await this.adapter.ler(caminho);
+        if (!arqQ) continue;
+        const revRemotaQ = arqQ.rev;
+        const parsedQ = parseQuadroFile(arqQ.texto);
+        if (!parsedQ) continue;
+
+        let uidQ = parsedQ.uid;
+        if (!uidQ) {
+          if (estadoLocal && estadoLocal.uid) {
+            uidQ = estadoLocal.uid;
+          } else {
+            uidQ = `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+          }
+          parsedQ.uid = uidQ;
+        }
+
+        const hashRemotoQ = hashDoQuadro(arqQ.texto);
+        const quadroLocal = this.store.obterQuadroPorUid ? await this.store.obterQuadroPorUid(uidQ) : null;
+        const estadoQPorUid = await this.store.obterEstadoSync(uidQ);
+        const pastaDoCaminho = extrairPastaDoCaminhoQuadro(caminho);
+        const pastaFinal = parsedQ.pasta || pastaDoCaminho;
+
+        if (!quadroLocal) {
+          if (this.store.salvarQuadroLocal) {
+            await this.store.salvarQuadroLocal({
+              uid: uidQ,
+              title: parsedQ.title || 'Espaço Sem Título',
+              pasta: pastaFinal,
+              viewport: parsedQ.viewport || { x: 0, y: 0, zoom: 1 },
+              bgMode: parsedQ.bgMode || 'stars',
+              cards: parsedQ.cards || [],
+              arrows: parsedQ.arrows || [],
+              createdAt: parsedQ.createdAt || Date.now(),
+              updatedAt: parsedQ.updatedAt || Date.now(),
+            });
+          }
+          await this.store.salvarEstadoSync({
+            uid: uidQ,
+            caminho,
+            rev: revRemotaQ,
+            hash: hashRemotoQ,
+            sincronizadoEm: Date.now(),
+          });
+          resultado.baixadas++;
+        } else {
+          const textoQLocal = serializarQuadro(quadroLocal);
+          const hashQLocal = hashDoQuadro(textoQLocal);
+
+          if (estadoQPorUid && estadoQPorUid.hash === hashRemotoQ && estadoQPorUid.rev === revRemotaQ) {
+            if (!tevePulo && Number(rev) > Number(maiorCursor || 0)) maiorCursor = rev;
+            continue;
+          }
+
+          if (!estadoQPorUid || hashQLocal === estadoQPorUid.hash) {
+            if (this.store.salvarQuadroLocal) {
+              await this.store.salvarQuadroLocal({
+                ...quadroLocal,
+                title: parsedQ.title || quadroLocal.title,
+                pasta: pastaFinal,
+                viewport: parsedQ.viewport || quadroLocal.viewport,
+                bgMode: parsedQ.bgMode || quadroLocal.bgMode,
+                cards: parsedQ.cards || quadroLocal.cards,
+                arrows: parsedQ.arrows || quadroLocal.arrows,
+                updatedAt: parsedQ.updatedAt || Date.now(),
+              });
+            }
+            await this.store.salvarEstadoSync({
+              uid: uidQ,
+              caminho,
+              rev: revRemotaQ,
+              hash: hashRemotoQ,
+              sincronizadoEm: Date.now(),
+            });
+            resultado.baixadas++;
+          } else {
+            const uidConflitoQ = `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+            const nomeConflitoQ = `${quadroLocal.title} (conflito ${dataIsoHoje()}, ${this.deviceName})`;
+            if (this.store.salvarQuadroLocal) {
+              await this.store.salvarQuadroLocal({
+                ...quadroLocal,
+                uid: uidConflitoQ,
+                title: nomeConflitoQ,
+              });
+              await this.store.salvarQuadroLocal({
+                ...quadroLocal,
+                title: parsedQ.title || quadroLocal.title,
+                pasta: pastaFinal,
+                viewport: parsedQ.viewport || quadroLocal.viewport,
+                bgMode: parsedQ.bgMode || quadroLocal.bgMode,
+                cards: parsedQ.cards || quadroLocal.cards,
+                arrows: parsedQ.arrows || quadroLocal.arrows,
+                updatedAt: parsedQ.updatedAt || Date.now(),
+              });
+            }
+            await this.store.salvarEstadoSync({
+              uid: uidQ,
+              caminho,
+              rev: revRemotaQ,
+              hash: hashRemotoQ,
               sincronizadoEm: Date.now(),
             });
             resultado.conflitos++;
@@ -607,7 +890,7 @@ export class SyncEngine {
           icon: metaNota.icone ?? null,
           iconFilled: !!metaNota.iconePreenchido,
           coverUrl: metaNota.capa ?? null,
-          coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : 50,
+          coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (metaNota.capa ? 50 : undefined),
           coverHeight: metaNota.capaAltura ?? null,
           iconImage: this._iconImageDeMeta(metaNota, null),
           titleHidden: !!metaNota.tituloOculto,
@@ -690,7 +973,7 @@ export class SyncEngine {
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
             coverUrl: metaNota.capa ?? null,
-            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (notaLocal.coverPosition ?? 50),
+            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (metaNota.capa ? (notaLocal.coverPosition ?? 50) : undefined),
             coverHeight: metaNota.capaAltura !== undefined ? metaNota.capaAltura : (notaLocal.coverHeight ?? null),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
@@ -753,7 +1036,7 @@ export class SyncEngine {
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
             coverUrl: metaNota.capa ?? null,
-            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (notaLocal.coverPosition ?? 50),
+            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (metaNota.capa ? (notaLocal.coverPosition ?? 50) : undefined),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,
@@ -982,6 +1265,54 @@ export class SyncEngine {
       }
     }
 
+    // ── PASSO 3.2: Subir quadros locais ─────────────────────────────────────────
+    if (this.store.listarQuadrosLocais) {
+      const quadrosLocais = await this.store.listarQuadrosLocais();
+      for (const q of quadrosLocais) {
+        if (uidsPulados.has(q.uid)) continue;
+        const textoQ = serializarQuadro(q);
+        const hashAtualQ = hashDoQuadro(textoQ);
+        const estadoQ = await this.store.obterEstadoSync(q.uid);
+
+        if (!estadoQ) {
+          const caminhoQ = this._caminhoDesejadoQuadro(q);
+          if (caminhosRecusadosPorVersao.has(caminhoQ)) continue;
+          const res = await this.adapter.escrever(caminhoQ, textoQ, null);
+          if (res && res.rev) {
+            await this.store.salvarEstadoSync({
+              uid: q.uid,
+              caminho: caminhoQ,
+              rev: res.rev,
+              hash: hashAtualQ,
+              sincronizadoEm: Date.now(),
+            });
+            if (!tevePulo && Number(res.rev) > Number(maiorCursor || 0)) maiorCursor = res.rev;
+            resultado.enviadas++;
+          }
+        } else if (estadoQ.hash !== hashAtualQ) {
+          if (caminhosRecusadosPorVersao.has(estadoQ.caminho)) continue;
+          const caminhoDesejado = this._caminhoDesejadoQuadro(q);
+          const caminhoUsado = (caminhoDesejado !== estadoQ.caminho) ? caminhoDesejado : estadoQ.caminho;
+          const revBase = caminhoUsado === estadoQ.caminho ? estadoQ.rev : null;
+          const res = await this.adapter.escrever(caminhoUsado, textoQ, revBase);
+          if (res && res.rev) {
+            if (caminhoUsado !== estadoQ.caminho) {
+              try { await this.adapter.apagar(estadoQ.caminho); } catch {}
+            }
+            await this.store.salvarEstadoSync({
+              uid: q.uid,
+              caminho: caminhoUsado,
+              rev: res.rev,
+              hash: hashAtualQ,
+              sincronizadoEm: Date.now(),
+            });
+            if (!tevePulo && Number(res.rev) > Number(maiorCursor || 0)) maiorCursor = res.rev;
+            resultado.enviadas++;
+          }
+        }
+      }
+    }
+
     // ── PASSO 4: Exclusões locais para subir ao destino ─────────────────────────
     const todosEstados = await this.store.listarTodosEstadosSync();
     for (const est of todosEstados) {
@@ -992,7 +1323,14 @@ export class SyncEngine {
           await this.store.excluirEstadoSync(est.uid);
           resultado.apagadas++;
         }
-      } else if (!est.caminho.startsWith('modelos/')) {
+      } else if (ehCaminhoDeQuadro(est.caminho)) {
+        const quadroExiste = this.store.obterQuadroPorUid ? await this.store.obterQuadroPorUid(est.uid) : null;
+        if (!quadroExiste) {
+          await this.adapter.apagar(est.caminho);
+          await this.store.excluirEstadoSync(est.uid);
+          resultado.apagadas++;
+        }
+      } else {
         const notaExiste = await this.store.obterNotaPorUid(est.uid);
         if (!notaExiste) {
           // Usuário apagou localmente: propaga exclusão

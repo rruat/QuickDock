@@ -83,18 +83,38 @@
   top: 14px;
   left: 16px;
   height: 40px;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
   background: var(--bg-card);
   background: color-mix(in srgb, var(--bg-card) 92%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
   padding: 4px 10px;
   z-index: 50;
   gap: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.board-top-bar .board-switcher-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.board-top-bar .board-switcher-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
 }
 
 /* ── QuickBar Inteligente / Barra Flutuante de Ferramentas ──────────────────── */

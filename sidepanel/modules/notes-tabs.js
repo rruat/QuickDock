@@ -1104,6 +1104,23 @@ export function openNotesAsideDrawer() {
   });
   toolbar.appendChild(btnNewBase);
 
+  const btnNewBoard = document.createElement('button');
+  btnNewBoard.className = 'notes-list-action-btn';
+  btnNewBoard.innerHTML = `<span class="qd-icon material-symbols-rounded" style="font-size:14px;">space_dashboard</span><span>Novo Espaço</span>`;
+  btnNewBoard.title = 'Criar novo Espaço Infinito';
+  btnNewBoard.addEventListener('click', async e => {
+    e.stopPropagation();
+    const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
+    if (titulo !== null) {
+      const { createBlankBoard } = await import('./board-engine.js');
+      const { switchView } = await import('./views.js');
+      await createBlankBoard(titulo.trim() || 'Novo Espaço');
+      switchView('board');
+      closeNotesAsideDrawer();
+    }
+  });
+  toolbar.appendChild(btnNewBoard);
+
   const btnToggleAll = document.createElement('button');
   btnToggleAll.className = 'notes-list-action-btn';
   btnToggleAll.title = 'Expandir ou recolher todas as pastas';
@@ -1431,6 +1448,23 @@ function initDesktopNotesAsideDrawer() {
   });
   toolbar.appendChild(btnNewBase);
 
+  const btnNewBoard = document.createElement('button');
+  btnNewBoard.className = 'notes-list-action-btn';
+  btnNewBoard.innerHTML = `<span class="qd-icon material-symbols-rounded" style="font-size:14px;">space_dashboard</span><span>Novo Espaço</span>`;
+  btnNewBoard.title = 'Criar novo Espaço Infinito';
+  btnNewBoard.addEventListener('click', async e => {
+    e.stopPropagation();
+    const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
+    if (titulo !== null) {
+      const { createBlankBoard } = await import('./board-engine.js');
+      const { switchView } = await import('./views.js');
+      await createBlankBoard(titulo.trim() || 'Novo Espaço');
+      switchView('board');
+      closeNotesAsideDrawer();
+    }
+  });
+  toolbar.appendChild(btnNewBoard);
+
   const btnToggleAll = document.createElement('button');
   btnToggleAll.className = 'notes-list-action-btn';
   btnToggleAll.title = 'Expandir ou recolher todas as pastas';
@@ -1738,6 +1772,15 @@ async function openNewMenu() {
 
   newMenuOpt(pop, 'Nota em branco', createBlankNote);
   newMenuOpt(pop, 'Nova Base de dados', createNewBaseNote);
+  newMenuOpt(pop, 'Novo Espaço Infinito', async () => {
+    const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
+    if (titulo !== null) {
+      const { createBlankBoard } = await import('./board-engine.js');
+      const { switchView } = await import('./views.js');
+      await createBlankBoard(titulo.trim() || 'Novo Espaço');
+      switchView('board');
+    }
+  });
   newMenuOpt(pop, 'Importar (.md/.txt)', () => importInput.click());
 
   await getTemplates();               // atualiza o cache antes de listar

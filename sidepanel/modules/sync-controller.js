@@ -472,6 +472,7 @@ export class SyncController {
       if (resultado.baixadas > 0 || resultado.conflitos > 0 || resultado.apagadas > 0) {
         if (this.onNotesChanged) await this.onNotesChanged();
         document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
+        document.dispatchEvent(new CustomEvent('quickdock:refresh-board-view'));
       }
     } catch (err) {
       // Estado de erro explícito: falha calada faz a pessoa achar que está segura

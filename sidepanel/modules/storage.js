@@ -415,6 +415,7 @@ export async function saveBoardRecord(board) {
     ...board,
     uid,
     title: board.title || 'Quadro Sem Título',
+    pasta: board.pasta || '',
     viewport: board.viewport || { x: 0, y: 0, zoom: 1 },
     cards: board.cards || [],
     arrows: board.arrows || [],
@@ -1017,6 +1018,42 @@ export class DexieSyncStore {
     const tpl = await this.obterModeloPorUid(uid);
     if (!tpl) return;
     await this.db.templates.delete(tpl.id);
+  }
+
+  async listarQuadrosLocais() {
+    if (!this.db || !this.db.boards) return [];
+    return this.db.boards.toArray();
+  }
+
+  async obterQuadroPorUid(uid) {
+    if (!this.db || !this.db.boards) return null;
+    return (await this.db.boards.where('uid').equals(uid).first()) ?? null;
+  }
+
+  async salvarQuadroLocal(quadro) {
+    if (!this.db || !this.db.boards) return null;
+    const existente = await this.obterQuadroPorUid(quadro.uid);
+    if (existente) {
+      await this.db.boards.update(existente.id, {
+        ...quadro,
+        updatedAt: quadro.updatedAt || Date.now()
+      });
+      return existente.id;
+    }
+    const { id, ...semId } = quadro;
+    return this.db.boards.add({
+      ...semId,
+      createdAt: quadro.createdAt || Date.now(),
+      updatedAt: quadro.updatedAt || Date.now()
+    });
+  }
+
+  async excluirQuadroLocal(uid) {
+    if (!this.db || !this.db.boards) return;
+    const existente = await this.obterQuadroPorUid(uid);
+    if (existente) {
+      await this.db.boards.delete(existente.id);
+    }
   }
 }
 

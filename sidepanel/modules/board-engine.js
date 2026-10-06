@@ -14,10 +14,11 @@
 // Zero frameworks, zero bundlers, 100% nativo.
 
 import {
-  saveBoardRecord, getBoardById, getBoardByUid, loadAllBoards,
+  saveBoardRecord, getBoardById, getBoardByUid, loadAllBoards, deleteBoardRecord,
   saveFile, loadFileBlob, deleteFile, loadAllNotesMeta, createNoteRecord,
 } from './storage.js';
 import { escHtml } from './blocks.js';
+import { positionPopover } from './popover.js';
 
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -442,8 +443,14 @@ async function loadBoardFromUrlOrStorage() {
     } else if (uidParam) {
       board = await getBoardByUid(uidParam);
     } else {
-      const all = await loadAllBoards();
-      board = all[0] || null;
+      const activeUid = localStorage.getItem('quickdock:active-board-uid');
+      if (activeUid) {
+        board = await getBoardByUid(activeUid);
+      }
+      if (!board) {
+        const all = await loadAllBoards();
+        board = all[0] || null;
+      }
     }
   } catch (err) {
     console.warn('Erro ao carregar quadro do banco:', err);
@@ -454,11 +461,13 @@ async function loadBoardFromUrlOrStorage() {
       id: board.id,
       uid: board.uid,
       title: board.title || 'Espaço Sem Título',
+      pasta: board.pasta || '',
       viewport: board.viewport || { x: 0, y: 0, zoom: 1 },
       bgMode: board.bgMode || 'stars',
       cards: board.cards || [],
       arrows: (board.arrows || []).map(a => ({ ...a, lineStyle: a.lineStyle || 'straight' }))
     };
+    try { localStorage.setItem('quickdock:active-board-uid', currentBoard.uid); } catch {}
   } else {
     // Cria espaço padrão inicial com 2 cartões demonstrativos conectados
     const cw = container.clientWidth || window.innerWidth;
@@ -470,6 +479,7 @@ async function loadBoardFromUrlOrStorage() {
       id: null,
       uid: `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
       title: 'Brainstorming Inicial',
+      pasta: '',
       viewport: { x: cx - 200, y: cy - 100, zoom: 1 },
       bgMode: 'stars',
       cards: [
@@ -486,6 +496,217 @@ async function loadBoardFromUrlOrStorage() {
   if (titleInput) titleInput.value = currentBoard.title;
 }
 
+export async function flushBoardSave() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    await persistBoard();
+  }
+}
+
+export async function createBlankBoard(title = 'Novo Espaço', pasta = '') {
+  await flushBoardSave();
+  const cw = container?.clientWidth || window.innerWidth || 800;
+  const ch = container?.clientHeight || window.innerHeight || 600;
+  const cx = Math.max(150, cw / 2);
+  const cy = Math.max(100, ch / 2 - 50);
+
+  const novo = {
+    id: null,
+    uid: `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    title,
+    pasta: pasta || '',
+    viewport: { x: cx - 150, y: cy - 70, zoom: 1 },
+    bgMode: 'stars',
+    cards: [
+      { id: 'c1', x: 0, y: 0, w: 220, h: 120, text: '💡 Nova Ideia\nEscreva seus pensamentos aqui.', color: 'yellow' }
+    ],
+    arrows: []
+  };
+
+  const id = await saveBoardRecord(novo);
+  novo.id = id;
+  currentBoard = novo;
+  try { localStorage.setItem('quickdock:active-board-uid', currentBoard.uid); } catch {}
+  if (titleInput) titleInput.value = currentBoard.title;
+  applyViewport();
+  updateBgToggleButtons();
+  renderCards();
+  renderArrows();
+  document.dispatchEvent(new CustomEvent('quickdock:board-changed', {
+    detail: { id: novo.id, uid: novo.uid, board: novo }
+  }));
+  return novo;
+}
+
+export async function switchBoard(idOrUid) {
+  await flushBoardSave();
+  let board = null;
+  if (typeof idOrUid === 'number') {
+    board = await getBoardById(idOrUid);
+  } else {
+    board = (await getBoardByUid(idOrUid)) || (await getBoardById(Number(idOrUid)));
+  }
+  if (!board) return false;
+
+  currentBoard = {
+    id: board.id,
+    uid: board.uid,
+    title: board.title || 'Espaço Sem Título',
+    pasta: board.pasta || '',
+    viewport: board.viewport || { x: 0, y: 0, zoom: 1 },
+    bgMode: board.bgMode || 'stars',
+    cards: board.cards || [],
+    arrows: (board.arrows || []).map(a => ({ ...a, lineStyle: a.lineStyle || 'straight' }))
+  };
+
+  try { localStorage.setItem('quickdock:active-board-uid', currentBoard.uid); } catch {}
+  if (titleInput) titleInput.value = currentBoard.title;
+  applyViewport();
+  updateBgToggleButtons();
+  renderCards();
+  renderArrows();
+  return true;
+}
+
+let openBoardListPopover = null;
+
+export function closeBoardListPopover() {
+  if (openBoardListPopover) {
+    openBoardListPopover.remove();
+    openBoardListPopover = null;
+  }
+}
+
+export async function toggleBoardListPopover(anchor) {
+  if (openBoardListPopover) {
+    closeBoardListPopover();
+    return;
+  }
+
+  const allBoards = await loadAllBoards();
+  const pop = document.createElement('div');
+  pop.className = 'board-list-popover';
+  pop.style.cssText = `
+    position: fixed;
+    z-index: 1000;
+    min-width: 220px;
+    max-width: 320px;
+    background: var(--bg-card, #1e1e1e);
+    border: 1px solid var(--border, #333);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    padding: 6px;
+    font-size: 13px;
+    color: var(--text, #eee);
+  `;
+
+  const head = document.createElement('div');
+  head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 8px 6px;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border);margin-bottom:4px;';
+  head.innerHTML = `<span>Espaços Infinitos</span><span>${allBoards.length}</span>`;
+  pop.appendChild(head);
+
+  const list = document.createElement('div');
+  list.style.cssText = 'max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;';
+  for (const b of allBoards) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    const isCurrent = b.uid === currentBoard?.uid || b.id === currentBoard?.id;
+    item.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: ${isCurrent ? 'var(--bg-hover, rgba(255,255,255,0.08))' : 'transparent'};
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      font-size: 13px;
+    `;
+    const label = document.createElement('span');
+    label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:' + (isCurrent ? '600' : '400') + ';';
+    label.textContent = (b.pasta ? `${b.pasta} / ` : '') + (b.title || 'Sem Título');
+    item.appendChild(label);
+
+    if (isCurrent) {
+      const mark = document.createElement('span');
+      mark.className = 'qd-icon material-symbols-rounded';
+      mark.style.cssText = 'font-size:16px;color:var(--accent);';
+      mark.textContent = 'check';
+      item.appendChild(mark);
+    }
+
+    item.addEventListener('click', async () => {
+      closeBoardListPopover();
+      if (!isCurrent) {
+        await switchBoard(b.uid);
+      }
+    });
+    list.appendChild(item);
+  }
+  pop.appendChild(list);
+
+  const hr = document.createElement('div');
+  hr.style.cssText = 'height:1px;background:var(--border);margin:4px 0;';
+  pop.appendChild(hr);
+
+  const btnNew = document.createElement('button');
+  btnNew.type = 'button';
+  btnNew.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;background:transparent;border:none;color:var(--accent,#3b82f6);cursor:pointer;font-size:12px;font-weight:500;';
+  btnNew.innerHTML = '<span class="qd-icon material-symbols-rounded" style="font-size:16px;">add</span><span>Novo Espaço</span>';
+  btnNew.addEventListener('click', async () => {
+    closeBoardListPopover();
+    const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
+    if (titulo !== null) {
+      await createBlankBoard(titulo.trim() || 'Novo Espaço');
+    }
+  });
+  pop.appendChild(btnNew);
+
+  if (allBoards.length > 1) {
+    const btnDel = document.createElement('button');
+    btnDel.type = 'button';
+    btnDel.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;background:transparent;border:none;color:var(--danger,#ef4444);cursor:pointer;font-size:12px;';
+    btnDel.innerHTML = '<span class="qd-icon material-symbols-rounded" style="font-size:16px;">delete</span><span>Excluir este espaço</span>';
+    btnDel.addEventListener('click', async () => {
+      if (!btnDel.dataset.confirming) {
+        btnDel.dataset.confirming = '1';
+        btnDel.innerHTML = '<span class="qd-icon material-symbols-rounded" style="font-size:16px;">warning</span><span>Confirmar exclusão?</span>';
+        return;
+      }
+      closeBoardListPopover();
+      if (currentBoard.id) {
+        await deleteBoardRecord(currentBoard.id);
+      }
+      document.dispatchEvent(new CustomEvent('quickdock:board-changed', { detail: { deletedUid: currentBoard.uid } }));
+      const restantes = await loadAllBoards();
+      if (restantes.length > 0) {
+        await switchBoard(restantes[0].uid);
+      } else {
+        await createBlankBoard('Espaço Inicial');
+      }
+    });
+    pop.appendChild(btnDel);
+  }
+
+  document.body.appendChild(pop);
+  positionPopover(pop, anchor);
+  openBoardListPopover = pop;
+
+  setTimeout(() => {
+    const onOutside = e => {
+      if (!pop.contains(e.target) && !anchor.contains(e.target)) {
+        closeBoardListPopover();
+        document.removeEventListener('pointerdown', onOutside);
+      }
+    };
+    document.addEventListener('pointerdown', onOutside);
+  }, 10);
+}
+
 function scheduleSave() {
   clearTimeout(saveTimer);
   if (saveStatus) {
@@ -500,9 +721,15 @@ async function persistBoard() {
   try {
     const savedId = await saveBoardRecord(currentBoard);
     if (!currentBoard.id && savedId) currentBoard.id = savedId;
+    if (currentBoard.uid) {
+      try { localStorage.setItem('quickdock:active-board-uid', currentBoard.uid); } catch {}
+    }
     if (saveStatus) {
       saveStatus.innerHTML = '<span class="qd-icon material-symbols-rounded status-icon">check</span> salvo';
     }
+    document.dispatchEvent(new CustomEvent('quickdock:board-changed', {
+      detail: { id: currentBoard.id, uid: currentBoard.uid, board: currentBoard }
+    }));
   } catch (err) {
     console.error('Erro ao salvar quadro:', err);
     if (saveStatus) {
@@ -2023,6 +2250,13 @@ function setupEventListeners(getEl) {
   titleInput?.addEventListener('input', () => {
     currentBoard.title = titleInput.value.trim() || 'Espaço Sem Título';
     scheduleSave();
+  });
+
+  // Alternador de Espaços
+  const switcherBtn = getEl('btn-board-switcher');
+  switcherBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleBoardListPopover(switcherBtn);
   });
 
   // Ferramentas da Barra

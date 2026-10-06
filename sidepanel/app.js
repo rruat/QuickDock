@@ -12,6 +12,7 @@ import { switchView } from './modules/views.js';
 import { initTemplatesGallery } from './modules/templates-gallery.js';
 import { initGraphView } from './modules/graph-view.js';
 import { initBoardView, abrirQuadroInfinitoEmAba } from './modules/board-view.js';
+import { flushBoardSave } from './modules/board-engine.js';
 import { initCalendarView } from './modules/calendar-view.js';
 import { initBasesView } from './modules/bases-view.js';
 import { initJsonView } from './modules/json-view.js';
@@ -278,7 +279,10 @@ async function init() {
         // texto antigo por cima dela.
         if (id != null) await switchToNote(id, { descartarDom: true });
       },
-      antesDeSincronizar: flushSave,
+      antesDeSincronizar: async () => {
+        if (typeof flushSave === 'function') await flushSave();
+        if (typeof flushBoardSave === 'function') await flushBoardSave();
+      },
       emModoModelo: isEditingTemplate,
     });
     await syncController.inicializar();
@@ -293,7 +297,7 @@ async function init() {
       btnSync.classList.toggle('has-conflict', (resumo.totalConflitos || 0) > 0);
 
       if (resumo.state === SYNC_STATE.SYNCING) {
-        btnSync.title = 'Sincronizando notas…';
+        btnSync.title = 'Sincronizando notas e quadros…';
       } else if (resumo.totalConflitos > 0) {
         btnSync.title = `Sincronização: ${resumo.totalConflitos} conflito(s) detectado(s) — clique para detalhes`;
       } else if (resumo.state === SYNC_STATE.ERROR) {
@@ -314,6 +318,10 @@ async function init() {
 
     // Tarefa 5: Debounce de ~20s após parar de digitar (nunca a cada tecla)
     document.querySelector('.note-editor')?.addEventListener('input', () => {
+      syncController?.notificarAtividadeEditor();
+    });
+
+    document.addEventListener('quickdock:board-changed', () => {
       syncController?.notificarAtividadeEditor();
     });
   } finally {
