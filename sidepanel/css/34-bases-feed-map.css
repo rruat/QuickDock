@@ -28,3 +28,17 @@
 .bmap-popup-btn { border: 0; background: transparent; color: var(--accent); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
 .bmap-nolocation { padding: 6px 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); }
 .bmap-nolocation ul { display: flex; flex-wrap: wrap; gap: 4px 12px; list-style: none; margin: 6px 0 0; padding: 0; }
+
+/* ── Impressão das Bases (por view): só o conteúdo, sem controles ── */
+@media print {
+  .base-header-bar, .base-quickfilters, .base-bulkbar, .base-settings-host, .bmap-toolbar, .btl-toolbar, .bcal-toolbar,
+  .base-add-view-dropdown, .bfeed-more, .base-tfoot-td .base-calc-select.is-none, .base-th-resizer, .base-th-sel, .base-td-sel { display: none !important; }
+  .base-component-root, .base-viewport, .base-view-container { height: auto !important; overflow: visible !important; position: static !important; }
+  .base-table-wrap, .btl-scroll, .base-feed-container { overflow: visible !important; }
+  .base-table { width: 100% !important; }
+  .base-tr, .bfeed-card, .base-board-card, .base-gallery-card, .btl-row { break-inside: avoid; }
+  .base-table thead { display: table-header-group; }
+  .bfeed-body { max-height: none !important; -webkit-mask-image: none !important; mask-image: none !important; }
+  .bmap-map { min-height: 360px !important; }
+  .base-chart-container, .base-timeline-container, .base-map-container { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

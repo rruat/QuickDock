@@ -15,7 +15,8 @@ import { renderBaseChartView } from './bases-chart-view.js';
 import { renderBaseTimelineView } from './bases-timeline-view.js';
 import { renderBaseFeedView } from './bases-feed-view.js';
 import { renderBaseMapView } from './bases-map-view.js';
-import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, deleteNoteRecordById } from '../storage.js';
+import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, deleteNoteRecordById, loadAllTemplates, updateNoteBlocksById } from '../storage.js';
+import { parseMarkdownToBlocks, blocksToMarkdown } from '../blocks.js';
 import { normalizeViews, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
 import { renderViewTabs as desenhaAbas, abreMenu } from './ui/view-tabs.js';
@@ -30,7 +31,7 @@ import {
   moveView, duplicateViewAt, deleteViewById, renameViewById, setViewLocked, setViewIcon,
   setDefaultView, neighborViewId,
 } from './config/view-actions.js';
-import { switchToNote } from '../note.js';
+import { switchToNote, absorbDataUrls } from '../note.js';
 
 /**
  * Renderiza um componente completo de Base num elemento contêiner.
@@ -59,6 +60,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   let searchQuery = '';
   let showRawConfig = false;
   let allNotes = [];
+  let templates = [];
 
   rootContainer.innerHTML = '';
   rootContainer.className = 'base-component-root' + (options.embedded ? ' is-embedded' : '');
@@ -226,6 +228,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     settingsHandle = mountViewSettingsPanel(settingsEl, {
       getView: () => baseDef.views[activeIndex()],
       getSchema: () => inferBaseSchema(allNotes, baseDef.properties),
+      getTemplates: () => templates,
       getBaseProps: () => baseDef.properties || {},
       onBasePatch: patch => {
         const props = { ...(baseDef.properties || {}) };
@@ -312,6 +315,14 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         properties: initialProperties,
         propertyTypes: extraTypes,
       });
+
+      // modelo da view: o markdown do modelo passa pelo mesmo caminho da importação
+      // (imagem em base64 vira arquivo — precisa do id da nota, por isso a nota nasce vazia antes)
+      const tpl = view?.newTemplate ? templates.find(t => t.uid === view.newTemplate && t.kind === 'note') : null;
+      if (tpl) {
+        const blocks = await absorbDataUrls(parseMarkdownToBlocks(tpl.content ?? ''), noteId);
+        await updateNoteBlocksById(noteId, blocks, blocksToMarkdown(blocks));
+      }
 
       document.dispatchEvent(new CustomEvent('quickdock:note-created', { detail: { id: noteId } }));
       document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: noteId } }));
@@ -465,6 +476,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   // Carregamento inicial de notas
   async function loadData() {
     allNotes = await loadAllNotesMeta();
+    try { templates = await loadAllTemplates(); } catch { templates = []; }
     renderViewTabs();
     updateViewport();
   }

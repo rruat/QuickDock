@@ -752,7 +752,7 @@ Navegação por teclado completa (4.12) · contraste ≥ 55 de L (OKLCH) · não
 | 5 | Linha do tempo | ✅ (barras, marco, 5 escalas com zoom que mantém o centro, tabela lateral sincronizada, grupos, cor, hoje, mover/esticar por arrasto e teclado; etapa 2: dependências com setas, conflito destacado e reagendamento em cascata opcional) |
 | 6 | Gráficos | ✅ (barras vertical/horizontal agrupadas/empilhadas/100%, linha, pizza, número; séries, acumulado, meta, clique filtra; SVG próprio em OKLCH; falta só tooltip rico além do título nativo) |
 | 7 | Mapa e Feed | ✅ (Mapa: Leaflet, pinos coloridos, cluster por grade sem plugin, aviso offline, lista "sem localização"; Feed: conteúdo da nota em blocos, carregamento preguiçoso, "ver mais", grupos) |
-| 8 | Vinculadas, templates, lote, peek, exportar, dashboard | 🟡 (feito: exportar CSV/Markdown/JSON com proteção contra injeção de fórmula; seleção e edição em lote com confirmação; colunas congeladas; faltam views vinculadas, templates por view, "abrir em" peek, botão-ação, dashboard) |
+| 8 | Vinculadas, templates, lote, peek, exportar, dashboard | 🟡 (feito: exportar CSV/Markdown/JSON com proteção contra injeção de fórmula; seleção e edição em lote com confirmação; colunas congeladas; modelo de nota por view; impressão por view; faltam views vinculadas, "abrir em" peek, botão-ação, dashboard) |
 
 ---
 

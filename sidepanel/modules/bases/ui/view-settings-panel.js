@@ -22,6 +22,7 @@ import { formatSection } from './section-format.js';
 import { chartSections } from './section-chart.js';
 import { timelineSections } from './section-timeline.js';
 import { mapSections } from './section-map.js';
+import { newNoteSection } from './section-new.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -104,6 +105,7 @@ export function mountViewSettingsPanel(host, api) {
   if (!['calendar', 'chart', 'timeline', 'map'].includes(view.type)) corpo.appendChild(sortSection(ctx));
   const cor = colorSection(ctx);
   if (cor) corpo.appendChild(cor);
+  corpo.appendChild(newNoteSection({ view, templates: api.getTemplates ? api.getTemplates() : [], memoria, patch }));
   if (api.getBaseProps) {
     const fmt = formatSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) });
     if (fmt) corpo.appendChild(fmt);
