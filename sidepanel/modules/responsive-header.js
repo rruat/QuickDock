@@ -179,21 +179,6 @@ export function initResponsiveHeaders() {
   document.addEventListener('quickdock:desktop-panels-changed', reconciliarNoProximoFrame);
   document.addEventListener('quickdock:view-changed', reconciliarNoProximoFrame);
 
-  initHeader('.board-header', [
-    '#btn-board-open-tab',
-    '#btn-zoom-reset',
-    '#btn-export-json',
-    '#btn-board-toggle-height',
-    '#btn-board-toggle-fullscreen',
-    '#btn-zoom-in',
-    '#btn-zoom-out',
-    '#tool-note-create',
-    '#tool-note-link',
-    '#tool-group',
-    '#tool-image',
-    '#tool-arrow',
-  ]);
-
   initHeader('.graph-header', [
     '#btn-graph-toggle-height',
     '#btn-graph-toggle-fullscreen',

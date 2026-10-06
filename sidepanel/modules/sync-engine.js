@@ -146,6 +146,14 @@ export function serializarQuadro(quadro) {
     } else if (c.type === 'note') {
       node.type = 'file';
       node.file = c.noteUid || '';
+    } else if (c.type === 'media') {
+      if (c.src) {
+        node.type = 'link';
+        node.url = c.src;
+      } else {
+        node.type = 'file';
+        node.file = c.name || `arquivo-${c.id}`;
+      }
     } else {
       node.type = 'text';
       node.text = c.text || '';

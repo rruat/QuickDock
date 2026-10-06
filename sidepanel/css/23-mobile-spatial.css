@@ -342,6 +342,20 @@
     height: 32px !important;
   }
 
+  /* O zoom virou dock flutuante; no mobile a barra de ferramentas ocupa o rodapé */
+  .board-view .board-zoom-dock,
+  html[data-platform="mobile"] .board-view .board-zoom-dock {
+    bottom: 56px !important;
+    right: 10px !important;
+  }
+
+  .board-view .board-zoom-dock .board-zoom-group,
+  html[data-platform="mobile"] .board-view .board-zoom-dock .board-zoom-group {
+    height: auto !important;
+    padding: 3px !important;
+    background: var(--bg-card) !important;
+  }
+
   .board-view .board-btn,
   html[data-platform="mobile"] .board-view .board-btn {
     height: 32px !important;

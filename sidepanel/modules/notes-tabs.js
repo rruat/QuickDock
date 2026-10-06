@@ -42,6 +42,7 @@ import {
 import {
   renderNotesListRowsCore,
 } from './tabs/notes-drawer.js';
+import { buildAsideHeader, refreshAsideBadge } from './tabs/notes-aside-header.js';
 
 
 
@@ -972,6 +973,33 @@ async function renderNotesListRows(container, filterQuery = '', countEl = null, 
   });
 }
 
+// Painel que expande sob o cabeçalho do Explorador: tudo de criar/importar num só lugar.
+function asideQuickActions(refresh, closeAfter) {
+  return [
+    { icon: 'description', label: 'Nota', run: async () => { await createBlankNote(); await refresh(); } },
+    { icon: 'view_kanban', label: 'Base', run: async () => { await createNewBaseNote(); await refresh(); } },
+    {
+      icon: 'space_dashboard', label: 'Espaço', run: async () => {
+        const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
+        if (titulo === null) return;
+        const { createBlankBoard } = await import('./board-engine.js');
+        await createBlankBoard(titulo.trim() || 'Novo Espaço');
+        switchView('board');
+        closeAfter?.();
+        await refresh();
+      },
+    },
+    { icon: 'upload_file', label: 'Importar .md', run: () => importInput.click() },
+    {
+      icon: 'data_object', label: 'Importar .json', run: () => {
+        switchView('json', { fullscreen: true });
+        closeAfter?.();
+        setTimeout(() => document.getElementById('btn-json-import')?.click(), 0);
+      },
+    },
+  ];
+}
+
 export function openNotesAsideDrawer() {
   // No desktop o drawer já está permanentemente montado em #app
   if (isDesktopMode()) return;
@@ -994,52 +1022,6 @@ export function openNotesAsideDrawer() {
   const drawer = document.createElement('aside');
   drawer.className = 'notes-aside-drawer notes-list-popover';
 
-  // Cabeçalho do Drawer Aside
-  const asideHeader = document.createElement('div');
-  asideHeader.className = 'notes-aside-header';
-
-  const titleGroup = document.createElement('div');
-  titleGroup.className = 'notes-aside-title-group';
-
-  const titleIcon = document.createElement('span');
-  titleIcon.className = 'notes-aside-title-icon';
-  titleIcon.innerHTML = iconSvg('folder_open');
-
-  const titleText = document.createElement('span');
-  titleText.className = 'notes-aside-title-text';
-  titleText.textContent = 'Todas as notas';
-
-  const titleBadge = document.createElement('span');
-  titleBadge.className = 'notes-aside-badge';
-  titleBadge.textContent = String(notesMeta.length);
-
-  titleGroup.append(titleIcon, titleText, titleBadge);
-
-  const headerActions = document.createElement('div');
-  headerActions.className = 'notes-aside-header-actions';
-
-  const btnAddFolder = document.createElement('button');
-  btnAddFolder.className = 'icon-btn notes-aside-action-btn';
-  btnAddFolder.innerHTML = iconSvg('create_new_folder');
-  btnAddFolder.title = 'Nova pasta';
-  btnAddFolder.setAttribute('aria-label', 'Nova pasta');
-  btnAddFolder.addEventListener('click', async e => {
-    e.stopPropagation();
-    await startCreateFolderInline('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
-  });
-
-  const btnAddNote = document.createElement('button');
-  btnAddNote.className = 'icon-btn notes-aside-action-btn';
-  btnAddNote.innerHTML = iconSvg('add');
-  btnAddNote.title = 'Nova nota';
-  btnAddNote.setAttribute('aria-label', 'Nova nota');
-  btnAddNote.addEventListener('click', async e => {
-    e.stopPropagation();
-    await createBlankNote();
-    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-    titleBadge.textContent = String(notesMeta.length);
-  });
-
   const btnClose = document.createElement('button');
   btnClose.className = 'icon-btn notes-aside-close-btn';
   btnClose.innerHTML = iconSvg('close');
@@ -1049,10 +1031,19 @@ export function openNotesAsideDrawer() {
     e.stopPropagation();
     closeNotesAsideDrawer();
   });
-
-  headerActions.append(btnAddFolder, btnAddNote, btnClose);
-  asideHeader.append(titleGroup, headerActions);
-  drawer.appendChild(asideHeader);
+  // Cabeçalho do Drawer Aside: pasta + arquivo (o "arquivo" expande o painel de criar/importar)
+  const refreshList = async () => {
+    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
+    await refreshAsideBadge(drawer, notesMeta.length);
+  };
+  const { header: asideHeader, panel: quickPanel } = buildAsideHeader({
+    count: notesMeta.length,
+    onNewFolder: () => startCreateFolderInline('', refreshList),
+    quickActions: asideQuickActions(refreshList, () => closeNotesAsideDrawer()),
+    trailing: [btnClose],
+  });
+  drawer.append(asideHeader, quickPanel);
+  refreshAsideBadge(drawer, notesMeta.length);
 
   // Barra de busca
   const searchBar = document.createElement('div');
@@ -1081,45 +1072,6 @@ export function openNotesAsideDrawer() {
   // Barra de ferramentas
   const toolbar = document.createElement('div');
   toolbar.className = 'notes-list-toolbar';
-
-  const btnNewFolder = document.createElement('button');
-  btnNewFolder.className = 'notes-list-action-btn';
-  btnNewFolder.innerHTML = `${iconSvg('create_new_folder')}<span>Nova pasta</span>`;
-  btnNewFolder.title = 'Criar nova pasta';
-  btnNewFolder.addEventListener('click', async e => {
-    e.stopPropagation();
-    await startCreateFolderInline('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
-  });
-  toolbar.appendChild(btnNewFolder);
-
-  const btnNewBase = document.createElement('button');
-  btnNewBase.className = 'notes-list-action-btn';
-  btnNewBase.innerHTML = `<span class="qd-icon material-symbols-rounded" style="font-size:14px;">view_kanban</span><span>Nova Base</span>`;
-  btnNewBase.title = 'Criar nova Base de dados';
-  btnNewBase.addEventListener('click', async e => {
-    e.stopPropagation();
-    await createNewBaseNote();
-    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-    titleBadge.textContent = String(notesMeta.length);
-  });
-  toolbar.appendChild(btnNewBase);
-
-  const btnNewBoard = document.createElement('button');
-  btnNewBoard.className = 'notes-list-action-btn';
-  btnNewBoard.innerHTML = `<span class="qd-icon material-symbols-rounded" style="font-size:14px;">space_dashboard</span><span>Novo Espaço</span>`;
-  btnNewBoard.title = 'Criar novo Espaço Infinito';
-  btnNewBoard.addEventListener('click', async e => {
-    e.stopPropagation();
-    const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
-    if (titulo !== null) {
-      const { createBlankBoard } = await import('./board-engine.js');
-      const { switchView } = await import('./views.js');
-      await createBlankBoard(titulo.trim() || 'Novo Espaço');
-      switchView('board');
-      closeNotesAsideDrawer();
-    }
-  });
-  toolbar.appendChild(btnNewBoard);
 
   const btnToggleAll = document.createElement('button');
   btnToggleAll.className = 'notes-list-action-btn';
@@ -1271,7 +1223,13 @@ export async function refreshOpenAsideRows() {
   const countEl = notesAsideDrawer.querySelector('.notes-search-count');
   const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
   await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
+  await refreshAsideBadge(notesAsideDrawer, notesMeta.length);
 }
+
+// Quadros (Espaços) aparecem na mesma árvore: recria a lista quando um quadro
+// é criado/salvo/excluído ou quando a view muda (destaque do quadro aberto).
+document.addEventListener('quickdock:board-changed', () => { refreshOpenAsideRows(); });
+document.addEventListener('quickdock:view-changed', () => { refreshOpenAsideRows(); });
 
 // Renomear com 2 cliques direto na linha da aside, sem passar pelo menu "⋯".
 // Troca o <span> do título por um <input> no lugar; Enter/perder foco grava,
@@ -1347,56 +1305,18 @@ function initDesktopNotesAsideDrawer() {
   const drawer = document.createElement('aside');
   drawer.className = 'notes-aside-drawer notes-list-popover open';
 
-  // Cabeçalho do Drawer Aside
-  const asideHeader = document.createElement('div');
-  asideHeader.className = 'notes-aside-header';
-
-  const titleGroup = document.createElement('div');
-  titleGroup.className = 'notes-aside-title-group';
-
-  const titleIcon = document.createElement('span');
-  titleIcon.className = 'notes-aside-title-icon';
-  titleIcon.innerHTML = iconSvg('folder_open');
-
-  const titleText = document.createElement('span');
-  titleText.className = 'notes-aside-title-text';
-  titleText.textContent = 'Todas as notas';
-
-  const titleBadge = document.createElement('span');
-  titleBadge.className = 'notes-aside-badge';
-  titleBadge.textContent = String(notesMeta.length);
-
-  titleGroup.append(titleIcon, titleText, titleBadge);
-
-  const headerActions = document.createElement('div');
-  headerActions.className = 'notes-aside-header-actions';
-
-  const btnAddFolder = document.createElement('button');
-  btnAddFolder.className = 'icon-btn notes-aside-action-btn';
-  btnAddFolder.innerHTML = iconSvg('create_new_folder');
-  btnAddFolder.title = 'Nova pasta';
-  btnAddFolder.setAttribute('aria-label', 'Nova pasta');
-  btnAddFolder.addEventListener('click', async e => {
-    e.stopPropagation();
-    await startCreateFolderInline('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
-  });
-
-  const btnAddNote = document.createElement('button');
-  btnAddNote.className = 'icon-btn notes-aside-action-btn';
-  btnAddNote.innerHTML = iconSvg('add');
-  btnAddNote.title = 'Nova nota';
-  btnAddNote.setAttribute('aria-label', 'Nova nota');
-  btnAddNote.addEventListener('click', async e => {
-    e.stopPropagation();
-    await createBlankNote();
+  // Cabeçalho do Drawer Aside: pasta + arquivo (o "arquivo" expande o painel de criar/importar)
+  const refreshList = async () => {
     await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-    titleBadge.textContent = String(notesMeta.length);
-  });
-
-  // Sem botão de fechar no desktop
-  headerActions.append(btnAddFolder, btnAddNote);
-  asideHeader.append(titleGroup, headerActions);
-  drawer.appendChild(asideHeader);
+    await refreshAsideBadge(drawer, notesMeta.length);
+  };
+  const { header: asideHeader, panel: quickPanel } = buildAsideHeader({
+    count: notesMeta.length,
+    onNewFolder: () => startCreateFolderInline('', refreshList),
+    quickActions: asideQuickActions(refreshList, () => closeNotesAsideDrawer()),
+      });
+  drawer.append(asideHeader, quickPanel);
+  refreshAsideBadge(drawer, notesMeta.length);
 
   // Barra de busca
   const searchBar = document.createElement('div');
@@ -1425,45 +1345,6 @@ function initDesktopNotesAsideDrawer() {
   // Barra de ferramentas
   const toolbar = document.createElement('div');
   toolbar.className = 'notes-list-toolbar';
-
-  const btnNewFolder = document.createElement('button');
-  btnNewFolder.className = 'notes-list-action-btn';
-  btnNewFolder.innerHTML = `${iconSvg('create_new_folder')}<span>Nova pasta</span>`;
-  btnNewFolder.title = 'Criar nova pasta';
-  btnNewFolder.addEventListener('click', async e => {
-    e.stopPropagation();
-    await startCreateFolderInline('', () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn));
-  });
-  toolbar.appendChild(btnNewFolder);
-
-  const btnNewBase = document.createElement('button');
-  btnNewBase.className = 'notes-list-action-btn';
-  btnNewBase.innerHTML = `<span class="qd-icon material-symbols-rounded" style="font-size:14px;">view_kanban</span><span>Nova Base</span>`;
-  btnNewBase.title = 'Criar nova Base de dados';
-  btnNewBase.addEventListener('click', async e => {
-    e.stopPropagation();
-    await createNewBaseNote();
-    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-    titleBadge.textContent = String(notesMeta.length);
-  });
-  toolbar.appendChild(btnNewBase);
-
-  const btnNewBoard = document.createElement('button');
-  btnNewBoard.className = 'notes-list-action-btn';
-  btnNewBoard.innerHTML = `<span class="qd-icon material-symbols-rounded" style="font-size:14px;">space_dashboard</span><span>Novo Espaço</span>`;
-  btnNewBoard.title = 'Criar novo Espaço Infinito';
-  btnNewBoard.addEventListener('click', async e => {
-    e.stopPropagation();
-    const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
-    if (titulo !== null) {
-      const { createBlankBoard } = await import('./board-engine.js');
-      const { switchView } = await import('./views.js');
-      await createBlankBoard(titulo.trim() || 'Novo Espaço');
-      switchView('board');
-      closeNotesAsideDrawer();
-    }
-  });
-  toolbar.appendChild(btnNewBoard);
 
   const btnToggleAll = document.createElement('button');
   btnToggleAll.className = 'notes-list-action-btn';

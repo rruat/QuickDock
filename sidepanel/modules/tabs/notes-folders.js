@@ -19,18 +19,20 @@ export function saveOpenFolders(set) {
   } catch {}
 }
 
-export function buildFolderTree(pastas, notes) {
+export function buildFolderTree(pastas, notes, boards = []) {
   const root = {
     caminho: '',
     nome: '',
     nivel: 0,
     subpastas: new Map(),
     notas: [],
+    quadros: [],
   };
 
   const todosCaminhos = new Set();
   for (const p of (pastas || [])) if (p.caminho) todosCaminhos.add(p.caminho);
   for (const n of (notes || [])) if (n.pasta) todosCaminhos.add(n.pasta);
+  for (const b of (boards || [])) if (b.pasta) todosCaminhos.add(b.pasta);
 
   for (const c of [...todosCaminhos]) {
     const partes = c.split('/');
@@ -54,6 +56,7 @@ export function buildFolderTree(pastas, notes) {
           nivel: i + 1,
           subpastas: new Map(),
           notas: [],
+          quadros: [],
         });
       }
       cur = cur.subpastas.get(partes[i]);
@@ -68,11 +71,15 @@ export function buildFolderTree(pastas, notes) {
     node.notas.push(n);
   }
 
+  for (const b of (boards || [])) {
+    getNode(b.pasta || '').quadros.push(b);
+  }
+
   return root;
 }
 
 export function contarNotasTotal(node) {
-  let count = node.notas.length;
+  let count = node.notas.length + (node.quadros?.length || 0);
   for (const sub of node.subpastas.values()) {
     count += contarNotasTotal(sub);
   }

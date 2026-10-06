@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-41';
+const CACHE_NAME = 'quickdock-v3.0.0-48';
 
 const ASSET_PATHS = [
   '',
@@ -67,6 +67,24 @@ const ASSET_PATHS = [
   'sidepanel/modules/notes-appearance.js',
   'sidepanel/modules/notes-template-mode.js',
   'sidepanel/modules/notes-dashboard.js',
+  'sidepanel/modules/tabs/notes-drawer.js',
+  'sidepanel/modules/tabs/notes-drawer-boards.js',
+  'sidepanel/modules/tabs/notes-aside-header.js',
+  'sidepanel/modules/tabs/notes-folders.js',
+  'sidepanel/modules/tabs/notes-folder-modals.js',
+  'sidepanel/modules/tabs/notes-tab-menu.js',
+  'sidepanel/modules/board/board-arrows.js',
+  'sidepanel/modules/board/board-camera.js',
+  'sidepanel/modules/board/board-cards.js',
+  'sidepanel/modules/board/board-colors.js',
+  'sidepanel/modules/board/board-interactions.js',
+  'sidepanel/modules/board/board-shapes.js',
+  'sidepanel/modules/board/board-snapping.js',
+  'sidepanel/modules/board/board-media.js',
+  'sidepanel/modules/board/board-insert-popover.js',
+  'sidepanel/modules/board/board-beautify.js',
+  'sidepanel/modules/board/board-beautify-popover.js',
+  'sidepanel/modules/board/board-pulse.js',
   'sidepanel/modules/note.js',
   'sidepanel/modules/note-state.js',
   'sidepanel/modules/note-dom-utils.js',

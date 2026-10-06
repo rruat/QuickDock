@@ -621,3 +621,63 @@ html[data-platform="desktop"] .note-tab.has-folder {
   min-height: 0;
   padding: 4px 6px 16px;
 }
+
+/* Linha de Quadro Infinito (Espaço) na árvore do Explorador */
+.board-list-item .board-list-item-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-right: 6px;
+  color: var(--text-muted);
+}
+
+.board-list-item .board-list-item-icon .qd-icon {
+  font-size: 16px;
+}
+
+.board-list-item .notes-list-edit-btn.is-confirming {
+  color: var(--danger, #ef4444);
+  opacity: 1;
+}
+
+/* Painel expansível sob o cabeçalho do Explorador (botão "arquivo") */
+.notes-aside-action-btn.is-active {
+  background: var(--bg-hover);
+  color: var(--accent, var(--text));
+}
+
+.notes-aside-quick-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.notes-aside-quick-panel[hidden] {
+  display: none;
+}
+
+.notes-quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary, var(--text));
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.notes-quick-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.notes-quick-action-btn .qd-icon {
+  font-size: 16px;
+}

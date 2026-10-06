@@ -644,9 +644,6 @@
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">unfold_more</span>
             </button>
             <input type="text" id="board-title-input" class="board-title-input" value="Espaço de Ideias" placeholder="Nome do espaço..." aria-label="Nome do espaço" />
-            <button id="btn-board-switcher" class="icon-btn board-switcher-btn" title="Alternar ou criar espaço infinito" aria-label="Alternar ou criar espaço infinito">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">expand_more</span>
-            </button>
             <span id="board-save-status" class="board-save-status">
               <span class="qd-icon material-symbols-rounded status-icon" aria-hidden="true">check</span> salvo
             </span>
@@ -688,9 +685,6 @@
       <nav id="board-quickbar" class="board-header board-quickbar" role="toolbar" aria-label="Barra de ferramentas do espaço">
         <div class="board-header-center board-quickbar-tools">
           <div class="board-tools-group">
-            <button id="tool-select" class="board-tool-btn active" title="Selecionar e mover (V)" aria-label="Mover e selecionar">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">pan_tool</span>
-            </button>
             <button id="tool-card" class="board-tool-btn" title="Adicionar cartão (C)" aria-label="Adicionar cartão">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">note_add</span>
               <span class="tool-btn-label">Cartão</span>
@@ -699,43 +693,29 @@
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">shapes</span>
               <span class="tool-btn-label">Fluxo</span>
             </button>
-            <button id="tool-arrow" class="board-tool-btn" title="Conectar com seta (A)" aria-label="Conectar com seta">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">trending_flat</span>
-              <span class="tool-btn-label">Seta</span>
-            </button>
-            <button id="tool-image" class="board-tool-btn" title="Adicionar imagem" aria-label="Adicionar imagem">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">image</span>
-              <span class="tool-btn-label">Imagem</span>
+            <button id="tool-insert" class="board-tool-btn" title="Adicionar link, vídeo, áudio, imagem, arquivo ou nota" aria-label="Adicionar conteúdo ao espaço">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">add_photo_alternate</span>
+              <span class="tool-btn-label">Inserir</span>
             </button>
             <button id="tool-group" class="board-tool-btn" title="Adicionar grupo (G)" aria-label="Adicionar grupo">
               <span class="qd-icon material-symbols-rounded" aria-hidden="true">crop_square</span>
               <span class="tool-btn-label">Grupo</span>
             </button>
-            <button id="tool-note-link" class="board-tool-btn" title="Vincular nota existente" aria-label="Vincular nota existente">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">link</span>
-              <span class="tool-btn-label">Vincular nota</span>
+            <span class="board-quickbar-divider" aria-hidden="true"></span>
+            <button id="tool-beautify" class="board-tool-btn" title="Organizar fluxo (vertical ou horizontal)" aria-label="Organizar fluxo">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">auto_fix_high</span>
+              <span class="tool-btn-label">Organizar</span>
             </button>
-            <button id="tool-note-create" class="board-tool-btn" title="Criar nota e adicionar ao espaço" aria-label="Criar nota e adicionar ao espaço">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">note_add</span>
-              <span class="tool-btn-label">Nova nota</span>
+            <button id="tool-pulse" class="board-tool-btn" title="Pulse: partícula percorrendo o fluxo" aria-label="Pulse do fluxo">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">radio_button_checked</span>
+              <span class="tool-btn-label">Pulse</span>
             </button>
-            <input type="file" id="board-image-upload-input" accept="image/*" style="display:none;" />
+            <input type="file" id="board-image-upload-input" accept="image/*,video/*,audio/*" multiple style="display:none;" />
           </div>
         </div>
 
+        <span class="board-quickbar-divider" aria-hidden="true"></span>
         <div class="board-header-right board-quickbar-actions">
-          <div class="board-zoom-group">
-            <button id="btn-zoom-out" class="icon-btn board-btn" title="Diminuir zoom (-)" aria-label="Diminuir zoom">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">remove</span>
-            </button>
-            <span id="zoom-level-text" class="zoom-level-text">100%</span>
-            <button id="btn-zoom-in" class="icon-btn board-btn" title="Aumentar zoom (+)" aria-label="Aumentar zoom">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
-            </button>
-            <button id="btn-zoom-reset" class="icon-btn board-btn" title="Centralizar conteúdo (0)" aria-label="Centralizar conteúdo">
-              <span class="qd-icon material-symbols-rounded" aria-hidden="true">filter_center_focus</span>
-            </button>
-          </div>
           <button id="btn-board-toggle-bg" class="icon-btn board-btn" title="Fundo: Modo Estrelas (clique para alternar)" aria-label="Alternar modo do fundo">
             <span class="qd-icon material-symbols-rounded" aria-hidden="true">auto_awesome</span>
           </button>
@@ -754,6 +734,22 @@
           </button>
         </div>
       </nav>
+      <!-- Zoom flutuante, à direita -->
+      <div id="board-zoom-dock" class="board-zoom-dock" role="group" aria-label="Zoom do espaço">
+          <div class="board-zoom-group">
+            <button id="btn-zoom-out" class="icon-btn board-btn" title="Diminuir zoom (-)" aria-label="Diminuir zoom">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">remove</span>
+            </button>
+            <span id="zoom-level-text" class="zoom-level-text">100%</span>
+            <button id="btn-zoom-in" class="icon-btn board-btn" title="Aumentar zoom (+)" aria-label="Aumentar zoom">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>
+            </button>
+            <button id="btn-zoom-reset" class="icon-btn board-btn" title="Centralizar conteúdo (0)" aria-label="Centralizar conteúdo">
+              <span class="qd-icon material-symbols-rounded" aria-hidden="true">filter_center_focus</span>
+            </button>
+          </div>
+      </div>
+
     </section>
 
     <!-- Visão do Calendário de Notas -->

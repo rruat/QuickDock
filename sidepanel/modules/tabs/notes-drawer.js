@@ -8,6 +8,7 @@ import { positionPopover } from '../popover.js';
 import { listarPastas, moverNotaParaPasta } from '../storage.js';
 import { buildFolderTree, contarNotasTotal, getOpenFolders, saveOpenFolders } from './notes-folders.js';
 import { startCreateFolderInline, startRenameFolderInline, renamingFolderPath } from './notes-folder-modals.js';
+import { loadBoardsForDrawer, boardMatchesQuery, renderBoardRow } from './notes-drawer-boards.js';
 
 let folderMenuEl = null;
 export function closeFolderMenu() {
@@ -54,6 +55,21 @@ export function openFolderMenu({
     if (onRefresh) await onRefresh();
   });
   menu.appendChild(btnBase);
+
+  const btnBoard = document.createElement('button');
+  btnBoard.className = 'copy-opt';
+  btnBoard.innerHTML = '<span class="copy-opt-value">🪐 Novo Espaço nesta pasta</span>';
+  btnBoard.addEventListener('click', async e => {
+    e.stopPropagation();
+    closeFolderMenu();
+    const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
+    if (titulo === null) return;
+    const { createBlankBoard } = await import('../board-engine.js');
+    const { switchView } = await import('../views.js');
+    await createBlankBoard(titulo.trim() || 'Novo Espaço', caminho);
+    switchView('board');
+  });
+  menu.appendChild(btnBoard);
 
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
@@ -142,10 +158,19 @@ export async function renderNotesListRowsCore({
   promptExcluirPasta = null,
   closeNotesAsideDrawer = null
 } = {}) {
+  const allBoards = await loadBoardsForDrawer();
+  const reRender = () => renderNotesListRowsCore({
+    container, filterQuery, countEl, clearBtn, notesMeta, activeId,
+    buildTabIndicator, openTabMenuForNote, activateNote, renderTabs,
+    scrollTabIntoView, createNoteInFolder, updateNoteFolderBar,
+    loadAllNotesMeta, promptExcluirPasta, closeNotesAsideDrawer
+  });
+
   container.querySelectorAll('.notes-list-item, .folder-item, .notes-list-empty, .root-folder-header').forEach(el => el.remove());
 
   const q = filterQuery.trim().toLowerCase();
   const isSearching = !!q;
+  const boardsFiltered = isSearching ? allBoards.filter(b => boardMatchesQuery(b, q)) : allBoards;
 
   if (countEl && clearBtn) {
     if (isSearching) {
@@ -154,8 +179,8 @@ export async function renderNotesListRowsCore({
         const contentMatch = (m.content || '').toLowerCase().includes(q);
         return titleMatch || contentMatch;
       });
-      const visible = filtered.length;
-      const total = notesMeta.length;
+      const visible = filtered.length + boardsFiltered.length;
+      const total = notesMeta.length + allBoards.length;
       const hidden = total - visible;
       countEl.textContent = `Mostrando ${visible} de ${total} notas (${hidden} oculta${hidden === 1 ? '' : 's'})`;
       countEl.hidden = false;
@@ -174,7 +199,7 @@ export async function renderNotesListRowsCore({
       return titleMatch || contentMatch;
     });
 
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && boardsFiltered.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'copy-opt notes-list-empty';
       empty.style.color = 'var(--text-muted)';
@@ -227,12 +252,15 @@ export async function renderNotesListRowsCore({
 
       container.appendChild(row);
     }
+    for (const board of boardsFiltered) {
+      container.appendChild(renderBoardRow(board, { showFolder: true, onRefresh: reRender, closeNotesAsideDrawer }));
+    }
     return;
   }
 
-  // Sem busca: Renderiza a árvore hierárquica completa de pastas e notas
+  // Sem busca: Renderiza a árvore hierárquica completa de pastas, notas e quadros
   const pastas = await listarPastas();
-  const tree = buildFolderTree(pastas, notesMeta);
+  const tree = buildFolderTree(pastas, notesMeta, allBoards);
   const openFolders = getOpenFolders();
 
   const renderNoteRow = (meta, indentPx = 0) => {
@@ -367,7 +395,10 @@ export async function renderNotesListRowsCore({
         for (const meta of sub.notas) {
           childrenContainer.appendChild(renderNoteRow(meta, sub.nivel * 14 + 18));
         }
-        if (sub.subpastas.size === 0 && sub.notas.length === 0) {
+        for (const board of sub.quadros) {
+          childrenContainer.appendChild(renderBoardRow(board, { indentPx: sub.nivel * 14 + 18, onRefresh: reRender, closeNotesAsideDrawer }));
+        }
+        if (sub.subpastas.size === 0 && sub.notas.length === 0 && sub.quadros.length === 0) {
           const emptyRow = document.createElement('div');
           emptyRow.className = 'folder-empty-hint';
           emptyRow.style.paddingLeft = `${sub.nivel * 14 + 18}px`;
@@ -383,6 +414,9 @@ export async function renderNotesListRowsCore({
     if (node === tree) {
       for (const meta of node.notas) {
         parentEl.appendChild(renderNoteRow(meta, tree.subpastas.size > 0 ? 20 : 8));
+      }
+      for (const board of node.quadros) {
+        parentEl.appendChild(renderBoardRow(board, { indentPx: tree.subpastas.size > 0 ? 20 : 8, onRefresh: reRender, closeNotesAsideDrawer }));
       }
     }
   };

@@ -57,6 +57,14 @@ import {
   batchApplyColor as _batchApplyColor,
 } from './board/board-cards.js';
 import {
+  MEDIA_DEFAULT_SIZE, MEDIA_FILE_ACCEPT, mediaFromUrl, kindFromFile, mediaHandleLabel,
+  buildMediaBody, releaseMediaFile,
+} from './board/board-media.js';
+import { toggleInsertPopover } from './board/board-insert-popover.js';
+import { computeBeautifyLayout } from './board/board-beautify.js';
+import { toggleBeautifyPopover } from './board/board-beautify-popover.js';
+import { syncArrowPulse, removeArrowPulse, togglePulsePopover } from './board/board-pulse.js';
+import {
   computeMarqueeBounds as _computeMarqueeBounds,
   getCardsIntersectingBox as _getCardsIntersectingBox,
   updateMarqueeBoxElement as _updateMarqueeBoxElement,
@@ -827,6 +835,50 @@ function addImageCard(worldX, worldY, fileId, alt = '') {
   scheduleSave();
 }
 
+// Cartão de mídia (imagem/vídeo/áudio/link/arquivo) — por URL (`src`) ou por
+// arquivo local (`fileId`, Blob na tabela `files`). Ver board/board-media.js.
+function addMediaCard(worldX, worldY, data) {
+  const tam = MEDIA_DEFAULT_SIZE[data.kind] || { w: 260, h: 160 };
+  const card = {
+    id: `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    x: Math.round(worldX - tam.w / 2), y: Math.round(worldY - tam.h / 2),
+    w: tam.w, h: tam.h, type: 'media', color: null, ...data,
+  };
+  currentBoard.cards.push(card);
+  renderCards();
+  renderArrows();
+  scheduleSave();
+  return card;
+}
+
+function viewCenterWorld() {
+  return screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
+}
+
+// Texto digitado/colado/arrastado → cartão. false se não for um link http(s).
+function addMediaFromUrl(raw, at = viewCenterWorld()) {
+  const info = mediaFromUrl(raw);
+  if (!info) return false;
+  addMediaCard(at.x, at.y, info);
+  return true;
+}
+
+// Arquivos do computador → um cartão por arquivo, lado a lado.
+async function addMediaFromFiles(files, at = viewCenterWorld()) {
+  let dx = 0;
+  for (const file of files) {
+    try {
+      const fileId = await saveFile(file, null, { inline: true });
+      addMediaCard(at.x + dx, at.y, {
+        kind: kindFromFile(file), fileId, mime: file.type || '', name: file.name,
+      });
+      dx += 40;
+    } catch (err) {
+      console.warn('Erro ao salvar arquivo no espaço:', err);
+    }
+  }
+}
+
 // Cartão que referencia uma nota já existente — guarda só o `uid`, nunca uma
 // cópia do conteúdo, pra não divergir da nota de verdade.
 function addNoteCard(worldX, worldY, noteUid) {
@@ -984,7 +1036,8 @@ function deleteSelectedCards() {
   const ids = new Set(selectedCardIds);
   for (const cardId of ids) {
     const card = currentBoard.cards.find(c => c.id === cardId);
-    if (card?.type === 'image' && card.fileId != null) {
+    if ((card?.type === 'image' || card?.type === 'media') && card.fileId != null) {
+      if (card.type === 'media') releaseMediaFile(card.fileId);
       deleteFile(card.fileId).catch(err => console.warn('Erro ao excluir arquivo do cartão:', err));
     }
   }
@@ -1215,7 +1268,7 @@ function showInlineInputPopover(anchorEl, titleText, placeholder, onConfirm) {
 
 // Cria a nota de verdade inline (sem window.prompt nativo)
 async function criarNotaEAdicionar() {
-  const anchorBtn = document.getElementById('tool-note-create');
+  const anchorBtn = document.getElementById('tool-insert');
   showInlineInputPopover(anchorBtn, 'Criar Nova Nota', 'Título da nova nota...', async titulo => {
     const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -1348,6 +1401,15 @@ function showArrowPopover(e, arrow) {
       </div>
     </div>
 
+    <div class="board-popover-row">
+      <span class="board-popover-label">Pulse:</span>
+      <div class="board-popover-btn-group">
+        <button type="button" class="board-popover-btn ${!arrow.pulse ? 'is-active' : ''}" data-pulse="off">Off</button>
+        <button type="button" class="board-popover-btn ${arrow.pulse && arrow.pulseShape !== 'star' ? 'is-active' : ''}" data-pulse="circle">● Círculo</button>
+        <button type="button" class="board-popover-btn ${arrow.pulse && arrow.pulseShape === 'star' ? 'is-active' : ''}" data-pulse="star">★ Estrela</button>
+      </div>
+    </div>
+
     <div class="board-popover-actions">
       <button type="button" class="board-toolbar-btn is-danger pop-delete-arrow">
         <span class="qd-icon material-symbols-rounded">delete</span>
@@ -1398,6 +1460,17 @@ function showArrowPopover(e, arrow) {
     btn.addEventListener('click', () => {
       arrow.strokeStyle = btn.dataset.stroke;
       arrow.style = btn.dataset.stroke;
+      renderArrows();
+      scheduleSave();
+      showArrowPopover(e, arrow, getPopPos());
+    });
+  });
+
+  pop.querySelectorAll('[data-pulse]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modo = btn.dataset.pulse;
+      arrow.pulse = modo !== 'off';
+      if (arrow.pulse) arrow.pulseShape = modo;
       renderArrows();
       scheduleSave();
       showArrowPopover(e, arrow, getPopPos());
@@ -1643,7 +1716,7 @@ function addFlowchartCard(shapeId) {
 
 if (typeof document !== 'undefined') {
   document.addEventListener('pointerdown', e => {
-    if (openNoteSearchPopover && !openNoteSearchPopover.contains(e.target) && !e.target.closest('#tool-note-link')) {
+    if (openNoteSearchPopover && !openNoteSearchPopover.contains(e.target) && !e.target.closest('#tool-insert')) {
       closeNoteSearchPopover();
     }
     if (openArrowPopover && !openArrowPopover.contains(e.target) && !e.target.closest('.board-arrow-path') && !e.target.closest('.board-arrow-hit-area')) {
@@ -1655,7 +1728,7 @@ if (typeof document !== 'undefined') {
     if (openFlowchartToolbarPopover && !openFlowchartToolbarPopover.contains(e.target) && !e.target.closest('#tool-flowchart')) {
       closeFlowchartToolbarPopover();
     }
-    if (openInlineInputPopover && !openInlineInputPopover.contains(e.target) && !e.target.closest('#tool-note-create')) {
+    if (openInlineInputPopover && !openInlineInputPopover.contains(e.target) && !e.target.closest('#tool-insert')) {
       closeInlineInputPopover();
     }
   }, true);
@@ -1665,6 +1738,7 @@ if (typeof document !== 'undefined') {
 // (padrão, cartões antigos sem `type` caem aqui), imagem colada e nota
 // vinculada. O corpo de imagem/nota não é editável como texto solto.
 function cardHandleLabel(card) {
+  if (card.type === 'media') return mediaHandleLabel(card);
   return _getCardHandleLabel(card, FLOWCHART_SHAPES);
 }
 
@@ -1706,7 +1780,9 @@ function createCardElement(card) {
       ? noteCardBodyHtml(card)
       : tipo === 'group'
         ? '<div class="board-card-body board-card-group-body" style="display:none;"></div>'
-        : `<div class="board-card-body" contenteditable="true" spellcheck="false">${escHtml(card.text || '')}</div>`;
+        : tipo === 'media'
+          ? '<div class="board-card-body board-card-media-slot"></div>'
+          : `<div class="board-card-body" contenteditable="true" spellcheck="false">${escHtml(card.text || '')}</div>`;
 
   const colorBtnHtml = tipo === 'note' ? '' :
     '<button class="card-action-btn btn-color" title="Alternar cor" aria-label="Alternar cor">🎨</button>';
@@ -1738,6 +1814,10 @@ function createCardElement(card) {
     <div class="board-card-connect-handle bottom" data-handle="bottom" title="Puxar conexão (Sul)"></div>
     <div class="board-card-connect-handle left" data-handle="left" title="Puxar conexão (Oeste)"></div>
   `;
+
+  if (tipo === 'media') {
+    el.querySelector('.board-card-media-slot').replaceWith(buildMediaBody(card, { loadFileBlob }));
+  }
 
   const bodyEl = el.querySelector('.board-card-body');
 
@@ -1940,6 +2020,10 @@ function deleteCard(cardId) {
   if (card?.type === 'image' && card.fileId != null) {
     deleteFile(card.fileId).catch(err => console.warn('Erro ao excluir arquivo do cartão:', err));
   }
+  if (card?.type === 'media' && card.fileId != null) {
+    releaseMediaFile(card.fileId);
+    deleteFile(card.fileId).catch(err => console.warn('Erro ao excluir arquivo do cartão:', err));
+  }
   currentBoard.cards = currentBoard.cards.filter(c => c.id !== cardId);
   currentBoard.arrows = currentBoard.arrows.filter(a => a.from !== cardId && a.to !== cardId);
   renderCards();
@@ -2085,6 +2169,7 @@ function renderArrows() {
       dom.path?.remove();
       dom.bg?.remove();
       dom.text?.remove();
+      removeArrowPulse(dom);
       arrowDomMap.delete(id);
     }
   }
@@ -2128,7 +2213,10 @@ function renderArrows() {
     const onArrowAction = e => {
       e.stopPropagation();
       e.preventDefault();
-      showArrowPopover(e, arrow);
+      // Os listeners nascem uma vez por seta, mas o quadro é recarregado (troca
+      // de view/quadro) com objetos novos — o `arrow` capturado aqui ficaria
+      // velho e o popover editaria uma cópia que ninguém renderiza.
+      showArrowPopover(e, currentBoard.arrows.find(a => a.id === arrow.id) || arrow);
     };
 
     function syncArrowStyles(dom) {
@@ -2216,6 +2304,8 @@ function renderArrows() {
         if (dom.text) { dom.text.remove(); dom.text = null; }
         if (dom.bg) { dom.bg.remove(); dom.bg = null; }
       }
+
+      syncArrowPulse(dom, arrow, pathD, arrowsGroup);
     }
 
     const existingDom = arrowDomMap.get(arrow.id);
@@ -2242,6 +2332,7 @@ function renderArrows() {
     arrowDomMap.set(arrow.id, newDom);
     syncArrowStyles(newDom);
   }
+  updatePulseButton();
 }
 
 // ── Eventos de Mouse e Teclado ────────────────────────────────────────────────
@@ -2260,7 +2351,6 @@ function setupEventListeners(getEl) {
   });
 
   // Ferramentas da Barra
-  getEl('tool-select')?.addEventListener('click', () => setTool('select'));
   getEl('tool-card')?.addEventListener('click', () => {
     const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
     addCard(center.x - 110, center.y - 65);
@@ -2273,23 +2363,46 @@ function setupEventListeners(getEl) {
     toggleFlowchartToolbarPopover(e.currentTarget);
   });
 
-  // Ferramenta de Imagem (clique abre seletor de arquivo)
-  const imageInput = getEl('board-image-upload-input');
-  getEl('tool-image')?.addEventListener('click', () => {
-    imageInput?.click();
+  // Inserir: link/vídeo/áudio/imagem por URL, arquivo local, nota existente
+  // ou nota nova — tudo num popover só (ver board/board-insert-popover.js).
+  const fileInput = getEl('board-image-upload-input');
+  if (fileInput) {
+    fileInput.multiple = true;
+    fileInput.accept = MEDIA_FILE_ACCEPT;
+  }
+  getEl('tool-insert')?.addEventListener('click', e => {
+    e.stopPropagation();
+    closeNoteSearchPopover();
+    closeInlineInputPopover();
+    toggleInsertPopover(e.currentTarget, {
+      onAddUrl: url => addMediaFromUrl(url),
+      onPickFile: () => fileInput?.click(),
+      onLinkNote: anchor => toggleNoteSearchPopover(anchor),
+      onCreateNote: criarNotaEAdicionar,
+    });
   });
 
-  imageInput?.addEventListener('change', async () => {
-    const file = imageInput.files?.[0];
-    if (!file) return;
-    try {
-      const fileId = await saveFile(file, null, { inline: true });
-      const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
-      addImageCard(center.x - 130, center.y - 100, fileId, file.name);
-    } catch (err) {
-      console.warn('Erro ao salvar imagem adicionada:', err);
-    }
-    imageInput.value = '';
+  fileInput?.addEventListener('change', async () => {
+    const files = [...(fileInput.files || [])];
+    fileInput.value = '';
+    if (files.length) await addMediaFromFiles(files);
+  });
+
+  // Organizar fluxo (beautify) e Pulse
+  getEl('tool-beautify')?.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleBeautifyPopover(e.currentTarget, {
+      scopeLabel: () => (beautifyScope().usarSelecao ? 'seleção' : 'todo o espaço'),
+      onApply: applyBeautify,
+    });
+  });
+  getEl('tool-pulse')?.addEventListener('click', e => {
+    e.stopPropagation();
+    togglePulsePopover(e.currentTarget, {
+      getArrows: pulseScopeArrows,
+      scopeLabel: () => (selectedCardIds.size > 0 ? 'seleção' : 'todo o espaço'),
+      onChange: () => { renderArrows(); scheduleSave(); updatePulseButton(); },
+    });
   });
 
   // Ferramenta de Grupo (Obsidian Canvas Group)
@@ -2301,28 +2414,26 @@ function setupEventListeners(getEl) {
 
   // Drag & Drop de arquivos de imagem diretamente no Canvas
   container.addEventListener('dragover', e => {
-    if (e.dataTransfer?.types?.includes('Files')) {
+    if (e.dataTransfer?.types?.includes('Files') || e.dataTransfer?.types?.includes('text/uri-list')) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
     }
   });
 
+  // Soltar: arquivos (imagem, vídeo, áudio, pdf…) ou um link arrastado do navegador
   container.addEventListener('drop', async e => {
-    const files = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/'));
-    if (files.length === 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-
+    const files = [...(e.dataTransfer?.files || [])];
     const worldPos = screenToWorld(e.clientX, e.clientY);
-    let offsetX = 0;
-    for (const file of files) {
-      try {
-        const fileId = await saveFile(file, null, { inline: true });
-        addImageCard(worldPos.x - 130 + offsetX, worldPos.y - 100, fileId, file.name);
-        offsetX += 40;
-      } catch (err) {
-        console.warn('Erro ao soltar imagem no canvas:', err);
-      }
+    if (files.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      await addMediaFromFiles(files, worldPos);
+      return;
+    }
+    const link = (e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain') || '').split('\n')[0];
+    if (link && addMediaFromUrl(link, worldPos)) {
+      e.preventDefault();
+      e.stopPropagation();
     }
   });
 
@@ -2341,7 +2452,13 @@ function setupEventListeners(getEl) {
   window.addEventListener('paste', async e => {
     if (rootSectionEl?.hidden) return;
     const item = [...(e.clipboardData?.items ?? [])].find(it => it.type.startsWith('image/'));
-    if (!item) return;
+    if (!item) {
+      // Link colado (fora de qualquer campo de texto) vira cartão de mídia
+      if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
+      const texto = (e.clipboardData?.getData('text/plain') || '').trim();
+      if (texto && addMediaFromUrl(texto)) e.preventDefault();
+      return;
+    }
     const blob = item.getAsFile();
     if (!blob) return;
     e.preventDefault();
@@ -2452,6 +2569,52 @@ function setupEventListeners(getEl) {
     if (e.key === '-') zoomBy(0.8);
     if (e.key === '0') resetZoomAndCenter();
   });
+}
+
+// ── Organizar (beautify) ──────────────────────────────────────────────────────
+// Com 2+ cartões selecionados organiza só a seleção; senão, o espaço inteiro.
+// As posições novas são aplicadas direto nos cartões e as setas ganham lados
+// de entrada/saída coerentes com a direção (ver board/board-beautify.js).
+function beautifyScope() {
+  const sel = currentBoard.cards.filter(c => selectedCardIds.has(c.id) && c.type !== 'group');
+  const usarSelecao = sel.length >= 2;
+  const cards = usarSelecao ? sel : currentBoard.cards.filter(c => c.type !== 'group');
+  return { cards, usarSelecao };
+}
+
+function applyBeautify(direction) {
+  const { cards, usarSelecao } = beautifyScope();
+  if (cards.length < 2) return;
+  const ids = new Set(cards.map(c => c.id));
+  const arrows = currentBoard.arrows.filter(a => ids.has(a.from) && ids.has(a.to));
+  const { positions, sides } = computeBeautifyLayout(cards, arrows, direction);
+
+  for (const card of cards) {
+    const p = positions.get(card.id);
+    if (p) { card.x = p.x; card.y = p.y; }
+  }
+  for (const arrow of arrows) {
+    const s = sides.get(arrow.id);
+    if (s) { arrow.fromSide = s.fromSide; arrow.toSide = s.toSide; }
+  }
+
+  renderCards();
+  renderArrows();
+  scheduleSave();
+  if (!usarSelecao) resetZoomAndCenter();
+}
+
+// ── Pulse ─────────────────────────────────────────────────────────────────────
+// Escopo: setas ligadas à seleção (se houver) ou todas as do espaço.
+function pulseScopeArrows() {
+  if (selectedCardIds.size === 0) return currentBoard.arrows;
+  return currentBoard.arrows.filter(a => selectedCardIds.has(a.from) || selectedCardIds.has(a.to));
+}
+
+function updatePulseButton() {
+  const btn = document.getElementById('tool-pulse');
+  if (!btn) return;
+  btn.classList.toggle('is-on', currentBoard.arrows.some(a => a.pulse));
 }
 
 function setTool(tool) {

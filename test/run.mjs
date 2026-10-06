@@ -3798,8 +3798,8 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('quadro · botão "Nova nota" cria a nota (createNoteRecord) e já solta o cartão vinculado',
     boardJsSource.includes('async function criarNotaEAdicionar()') &&
     boardJsSource.includes('await createNoteRecord({ title:'));
-  ok('quadro · index.html tem os botões de vincular/criar nota na barra de ferramentas',
-    boardHtmlSource.includes('id="tool-note-link"') && boardHtmlSource.includes('id="tool-note-create"'));
+  ok('quadro · index.html tem o botão Inserir (nota existente/nova, link, arquivo) na barra de ferramentas',
+    boardHtmlSource.includes('id="tool-insert"') && boardJsSource.includes('onLinkNote:') && boardJsSource.includes('onCreateNote:'));
   ok('quadro · style.css estiliza cartão de nota e popover de busca',
     boardStyleSource.includes('.board-card-note-body') && boardStyleSource.includes('.board-note-search-popover'));
 
@@ -3880,10 +3880,10 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     boardJsSource.includes("type: 'group'") &&
     boardStyleSource.includes('.board-card[data-card-type="group"]'));
   ok('canvas obsidian · ferramentas de Imagem e Grupo presentes no HTML e motor',
-    boardHtmlSource.includes('id="tool-image"') &&
+    boardHtmlSource.includes('id="tool-insert"') &&
     boardHtmlSource.includes('id="tool-group"') &&
     boardHtmlSource.includes('id="board-image-upload-input"') &&
-    boardJsSource.includes("getEl('tool-image')") &&
+    boardJsSource.includes("getEl('tool-insert')") &&
     boardJsSource.includes("getEl('tool-group')"));
   ok('canvas obsidian · suporte a drag and drop de arquivos de imagem no canvas',
     boardJsSource.includes("container.addEventListener('dragover'") &&
@@ -5886,6 +5886,54 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const resBExclui = await engineB.sincronizar();
   igual('quadros sync · aparelho B recebe exclusão remota', resBExclui.apagadas, 1);
   igual('quadros sync · quadro excluído do store B', await storeB.obterQuadroPorUid('b_alpha_1'), null);
+}
+
+// ── Quadro: Organizar fluxo (beautify), mídia por URL e pulse ──
+{
+  const { computeBeautifyLayout } = await import('../sidepanel/modules/board/board-beautify.js');
+  const { mediaFromUrl, normalizeUrl, kindFromFile } = await import('../sidepanel/modules/board/board-media.js');
+  const card = (id, x, y, w = 160, h = 80) => ({ id, x, y, w, h });
+  const ar = (id, from, to) => ({ id, from, to });
+
+  // Fluxo bagunçado: A → B → D, A → C → D (decisão com dois ramos que se juntam)
+  const cards = [card('D', 10, 400), card('A', 500, 20), card('C', 40, 300), card('B', 300, 60), card('X', 900, 900)];
+  const arrows = [ar('1', 'A', 'B'), ar('2', 'A', 'C'), ar('3', 'B', 'D'), ar('4', 'C', 'D')];
+
+  const v = computeBeautifyLayout(cards, arrows, 'vertical');
+  ok('beautify · vertical: camadas crescem pra baixo (A < B,C < D)',
+    v.positions.get('A').y < v.positions.get('B').y &&
+    v.positions.get('B').y === v.positions.get('C').y &&
+    v.positions.get('B').y < v.positions.get('D').y);
+  ok('beautify · vertical: irmãos lado a lado sem sobrepor',
+    Math.abs(v.positions.get('B').x - v.positions.get('C').x) >= 160 + 40);
+  ok('beautify · vertical: pai centralizado sobre os filhos',
+    Math.abs((v.positions.get('A').x + 80) - ((v.positions.get('B').x + v.positions.get('C').x + 160) / 2)) <= 10);
+  ok('beautify · vertical: setas saem por baixo e entram por cima',
+    v.sides.get('1').fromSide === 'bottom' && v.sides.get('1').toSide === 'top');
+  ok('beautify · cartão solto vai pra depois do fluxo',
+    v.positions.get('X').y > v.positions.get('D').y);
+
+  const h = computeBeautifyLayout(cards, arrows, 'horizontal');
+  ok('beautify · horizontal: camadas crescem pra direita e setas usam leste→oeste',
+    h.positions.get('A').x < h.positions.get('B').x &&
+    h.positions.get('B').x < h.positions.get('D').x &&
+    h.sides.get('3').fromSide === 'right' && h.sides.get('3').toSide === 'left');
+
+  const ciclo = computeBeautifyLayout([card('P', 0, 0), card('Q', 0, 100)], [ar('a', 'P', 'Q'), ar('b', 'Q', 'P')], 'vertical');
+  ok('beautify · ciclo não trava: a aresta de retorno contorna pela lateral',
+    ciclo.positions.get('P').y < ciclo.positions.get('Q').y && ciclo.sides.get('b').fromSide === 'right');
+
+  ok('mídia · youtube vira embed seguro (nocookie)',
+    mediaFromUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')?.embed === 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+  ok('mídia · extensão decide imagem/vídeo/áudio e o resto é link',
+    mediaFromUrl('exemplo.com/foto.PNG')?.kind === 'image' &&
+    mediaFromUrl('https://x.com/a.mp4')?.kind === 'video' &&
+    mediaFromUrl('https://x.com/a.mp3')?.kind === 'audio' &&
+    mediaFromUrl('https://x.com/pagina')?.kind === 'link');
+  ok('mídia · javascript:/data:/texto solto são recusados',
+    normalizeUrl('javascript:alert(1)') === null && normalizeUrl('data:text/html,hi') === null && normalizeUrl('isso não é link') === null);
+  ok('mídia · arquivo local classifica pelo mime',
+    kindFromFile({ type: 'video/mp4' }) === 'video' && kindFromFile({ type: 'application/pdf' }) === 'file');
 }
 
 if (falhas.length) {

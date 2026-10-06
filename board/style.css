@@ -38,7 +38,7 @@
 }
 
 /* O container principal do quadro ocupa 100% da tela/painel, mas popovers flutuantes devem ter altura própria */
-.board-theme-scope:not(.board-arrow-popover):not(.board-inline-input-popover):not(.board-shape-popover):not(.board-color-popover):not(.board-note-search-popover) {
+.board-theme-scope:not(.board-arrow-popover):not(.board-inline-input-popover):not(.board-shape-popover):not(.board-color-popover):not(.board-note-search-popover):not(.board-insert-popover):not(.board-pulse-popover):not(.board-beautify-popover) {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -1356,3 +1356,310 @@
 .dark-theme .board-card[data-color="indigo"] { --card-bg-fill: #1e1b4b; --card-stroke: #3730a3; }
 [data-theme="dark"] .board-card[data-color="violet"],
 .dark-theme .board-card[data-color="violet"] { --card-bg-fill: #2e1065; --card-stroke: #5b21b6; }
+
+/* ── Mídia no espaço (imagem, vídeo, áudio, link, arquivo) ───────────────── */
+.board-card[data-card-type="media"] .board-card-media-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border-bottom-left-radius: 7px;
+  border-bottom-right-radius: 7px;
+  cursor: default;
+}
+
+.board-card-media-el {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: contain;
+  background: #000;
+}
+
+.board-card-media-body[data-media-kind="image"] .board-card-media-el {
+  background: transparent;
+  pointer-events: none;
+}
+
+.board-card-media-audio {
+  width: calc(100% - 20px);
+  min-height: 32px;
+}
+
+.board-card-media-body[data-media-kind="audio"],
+.board-card-media-body[data-media-kind="link"],
+.board-card-media-body[data-media-kind="file"] {
+  padding: 10px;
+  background: var(--bg-card);
+}
+
+.board-card-media-body[data-media-kind="link"],
+.board-card-media-body[data-media-kind="file"] {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.board-card-media-body.is-clickable { cursor: pointer; }
+
+.board-media-icon {
+  font-size: 26px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.board-media-texts {
+  min-width: 0;
+  flex: 1;
+}
+
+.board-media-title,
+.board-media-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.board-media-title { font-size: 13px; font-weight: 600; }
+.board-media-sub { font-size: 11px; color: var(--text-muted); }
+
+.board-media-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.board-card:hover .board-media-hint { opacity: 0.85; }
+
+.board-media-missing {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.board-card-media-body.is-missing .board-media-missing { display: flex; }
+
+/* ── Popover "Inserir" ───────────────────────────────────────────────────── */
+.board-insert-popover,
+.board-pulse-popover,
+.board-beautify-popover {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+.board-pulse-popover,
+.board-beautify-popover { width: 260px; }
+
+.board-insert-url-row { display: flex; gap: 6px; }
+.board-insert-url { flex: 1; min-width: 0; }
+.board-insert-url-ok { flex-shrink: 0; }
+
+.board-insert-error { font-size: 11.5px; color: #ef4444; }
+
+.board-insert-actions { display: flex; flex-direction: column; gap: 2px; }
+
+.board-insert-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.board-insert-action:hover { background: var(--bg-hover); }
+.board-insert-action .qd-icon { font-size: 18px; color: var(--accent); flex-shrink: 0; }
+.board-insert-action small { display: block; font-size: 11px; color: var(--text-muted); }
+
+.board-insert-hint { font-size: 11px; line-height: 1.4; color: var(--text-muted); }
+
+.board-pulse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.board-pulse-toggle .qd-icon { font-size: 26px; color: var(--text-muted); }
+.board-pulse-toggle.is-on { border-color: var(--accent); background: var(--accent-subtle); }
+.board-pulse-toggle.is-on .qd-icon { color: var(--accent); }
+
+.board-tool-btn.is-on { color: var(--accent); background: var(--accent-subtle); }
+
+/* ── Pulse: partícula percorrendo a seta ─────────────────────────────────── */
+.board-arrow-pulse {
+  color: var(--text-muted);
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.board-pulse-dot { fill: currentColor; }
+
+
+/* ── QuickBar do espaço: visual alinhado à das notas ─────────────────────────
+   Barra flutuante embaixo (rola na horizontal quando falta espaço) com
+   ferramentas em grupos separados por divisores; o zoom saiu da barra e vive
+   num dock flutuante à direita. Abaixo de 769px vale o layout mobile
+   (23-mobile-spatial.css: barra fixa no rodapé). */
+@media (min-width: 769px) {
+  .board-quickbar {
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 16px;
+    max-width: calc(100% - 128px);
+    scroll-snap-type: x proximity;
+  }
+
+  .board-quickbar .board-header-center,
+  .board-quickbar .board-header-right { gap: 2px; }
+
+  .board-quickbar .board-tools-group {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    gap: 2px;
+  }
+
+  .board-quickbar .board-quickbar-divider {
+    height: 28px;
+    margin: 0 5px;
+    opacity: 0.8;
+  }
+
+  .board-quickbar .board-tool-btn {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-width: 54px;
+    height: 46px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    scroll-snap-align: center;
+  }
+
+  .board-quickbar .board-tool-btn .qd-icon { font-size: 20px; }
+
+  .board-quickbar .board-tool-btn .tool-btn-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    line-height: 1;
+  }
+
+  .board-quickbar .board-tool-btn:hover {
+    color: var(--text);
+    background: var(--bg-hover);
+  }
+
+  .board-quickbar .board-tool-btn.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+
+  .board-quickbar .board-tool-btn.is-on {
+    color: var(--accent);
+    background: var(--accent-subtle);
+  }
+
+  .board-quickbar .board-btn.icon-btn {
+    flex-shrink: 0;
+    width: 38px;
+    height: 46px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .board-quickbar .board-btn.icon-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .board-quickbar .open-tab-btn-label { display: none; }
+  .board-quickbar .board-open-tab-btn { color: var(--accent) !important; }
+}
+
+/* ── Dock de zoom flutuante, à direita ───────────────────────────────────── */
+.board-zoom-dock {
+  position: absolute;
+  right: 16px;
+  bottom: 20px;
+  z-index: 60;
+}
+
+.board-zoom-dock .board-zoom-group {
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.board-zoom-dock .board-btn.icon-btn {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.board-zoom-dock .board-btn.icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+.board-zoom-dock .zoom-level-text { min-width: 0; padding: 2px 0; font-size: 10.5px; }
+
+/* ordem vertical: + / % / − / centralizar */
+.board-zoom-dock #btn-zoom-in { order: 1; }
+.board-zoom-dock .zoom-level-text { order: 2; }
+.board-zoom-dock #btn-zoom-out { order: 3; }
+.board-zoom-dock #btn-zoom-reset { order: 4; margin-top: 2px; border-top: 1px solid var(--border); border-radius: 0 0 9px 9px; }

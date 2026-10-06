@@ -7,8 +7,10 @@
 @media (min-width: 768px) {
   html[data-platform="desktop"] #app {
     display: grid;
-    grid-template-rows: auto 1fr auto;
-    grid-template-columns: var(--nav-width, 49px) 1px var(--aside-width, 280px) 1fr;
+    /* minmax(0, 1fr): sem o 0, a linha central cresce com o conteúdo (muitas
+       notas na aside) em vez de rolar, esticando a tela pra baixo. */
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-columns: var(--nav-width, 49px) 1px var(--aside-width, 280px) minmax(0, 1fr);
     grid-template-areas:
       "mHeader mHeader mHeader mHeader"
       "mNav mNavDivider mAside mMain"
@@ -23,6 +25,12 @@
 
   html[data-platform="desktop"] #resize-handle {
     display: none !important;
+  }
+
+  html[data-platform="desktop"] #mNav,
+  html[data-platform="desktop"] #mAside,
+  html[data-platform="desktop"] #mMain {
+    min-height: 0;
   }
 
   /* 1. Aside antiga (.app-aside) ocultada no desktop em favor do drawer estático permanente */
