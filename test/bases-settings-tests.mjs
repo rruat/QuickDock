@@ -457,4 +457,19 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('colar · célula vazia limpa o valor', Pg.planPaste([['']], { row: 1, col: 2 }, pn, pc, ps).writes[0].value, null);
   const pp = Pg.writesToPatches([{ noteId: 2, key: 'v', value: null, type: 'number' }, { noteId: 2, key: 'nome', value: 'Zé', type: 'text' }], pn);
   igual('colar · patches: limpa e define, sem mutar a nota', [pp[0].patch.properties, 'nome' in pn[1].properties], [{ nome: 'Zé' }, false]);
+
+  // ── view vinculada (origem = outra Base) ──
+  const Lk = await import('../sidepanel/modules/bases/engine/linked-base.js');
+  const lkNotas = [
+    { id: 1, uid: 'u1', title: 'Projetos', content: 'x\n```base\nname: P\n```\n' },
+    { id: 2, uid: 'u2', title: 'Outra', content: '```database\nname: O\n```' },
+    { id: 3, uid: 'u3', title: 'Sem base', content: 'texto' },
+    { id: 4, title: 'Sem uid', content: '```base\n```' },
+  ];
+  igual('vinculada · acha notas com Base (base/database), exclui a própria e as sem uid', Lk.findBaseNotes(lkNotas, 'u1').map(n => n.uid), ['u2']);
+  const lkDef = Lk.readLinkedDefinition([{ type: 'paragraph' }, { type: 'base', config: 'name: Projetos\nsource:\n  folder: Projetos\n  base: u9\nproperties:\n  custo:\n    type: number\n' }]);
+  igual('vinculada · lê origem e propriedades; ignora origem encadeada', [lkDef.source, lkDef.properties.custo.type, lkDef.name], [{ folder: 'Projetos' }, 'number', 'Projetos']);
+  igual('vinculada · sem bloco de Base, nulo', Lk.readLinkedDefinition([{ type: 'paragraph' }]), null);
+  igual('vinculada · origem efetiva', [Lk.effectiveSource({ source: { base: 'u1' } }, lkDef), Lk.effectiveSource({ source: { base: 'u1' } }, null), Lk.effectiveSource({ source: { folder: 'x' } }, lkDef)], [{ folder: 'Projetos' }, { all: true }, { folder: 'x' }]);
+  igual('vinculada · propriedades próprias vencem as da origem', Lk.effectiveProperties({ properties: { custo: { type: 'text' }, novo: { type: 'date' } } }, lkDef).custo.type, 'text');
 }

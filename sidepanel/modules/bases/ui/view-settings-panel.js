@@ -24,6 +24,7 @@ import { timelineSections } from './section-timeline.js';
 import { mapSections } from './section-map.js';
 import { newNoteSection } from './section-new.js';
 import { statusSection } from './section-status.js';
+import { sourceSection } from './section-source.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -111,6 +112,7 @@ export function mountViewSettingsPanel(host, api) {
     const fmt = formatSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) });
     if (fmt) corpo.appendChild(fmt);
   }
+  if (api.getLinkInfo) corpo.appendChild(sourceSection({ info: api.getLinkInfo(), memoria, patchSource: p => api.onSourcePatch(p) }));
   if (api.getBaseProps) corpo.appendChild(statusSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) }));
   if (api.getBaseProps) corpo.appendChild(derivedSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) }));
 

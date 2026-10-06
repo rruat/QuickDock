@@ -15,13 +15,14 @@ import { renderBaseChartView } from './bases-chart-view.js';
 import { renderBaseTimelineView } from './bases-timeline-view.js';
 import { renderBaseFeedView } from './bases-feed-view.js';
 import { renderBaseMapView } from './bases-map-view.js';
-import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, loadAllTemplates, updateNoteBlocksById } from '../storage.js';
+import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, loadAllTemplates, updateNoteBlocksById, getNoteById } from '../storage.js';
 import { parseMarkdownToBlocks, blocksToMarkdown } from '../blocks.js';
 import { normalizeViews, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
 import { renderViewTabs as desenhaAbas, abreMenu } from './ui/view-tabs.js';
 import { exportMenuItems } from './ui/export-menu.js';
 import { createBulkController } from './bases-bulk-controller.js';
+import { readLinkedDefinition, effectiveSource, effectiveProperties, findBaseNotes } from './engine/linked-base.js';
 import { renderQuickFilters, loadQuickFilters, saveQuickFilters } from './ui/quick-filters.js';
 import { impliedValues } from './engine/filter-tree.js';
 import { applyDerivedColumns } from './engine/derived-columns.js';
@@ -60,6 +61,22 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   let showRawConfig = false;
   let allNotes = [];
   let templates = [];
+  let linked = null;           // definição lida da Base de origem (view vinculada), só leitura
+  const selfUid = () => allNotes.find(n => n.id === options.baseId)?.uid ?? null;
+  const fonteEfetiva = () => effectiveSource(baseDef, linked);
+  const propsEfetivas = () => effectiveProperties(baseDef, linked);
+  async function carregaOrigem() {
+    linked = null;
+    const uid = baseDef.source?.base;
+    if (!uid) return;
+    const meta = allNotes.find(n => n.uid === uid);
+    if (!meta) return;
+    try {
+      const nota = await getNoteById(meta.id);
+      const blocos = nota?.blocks?.length ? nota.blocks : parseMarkdownToBlocks(nota?.content ?? '');
+      linked = readLinkedDefinition(blocos);
+    } catch (err) { console.warn('Base vinculada: não foi possível ler a origem', err); }
+  }
 
   rootContainer.innerHTML = '';
   rootContainer.className = 'base-component-root' + (options.embedded ? ' is-embedded' : '');
@@ -196,7 +213,15 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const rolagem = settingsEl.querySelector('.bset-body')?.scrollTop ?? 0;
     settingsHandle = mountViewSettingsPanel(settingsEl, {
       getView: () => baseDef.views[activeIndex()],
-      getSchema: () => inferBaseSchema(allNotes, baseDef.properties),
+      getSchema: () => inferBaseSchema(allNotes, propsEfetivas()),
+      getLinkInfo: () => ({ uid: baseDef.source?.base || null, loaded: !!linked, name: linked?.name || '', candidates: findBaseNotes(allNotes, selfUid()).map(n => ({ uid: n.uid, title: n.title || 'Sem título' })) }),
+      onSourcePatch: patch => {
+        const fonte = { ...(baseDef.source || {}) };
+        for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete fonte[k]; else fonte[k] = v; }
+        baseDef = { ...baseDef, source: Object.keys(fonte).length ? fonte : { all: true } };
+        persistBase();
+        carregaOrigem().then(() => updateViewport());
+      },
       getTemplates: () => templates,
       getBaseProps: () => baseDef.properties || {},
       onBasePatch: patch => {
@@ -259,8 +284,9 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
 
   // Criação de nova nota
   async function handleCreateNewNote(extraProps = {}, extraTypes = {}) {
-    const pasta = baseDef.source?.folder && baseDef.source.folder !== '/' ? baseDef.source.folder : '';
-    const tag = baseDef.source?.tag;
+    const fonte = fonteEfetiva();
+    const pasta = fonte.folder && fonte.folder !== '/' ? fonte.folder : '';
+    const tag = fonte.tag;
 
     // "Novo" herda o que os filtros da view exigem (ex.: status = Em andamento) — a nota nasce visível
     const view = baseDef.views[activeIndex()];
@@ -270,7 +296,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const herdadas = Object.fromEntries(Object.entries(implicitos).filter(([k]) => !reservadas.has(k)));
     const initialProperties = { ...herdadas, ...extraProps };
     const tiposHerdados = {};
-    const esquema = inferBaseSchema(allNotes, baseDef.properties);
+    const esquema = inferBaseSchema(allNotes, propsEfetivas());
     for (const k of Object.keys(herdadas)) if (esquema[k]?.type) tiposHerdados[k] = esquema[k].type;
     extraTypes = { ...tiposHerdados, ...extraTypes };
     if (tag) {
@@ -340,8 +366,8 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     renderSettingsPanel();
 
     // 1. Infere o schema combinando notas + definições explícitas
-    const schema = inferBaseSchema(allNotes, baseDef.properties);
-    const notasBase = applyDerivedColumns(allNotes, baseDef.properties);
+    const schema = inferBaseSchema(allNotes, propsEfetivas());
+    const notasBase = applyDerivedColumns(allNotes, propsEfetivas());
 
     if (quickFiltersViewId !== currentView.id) {
       quickFiltersViewId = currentView.id;
@@ -351,7 +377,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     // 2. Filtra notas pela fonte (source), filtros da view, filtros rápidos e busca
     const filteredNotes = queryBaseNotes(notasBase, {
       quickFilters,
-      source: baseDef.source,
+      source: fonteEfetiva(),
       filters: currentView.filters,
       filterMode: currentView.filterMode,
       filterOperator: currentView.filterOperator,
@@ -446,6 +472,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   // Carregamento inicial de notas
   async function loadData() {
     allNotes = await loadAllNotesMeta();
+    await carregaOrigem();
     try { templates = await loadAllTemplates(); } catch { templates = []; }
     renderViewTabs();
     updateViewport();
@@ -454,6 +481,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   // Ouvinte reativo para atualizações externas
   const onNoteEvent = async () => {
     allNotes = await loadAllNotesMeta();
+    if (baseDef.source?.base) await carregaOrigem();
     updateViewport();
   };
 
