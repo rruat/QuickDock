@@ -117,9 +117,9 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
 
       const badge = document.createElement('span');
       badge.className = 'base-column-badge';
-      badge.style.background = `color-mix(in srgb, ${col.color} 20%, transparent)`;
-      badge.style.color = col.color;
-      badge.style.borderColor = `color-mix(in srgb, ${col.color} 40%, transparent)`;
+      badge.style.background = `color-mix(in oklch, ${col.color} 20%, transparent)`;
+      badge.style.color = `color-mix(in oklch, ${col.color} 45%, var(--text))`;
+      badge.style.borderColor = `color-mix(in oklch, ${col.color} 40%, transparent)`;
       badge.textContent = col.label;
 
       const colCount = document.createElement('span');

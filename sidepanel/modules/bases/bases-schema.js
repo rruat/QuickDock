@@ -172,6 +172,24 @@ export function parsePropertyInput(rawInput, type = 'text') {
  * @param {Object} explicitProperties Propriedades declaradas na base
  * @returns {Object} Mapa de propriedades: chave -> { key, label, type, options, width, isSystem }
  */
+export const STATUS_GROUPS = [
+  { id: 'todo', label: 'A fazer', color: 'oklch(50% 0.03 260)' },
+  { id: 'progress', label: 'Em andamento', color: 'oklch(50% 0.16 255)' },
+  { id: 'complete', label: 'Concluído', color: 'oklch(48% 0.14 150)' },
+];
+
+/** Opções de status normalizadas: { id, label, group, color } (cor padrão = a do grupo). */
+export function normalizeStatusOptions(options) {
+  const grupo = id => STATUS_GROUPS.find(g => g.id === id) || STATUS_GROUPS[0];
+  return (Array.isArray(options) ? options : [])
+    .map(o => (typeof o === 'string' ? { label: o } : o))
+    .filter(o => o && (o.label || o.id))
+    .map(o => {
+      const g = grupo(o.group);
+      return { id: o.id || o.label, label: o.label || o.id, group: g.id, color: o.color || g.color };
+    });
+}
+
 export function inferBaseSchema(notes = [], explicitProperties = {}) {
   const schema = {};
 
@@ -267,6 +285,7 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
         options: def.options || [],
         isSystem: false,
         ...(def.format ? { format: def.format } : {}),
+        ...(def.type === 'status' ? { type: 'select', isStatus: true, options: normalizeStatusOptions(def.options) } : {}),
         ...((def.type === 'formula' || def.type === 'rollup') ? { isDerived: def.type, expr: def.expr } : {}),
       };
     } else {
@@ -280,6 +299,12 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
       if (def.width)   schema[key].width = def.width;
       if (def.options) schema[key].options = def.options;
       if (def.format)  schema[key].format = def.format;
+      if (def.type === 'status') {
+        // Status = seleção cujas opções pertencem a grupos (A fazer · Em andamento · Concluído)
+        schema[key].type = 'select';
+        schema[key].isStatus = true;
+        schema[key].options = normalizeStatusOptions(def.options);
+      }
     }
   }
 

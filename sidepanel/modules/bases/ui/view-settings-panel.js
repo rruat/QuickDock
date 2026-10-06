@@ -23,6 +23,7 @@ import { chartSections } from './section-chart.js';
 import { timelineSections } from './section-timeline.js';
 import { mapSections } from './section-map.js';
 import { newNoteSection } from './section-new.js';
+import { statusSection } from './section-status.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -110,6 +111,7 @@ export function mountViewSettingsPanel(host, api) {
     const fmt = formatSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) });
     if (fmt) corpo.appendChild(fmt);
   }
+  if (api.getBaseProps) corpo.appendChild(statusSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) }));
   if (api.getBaseProps) corpo.appendChild(derivedSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) }));
 
   const onKey = e => { if (e.key === 'Escape') api.onClose(); };

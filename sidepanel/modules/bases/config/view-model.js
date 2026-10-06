@@ -216,6 +216,7 @@ export function resolveGroupConfig(view = {}) {
     hidden: lista(g.hidden),
     collapsed: lista(g.collapsed),
     showCounts: g.showCounts !== false && g.showCounts !== 'false',
+    byStatusGroup: g.byStatusGroup === true || g.byStatusGroup === 'true',
   };
 }
 

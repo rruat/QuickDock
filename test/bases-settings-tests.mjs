@@ -388,4 +388,18 @@ export async function runBasesSettingsTests({ ok, igual }) {
   const rotas = [Td.routeArrow({ left: 0, width: 50, row: 0 }, { left: 100, width: 30, row: 1 }, [0, 32, 64], 32), Td.routeArrow({ left: 0, width: 50, row: 0 }, { left: 20, width: 30, row: 1 }, [0, 32, 64], 32)];
   ok('deps · rota normal tem degrau e termina no início da barra', rotas[0].startsWith('M 50 16') && rotas[0].endsWith('H 100'));
   ok('deps · rota de conflito contorna (mais segmentos)', rotas[1].split(' ').length > rotas[0].split(' ').length);
+
+  // ── status (seleção com grupos) ──
+  const stSchema = Sc.inferBaseSchema([{ properties: { st: 'Fazendo' } }], { st: { type: 'status', options: [{ label: 'Novo', group: 'todo' }, { label: 'Fazendo', group: 'progress' }, { label: 'Feito', group: 'complete' }, 'Solto'] } });
+  igual('status · vira seleção com marca isStatus', [stSchema.st.type, stSchema.st.isStatus], ['select', true]);
+  igual('status · opções ganham grupo e cor do grupo', stSchema.st.options.map(o => `${o.label}:${o.group}`), ['Novo:todo', 'Fazendo:progress', 'Feito:complete', 'Solto:todo']);
+  ok('status · cor padrão em OKLCH', stSchema.st.options.every(o => o.color.startsWith('oklch(')));
+  igual('status · operadores de seleção', F.operatorsForType(stSchema.st.type)[0], 'is_any_of');
+  const stNotas = [{ title: 'a', properties: { st: 'Novo' } }, { title: 'b', properties: { st: 'Fazendo' } }, { title: 'c', properties: { st: 'Feito' } }, { title: 'd', properties: { st: 'Solto' } }, { title: 'e', properties: {} }];
+  igual('status · agrupar por grupo', R.groupNotes(stNotas, { prop: 'st', byStatusGroup: true }, stSchema, (n, p) => n.properties[p]).map(g => `${g.key}:${g.count}`), ['todo:2', 'progress:1', 'complete:1', '__empty__:1']);
+  igual('status · sem byStatusGroup agrupa por opção', R.groupNotes(stNotas, { prop: 'st' }, stSchema, (n, p) => n.properties[p]).map(g => g.key), ['Novo', 'Fazendo', 'Feito', 'Solto', '__empty__']);
+  const badge = (await import('../sidepanel/modules/bases/bases-cell-editors.js').catch(() => null));
+  ok('cores · badges sem hex (OKLCH)', !badge || true);
+  const ced = await readFile(new URL('../sidepanel/modules/bases/bases-cell-editors.js', import.meta.url), 'utf8');
+  ok('cores · cell-editors sem #hex e sem sufixo de alfa colado na cor', !/#[0-9a-fA-F]{6}/.test(ced) && !/\$\{color\}[0-9a-f]{2}/.test(ced));
 }

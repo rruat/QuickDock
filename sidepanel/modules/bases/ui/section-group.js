@@ -33,6 +33,9 @@ export function groupSection({ view, schema, memoria, patch }) {
       onChange: v => grava({ prop: cfg.prop, granularity: v }),
     })));
   }
+  if (schema[cfg.prop || 'status']?.isStatus) {
+    s.body.appendChild(row('Agrupar pelo grupo do status', id => toggle({ id, value: cfg.byStatusGroup, onChange: v => grava({ prop: cfg.prop, byStatusGroup: v }) }), { dica: 'A fazer · Em andamento · Concluído, em vez de cada opção.' }));
+  }
   s.body.appendChild(row('Ordem dos grupos', id => selectControl({
     id, value: cfg.order,
     options: [{ value: 'manual', label: 'Ordem das opções' }, { value: 'asc', label: 'A → Z' }, { value: 'desc', label: 'Z → A' }, { value: 'count', label: 'Mais itens primeiro' }],

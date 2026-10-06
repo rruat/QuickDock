@@ -461,9 +461,9 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         const color = typeof opt === 'object' && opt?.color ? opt.color : 'var(--accent)';
         const badge = document.createElement('span');
         badge.className = 'base-select-badge';
-        badge.style.background = `color-mix(in srgb, ${color} 18%, transparent)`;
-        badge.style.color = color;
-        badge.style.border = `1px solid color-mix(in srgb, ${color} 35%, transparent)`;
+        badge.style.background = `color-mix(in oklch, ${color} 18%, transparent)`;
+        badge.style.color = `color-mix(in oklch, ${color} 45%, var(--text))`;
+        badge.style.border = `1px solid color-mix(in oklch, ${color} 35%, transparent)`;
         badge.textContent = String(rawVal);
         td.appendChild(badge);
       } else {

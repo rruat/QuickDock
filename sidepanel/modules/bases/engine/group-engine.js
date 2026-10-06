@@ -35,6 +35,12 @@ function numberBucket(valor, step) {
 /** Em quais grupos uma nota cai: lista de { key, label, sort? } (multisseleção = vários). */
 function bucketsOf(raw, propDef, cfg) {
   if (vazio(raw)) return [{ key: EMPTY_KEY, label: 'Sem valor' }];
+  // Status agrupado pelo GRUPO da opção (A fazer / Em andamento / Concluído)
+  if (propDef?.isStatus && cfg.byStatusGroup) {
+    const op = (propDef.options || []).find(o => (o.label ?? o.id) === raw || o.id === raw);
+    const idx = Math.max(0, ['todo', 'progress', 'complete'].indexOf(op?.group));
+    return [{ key: ['todo', 'progress', 'complete'][idx], label: ['A fazer', 'Em andamento', 'Concluído'][idx], sort: idx }];
+  }
   const tipo = propDef?.type;
   if (ehData(tipo)) { const b = dateBucket(raw, cfg.granularity); return [b || { key: EMPTY_KEY, label: 'Sem valor' }]; }
   if (tipo === 'number' && cfg.range?.step) { const b = numberBucket(raw, Number(cfg.range.step)); return [b || { key: EMPTY_KEY, label: 'Sem valor' }]; }
@@ -58,7 +64,7 @@ export function groupNotes(notes, cfg = {}, schema = {}, getValue) {
 
   // grupos "fantasma": opções declaradas que ninguém usa ainda (aparecem vazias no modo manual)
   const opcoes = (propDef.options || []).map(o => (typeof o === 'string' ? o : o?.label ?? o?.value)).filter(Boolean);
-  if (!cfg.hideEmpty) for (const o of opcoes) if (!mapa.has(String(o))) mapa.set(String(o), { key: String(o), label: String(o), notes: [], empty: false });
+  if (!cfg.hideEmpty && !(propDef.isStatus && cfg.byStatusGroup)) for (const o of opcoes) if (!mapa.has(String(o))) mapa.set(String(o), { key: String(o), label: String(o), notes: [], empty: false });
 
   let grupos = [...mapa.values()].map(g => ({ ...g, count: g.notes.length }));
   const ordem = cfg.order || 'manual';
