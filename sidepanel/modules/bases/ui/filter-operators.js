@@ -44,7 +44,7 @@ export function operatorsForType(type, key = '') {
     case 'select': case 'status': return SELECAO;
     case 'list': case 'multiselect': case 'tags': return LISTA;
     case 'date': case 'datetime': case 'daterange': return DATA;
-    default: return TEXTO;
+    default: return TEXTO;   // texto, url, e-mail, telefone
   }
 }
 

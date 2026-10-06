@@ -26,7 +26,10 @@ import { createNoteRecord } from '../storage.js';
  * @param {Function} params.onDefChange Callback chamado ao alterar a configuração da Base
  * @returns {HTMLElement} Elemento container da Tabela
  */
-export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, onOpenNote = null, rowTone = null, cellTone = null, selection = null, onSelectionChange = () => {}, onPasteWrites = null }) {
+// propriedades de sistema calculadas a partir da nota: nunca editáveis na célula
+const SO_LEITURA = new Set(['wordCount', 'hasCover', 'createdAt', 'updatedAt', 'tasks']);
+
+export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true, onOpenNote = null, rowTone = null, cellTone = null, selection = null, onSelectionChange = () => {}, onPasteWrites = null, onUpdateNote = null }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-table-view';
 
@@ -352,7 +355,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         td.tabIndex = -1;
         td.addEventListener('pointerdown', () => { celulaAtiva = { noteId: note.id, key: colKey }; container.querySelectorAll('.is-active-cell').forEach(x => x.classList.remove('is-active-cell')); td.classList.add('is-active-cell'); td.focus({ preventScroll: true }); });
         td.addEventListener('click', e => {
-          if (propDef.isDerived) return;
+          if (propDef.isDerived || SO_LEITURA.has(colKey)) return;
           if (propDef.type === 'checkbox' || propDef.type === 'select' || propDef.type === 'folder') {
             activateCellEditor(td, note, colKey, propDef, () => {
               renderTableBody();
@@ -361,7 +364,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         });
 
         td.addEventListener('dblclick', () => {
-          if (propDef.isDerived) return;
+          if (propDef.isDerived || SO_LEITURA.has(colKey)) return;
           if (propDef.type !== 'checkbox' && propDef.type !== 'select' && propDef.type !== 'folder') {
             activateCellEditor(td, note, colKey, propDef, () => {
               renderTableBody();
@@ -478,6 +481,41 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
 
       td.appendChild(titleLink);
       return;
+    }
+
+    // Botão (ação): grava um valor numa propriedade desta nota
+    if (propDef.type === 'button') {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'base-action-btn';
+      b.textContent = propDef.buttonLabel || 'Executar';
+      const alvo = propDef.set;
+      b.disabled = !alvo?.prop || !onUpdateNote;
+      b.title = alvo?.prop ? `Define ${schema[alvo.prop]?.label || alvo.prop} = ${alvo.value}` : 'Botão sem ação configurada';
+      b.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!alvo?.prop) return;
+        b.disabled = true;
+        await onUpdateNote(note, { [alvo.prop]: alvo.value }, schema[alvo.prop]?.type ? { [alvo.prop]: schema[alvo.prop].type } : {});
+      });
+      td.appendChild(b);
+      return;
+    }
+
+    // E-mail, telefone e URL viram links (href montado só de valores validados)
+    if ((propDef.type === 'email' || propDef.type === 'phone' || propDef.type === 'url') && rawVal) {
+      const texto = String(rawVal).trim();
+      let href = null;
+      if (propDef.type === 'email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto)) href = `mailto:${texto}`;
+      else if (propDef.type === 'phone' && /^\+?[\d\s().-]{6,}$/.test(texto)) href = `tel:${texto.replace(/[^\d+]/g, '')}`;
+      else if (propDef.type === 'url' && /^https?:\/\//i.test(texto)) href = texto;
+      if (href) {
+        const a = document.createElement('a');
+        a.href = href; a.textContent = texto; a.className = 'base-cell-link';
+        if (propDef.type === 'url') { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+        a.addEventListener('click', e => e.stopPropagation());
+        td.appendChild(a);
+        return;
+      }
     }
 
     if (propDef.type === 'checkbox') {
@@ -655,6 +693,7 @@ export function renderBaseTableView(container, notes, schema, viewConfig = {}, c
     onOpenNote: callbacks.peekActive ? callbacks.onOpenNote : null,
     cellTone: callbacks.cellTone,
     onPasteWrites: callbacks.onPasteWrites || null,
+    onUpdateNote: callbacks.onUpdateNoteProperties || null,
     selection: callbacks.selection || null,
     onSelectionChange: callbacks.onSelectionChange || (() => {}),
     showOwnToolbar: callbacks.showOwnToolbar,

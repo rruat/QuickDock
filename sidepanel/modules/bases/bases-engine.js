@@ -55,6 +55,15 @@ export function getNotePropertyValue(note, propKey) {
     case 'atualizadoEm':
       return note.updatedAt || note.atualizadoEm || '';
 
+    case 'wordCount': {
+      const t = typeof note.content === 'string' ? note.content : '';
+      const m = t.trim().match(/\S+/g);
+      return m ? m.length : 0;
+    }
+
+    case 'hasCover':
+      return !!(note.coverUrl || note.coverFileId);
+
     case 'tasks': {
       let total = 0, checked = 0;
       if (Array.isArray(note.blocks)) {

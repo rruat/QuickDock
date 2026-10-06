@@ -26,7 +26,7 @@ export function parseClipboardGrid(texto) {
 }
 
 const NAO_COLAVEIS = new Set(['title', 'folder', 'createdAt', 'updatedAt', 'tasks']);
-const COLAVEIS = new Set(['text', 'number', 'date', 'checkbox', 'select', 'url', 'list', 'link']);
+const COLAVEIS = new Set(['text', 'number', 'date', 'checkbox', 'select', 'url', 'list', 'link', 'email', 'phone']);
 
 /**
  * @param {string[][]} grade
@@ -68,7 +68,9 @@ export function planPaste(grade, inicio, notas, colunas, schema) {
         if (v === null) { errors.push({ row: inicio.row + r, col: inicio.col + c, key, motivo: `"${txt}" não é sim/não` }); return; }
         writes.push({ noteId: nota.id, key, value: v, type: tipo }); return;
       }
-      writes.push({ noteId: nota.id, key, value: parsePropertyInput(txt, tipo === 'select' ? 'text' : tipo), type: tipo });
+      if (tipo === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(txt)) { errors.push({ row: inicio.row + r, col: inicio.col + c, key, motivo: `"${txt}" não é um e-mail` }); return; }
+      if (tipo === 'phone' && (txt.match(/\d/g) || []).length < 6) { errors.push({ row: inicio.row + r, col: inicio.col + c, key, motivo: `"${txt}" não parece um telefone` }); return; }
+      writes.push({ noteId: nota.id, key, value: parsePropertyInput(txt, ['select', 'email', 'phone'].includes(tipo) ? 'text' : tipo), type: tipo });
     });
   });
   return { writes, errors, skipped };

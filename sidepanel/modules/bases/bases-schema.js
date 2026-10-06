@@ -15,6 +15,9 @@ export const BASE_PROPERTY_TYPES = {
   link:     { icon: 'link',                   label: 'Link interno' },
   url:      { icon: 'open_in_new',            label: 'URL' },
   formula:  { icon: 'functions',              label: 'Fórmula' },
+  email:    { icon: 'mail',                   label: 'E-mail' },
+  phone:    { icon: 'call',                   label: 'Telefone' },
+  button:   { icon: 'smart_button',           label: 'Botão' },
   folder:   { icon: 'folder',                 label: 'Pasta' },
   tasks:    { icon: 'checklist_rtl',          label: 'Tarefas' },
 };
@@ -242,6 +245,22 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
     isSystem: true,
   };
 
+  schema['wordCount'] = {
+    key: 'wordCount',
+    label: 'Palavras',
+    type: 'number',
+    width: 100,
+    isSystem: true,
+  };
+
+  schema['hasCover'] = {
+    key: 'hasCover',
+    label: 'Tem capa',
+    type: 'checkbox',
+    width: 100,
+    isSystem: true,
+  };
+
   // Descobre propriedades de frontmatter nas notas
   for (const note of notes) {
     if (!note || !note.properties || typeof note.properties !== 'object') continue;
@@ -260,6 +279,8 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
       } else if (typeof propVal === 'string') {
         if (/^\d{4}-\d{2}-\d{2}$/.test(propVal)) detectedType = 'date';
         else if (/^https?:\/\//i.test(propVal)) detectedType = 'url';
+        else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(propVal)) detectedType = 'email';
+        else if (/^\+?[\d\s().-]{8,}$/.test(propVal) && (propVal.match(/\d/g) || []).length >= 8) detectedType = 'phone';
         else if (/^\[\[.+\]\]$/.test(propVal)) detectedType = 'link';
         else detectedType = inferirTipoPropriedade(propKey, note.propertyTypes);
       }
@@ -285,12 +306,20 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
         options: def.options || [],
         isSystem: false,
         ...(def.format ? { format: def.format } : {}),
+        ...(def.type === 'button' ? { type: 'button', isDerived: 'button', buttonLabel: def.label || 'Executar', set: def.set || null } : {}),
         ...(def.type === 'status' ? { type: 'select', isStatus: true, options: normalizeStatusOptions(def.options) } : {}),
         ...((def.type === 'formula' || def.type === 'rollup') ? { isDerived: def.type, expr: def.expr } : {}),
       };
     } else {
       if (def.label)   schema[key].label = def.label;
       if (def.type)    schema[key].type = def.type;
+      if (def.type === 'button') {
+        // Botão (ação): grava `set.value` em `set.prop` da nota da linha; não é um valor editável
+        schema[key].type = 'button';
+        schema[key].isDerived = 'button';
+        schema[key].buttonLabel = def.label || 'Executar';
+        schema[key].set = def.set && typeof def.set === 'object' ? { prop: def.set.prop, value: def.set.value } : null;
+      }
       if (def.type === 'formula' || def.type === 'rollup') {
         schema[key].type = def.result || (def.type === 'rollup' ? 'number' : 'text');
         schema[key].isDerived = def.type;

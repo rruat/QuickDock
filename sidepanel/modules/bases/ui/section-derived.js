@@ -14,12 +14,12 @@ const RESULTADOS = [
 export function derivedSection({ baseProps, schema, memoria, patchBase }) {
   const s = section('Propriedades calculadas', { chave: 'derived', memoria,
     dica: 'Fórmulas (ex.: prop("custo") * prop("qtd")) e rollups. Valem para todas as views da Base.' });
-  const derivadas = Object.entries(baseProps || {}).filter(([, d]) => isDerivedDef(d));
+  const derivadas = Object.entries(baseProps || {}).filter(([, d]) => isDerivedDef(d) || d?.type === 'button');
 
   for (const [key, def] of derivadas) {
     const caixa = el('div', 'bset-filter');
     const topo = el('div', 'bset-rule');
-    topo.appendChild(el('strong', 'bset-derived-name', `${def.type === 'rollup' ? '∑' : 'ƒ'} ${key}`));
+    topo.appendChild(el('strong', 'bset-derived-name', `${def.type === 'rollup' ? '∑' : def.type === 'button' ? '▣' : 'ƒ'} ${key}`));
     const rm = el('button', 'bset-icon-btn', '✕');
     rm.type = 'button'; rm.title = 'Remover propriedade'; rm.setAttribute('aria-label', `Remover ${key}`);
     rm.addEventListener('click', () => { if (window.confirm(`Remover a propriedade calculada "${key}"?`)) patchBase({ [key]: undefined }); });
@@ -42,6 +42,15 @@ export function derivedSection({ baseProps, schema, memoria, patchBase }) {
       valida();
       caixa.append(campo, msg);
       caixa.appendChild(row('Resultado', id => selectControl({ id, value: def.result || 'text', options: RESULTADOS, onChange: v => patchBase({ [key]: { ...def, result: v } }) })));
+    } else if (def.type === 'button') {
+      const props = Object.entries(schema).filter(([k, d]) => !d?.isSystem && !d?.isDerived).map(([k, d]) => ({ value: d?.key || k, label: d?.label || k }));
+      const rot = el('input', 'bset-input'); rot.value = def.label || ''; rot.maxLength = 30; rot.setAttribute('aria-label', 'Texto do botão');
+      rot.addEventListener('change', () => patchBase({ [key]: { ...def, label: rot.value.trim() || 'Executar' } }));
+      caixa.appendChild(row('Texto do botão', () => rot));
+      caixa.appendChild(row('Define a propriedade', id => selectControl({ id, value: def.set?.prop || '', options: [{ value: '', label: 'Escolher…' }, ...props], onChange: v => patchBase({ [key]: { ...def, set: { ...(def.set || {}), prop: v || undefined } } }) })));
+      const val = el('input', 'bset-input'); val.value = def.set?.value ?? ''; val.setAttribute('aria-label', 'Valor a gravar');
+      val.addEventListener('change', () => patchBase({ [key]: { ...def, set: { ...(def.set || {}), value: val.value } } }));
+      caixa.appendChild(row('Com o valor', () => val));
     } else {
       const props = Object.entries(schema).map(([k, d]) => ({ value: d?.key || k, label: d?.label || k }));
       caixa.appendChild(row('Relação', id => selectControl({ id, value: def.relation, options: props, onChange: v => patchBase({ [key]: { ...def, relation: v } }) })));
@@ -66,11 +75,12 @@ export function derivedSection({ baseProps, schema, memoria, patchBase }) {
     const n = nome.value.trim();
     if (!n) { nome.focus(); return; }
     if (n in (baseProps || {}) || n in schema) { nome.setCustomValidity('Já existe uma propriedade com esse nome'); nome.reportValidity(); nome.setCustomValidity(''); return; }
-    patchBase({ [n]: tipo === 'formula' ? { type: 'formula', expr: '', result: 'number' } : { type: 'rollup', agg: 'count', relation: '', target: '' } });
+    patchBase({ [n]: tipo === 'formula' ? { type: 'formula', expr: '', result: 'number' } : tipo === 'button' ? { type: 'button', label: 'Executar', set: { prop: '', value: '' } } : { type: 'rollup', agg: 'count', relation: '', target: '' } });
   };
   const f = el('button', 'bset-btn', '+ Fórmula'); f.type = 'button'; f.addEventListener('click', () => cria('formula'));
   const r = el('button', 'bset-btn', '+ Rollup'); r.type = 'button'; r.addEventListener('click', () => cria('rollup'));
-  acoes.append(f, r);
+  const bt = el('button', 'bset-btn', '+ Botão'); bt.type = 'button'; bt.addEventListener('click', () => cria('button'));
+  acoes.append(f, r, bt);
   s.body.appendChild(acoes);
   return s.root;
 }

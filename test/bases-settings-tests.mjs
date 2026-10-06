@@ -479,4 +479,14 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('dashboard · largura limitada às colunas, altura válida', Db.resolveDashboardConfig({ layout: { columns: 3 }, widgets: [{ view: 'a', span: 9, height: 999 }, { view: 'b' }] }).widgets, [{ view: 'a', span: 3, height: 320 }, { view: 'b', span: 1, height: 320 }]);
   igual('dashboard · descarta widget sem view', Db.resolveDashboardConfig({ widgets: [{ span: 2 }, null, { view: '' }, { view: 'x' }] }).widgets.length, 1);
   igual('dashboard · colunas inválidas voltam a 2', Db.resolveDashboardConfig({ layout: { columns: 9 } }).columns, 2);
+
+  // ── e-mail, telefone, botão e propriedades de sistema ──
+  const tpS = Sc.inferBaseSchema([{ properties: { mail: 'ana@exemplo.com', fone: '+55 (11) 91234-5678', texto: 'oi', curto: '12345' } }], { acao: { type: 'button', label: 'Concluir', set: { prop: 'status', value: 'Feito' } } });
+  igual('tipos · infere e-mail e telefone; texto curto continua texto', [tpS.mail.type, tpS.fone.type, tpS.texto.type, tpS.curto.type], ['email', 'phone', 'text', 'text']);
+  igual('tipos · botão guarda rótulo e ação, marcado como derivado (não editável)', [tpS.acao.type, tpS.acao.buttonLabel, tpS.acao.set, !!tpS.acao.isDerived], ['button', 'Concluir', { prop: 'status', value: 'Feito' }, true]);
+  igual('tipos · e-mail/telefone usam operadores de texto', [F.operatorsForType('email')[0], F.operatorsForType('phone')[0]], ['contains', 'contains']);
+  igual('sistema · contagem de palavras', [E.getNotePropertyValue({ content: 'um dois  três\nquatro' }, 'wordCount'), E.getNotePropertyValue({ content: '' }, 'wordCount')], [4, 0]);
+  igual('sistema · tem capa', [E.getNotePropertyValue({ coverUrl: 'x' }, 'hasCover'), E.getNotePropertyValue({ coverFileId: 3 }, 'hasCover'), E.getNotePropertyValue({}, 'hasCover')], [true, true, false]);
+  ok('sistema · aparecem no schema como propriedades de sistema', tpS.wordCount.isSystem && tpS.hasCover.isSystem);
+  igual('colar · e-mail inválido bloqueia, válido passa', [Pg.planPaste([['x@y']], { row: 0, col: 1 }, [{ id: 1, properties: {} }], ['title', 'mail'], { mail: { type: 'email' } }).errors.length, Pg.planPaste([['a@b.co']], { row: 0, col: 1 }, [{ id: 1, properties: {} }], ['title', 'mail'], { mail: { type: 'email' } }).errors.length], [1, 0]);
 }
