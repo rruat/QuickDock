@@ -977,6 +977,7 @@ let editingTemplate = null;
 export function isEditingTemplate() { return !!editingTemplate; }
 
 export async function openTemplateInEditor(tpl) {
+  await returnLentEditor();
   await flushSave();                 // grava a nota que estava aberta
   editingTemplate = { id: tpl.id };
   renderBlocks(await absorbDataUrls(parseMarkdownToBlocks(tpl.content ?? '')));
@@ -1044,6 +1045,50 @@ export function getCurrentNoteId() {
   return currentNoteId;
 }
 
+// ── Editor emprestado ao Espaço (quadro infinito) ─────────────────────────────
+// O editor de blocos é um só (ligado a #note-editor-blocks). Pra editar uma nota
+// DENTRO de um cartão do Espaço sem criar um segundo editor, o cartão toma o
+// editor emprestado — mesmo raciocínio do modo modelo (notes-template-mode.js):
+// o DOM do editor vai pro cartão, `currentNoteId` passa a ser a nota do cartão (então
+// autosave, indexação de links e anexos gravam NELA) e, ao devolver, a nota que
+// estava aberta volta pro lugar. O cabeçalho/propriedades da nota aberta não são
+// tocados. Qualquer outra coisa que troque o conteúdo do editor (abrir outra nota,
+// limpar nota, editar modelo, recarga por sincronização) devolve o empréstimo antes —
+// senão escreveria na nota errada.
+let editorLoan = null;   // { previousId, moveBack }
+
+export function isEditorLent() {
+  return editorLoan !== null;
+}
+
+/**
+ * @param {number} noteId nota que o cartão vai editar
+ * @param {{ moveIn: () => void, moveBack: () => void }} dom quem sabe mover o DOM (o Espaço)
+ * @returns {Promise<boolean>} false se a nota não existe
+ */
+export async function lendEditorTo(noteId, { moveIn, moveBack }) {
+  await returnLentEditor();
+  await flushSave();
+  flushHeaderTitle();
+  const note = await getNoteById(noteId);
+  if (!note) return false;
+  const previousId = currentNoteId;
+  editorLoan = { previousId, moveBack };
+  currentNoteId = noteId;
+  renderBlocks(note.blocks?.length ? note.blocks : parseMarkdownToBlocks(note.content ?? ''));
+  moveIn();
+  return true;
+}
+
+export async function returnLentEditor() {
+  if (!editorLoan) return;
+  const { previousId, moveBack } = editorLoan;
+  await flushSave();        // grava a nota do cartão (currentNoteId ainda é ela)
+  editorLoan = null;
+  moveBack();               // DOM de volta pro lugar
+  await switchToNote(previousId, { descartarDom: true });   // o que está na tela é da nota do cartão: não regravar
+}
+
 // Usado pelo painel dedicado de Base (bases-view.js) quando a nota aberta não
 // tem nenhum bloco de base ainda — reaproveita createBlockEl('base') (mesma
 // função que o menu "/" já usa) pra não duplicar o que é "uma base nova".
@@ -1068,7 +1113,7 @@ export function requestSaveFromExternalEdit() {
 }
 
 export function isEditorFocused() {
-  return isEditorFocusedHelper(noteEditorEl);
+  return isEditorFocusedHelper(noteEditorEl) || isEditorFocusedHelper(root);
 }
 
 export function hasPendingSave() {
@@ -1082,6 +1127,7 @@ export function canSafelyReloadCurrentNote() {
 // Esvazia a nota aberta. Tem que passar pelo editor: escrever direto no banco
 // não adianta, porque o autosave seguinte serializaria o DOM antigo por cima.
 export async function clearCurrentNote() {
+  await returnLentEditor();
   clearTimeout(saveTimer);
   renderBlocks(parseMarkdownToBlocks(''));
   await flushSave();
@@ -1114,6 +1160,7 @@ function renderBlocks(blocks) {
 // velho. Na rodada seguinte ele sobe como "alteração local" e desfaz a edição
 // feita no outro aparelho. Era isso que estava revertendo as notas.
 export async function switchToNote(id, { descartarDom = false } = {}) {
+  if (editorLoan) await returnLentEditor();
   if (descartarDom) {
     // Sem isso, um autosave já agendado dispararia depois do render e gravaria
     // o DOM antigo assim mesmo.

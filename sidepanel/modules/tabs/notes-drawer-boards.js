@@ -1,9 +1,10 @@
 // ── notes-drawer-boards.js ──────────────────────────────────────────────────
 // Linhas de Quadro Infinito ("Espaço") na árvore do Explorador (aside), ao lado
-// de notas e bases. Clicar abre o quadro na view; "⋯" exclui (com confirmação).
+// de notas e bases. Clicar abre o quadro na view; "⋯" abre o menu (renomear, mover, excluir).
 
 import { iconSvg } from '../icons.js';
-import { loadAllBoards, deleteBoardRecord } from '../storage.js';
+import { loadAllBoards } from '../storage.js';
+import { openBoardMenu } from './notes-board-menu.js';
 
 const ACTIVE_BOARD_KEY = 'quickdock:active-board-uid';
 
@@ -56,34 +57,23 @@ export function renderBoardRow(board, { indentPx = 0, showFolder = false, onRefr
     row.appendChild(badge);
   }
 
-  const delBtn = document.createElement('button');
-  delBtn.className = 'notes-list-edit-btn';
-  delBtn.innerHTML = iconSvg('delete');
-  delBtn.title = 'Excluir espaço';
-  delBtn.setAttribute('aria-label', 'Excluir espaço');
-  delBtn.addEventListener('mousedown', e => e.stopPropagation());
-  delBtn.addEventListener('click', async e => {
+  // Mesmo "⋯" das notas; excluir mora dentro do menu, com confirmação
+  const menuBtn = document.createElement('button');
+  menuBtn.className = 'notes-list-edit-btn';
+  menuBtn.innerHTML = iconSvg('more_horiz');
+  menuBtn.title = 'Opções do espaço';
+  menuBtn.setAttribute('aria-label', 'Opções do espaço');
+  menuBtn.addEventListener('mousedown', e => e.stopPropagation());
+  menuBtn.addEventListener('click', e => {
     e.stopPropagation();
-    if (!delBtn.dataset.confirming) {
-      delBtn.dataset.confirming = '1';
-      delBtn.title = 'Clique de novo para confirmar';
-      delBtn.classList.add('is-confirming');
-      setTimeout(() => {
-        delete delBtn.dataset.confirming;
-        delBtn.classList.remove('is-confirming');
-        delBtn.title = 'Excluir espaço';
-      }, 3000);
-      return;
-    }
-    if (board.id != null) await deleteBoardRecord(board.id);
-    if (localStorage.getItem(ACTIVE_BOARD_KEY) === board.uid) {
-      try { localStorage.removeItem(ACTIVE_BOARD_KEY); } catch {}
-    }
-    document.dispatchEvent(new CustomEvent('quickdock:board-changed', { detail: { deletedUid: board.uid } }));
-    document.dispatchEvent(new CustomEvent('quickdock:refresh-board-view'));
-    await onRefresh?.();
+    openBoardMenu({
+      board,
+      anchorEl: menuBtn,
+      onChanged: onRefresh,
+      onOpen: () => abrirQuadro(board, closeNotesAsideDrawer),
+    });
   });
-  row.appendChild(delBtn);
+  row.appendChild(menuBtn);
 
   row.addEventListener('mousedown', e => e.stopPropagation());
   row.addEventListener('click', () => abrirQuadro(board, closeNotesAsideDrawer));

@@ -1,0 +1,226 @@
+/* ==========================================================================
+   30-bases-calendar.css - Calendário das Bases (mês, semana, dia, agenda)
+   e painel "Configurar view". Cores em OKLCH, claro e escuro (ver
+   docs/PADRAO-DE-CORES-OKLCH.md). Evento colorido: matiz vem de --ev-hue.
+   ========================================================================== */
+
+.base-component-root { position: relative; }
+
+.base-calendar-container {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  min-height: 0;
+  height: 100%;
+
+  /* Evento sem cor própria: neutro. Com cor: fundo claro/escuro + texto com ΔL ≥ 55. */
+  --bcal-ev-bg: var(--bg-card);
+  --bcal-ev-fg: var(--text);
+  --bcal-ev-edge: var(--text-muted);
+  --bcal-today: oklch(55% 0.17 262);
+  --bcal-today-fg: oklch(98% 0.01 262);
+  --bcal-today-bg: oklch(55% 0.17 262 / 0.07);
+  --bcal-grid-line: color-mix(in oklch, var(--border) 55%, transparent);
+}
+
+.bcal-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ── Barra ───────────────────────────────────────────────────────────────── */
+.bcal-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; flex-wrap: wrap; padding: 8px 12px;
+}
+.bcal-toolbar-left, .bcal-toolbar-right { display: flex; align-items: center; gap: 6px; }
+.bcal-title { margin: 0 0 0 8px; font-size: 15px; font-weight: 600; color: var(--text); }
+
+.bcal-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-card); color: var(--text); font: inherit; font-size: 12px; cursor: pointer;
+}
+.bcal-btn-icon { width: 28px; padding: 0; }
+.bcal-btn .qd-icon { font-size: 18px; }
+.bcal-btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-hover); }
+.bcal-btn:disabled { opacity: 0.45; cursor: default; }
+.bcal-btn:focus-visible, .bcal-mode:focus-visible, .bcal-ev:focus-visible, .bcal-day-add:focus-visible,
+.bcal-more:focus-visible { outline: 2px solid var(--bcal-today); outline-offset: 1px; }
+
+.bcal-modes { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.bcal-mode {
+  height: 26px; padding: 0 10px; border: 0; background: var(--bg-card); color: var(--text-secondary);
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.bcal-mode + .bcal-mode { border-left: 1px solid var(--border); }
+.bcal-mode:hover { background: var(--bg-hover); }
+.bcal-mode.is-active { background: var(--accent); color: var(--bg); font-weight: 600; }
+
+/* ── Evento (todas as visões) ─────────────────────────────────────────────── */
+.bcal-ev {
+  position: relative; box-sizing: border-box; overflow: hidden; cursor: pointer; user-select: none;
+  background: var(--bcal-ev-bg); color: var(--bcal-ev-fg);
+  border: 1px solid var(--border); border-left: 3px solid var(--bcal-ev-edge);
+  border-radius: 5px; padding: 2px 6px; font-size: 12px; line-height: 1.3;
+  display: flex; flex-direction: column; gap: 1px; touch-action: none;
+}
+.bcal-ev.has-hue {
+  --bcal-ev-bg: oklch(93% 0.045 var(--ev-hue));
+  --bcal-ev-fg: oklch(26% 0.05 var(--ev-hue));
+  --bcal-ev-edge: oklch(58% 0.14 var(--ev-hue));
+  border-color: oklch(80% 0.06 var(--ev-hue));
+}
+[data-theme="dark"] .bcal-ev.has-hue {
+  --bcal-ev-bg: oklch(34% 0.06 var(--ev-hue));
+  --bcal-ev-fg: oklch(93% 0.025 var(--ev-hue));
+  --bcal-ev-edge: oklch(72% 0.13 var(--ev-hue));
+  border-color: oklch(44% 0.07 var(--ev-hue));
+}
+.bcal-ev:hover { filter: brightness(0.97); }
+[data-theme="dark"] .bcal-ev:hover { filter: brightness(1.12); }
+.bcal-ev-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bcal-ev-time, .bcal-ev-props { font-size: 11px; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bcal-ev.is-fallback-date { border-style: dashed; border-left-style: solid; font-style: italic; }
+.bcal-ev.is-dragging { opacity: 0.45; }
+.bcal-ev.is-resizing { box-shadow: 0 0 0 2px var(--bcal-today); }
+.bcal-ev.is-cut-left, .bcal-ev.is-cut-top { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.bcal-ev.is-cut-right, .bcal-ev.is-cut-bottom { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.bcal-ev-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; cursor: ns-resize; }
+.bcal-ev.can-resize:hover .bcal-ev-resize::after {
+  content: ''; position: absolute; left: 50%; bottom: 1px; width: 18px; height: 2px; margin-left: -9px;
+  border-radius: 2px; background: currentColor; opacity: 0.5;
+}
+
+.bcal-day-add {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); cursor: pointer; opacity: 0;
+}
+.bcal-day-add .qd-icon { font-size: 16px; }
+.bcal-day-add:hover { background: var(--bg-hover); color: var(--text); }
+.bcal-day-head:hover .bcal-day-add, .bcal-month-cell:hover .bcal-day-add, .bcal-day-add:focus-visible { opacity: 1; }
+@media (hover: none) { .bcal-day-add { opacity: 0.7; } }
+
+.bcal-drag-label {
+  position: fixed; z-index: 1000; pointer-events: none; padding: 3px 8px; border-radius: 4px;
+  background: var(--accent); color: var(--bg); font-size: 11px; font-weight: 600;
+}
+
+/* ── Semana / Dia ────────────────────────────────────────────────────────── */
+.bcal-time { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-x: auto; border-top: 1px solid var(--border); }
+.bcal-time-head, .bcal-time-inner { display: grid; grid-template-columns: var(--bcal-cols); min-width: max-content; }
+.bcal-time-head { border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+.bcal-gutter-cell { font-size: 10px; color: var(--text-muted); text-align: right; padding: 4px 6px 0 0; }
+.bcal-day-head { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 4px; border-left: 1px solid var(--bcal-grid-line); }
+.bcal-day-name { font-size: 11px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; }
+.bcal-day-num { font-size: 14px; font-weight: 600; min-width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 12px; }
+.bcal-day-head.is-today .bcal-day-num, .bcal-month-cell.is-today .bcal-month-day-num { background: var(--bcal-today); color: var(--bcal-today-fg); }
+
+.bcal-allday { display: grid; align-items: stretch; min-width: max-content; border-bottom: 1px solid var(--border); background: var(--bg); padding-bottom: 2px; }
+.bcal-allday-label { align-self: start; }
+.bcal-allday-cell { border-left: 1px solid var(--bcal-grid-line); }
+.bcal-allday-cell.is-today { background: var(--bcal-today-bg); }
+.bcal-allday-cell.is-drop-target, .bcal-month-cell.is-drop-target { background: color-mix(in oklch, var(--bcal-today) 18%, transparent); }
+.bcal-allday-bar { margin: 1px 2px; height: 20px; flex-direction: row; align-items: center; z-index: 1; }
+
+.bcal-time-scroll { flex: 1; min-height: 0; overflow-y: auto; min-width: max-content; }
+.bcal-time-inner { position: relative; }
+.bcal-gutter { position: relative; }
+.bcal-hour-label { position: absolute; right: 6px; transform: translateY(-50%); font-size: 10px; color: var(--text-muted); }
+.bcal-col {
+  position: relative; border-left: 1px solid var(--bcal-grid-line); touch-action: pan-y;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--bcal-slot-px) - 1px), var(--bcal-grid-line) calc(var(--bcal-slot-px) - 1px), var(--bcal-grid-line) var(--bcal-slot-px));
+}
+.bcal-col.is-today { background-color: var(--bcal-today-bg); }
+.bcal-timed { position: absolute; z-index: 1; }
+.bcal-timed.is-short { flex-direction: row; align-items: center; gap: 6px; padding-top: 0; padding-bottom: 0; }
+.bcal-ghost {
+  position: absolute; left: 2px; right: 2px; z-index: 2; pointer-events: none; padding: 2px 6px; font-size: 11px;
+  border: 1px dashed var(--bcal-today); border-radius: 5px; background: color-mix(in oklch, var(--bcal-today) 16%, transparent); color: var(--text);
+}
+.bcal-now-line { position: absolute; left: 0; right: 0; height: 0; z-index: 3; border-top: 2px solid oklch(60% 0.2 25); pointer-events: none; }
+.bcal-now-line::before { content: ''; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: oklch(60% 0.2 25); }
+
+/* ── Mês ─────────────────────────────────────────────────────────────────── */
+.bcal-month { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; border-top: 1px solid var(--border); }
+.bcal-month-weekdays, .bcal-month-week { display: grid; grid-template-columns: var(--bcal-month-cols); }
+.bcal-month-weekdays { background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+.bcal-weekday, .bcal-weeknum-head { padding: 5px 6px; font-size: 11px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.04em; }
+.bcal-month-weeks { flex: 1; display: grid; }
+.bcal-weeknum { padding: 6px 4px; font-size: 10px; color: var(--text-muted); text-align: center; border-right: 1px solid var(--bcal-grid-line); }
+.bcal-month-cell { min-width: 0; padding: 3px 4px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--bcal-grid-line); border-bottom: 1px solid var(--bcal-grid-line); }
+.bcal-month-cell.is-other-month { background: color-mix(in oklch, var(--bg-secondary) 60%, transparent); }
+.bcal-month-cell.is-other-month .bcal-month-day-num { color: var(--text-muted); }
+.bcal-month-cell.is-today { background: var(--bcal-today-bg); }
+.bcal-month-cell-head { display: flex; align-items: center; justify-content: space-between; }
+.bcal-month-day-num { font-size: 12px; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 11px; }
+.bcal-month-events { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bcal-chip { flex-direction: row; align-items: center; gap: 6px; padding: 1px 6px; }
+.bcal-chip .bcal-ev-time { flex: none; }
+.bcal-chip.is-overflow { display: none; }
+.bcal-month-cell.is-expanded .bcal-chip.is-overflow { display: flex; }
+.bcal-more { align-self: flex-start; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 11px; cursor: pointer; padding: 1px 4px; border-radius: 4px; }
+.bcal-more:hover { background: var(--bg-hover); color: var(--text); }
+
+/* ── Agenda ──────────────────────────────────────────────────────────────── */
+.bcal-agenda { flex: 1; overflow-y: auto; padding: 8px 12px 16px; display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--border); }
+.bcal-agenda-day-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.bcal-agenda-day-num { font-size: 20px; font-weight: 600; }
+.bcal-agenda-day.is-today .bcal-agenda-day-num { color: var(--bcal-today); }
+.bcal-agenda-day-name { font-size: 12px; color: var(--text-secondary); }
+.bcal-agenda-list { display: flex; flex-direction: column; gap: 4px; }
+.bcal-agenda-ev { flex-direction: row; align-items: baseline; gap: 10px; padding: 6px 10px; font-size: 13px; }
+.bcal-agenda-ev .bcal-ev-time { flex: none; min-width: 92px; }
+.bcal-agenda-ev .bcal-ev-props { margin-left: auto; }
+.bcal-agenda-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 12px; color: var(--text-secondary); }
+.bcal-agenda-empty .qd-icon { font-size: 32px; }
+
+@media (max-width: 640px) {
+  .bcal-title { font-size: 13px; }
+  .bcal-month-weeks { grid-template-rows: none !important; }
+  .bcal-month-week { min-height: 84px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bcal-ev, .bcal-btn, .bcal-mode { transition: background-color 0.12s, filter 0.12s; }
+}
+
+/* ── Painel "Configurar view" ─────────────────────────────────────────────── */
+.base-settings-host[hidden] { display: none; }
+.base-settings-host {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 20; width: min(340px, 100%);
+  display: flex; flex-direction: column; background: var(--bg-card); color: var(--text);
+  border-left: 1px solid var(--border); box-shadow: -6px 0 18px oklch(0% 0 0 / 0.12);
+}
+.bset-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.bset-title { margin: 0; font-size: 14px; font-weight: 600; }
+.bset-close { display: inline-flex; border: 0; background: transparent; color: var(--text-secondary); border-radius: var(--radius-sm); padding: 4px; cursor: pointer; }
+.bset-close:hover { background: var(--bg-hover); color: var(--text); }
+.bset-body { flex: 1; overflow-y: auto; padding: 4px 12px 16px; }
+.bset-section { border-bottom: 1px solid var(--bcal-grid-line, var(--border)); padding: 8px 0; }
+.bset-section-title { cursor: pointer; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); padding: 4px 0; }
+.bset-section-body { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
+.bset-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.bset-label { font-size: 12.5px; color: var(--text); }
+.bset-hint { margin: 0; font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+.bset-row-hint { flex-basis: 100%; }
+.bset-select, .bset-input {
+  max-width: 55%; min-width: 120px; height: 28px; padding: 0 8px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font: inherit; font-size: 12px;
+}
+.bset-input { max-width: 100%; flex: 1; }
+.bset-select:focus-visible, .bset-input:focus-visible { outline: 2px solid var(--bcal-today, var(--accent)); outline-offset: 1px; }
+.bset-segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.bset-seg { height: 26px; padding: 0 8px; border: 0; background: var(--bg); color: var(--text-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+.bset-seg + .bset-seg { border-left: 1px solid var(--border); }
+.bset-seg.is-active { background: var(--accent); color: var(--bg); font-weight: 600; }
+.bset-toggle { position: relative; width: 34px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-hover); cursor: pointer; }
+.bset-toggle-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-secondary); transition: transform 0.12s; }
+.bset-toggle.is-on { background: var(--accent); border-color: var(--accent); }
+.bset-toggle.is-on .bset-toggle-knob { transform: translateX(14px); background: var(--bg); }
+.bset-toggle:focus-visible { outline: 2px solid var(--bcal-today, var(--accent)); outline-offset: 2px; }
+.bset-checklist { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.bset-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; }
+.bset-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bset-btn { height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.bset-btn:hover:not(:disabled) { background: var(--bg-hover); }
+.bset-btn:disabled { opacity: 0.45; cursor: default; }
+.bset-btn-danger { color: oklch(45% 0.18 25); border-color: oklch(70% 0.1 25); }
+[data-theme="dark"] .bset-btn-danger { color: oklch(78% 0.13 25); border-color: oklch(45% 0.1 25); }
+@media (max-width: 640px) { .base-settings-host { width: 100%; } }

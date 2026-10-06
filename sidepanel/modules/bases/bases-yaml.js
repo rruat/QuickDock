@@ -99,6 +99,11 @@ export function parseYamlOrJson(text) {
 
       if (Array.isArray(currentContext.container)) {
         targetArray = currentContext.container;
+      } else if (currentContext.owner && Object.keys(currentContext.container).length === 0) {
+        // "chave:" abriu um objeto vazio e a primeira linha filha é "- item": era uma lista
+        targetArray = [];
+        currentContext.owner[currentContext.ownerKey] = targetArray;
+        currentContext.container = targetArray;
       } else if (currentContext.key && Array.isArray(currentContext.container[currentContext.key])) {
         targetArray = currentContext.container[currentContext.key];
       } else if (currentContext.key) {
@@ -145,8 +150,9 @@ export function parseYamlOrJson(text) {
 
       if (valStr === '') {
         // Objeto ou lista aninhada que começará nas próximas linhas
-        parentObj[key] = {};
-        stack.push({ indent, container: parentObj, key });
+        const filho = {};
+        parentObj[key] = filho;
+        stack.push({ indent, container: filho, key: null, owner: parentObj, ownerKey: key });
       } else {
         parentObj[key] = parseScalar(valStr);
       }

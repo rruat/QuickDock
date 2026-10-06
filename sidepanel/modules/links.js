@@ -6,6 +6,10 @@
 const RE_WIKILINK = /\[\[([^\]\n|]+)(?:\|([^\]\n]+))?\]\]/g;
 const RE_CANONICAL = /\[([^\]]+)\]\(nota:([^\)]+)\)/g;
 const RE_HTML_LINK = /<a\s+[^>]*href="nota:([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+// Link EXTERNO pra uma nota: a URL de abrir nota do app (?abrirNota=<uid>), seja a do PWA
+// (https://…/index.html?abrirNota=…) ou a da extensão (chrome-extension://…/index.html?abrirNota=…).
+// Casa em qualquer contexto — [texto](url), <a href="url">, URL solta —, daí o ; (de &amp;).
+const RE_NOTE_URL = /[?&#;]abrirNota=([^&#\s"'<>)\]]+)/gi;
 const RE_DATA_TITLE = /data-note-title="([^"]+)"/gi;
 const RE_DATA_PATH = /data-note-path="([^"]+)"/gi;
 
@@ -74,6 +78,14 @@ export function extrairLinksDeTexto(texto) {
     const alias = m[2]?.replace(/<[^>]+>/g, '') || null;
     const isUid = alvo.startsWith('u_');
     registrar(alvo, alias, isUid);
+  }
+
+  // 4. Links externos que apontam pra uma nota do app (URL com ?abrirNota=<uid>)
+  const reUrl = new RegExp(RE_NOTE_URL.source, 'gi');
+  while ((m = reUrl.exec(texto)) !== null) {
+    let uid = m[1];
+    try { uid = decodeURIComponent(uid); } catch {}
+    registrar(uid, null, true);
   }
 
   const reDataPath = new RegExp(RE_DATA_PATH.source, 'gi');

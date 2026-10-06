@@ -1,7 +1,7 @@
 import { initNotesTabs, createTutorialNote, downloadAllNotes, refreshNotesList, getActiveNoteUid } from './modules/notes-tabs.js';
 import { positionPopover } from './modules/popover.js';
 import { initDocuments, toggleDocsCollapsed } from './modules/documents.js';
-import { loadTheme, saveTheme, loadAllNotesMeta } from './modules/storage.js';
+import { loadTheme, saveTheme, loadAllNotesMeta, garantirIndiceDeLinks } from './modules/storage.js';
 import { initResizer, toggleDocsExtension } from './modules/resizer.js';
 import { SyncController, SYNC_STATE } from './modules/sync-controller.js';
 import { canSafelyReloadCurrentNote, switchToNote, flushSave, isEditingTemplate, setImageResolver } from './modules/note.js';
@@ -12,7 +12,7 @@ import { switchView } from './modules/views.js';
 import { initTemplatesGallery } from './modules/templates-gallery.js';
 import { initGraphView } from './modules/graph-view.js';
 import { initBoardView, abrirQuadroInfinitoEmAba } from './modules/board-view.js';
-import { flushBoardSave } from './modules/board-engine.js';
+import { flushBoardSave, setBoardFileResolver } from './modules/board-engine.js';
 import { initCalendarView } from './modules/calendar-view.js';
 import { initBasesView } from './modules/bases-view.js';
 import { initJsonView } from './modules/json-view.js';
@@ -228,6 +228,8 @@ async function init() {
   try {
     await initTheme();
     await initNotesTabs();
+    // Links (internos e externos) das notas antigas entram no Grafo/backlinks sem precisar reeditar cada nota
+    garantirIndiceDeLinks(2).catch(err => console.warn('Falha ao indexar links:', err));
     await abrirNotaDaUrlOuStorageSeHouver();
     await initDocuments();
     await initResizer();
@@ -287,6 +289,8 @@ async function init() {
     });
     await syncController.inicializar();
     setImageResolver((caminho, noteId) => syncController?.resolverImagem(caminho, noteId));
+    // Imagens/vídeos/áudios de cartões do Espaço vindos de outro aparelho: baixa de imagens/ sob demanda
+    setBoardFileResolver(caminho => syncController?.resolverImagem(caminho, null));
 
     // Atualiza estado visual do botão de sincronização
     syncController.adicionarListener(resumo => {
@@ -317,7 +321,7 @@ async function init() {
     });
 
     // Tarefa 5: Debounce de ~20s após parar de digitar (nunca a cada tecla)
-    document.querySelector('.note-editor')?.addEventListener('input', () => {
+    document.getElementById('note-editor-blocks')?.addEventListener('input', () => {
       syncController?.notificarAtividadeEditor();
     });
 

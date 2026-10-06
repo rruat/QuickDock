@@ -13,7 +13,11 @@ source:
 views:
   - type: table
     name: Visão Geral
-    columns: [title, folder, tags, updatedAt]`;
+    columns: [title, folder, tags, updatedAt]
+  - type: gallery
+    name: Galeria
+    cardSize: medium
+    properties: [title, tags, updatedAt]`;
 
 /**
  * Cria o elemento de bloco DOM para uma Base embutida.

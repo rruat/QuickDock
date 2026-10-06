@@ -5969,6 +5969,114 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     doc.includes('Regra permanente') && claudeMd.includes('docs/PADRAO-DE-CORES-OKLCH.md'));
 }
 
+// ── Links externos para notas (?abrirNota=<uid>) valem como link interno ──
+{
+  const { extrairLinksDeTexto, extrairLinksDeBlocos, resolverLinks, construirGrafo } = await import('../sidepanel/modules/links.js');
+  const uidA = 'u_aaa111', uidB = 'u_bbb222';
+  const urlPwa = `https://quickdock.app/index.html?abrirNota=${uidB}`;
+  const urlExt = `chrome-extension://abcdefghijklmnop/sidepanel/index.html?abrirNota=${uidB}`;
+
+  igual('links externos · URL solta do PWA', extrairLinksDeTexto(`veja ${urlPwa} depois`).map(l => l.alvo), [uidB]);
+  igual('links externos · markdown [texto](url)', extrairLinksDeTexto(`[outra nota](${urlPwa})`).map(l => l.alvo), [uidB]);
+  igual('links externos · <a href> com &amp; no HTML', extrairLinksDeTexto(`<a href="https://x.app/?v=1&amp;abrirNota=${uidB}">n</a>`).map(l => l.alvo), [uidB]);
+  igual('links externos · URL da extensão', extrairLinksDeTexto(urlExt).map(l => l.alvo), [uidB]);
+  ok('links externos · vira link de UID', extrairLinksDeTexto(urlPwa)[0].isUid === true);
+  igual('links externos · uid com %-encoding', extrairLinksDeTexto('https://x.app/?abrirNota=u%5Fccc').map(l => l.alvo), ['u_ccc']);
+  igual('links externos · URL comum (sem abrirNota) não vira link de nota', extrairLinksDeTexto('https://exemplo.com/pagina?x=1'), []);
+  igual('links externos · interno + externo pro mesmo alvo não duplica', extrairLinksDeTexto(`[[${uidB}]] e ${urlPwa}`).length, 1);
+  igual('links externos · interno e externo juntos', extrairLinksDeTexto(`[[Minha nota]] e ${urlPwa}`).map(l => l.alvo), ['Minha nota', uidB]);
+
+  const notas = [{ id: 1, uid: uidA, title: 'A', pasta: '' }, { id: 2, uid: uidB, title: 'B', pasta: '' }];
+  const refs = extrairLinksDeBlocos([{ html: `<a href="${urlPwa}">B</a>` }]);
+  const resolvidos = resolverLinks(refs, uidA, notas);
+  igual('links externos · resolve pro UID da nota de destino', resolvidos.map(l => l.uidDestino), [uidB]);
+  const grafo = construirGrafo(notas, resolvidos);
+  igual('links externos · aparece como aresta no grafo (Constelações)', grafo.edges.map(e => `${e.source}>${e.target}`), [`${uidA}>${uidB}`]);
+}
+
+// ── Quadros: arquivos de mídia dos cartões sincronizam junto (imagens/<hash>.<ext>) ──
+{
+  const { SyncEngine, serializarQuadro } = await import('../sidepanel/modules/sync-engine.js');
+  const { MemorySyncAdapter } = await import('../sidepanel/modules/sync-adapter.js');
+  const { InMemoryStore } = await import('./memory-store.mjs');
+
+  const adapter = new MemorySyncAdapter();
+  const storeA = new InMemoryStore();
+  const storeB = new InMemoryStore();
+  const engineA = new SyncEngine({ adapter, store: storeA, deviceName: 'AparelhoA' });
+  const engineB = new SyncEngine({ adapter, store: storeB, deviceName: 'AparelhoB' });
+
+  const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4, 5]);
+  const fileIdA = await storeA.salvarArquivo({ name: 'colado_20261006.png', type: 'image/png', blob: new Blob([bytes], { type: 'image/png' }), inline: true });
+  const audioIdA = await storeA.salvarArquivo({ name: 'voz.mp3', type: 'audio/mpeg', blob: new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/mpeg' }) });
+  await storeA.salvarQuadroLocal({
+    uid: 'b_midia_1', title: 'Com Mídia', pasta: '', viewport: { x: 0, y: 0, zoom: 1 }, bgMode: 'stars',
+    cards: [
+      { id: 'i1', type: 'image', x: 0, y: 0, w: 260, h: 200, fileId: fileIdA, alt: 'colado' },
+      { id: 'm1', type: 'media', kind: 'audio', x: 300, y: 0, w: 300, h: 130, fileId: audioIdA, name: 'voz.mp3', mime: 'audio/mpeg' },
+      { id: 'l1', type: 'media', kind: 'link', x: 0, y: 300, w: 260, h: 110, src: 'https://exemplo.com' },
+    ],
+    arrows: [],
+  });
+
+  await engineA.sincronizar();
+  const caminhos = (await adapter.listar?.()) ?? null;
+  const textoRemoto = (await adapter.ler('quadros/com-midia.canvas'))?.texto ?? '';
+  const remoto = JSON.parse(textoRemoto || '{}');
+  const cardImg = (remoto.cards || []).find(c => c.id === 'i1');
+  const cardAudio = (remoto.cards || []).find(c => c.id === 'm1');
+
+  ok('quadro midia · cartão sobe com o caminho do arquivo e SEM o fileId local',
+    cardImg?.arquivo?.startsWith('imagens/') && cardImg.arquivo.endsWith('.png') && !('fileId' in cardImg));
+  ok('quadro midia · áudio também vai pra imagens/ (extensão do nome)', cardAudio?.arquivo?.endsWith('.mp3'));
+  ok('quadro midia · o arquivo existe no destino', (await adapter.ler(cardImg.arquivo)) !== null);
+  ok('quadro midia · JSON Canvas (nodes) aponta pro arquivo', remoto.nodes.find(n => n.id === 'i1')?.file === cardImg.arquivo);
+  ok('quadro midia · link por URL não gera arquivo', !(remoto.cards.find(c => c.id === 'l1')?.arquivo));
+
+  // Aparelho B baixa o quadro: sem o fileId do A (que apontaria pra outro arquivo)
+  await engineB.sincronizar();
+  const quadroB = await storeB.obterQuadroPorUid('b_midia_1');
+  const imgB = quadroB.cards.find(c => c.id === 'i1');
+  ok('quadro midia · aparelho B recebe o caminho, sem fileId', imgB.arquivo === cardImg.arquivo && imgB.fileId == null);
+
+  // …e baixa o arquivo sob demanda
+  const res = await engineB.resolverImagem(imgB.arquivo, null);
+  ok('quadro midia · aparelho B baixa o arquivo sob demanda', res?.fileId != null);
+  const blobB = await storeB.obterBlobArquivo(res.fileId);
+  igual('quadro midia · conteúdo do arquivo chega idêntico', blobB.size, bytes.length);
+
+  // Quando B edita e A recebe, A não perde o arquivo que já tem
+  imgB.fileId = res.fileId;
+  quadroB.cards.push({ id: 't9', type: 'text', x: 5, y: 5, w: 160, h: 80, text: 'nova' });
+  await storeB.salvarQuadroLocal(quadroB);
+  await engineB.sincronizar();
+  await engineA.sincronizar();
+  const quadroA = await storeA.obterQuadroPorUid('b_midia_1');
+  igual('quadro midia · A recebeu a edição de B', quadroA.cards.length, 4);
+  igual('quadro midia · A mantém o fileId do arquivo que já possuía', quadroA.cards.find(c => c.id === 'i1').fileId, fileIdA);
+
+  // serialização pura
+  const texto = serializarQuadro({ uid: 'x', cards: [{ id: 'k', type: 'image', fileId: 7 }], arrows: [] }, new Map([[7, 'imagens/abc.png']]));
+  ok('quadro midia · serializarQuadro troca fileId por arquivo', JSON.parse(texto).cards[0].arquivo === 'imagens/abc.png' && !('fileId' in JSON.parse(texto).cards[0]));
+}
+
+// ── Bases · calendário: dia local e data de criação como reserva ──
+{
+  // bases-calendar-view.js só importa bases-engine (puro): dá pra carregar no Node
+  const { normalizeDateToYMD } = await import('../sidepanel/modules/bases/bases-calendar-view.js');
+  igual('calendário · só data fica como está', normalizeDateToYMD('2026-10-06'), '2026-10-06');
+  igual('calendário · DD/MM/YYYY', normalizeDateToYMD('06/10/2026'), '2026-10-06');
+  const local = new Date(2026, 9, 6, 22, 30);   // 22h30 locais do dia 6
+  igual('calendário · timestamp à noite continua no mesmo dia local', normalizeDateToYMD(local.getTime()), '2026-10-06');
+  igual('calendário · ISO com hora vale no dia local', normalizeDateToYMD(local.toISOString()), '2026-10-06');
+  igual('calendário · vazio e lixo viram nulo', [normalizeDateToYMD(''), normalizeDateToYMD('abc')], [null, null]);
+}
+
+{
+  const { runBasesCalendarTests } = await import('./bases-calendar-tests.mjs');
+  await runBasesCalendarTests({ ok, igual });
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

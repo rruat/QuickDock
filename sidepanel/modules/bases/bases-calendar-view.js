@@ -1,217 +1,96 @@
 // ── bases-calendar-view.js ───────────────────────────────────────────────────
-// Visualização em Calendário Mensal para Bases do QuickDock.
-// Agrupa notas por uma propriedade de data (ex: 'data', 'date', 'created_at', 'vencimento').
+// Visualização em CALENDÁRIO das Bases: mês, semana, dia e agenda.
+// Este arquivo só monta a visão e liga as peças — o trabalho está em bases/calendar/*:
+//   calendar-model.js   notas → eventos (puro)        calendar-time-grid.js   semana/dia
+//   calendar-layout.js  posições e sobreposição       calendar-month-grid.js  mês
+//   calendar-nav.js     intervalos e títulos          calendar-agenda.js      agenda
+//   calendar-actions.js gestos → propriedades         calendar-toolbar.js     barra
+// Configuração da view: ver resolveCalendarConfig (config/view-model.js).
 
 import { getNotePropertyValue } from './bases-engine.js';
+import { resolveCalendarConfig } from './config/view-model.js';
+import { toYMD, todayYMD } from './engine/date-utils.js';
+import { buildCalendarEvents, bucketEventsByDay, pickDefaultDateProp } from './calendar/calendar-model.js';
+import { visibleRange, shiftAnchor, sanitizeAnchor } from './calendar/calendar-nav.js';
+import { buildMovePatch, buildResizePatch, buildCreateProps } from './calendar/calendar-actions.js';
+import { createCalendarToolbar } from './calendar/calendar-toolbar.js';
+import { renderTimeGrid } from './calendar/calendar-time-grid.js';
+import { renderMonthGrid } from './calendar/calendar-month-grid.js';
+import { renderAgenda } from './calendar/calendar-agenda.js';
 
-const MESES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-];
-const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-/**
- * Normaliza um valor de data para string YYYY-MM-DD
- */
-function normalizeDateToYMD(val) {
-  if (!val) return null;
-  if (typeof val === 'number') {
-    const d = new Date(val);
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  }
-  const s = String(val).trim();
-  // YYYY-MM-DD...
-  const iso = /^\d{4}-\d{2}-\d{2}/.exec(s);
-  if (iso) return iso[0];
-  // DD/MM/YYYY
-  const br = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(s);
-  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-  const parsed = new Date(s);
-  if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
-  return null;
-}
+// Mantido por compatibilidade (testes e quem já importava daqui): dia LOCAL de qualquer valor de data
+export { toYMD as normalizeDateToYMD };
 
 /**
- * Renderiza a visualização em Calendário num contêiner DOM.
  * @param {HTMLElement} container
  * @param {Array<Object>} notes
- * @param {Object} schema
- * @param {Object} viewConfig - { dateProperty }
- * @param {Object} callbacks - { onOpenNote, onAddNote }
+ * @param {Object} schema  mapa chave → definição
+ * @param {Object} viewConfig
+ * @param {Object} callbacks { onOpenNote, onAddNote(props, types), onUpdateView(patch),
+ *                             onUpdateNoteProperties(note, patch, types), onOpenSettings() }
  */
 export function renderBaseCalendarView(container, notes, schema, viewConfig = {}, callbacks = {}) {
-  container.innerHTML = '';
+  container._calendarCleanup?.();
   container.className = 'base-view-container base-calendar-container';
+  container.replaceChildren();
 
-  // Identifica a propriedade de data usada
-  let dateProp = viewConfig.dateProperty;
-  if (!dateProp) {
-    // Procura a primeira propriedade de tipo date no schema ou usa 'date'/'data'
-    const found = schema?.properties?.find(p => p.type === 'date' || p.type === 'datetime');
-    dateProp = found ? found.name : 'data';
-  }
+  const cfg = resolveCalendarConfig(viewConfig);
+  if (!cfg.date.start) cfg.date.start = pickDefaultDateProp(schema);
 
-  // Estado do mês sendo visualizado (armazenado no dataset do container para manter navegação)
-  let curYear = container._calYear ?? new Date().getFullYear();
-  let curMonth = container._calMonth ?? new Date().getMonth();
+  const hoje = todayYMD();
+  const anchor = sanitizeAnchor(container._calAnchor, hoje);
+  container._calAnchor = anchor;
+  // Sem onUpdateView (visão fora de uma Base) o modo fica só na memória do contêiner
+  const mode = callbacks.onUpdateView ? cfg.mode : (container._calMode ?? cfg.mode);
+  container._calMode = mode;
 
-  // Cabeçalho de Navegação do Calendário
-  const navBar = document.createElement('div');
-  navBar.className = 'base-cal-nav';
+  const rerender = () => renderBaseCalendarView(container, notes, schema, viewConfig, callbacks);
+  const range = visibleRange(mode, anchor, cfg);
+  const events = buildCalendarEvents(notes, cfg, getNotePropertyValue);
+  const buckets = bucketEventsByDay(events, range.days);
 
-  const titleEl = document.createElement('h3');
-  titleEl.className = 'base-cal-month-title';
-  titleEl.textContent = `${MESES[curMonth]} de ${curYear}`;
+  // ── Barra ────────────────────────────────────────────────────────────────────
+  container.appendChild(createCalendarToolbar({
+    title: range.title,
+    mode,
+    canGoToday: !range.days.includes(hoje),
+    onPrev: () => { container._calAnchor = shiftAnchor(mode, anchor, -1); rerender(); },
+    onNext: () => { container._calAnchor = shiftAnchor(mode, anchor, 1); rerender(); },
+    onToday: () => { container._calAnchor = hoje; rerender(); },
+    onMode: novo => {
+      if (callbacks.onUpdateView) callbacks.onUpdateView({ mode: novo });
+      else { container._calMode = novo; rerender(); }
+    },
+    onSettings: callbacks.onOpenSettings,
+  }));
 
-  const navBtns = document.createElement('div');
-  navBtns.className = 'base-cal-nav-buttons';
+  const corpo = document.createElement('div');
+  corpo.className = 'bcal-body';
+  container.appendChild(corpo);
 
-  const btnPrev = document.createElement('button');
-  btnPrev.className = 'base-cal-btn';
-  btnPrev.title = 'Mês anterior';
-  btnPrev.innerHTML = '‹';
-  btnPrev.addEventListener('click', () => {
-    curMonth--;
-    if (curMonth < 0) { curMonth = 11; curYear--; }
-    container._calYear = curYear;
-    container._calMonth = curMonth;
-    renderBaseCalendarView(container, notes, schema, viewConfig, callbacks);
-  });
+  // ── Gestos → propriedades ────────────────────────────────────────────────────
+  const gravar = async (resultado) => {
+    if (!resultado) return;
+    await callbacks.onUpdateNoteProperties?.(resultado.ev.note, resultado.patch, resultado.types);
+    rerender();
+  };
 
-  const btnToday = document.createElement('button');
-  btnToday.className = 'base-cal-btn base-cal-btn-today';
-  btnToday.textContent = 'Hoje';
-  btnToday.addEventListener('click', () => {
-    const now = new Date();
-    curYear = now.getFullYear();
-    curMonth = now.getMonth();
-    container._calYear = curYear;
-    container._calMonth = curMonth;
-    renderBaseCalendarView(container, notes, schema, viewConfig, callbacks);
-  });
+  const acoes = {
+    onOpen: noteId => callbacks.onOpenNote?.(noteId),
+    onMove: (ev, destino) => { const r = buildMovePatch(ev, destino); return gravar(r && { ev, ...r }); },
+    onResize: (ev, fim) => { const r = buildResizePatch(ev, fim); return gravar(r && { ev, ...r }); },
+    onCreate: (inicio, fim) => {
+      const { props, types } = buildCreateProps(cfg, inicio, fim);
+      return callbacks.onAddNote?.(props, types);
+    },
+    onRerender: rerender,
+  };
 
-  const btnNext = document.createElement('button');
-  btnNext.className = 'base-cal-btn';
-  btnNext.title = 'Próximo mês';
-  btnNext.innerHTML = '›';
-  btnNext.addEventListener('click', () => {
-    curMonth++;
-    if (curMonth > 11) { curMonth = 0; curYear++; }
-    container._calYear = curYear;
-    container._calMonth = curMonth;
-    renderBaseCalendarView(container, notes, schema, viewConfig, callbacks);
-  });
+  const ctx = { cfg, days: range.days, buckets, events, schema, hoje, callbacks: acoes, anchor };
+  let vista;
+  if (mode === 'month') vista = renderMonthGrid(corpo, { ...ctx, weeks: range.weeks });
+  else if (mode === 'agenda') vista = renderAgenda(corpo, ctx);
+  else vista = renderTimeGrid(corpo, ctx);   // semana e dia
 
-  navBtns.append(btnPrev, btnToday, btnNext);
-  navBar.append(titleEl, navBtns);
-  container.appendChild(navBar);
-
-  // Mapeia notas por data YYYY-MM-DD
-  const notesByDate = new Map();
-  notes.forEach(note => {
-    const rawVal = getNotePropertyValue(note, dateProp);
-    const ymd = normalizeDateToYMD(rawVal);
-    if (ymd) {
-      if (!notesByDate.has(ymd)) notesByDate.set(ymd, []);
-      notesByDate.get(ymd).push(note);
-    }
-  });
-
-  // Grade do Calendário
-  const gridEl = document.createElement('div');
-  gridEl.className = 'base-cal-grid';
-
-  // Cabeçalhos dos dias da semana
-  const daysHeader = document.createElement('div');
-  daysHeader.className = 'base-cal-weekdays';
-  DIAS_SEMANA.forEach(dia => {
-    const dEl = document.createElement('div');
-    dEl.className = 'base-cal-weekday-cell';
-    dEl.textContent = dia;
-    daysHeader.appendChild(dEl);
-  });
-  gridEl.appendChild(daysHeader);
-
-  // Células dos dias
-  const daysGrid = document.createElement('div');
-  daysGrid.className = 'base-cal-days';
-
-  const firstDayIndex = new Date(curYear, curMonth, 1).getDay();
-  const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
-  const prevMonthDays = new Date(curYear, curMonth, 0).getDate();
-
-  const hoje = new Date();
-  const hojeYMD = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
-
-  // Dias do mês anterior para preencher a primeira semana
-  for (let i = firstDayIndex - 1; i >= 0; i--) {
-    const cell = document.createElement('div');
-    cell.className = 'base-cal-day-cell is-other-month';
-    const dayNum = prevMonthDays - i;
-    cell.innerHTML = `<span class="base-cal-day-num">${dayNum}</span>`;
-    daysGrid.appendChild(cell);
-  }
-
-  // Dias do mês corrente
-  for (let day = 1; day <= daysInMonth; day++) {
-    const ymd = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const cell = document.createElement('div');
-    cell.className = 'base-cal-day-cell';
-    if (ymd === hojeYMD) cell.classList.add('is-today');
-
-    const header = document.createElement('div');
-    header.className = 'base-cal-day-header';
-
-    const numSpan = document.createElement('span');
-    numSpan.className = 'base-cal-day-num';
-    numSpan.textContent = day;
-
-    const addBtn = document.createElement('button');
-    addBtn.className = 'base-cal-day-add';
-    addBtn.title = 'Adicionar nota nesta data';
-    addBtn.textContent = '+';
-    addBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (callbacks.onAddNote) callbacks.onAddNote({ [dateProp]: ymd });
-    });
-
-    header.append(numSpan, addBtn);
-    cell.appendChild(header);
-
-    // Notas deste dia
-    const dayNotes = notesByDate.get(ymd) || [];
-    if (dayNotes.length > 0) {
-      const itemsList = document.createElement('div');
-      itemsList.className = 'base-cal-items-list';
-
-      dayNotes.forEach(note => {
-        const item = document.createElement('div');
-        item.className = 'base-cal-item';
-        item.textContent = note.title || 'Sem título';
-        item.title = note.title || 'Sem título';
-        item.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (callbacks.onOpenNote) callbacks.onOpenNote(note.id);
-        });
-        itemsList.appendChild(item);
-      });
-
-      cell.appendChild(itemsList);
-    }
-
-    daysGrid.appendChild(cell);
-  }
-
-  // Preenche o final da última semana com dias do próximo mês
-  const totalRendered = firstDayIndex + daysInMonth;
-  const remaining = (7 - (totalRendered % 7)) % 7;
-  for (let i = 1; i <= remaining; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'base-cal-day-cell is-other-month';
-    cell.innerHTML = `<span class="base-cal-day-num">${i}</span>`;
-    daysGrid.appendChild(cell);
-  }
-
-  gridEl.appendChild(daysGrid);
-  container.appendChild(gridEl);
+  container._calendarCleanup = () => { vista?.destroy?.(); container._calendarCleanup = null; };
 }

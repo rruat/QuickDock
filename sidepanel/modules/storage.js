@@ -362,6 +362,30 @@ export async function salvarLinksDaNota(uidOrigem, links = []) {
   });
 }
 
+// Reconstrói a tabela `links` de TODAS as notas a partir do conteúdo. Serve pra quando
+// o jeito de reconhecer links muda (ex.: passou a valer link externo ?abrirNota=) —
+// notas antigas só seriam reindexadas na próxima vez que fossem editadas.
+// `versao` evita refazer: roda uma vez por versão do formato de links neste aparelho.
+export async function garantirIndiceDeLinks(versao) {
+  if (!db || !db.links || !db.notes) return false;
+  const chave = 'quickdock:links-index-version';
+  try { if (localStorage.getItem(chave) === String(versao)) return false; } catch {}
+  const notas = await db.notes.toArray();
+  const registros = [];
+  for (const nota of notas) {
+    if (!nota.uid) continue;
+    const refs = extrairLinksDeBlocos(nota.blocks ?? []);
+    for (const l of resolverLinks(refs, nota.uid, notas)) {
+      registros.push({ uidOrigem: nota.uid, uidDestino: l.uidDestino || null, tituloAlvo: (l.tituloAlvo || '').trim() });
+    }
+  }
+  await db.transaction('rw', db.links, async () => {
+    await db.links.clear();
+    if (registros.length) await db.links.bulkAdd(registros);
+  });
+  try { localStorage.setItem(chave, String(versao)); } catch {}
+  return true;
+}
 export async function obterBacklinks(uidDestino, tituloAlvo) {
   if (!db || !db.links) return [];
   const encontrados = [];

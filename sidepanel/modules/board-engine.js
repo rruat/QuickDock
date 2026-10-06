@@ -15,9 +15,10 @@
 
 import {
   saveBoardRecord, getBoardById, getBoardByUid, loadAllBoards, deleteBoardRecord,
-  saveFile, loadFileBlob, deleteFile, loadAllNotesMeta, createNoteRecord,
+  saveFile, loadFileBlob, deleteFile, loadAllNotesMeta, createNoteRecord, getNoteById, updateNoteMetaById,
 } from './storage.js';
-import { escHtml } from './blocks.js';
+import { escHtml, parseMarkdownToBlocks } from './blocks.js';
+import { renderNoteBlocks } from './board/board-note-render.js';
 import { positionPopover } from './popover.js';
 
 export const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -59,7 +60,7 @@ import {
 } from './board/board-cards.js';
 import {
   MEDIA_DEFAULT_SIZE, MEDIA_FILE_ACCEPT, mediaFromUrl, kindFromFile, mediaHandleLabel,
-  buildMediaBody, releaseMediaFile,
+  buildMediaBody, releaseMediaFile, garantirFileId, setRemoteFileResolver, urlDoArquivo,
 } from './board/board-media.js';
 import { toggleQuickbarPanel, openQuickbarPanel, closeQuickbarPanel } from './board/board-quickbar-panel.js';
 import { renderInsertPanel } from './board/board-insert-panel.js';
@@ -118,6 +119,8 @@ let titleInput, saveStatus, zoomText, rootSectionEl;
 
 // Seleção múltipla e auto-alinhamento inteligente estilo Canva
 let selectedCardIds = new Set();
+// Cartão de nota em edição de verdade (editor de notas emprestado ao cartão — ver board/board-note-live.js)
+let liveCardId = null;
 let isBoxSelecting = false;
 let boxStartWorld = { x: 0, y: 0 };
 let longPressTimer = null;
@@ -578,6 +581,54 @@ export async function switchBoard(idOrUid) {
   return true;
 }
 
+// Edita título/pasta de um espaço pelo Explorador. Se for o espaço aberto, altera o
+// estado em memória (senão o próximo salvamento sobrescreveria a mudança).
+export async function updateBoardMeta(uid, patch) {
+  if (currentBoard?.uid === uid) {
+    Object.assign(currentBoard, patch);
+    if (patch.title !== undefined && titleInput) titleInput.value = patch.title;
+    await persistBoard();
+    return;
+  }
+  const board = await getBoardByUid(uid);
+  if (!board) return;
+  await saveBoardRecord({ ...board, ...patch });
+  document.dispatchEvent(new CustomEvent('quickdock:board-changed', { detail: { uid } }));
+}
+
+// Exclui um espaço e os arquivos de mídia dos cartões. Se era o aberto, passa pra outro
+// (ou cria um novo, pra nunca ficar sem espaço).
+export async function removeBoard(uid) {
+  const board = await getBoardByUid(uid);
+  if (!board) return;
+  const eraOAberto = currentBoard?.uid === uid;
+  if (eraOAberto) { clearTimeout(saveTimer); saveTimer = null; }
+
+  for (const card of board.cards || []) {
+    if ((card.type === 'image' || card.type === 'media') && card.fileId != null) {
+      if (card.type === 'media') releaseMediaFile(card.fileId);
+      await deleteFile(card.fileId).catch(err => console.warn('Erro ao excluir arquivo do espaço:', err));
+    }
+  }
+  if (board.id != null) await deleteBoardRecord(board.id);
+  try {
+    if (localStorage.getItem('quickdock:active-board-uid') === uid) localStorage.removeItem('quickdock:active-board-uid');
+  } catch {}
+
+  if (eraOAberto) {
+    const restantes = await loadAllBoards();
+    if (restantes.length > 0) await switchBoard(restantes[0].uid);
+    else await createBlankBoard('Espaço Inicial');
+  }
+  document.dispatchEvent(new CustomEvent('quickdock:board-changed', { detail: { deletedUid: uid } }));
+  document.dispatchEvent(new CustomEvent('quickdock:refresh-board-view'));
+}
+// O app injeta como baixar um arquivo de cartão vindo da sincronização (ver app.js);
+// quando chega, o cartão passa a ter fileId local e o quadro é salvo.
+export function setBoardFileResolver(resolver) {
+  setRemoteFileResolver(resolver, () => { if (currentBoard?.cards) scheduleSave(); });
+}
+
 let openBoardListPopover = null;
 
 export function closeBoardListPopover() {
@@ -886,7 +937,7 @@ function addNoteCard(worldX, worldY, noteUid) {
   const cardId = `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   currentBoard.cards.push({
     id: cardId, x: Math.round(worldX), y: Math.round(worldY),
-    w: 220, h: 90, type: 'note', noteUid, color: null,
+    w: 320, h: 280, type: 'note', noteUid, color: null,
   });
   renderCards();
   renderArrows();
@@ -920,6 +971,7 @@ function renderCards() {
     }
     cardsLayer.appendChild(cardEl);
   }
+  restaurarEdicaoAoVivo();
 }
 
 // ── Auto-Alinhamento Inteligente (delegado para board/board-snapping.js) ──────
@@ -941,6 +993,12 @@ function selectCard(cardId, addToSelection = false) {
   if (!addToSelection) clearSelection();
   selectedCardIds.add(cardId);
   document.querySelector(`[data-card-id="${cardId}"]`)?.classList.add('is-selected');
+  updateSelectionToolbar();
+}
+
+function selectAllCards() {
+  selectedCardIds = new Set(currentBoard.cards.map(c => c.id));
+  document.querySelectorAll('.board-card').forEach(el => el.classList.toggle('is-selected', selectedCardIds.has(el.dataset.cardId)));
   updateSelectionToolbar();
 }
 
@@ -1035,6 +1093,7 @@ function batchChangeColor(color) {
 
 function deleteSelectedCards() {
   const ids = new Set(selectedCardIds);
+  if (liveCardId && ids.has(liveCardId)) pararEdicaoAoVivo();
   for (const cardId of ids) {
     const card = currentBoard.cards.find(c => c.id === cardId);
     if ((card?.type === 'image' || card?.type === 'media') && card.fileId != null) {
@@ -1168,7 +1227,7 @@ function openNoteSearchPanel(anchor) {
           item.addEventListener('click', () => {
             api.close();
             const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
-            addNoteCard(center.x - 110, center.y - 45, nota.uid);
+            addNoteCard(center.x - 160, center.y - 140, nota.uid);
           });
           list.appendChild(item);
         }
@@ -1209,7 +1268,7 @@ async function criarNotaEAdicionar() {
         await createNoteRecord({ title: titulo, uid });
         await refreshNotesCache();
         const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
-        addNoteCard(center.x - 110, center.y - 45, uid);
+        addNoteCard(center.x - 160, center.y - 140, uid);
       };
       confirmar.addEventListener('click', criar);
       input.addEventListener('keydown', e => {
@@ -1644,11 +1703,154 @@ function noteCardBodyHtml(card) {
         <span class="board-card-note-title">Nota não encontrada</span>
       </div>`;
   }
+  // Cabeçalho (ícone + título) e o conteúdo da nota renderizado em blocos, com rolagem
   return `
-    <div class="board-card-body board-card-note-body" title="Abrir nota (duplo clique)">
-      <span class="qd-icon material-symbols-rounded board-card-note-icon">${escHtml(nota.icon || 'description')}</span>
-      <span class="board-card-note-title">${escHtml(nota.title || 'Sem título')}</span>
+    <div class="board-card-body board-card-note-body" title="Duplo clique para abrir a nota">
+      <div class="board-note-head">
+        <span class="qd-icon material-symbols-rounded board-card-note-icon">${escHtml(nota.icon || 'description')}</span>
+        <span class="board-card-note-title">${escHtml(nota.title || 'Sem título')}</span>
+      </div>
+      <div class="board-note-content"></div>
+      <div class="board-note-live-host" hidden></div>
     </div>`;
+}
+
+// ── Edição ao vivo do cartão de nota ──────────────────────────────────────────
+// Duplo clique no cartão passa a editar a nota ali mesmo, com o editor de notas de
+// verdade (o editor é emprestado ao cartão; ver board/board-note-live.js). Só no app
+// completo (desktop): a página do Espaço em aba cheia continua abrindo a nota.
+const LIVE_MIN_W = 340;
+const LIVE_MIN_H = 320;
+
+function podeEditarAoVivo() {
+  return !!engineOptions.liveNote?.isAvailable();
+}
+
+function marcarCartaoAoVivo(cardEl, ligado, nota = null) {
+  cardEl.classList.toggle('is-live-note', ligado);
+  const content = cardEl.querySelector('.board-note-content');
+  const host = cardEl.querySelector('.board-note-live-host');
+  if (content) content.hidden = ligado;
+  if (host) host.hidden = !ligado;
+  const titulo = cardEl.querySelector('.board-card-note-title');
+  if (titulo) {
+    titulo.contentEditable = ligado ? 'plaintext-only' : 'false';
+    titulo.onblur = null;
+    titulo.onkeydown = null;
+    titulo.onpointerdown = null;
+    if (ligado && nota) {
+      titulo.onpointerdown = e => e.stopPropagation();
+      titulo.onkeydown = e => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); titulo.blur(); }
+      };
+      titulo.onblur = async () => {
+        const novo = titulo.textContent.trim() || 'Sem título';
+        titulo.textContent = novo;
+        if (novo === nota.title) return;
+        nota.title = novo;
+        await updateNoteMetaById(nota.id, { title: novo });
+        document.dispatchEvent(new CustomEvent('quickdock:note-title-preview', { detail: { noteId: nota.id, title: novo } }));
+      };
+    }
+  }
+}
+
+// O editor voltou pro lugar (edição concluída, ou outra coisa tomou o editor de volta)
+function aoDevolverEditor() {
+  const id = liveCardId;
+  liveCardId = null;
+  if (!id || !cardsLayer) return;
+  const cardEl = cardsLayer.querySelector(`.board-card[data-card-id="${id}"]`);
+  if (!cardEl) return;
+  marcarCartaoAoVivo(cardEl, false);
+  const card = currentBoard.cards.find(c => c.id === id);
+  const nota = allNotesCache.find(n => n.uid === card?.noteUid);
+  if (nota) hidratarCartaoNota(cardEl, nota);
+}
+
+async function iniciarEdicaoAoVivo(card, cardEl, nota) {
+  if (!podeEditarAoVivo() || !nota) return false;
+  if (liveCardId === card.id) return true;
+  if (liveCardId) await pararEdicaoAoVivo();
+  const host = cardEl.querySelector('.board-note-live-host');
+  if (!host) return false;
+
+  // Cartão de nota antigo é pequeno (220×90): sobraria meia linha de editor. Cresce até caber.
+  if (card.w < LIVE_MIN_W || card.h < LIVE_MIN_H) {
+    card.w = Math.max(card.w, LIVE_MIN_W);
+    card.h = Math.max(card.h, LIVE_MIN_H);
+    cardEl.style.width = `${card.w}px`;
+    cardEl.style.height = `${card.h}px`;
+    renderArrows();
+    scheduleSave();
+  }
+
+  liveCardId = card.id;
+  marcarCartaoAoVivo(cardEl, true, nota);
+  const ok = await engineOptions.liveNote.mount(host, nota.id, { onReturned: aoDevolverEditor });
+  if (!ok) {
+    liveCardId = null;
+    marcarCartaoAoVivo(cardEl, false);
+    return false;
+  }
+  document.getElementById('note-editor-blocks')?.focus();
+  return true;
+}
+
+async function pararEdicaoAoVivo() {
+  if (!liveCardId) return;
+  await engineOptions.liveNote?.unmount();
+  if (liveCardId) aoDevolverEditor();   // garantia: o estado não pode ficar preso
+}
+
+// renderCards recria todos os cartões: o editor emprestado vai pro cartão novo; se o
+// cartão sumiu (excluído, outro espaço), a edição termina e o editor volta.
+function restaurarEdicaoAoVivo() {
+  if (!liveCardId) return;
+  const cardEl = cardsLayer.querySelector(`.board-card[data-card-id="${liveCardId}"]`);
+  const host = cardEl?.querySelector('.board-note-live-host');
+  if (cardEl && host && engineOptions.liveNote?.moveTo(host)) {
+    const card = currentBoard.cards.find(c => c.id === liveCardId);
+    marcarCartaoAoVivo(cardEl, true, allNotesCache.find(n => n.uid === card?.noteUid));
+    return;
+  }
+  pararEdicaoAoVivo();
+}
+
+// Preenche o cartão com o conteúdo da nota (somente leitura, mesmo visual do editor).
+// Chamado ao criar o cartão e de novo quando as notas mudam.
+async function hidratarCartaoNota(cardEl, nota) {
+  const alvo = cardEl.querySelector('.board-note-content');
+  if (!alvo || !nota || cardEl.classList.contains('is-live-note')) return;
+  try {
+    const completa = await getNoteById(nota.id);
+    const blocos = completa?.blocks?.length ? completa.blocks : parseMarkdownToBlocks(completa?.content ?? '');
+    if (!alvo.isConnected) return;
+    renderNoteBlocks(alvo, blocos, { urlDoArquivo: id => urlDoArquivo(id, loadFileBlob) });
+  } catch (err) {
+    console.warn('Erro ao renderizar nota no cartão:', err);
+  }
+}
+
+// Notas editadas/renomeadas/excluídas: atualiza o que cada cartão de nota mostra
+let atualizaCartoesNotaTimer = null;
+function agendarAtualizacaoDosCartoesDeNota() {
+  clearTimeout(atualizaCartoesNotaTimer);
+  atualizaCartoesNotaTimer = setTimeout(async () => {
+    if (!cardsLayer) return;
+    await refreshNotesCache();
+    for (const cardEl of cardsLayer.querySelectorAll('.board-card[data-card-type="note"]')) {
+      const card = currentBoard.cards.find(c => c.id === cardEl.dataset.cardId);
+      const nota = allNotesCache.find(n => n.uid === card?.noteUid);
+      if (!nota || cardEl.classList.contains('is-live-note')) continue;
+      const titulo = cardEl.querySelector('.board-card-note-title');
+      if (titulo) titulo.textContent = nota.title || 'Sem título';
+      const icone = cardEl.querySelector('.board-card-note-icon');
+      if (icone) icone.textContent = nota.icon || 'description';
+      await hidratarCartaoNota(cardEl, nota);
+    }
+  }, 400);
 }
 
 function createCardElement(card) {
@@ -1680,6 +1882,11 @@ function createCardElement(card) {
   const colorBtnHtml = tipo === 'note' ? '' :
     '<button class="card-action-btn btn-color" title="Alternar cor" aria-label="Alternar cor">🎨</button>';
 
+  const openBtnHtml = (tipo === 'note' && nota)
+    ? '<button class="card-action-btn btn-note-done" title="Concluir edição" aria-label="Concluir edição"><span class="qd-icon material-symbols-rounded" aria-hidden="true">check</span></button>'
+      + '<button class="card-action-btn btn-open-note" title="Abrir nota" aria-label="Abrir nota"><span class="qd-icon material-symbols-rounded" aria-hidden="true">open_in_new</span></button>'
+    : '';
+
   const shapeBtnHtml = (tipo === 'text' || !tipo)
     ? '<button class="card-action-btn btn-shape" title="Alterar formato da forma" aria-label="Alterar formato">❖</button>'
     : '';
@@ -1695,6 +1902,7 @@ function createCardElement(card) {
     <div class="board-card-header">
       ${handleHtml}
       <div class="board-card-actions">
+        ${openBtnHtml}
         ${shapeBtnHtml}
         ${colorBtnHtml}
         <button class="card-action-btn btn-delete" title="Excluir cartão" aria-label="Excluir cartão">✕</button>
@@ -1709,7 +1917,7 @@ function createCardElement(card) {
   `;
 
   if (tipo === 'media') {
-    el.querySelector('.board-card-media-slot').replaceWith(buildMediaBody(card, { loadFileBlob }));
+    el.querySelector('.board-card-media-slot').replaceWith(buildMediaBody(card, { loadFileBlob, onMeta: () => scheduleSave() }));
   }
 
   const bodyEl = el.querySelector('.board-card-body');
@@ -1722,13 +1930,14 @@ function createCardElement(card) {
     });
   } else if (tipo === 'image') {
     const imgEl = bodyEl.querySelector('.board-card-image-el');
-    if (card.fileId != null) {
-      loadFileBlob(card.fileId).then(blob => {
+    // Imagem vinda de outro aparelho (sync) traz só o caminho: baixa sob demanda
+    garantirFileId(card).then(() => {
+      if (card.fileId == null) return;
+      return loadFileBlob(card.fileId).then(blob => {
         if (!blob || !imgEl.isConnected) return;
         imgEl.src = URL.createObjectURL(blob);
-      }).catch(err => console.warn('Erro ao carregar imagem do cartão:', err));
-    }
-  } else if (tipo === 'group') {
+      });
+    }).catch(err => console.warn('Erro ao carregar imagem do cartão:', err));  } else if (tipo === 'group') {
     const groupHandleEl = el.querySelector('.board-group-handle');
     groupHandleEl?.addEventListener('input', () => {
       card.label = groupHandleEl.innerText.trim() || 'Grupo';
@@ -1739,9 +1948,21 @@ function createCardElement(card) {
     // Duplo clique abre a nota de verdade — clique simples continua livre
     // pra arrastar/selecionar, igual aos outros cartões.
     bodyEl?.addEventListener('dblclick', e => {
+      if (el.classList.contains('is-live-note')) return;   // já editando: o duplo clique é do texto
+      e.stopPropagation();
+      if (!nota) return;
+      if (podeEditarAoVivo()) iniciarEdicaoAoVivo(card, el, nota);
+      else abrirNotaDoQuadro(nota.uid);
+    });
+    el.querySelector('.btn-open-note')?.addEventListener('click', e => {
       e.stopPropagation();
       if (nota) abrirNotaDoQuadro(nota.uid);
     });
+    el.querySelector('.btn-note-done')?.addEventListener('click', e => {
+      e.stopPropagation();
+      pararEdicaoAoVivo();
+    });
+    hidratarCartaoNota(el, nota);
   }
 
   // Alterar Formato de Forma de Fluxograma
@@ -1907,6 +2128,7 @@ function createCardElement(card) {
 }
 
 function deleteCard(cardId) {
+  if (liveCardId === cardId) pararEdicaoAoVivo();
   // Cartão de imagem guarda o Blob à parte, na tabela `files` — sem isso ele
   // ficaria órfão no banco pra sempre, sem nenhum cartão apontando pra ele.
   const card = currentBoard.cards.find(c => c.id === cardId);
@@ -2230,6 +2452,21 @@ function renderArrows() {
 
 // ── Eventos de Mouse e Teclado ────────────────────────────────────────────────
 function setupEventListeners(getEl) {
+  document.addEventListener('quickdock:notes-changed', agendarAtualizacaoDosCartoesDeNota);
+
+  // Clicar no resto do quadro (fundo, outros cartões, barras) conclui a edição ao vivo.
+  // Menus e popups do editor ficam fora do #board-container, então não contam.
+  document.addEventListener('pointerdown', e => {
+    if (!liveCardId) return;
+    const cartaoAoVivo = cardsLayer?.querySelector(`.board-card[data-card-id="${liveCardId}"]`);
+    if (cartaoAoVivo?.contains(e.target)) return;
+    if (!e.target.closest?.('#board-container, #board-quickbar, #board-zoom-dock, .board-selection-toolbar')) return;
+    pararEdicaoAoVivo();
+  }, true);
+  document.addEventListener('quickdock:view-changed', e => {
+    if (liveCardId && e.detail?.view !== 'board') pararEdicaoAoVivo();
+  });
+
   // Título do Espaço
   titleInput?.addEventListener('input', () => {
     currentBoard.title = titleInput.value.trim() || 'Espaço Sem Título';
@@ -2445,7 +2682,19 @@ function setupEventListeners(getEl) {
   // cartão num quadro escondido).
   window.addEventListener('keydown', e => {
     if (rootSectionEl?.hidden) return;
-    if (e.target.matches('input, [contenteditable="true"]')) return;
+    if (e.target.matches('input, textarea, select, [contenteditable="true"]')) return;
+    // Com outra view em foco (mosaico do desktop), o atalho é dela, não do quadro
+    const emFoco = document.querySelector('.main-section.is-focused');
+    if (rootSectionEl && emFoco && emFoco !== rootSectionEl) return;
+
+    // Ctrl/Cmd+A seleciona os cartões do quadro, não a página inteira
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      selectAllCards();
+      return;
+    }
+    // Demais atalhos são de uma tecla só: Ctrl+C/V (copiar/colar) não podem criar cartão
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'v' || e.key === 'V') setTool('select');
     if (e.key === 'c' || e.key === 'C') {
       const center = screenToWorld(container.clientWidth / 2, container.clientHeight / 2);
@@ -2656,6 +2905,9 @@ function onContainerPointerUp(e) {
 }
 
 function onContainerWheel(e) {
+  // Sobre o conteúdo de um cartão de nota que tem rolagem, a roda rola a nota (Ctrl+roda ainda dá zoom)
+  const rolavel = !e.ctrlKey && e.target.closest?.('.board-note-content, .board-note-live-host');
+  if (rolavel && rolavel.scrollHeight > rolavel.clientHeight + 1) return;
   e.preventDefault();
   const factor = e.deltaY < 0 ? 1.12 : 0.88;
   zoomBy(factor, e.clientX, e.clientY);

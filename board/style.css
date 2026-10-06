@@ -70,8 +70,9 @@
   --grid-dot: oklch(35.3% 0.009 88.7);
 }
 
-.board-theme-scope,
-.board-theme-scope * {
+/* Especificidade zero (:where): o reset vale pro Espaço, mas nunca vence regras do app —
+   o editor de notas emprestado a um cartão traz as próprias (padding/margin dos blocos). */
+:where(.board-theme-scope, .board-theme-scope *) {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -1846,4 +1847,216 @@
 
 @media (prefers-reduced-motion: reduce) {
   .board-quickbar-panel { transition: none; }
+}
+/* ── Cor da quickbar e do dock de zoom: a mesma do item em hover da aside ────
+   É o --bg-hover do app em cada tema (claro: 89.9% / escuro: 33.4%, este último
+   é o #383632). Valores literais e não var(--bg-hover) porque o hover dos botões
+   DENTRO da barra precisa de um tom diferente do fundo da própria barra.
+   Seletores por id para vencer as regras !important do desktop/mobile. */
+#board-quickbar,
+#board-zoom-dock {
+  --qb-bg: oklch(89.9% 0.015 84.6);
+  --bg: var(--qb-bg);
+  --bg-hover: color-mix(in oklch, var(--text) 10%, var(--qb-bg));
+}
+
+[data-theme="dark"] #board-quickbar,
+[data-theme="dark"] #board-zoom-dock,
+.dark-theme #board-quickbar,
+.dark-theme #board-zoom-dock {
+  --qb-bg: oklch(33.4% 0.007 84.6);
+}
+
+#board-quickbar {
+  background: var(--qb-bg) !important;
+}
+
+#board-zoom-dock .board-zoom-group {
+  background: var(--qb-bg) !important;
+}
+/* Dock de zoom centralizado na vertical, colado à direita */
+#board-zoom-dock {
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%);
+}
+/* O reset `.board-theme-scope *` (padding: 0) empata em especificidade com
+   `.section-header` e, por vir depois, zerava o padding horizontal do cabeçalho
+   da view. Aqui o cabeçalho volta ao padrão das demais views (22-spatial-shell.css);
+   no mobile quem manda é a regra de 23-mobile-spatial.css. */
+@media (min-width: 769px) {
+  .board-view > .section-header {
+    padding-inline: 0.75rem;
+  }
+}
+/* ── Cartão de link: miniatura + favicon + título, clicável ──────────────── */
+.board-card[data-card-type="media"] .board-card-media-body[data-media-kind="link"] {
+  display: block;
+  padding: 0;
+  background: var(--bg-card);
+}
+
+.board-link {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.board-link-thumb {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+
+.board-link-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.board-link-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.board-link-thumb[hidden] + .board-link-info {
+  flex: 1 1 auto;
+  border-top: 0;
+}
+
+.board-link-favicon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.board-link-open {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.board-link:hover .board-link-open,
+.board-link:focus-visible .board-link-open { opacity: 1; }
+
+.board-link:hover .board-media-title { color: var(--accent); }
+
+/* ── Cartão de nota: conteúdo renderizado em blocos (somente leitura) ─────── */
+.board-card[data-card-type="note"] .board-card-note-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  min-height: 0;
+  overflow: hidden;
+  cursor: default;
+}
+
+.board-note-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.board-note-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 4px 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  user-select: text;
+  -webkit-user-select: text;
+  overscroll-behavior: contain;
+}
+
+/* Sem o 03-blocks.css (página do Espaço em aba cheia) o conteúdo continua legível */
+.board-note-render .block { padding: 2px 8px; white-space: pre-wrap; word-break: break-word; }
+.board-note-render h1.block { font-size: 18px; font-weight: 700; margin: 8px 0 3px; }
+.board-note-render h2.block { font-size: 16px; font-weight: 700; margin: 8px 0 3px; }
+.board-note-render h3.block { font-size: 14px; font-weight: 700; margin: 6px 0 2px; }
+.board-note-render .block-list { display: flex; gap: 6px; }
+.board-note-render .block-list .block-marker { flex: 0 0 auto; min-width: 1.2em; color: var(--text-muted); }
+.board-note-render .block-code { font-family: ui-monospace, monospace; background: var(--bg-subtle); border-radius: 6px; }
+.board-note-render .block-table table { border-collapse: collapse; width: 100%; }
+.board-note-render .block-table td { border: 1px solid var(--border); padding: 3px 6px; }
+.board-note-render .block-image img,
+.board-note-render .block-video video { max-width: 100%; height: auto; }
+.board-note-render .block-divider hr { border: 0; border-top: 1px solid var(--border); }
+.board-note-render .board-note-vazia,
+.board-note-render .block-base-aviso { color: var(--text-muted); font-style: italic; }
+.board-note-render .note-internal-link { color: var(--accent); cursor: default; }
+
+.board-card .btn-open-note .qd-icon { font-size: 14px; }
+
+/* ── Cartão de nota ao vivo: o editor de notas de verdade dentro do cartão ─── */
+.board-card.is-live-note {
+  outline: 2px solid var(--accent);
+  z-index: 40;
+}
+
+.board-note-live-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+  overscroll-behavior: contain;
+  cursor: text;
+  /* O app usa o acento neutro (texto); o do Espaço é azul. O editor segue o do app. */
+  --accent: oklch(22.2% 0.006 91.6);
+}
+
+[data-theme="dark"] .board-note-live-host { --accent: oklch(93.7% 0.008 91.5); }
+
+.board-note-live-host[hidden] { display: none; }
+
+.board-card .btn-note-done { display: none; }
+.board-card.is-live-note .btn-note-done { display: inline-flex; }
+.board-card.is-live-note .btn-open-note { display: none; }
+
+.board-card.is-live-note .board-card-note-title {
+  min-width: 40px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  outline: 1px dashed var(--border);
+  cursor: text;
+  user-select: text;
+}
+
+/* No cartão não cabe a alça "+ / ⠿" (ela se posiciona pelo editor original) */
+.board-note-live-host .block-controls { display: none; }
+
+/* Enquanto o editor está num cartão, a view de Notas avisa em vez de ficar vazia */
+.note-workspace-body.editor-lent::after {
+  content: 'Esta nota está aberta num cartão do Espaço. Conclua a edição lá para voltar.';
+  display: block;
+  margin: 24px auto;
+  max-width: 320px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
 }

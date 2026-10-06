@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-51';
+const CACHE_NAME = 'quickdock-v3.0.0-65';
 
 const ASSET_PATHS = [
   '',
@@ -38,6 +38,7 @@ const ASSET_PATHS = [
   'sidepanel/css/17-note-properties.css',
   'sidepanel/css/18-calendar-view.css',
   'sidepanel/css/19-bases-view.css',
+  'sidepanel/css/30-bases-calendar.css',
   'sidepanel/css/20-json-studio.css',
   'sidepanel/css/21-dashboard-zero-tabs.css',
   'sidepanel/css/22-spatial-shell.css',
@@ -69,6 +70,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/notes-dashboard.js',
   'sidepanel/modules/tabs/notes-drawer.js',
   'sidepanel/modules/tabs/notes-drawer-boards.js',
+  'sidepanel/modules/tabs/notes-board-menu.js',
   'sidepanel/modules/tabs/notes-aside-header.js',
   'sidepanel/modules/tabs/notes-folders.js',
   'sidepanel/modules/tabs/notes-folder-modals.js',
@@ -81,6 +83,9 @@ const ASSET_PATHS = [
   'sidepanel/modules/board/board-shapes.js',
   'sidepanel/modules/board/board-snapping.js',
   'sidepanel/modules/board/board-media.js',
+  'sidepanel/modules/board/board-link-card.js',
+  'sidepanel/modules/board/board-note-render.js',
+  'sidepanel/modules/board/board-note-live.js',
   'sidepanel/modules/board/board-insert-panel.js',
   'sidepanel/modules/board/board-beautify.js',
   'sidepanel/modules/board/board-beautify-panel.js',
@@ -157,6 +162,23 @@ const ASSET_PATHS = [
   'sidepanel/modules/bases/bases-gallery-view.js',
   'sidepanel/modules/bases/bases-list-view.js',
   'sidepanel/modules/bases/bases-calendar-view.js',
+  'sidepanel/modules/bases/engine/date-utils.js',
+  'sidepanel/modules/bases/config/view-model.js',
+  'sidepanel/modules/bases/calendar/calendar-actions.js',
+  'sidepanel/modules/bases/calendar/calendar-agenda.js',
+  'sidepanel/modules/bases/calendar/calendar-colors.js',
+  'sidepanel/modules/bases/calendar/calendar-drag.js',
+  'sidepanel/modules/bases/calendar/calendar-event-el.js',
+  'sidepanel/modules/bases/calendar/calendar-layout.js',
+  'sidepanel/modules/bases/calendar/calendar-model.js',
+  'sidepanel/modules/bases/calendar/calendar-month-grid.js',
+  'sidepanel/modules/bases/calendar/calendar-nav.js',
+  'sidepanel/modules/bases/calendar/calendar-time-grid.js',
+  'sidepanel/modules/bases/calendar/calendar-toolbar.js',
+  'sidepanel/modules/bases/ui/controls.js',
+  'sidepanel/modules/bases/ui/property-options.js',
+  'sidepanel/modules/bases/ui/section-calendar.js',
+  'sidepanel/modules/bases/ui/view-settings-panel.js',
   'sidepanel/modules/bases/bases-cell-editors.js',
   'sidepanel/modules/spatial-shell.js',
   'sidepanel/modules/json-view.js',

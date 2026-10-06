@@ -11,12 +11,15 @@ import { switchToNote } from './note.js';
 import { goBack } from './views.js';
 import { isDesktopMode } from './platform.js';
 import { toggleDesktopPanel } from './desktop-panels.js';
+import { liveNote } from './board/board-note-live.js';
 
 export { abrirQuadroInfinitoEmAba };
 
 export async function initBoardView(scope = document) {
   await initBoardEngine(scope, {
     standalone: false,
+    // Cartão de nota editável de verdade: toma o editor de notas emprestado (só existe no app completo)
+    liveNote,
     // No desktop o Quadro é um painel que se liga/desliga (ver
     // desktop-panels.js), não uma tela cheia com histórico pra "voltar" — o
     // botão fecha o painel; fora do desktop continua voltando pro editor.

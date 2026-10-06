@@ -8,6 +8,10 @@ import { formatPropertyValue } from './bases-schema.js';
 /**
  * Extrai o valor de uma propriedade (seja nativa/sistema ou de frontmatter) de uma nota.
  */
+import {
+  toYMD, todayYMD, addDays, addMonths, startOfWeek, startOfMonth, endOfMonth, compareYMD,
+} from './engine/date-utils.js';
+
 export function getNotePropertyValue(note, propKey) {
   if (!note) return undefined;
 
@@ -69,10 +73,11 @@ export function getNotePropertyValue(note, propKey) {
 /**
  * Avalia se uma nota corresponde a uma única condição de filtro.
  */
-export function evaluateFilterCondition(note, filter) {
+export function evaluateFilterCondition(note, filter, ctx = {}) {
   if (!filter || !filter.property) return true;
 
   const { property, operator = 'equals', value } = filter;
+  const agora = ctx.now instanceof Date ? ctx.now : new Date();
   const rawVal = getNotePropertyValue(note, property);
 
   switch (operator) {
@@ -134,21 +139,37 @@ export function evaluateFilterCondition(note, filter) {
     case 'is_unchecked':
       return rawVal === false || rawVal === 'false' || !rawVal;
 
-    case 'is_today': {
-      if (!rawVal) return false;
-      const dStr = typeof rawVal === 'string' ? rawVal.slice(0, 10) : new Date(rawVal).toISOString().slice(0, 10);
-      const todayStr = new Date().toISOString().slice(0, 10);
-      return dStr === todayStr;
+    // ── Datas (todas no dia LOCAL; semana começa na segunda) ──────────────────
+    case 'is_today':
+    case 'is_yesterday':
+    case 'is_tomorrow':
+    case 'is_this_week':
+    case 'is_last_week':
+    case 'is_next_week':
+    case 'is_this_month':
+    case 'is_last_month':
+    case 'is_next_month':
+    case 'is_within_last':
+    case 'is_within_next':
+    case 'is_on_or_before':
+    case 'is_on_or_after':
+    case 'is_between': {
+      const dia = toYMD(rawVal);
+      if (!dia) return false;
+      const hoje = todayYMD(agora);
+      const intervalo = intervaloRelativo(operator, hoje, value);
+      if (intervalo) return compareYMD(dia, intervalo[0]) >= 0 && compareYMD(dia, intervalo[1]) <= 0;
+      return false;
     }
 
     case 'is_before': {
-      if (!rawVal || !value) return false;
-      return String(rawVal).slice(0, 10) < String(value).slice(0, 10);
+      const dia = toYMD(rawVal), alvo = toYMD(value);
+      return !!dia && !!alvo && compareYMD(dia, alvo) < 0;
     }
 
     case 'is_after': {
-      if (!rawVal || !value) return false;
-      return String(rawVal).slice(0, 10) > String(value).slice(0, 10);
+      const dia = toYMD(rawVal), alvo = toYMD(value);
+      return !!dia && !!alvo && compareYMD(dia, alvo) > 0;
     }
 
     case 'is_any_of': {
@@ -173,16 +194,52 @@ export function evaluateFilterCondition(note, filter) {
 }
 
 /**
+ * Intervalo [início, fim] (ymds, inclusivo) que um operador de data relativo representa.
+ * Exportado pra UI mostrar o intervalo e pros testes. `null` se o operador não é relativo.
+ */
+export function intervaloRelativo(operator, hoje, value) {
+  const segunda = d => startOfWeek(d, 1);
+  switch (operator) {
+    case 'is_today':      return [hoje, hoje];
+    case 'is_yesterday':  return [addDays(hoje, -1), addDays(hoje, -1)];
+    case 'is_tomorrow':   return [addDays(hoje, 1), addDays(hoje, 1)];
+    case 'is_this_week':  return [segunda(hoje), addDays(segunda(hoje), 6)];
+    case 'is_last_week':  return [addDays(segunda(hoje), -7), addDays(segunda(hoje), -1)];
+    case 'is_next_week':  return [addDays(segunda(hoje), 7), addDays(segunda(hoje), 13)];
+    case 'is_this_month': return [startOfMonth(hoje), endOfMonth(hoje)];
+    case 'is_last_month': { const m = addMonths(hoje, -1); return [startOfMonth(m), endOfMonth(m)]; }
+    case 'is_next_month': { const m = addMonths(hoje, 1); return [startOfMonth(m), endOfMonth(m)]; }
+    case 'is_within_last': { const n = Math.max(0, Number(value) || 0); return [addDays(hoje, -n), hoje]; }
+    case 'is_within_next': { const n = Math.max(0, Number(value) || 0); return [hoje, addDays(hoje, n)]; }
+    case 'is_on_or_before': { const a = toYMD(value); return a ? ['0000-01-01', a] : ['9999-12-31', '0000-01-01']; }
+    case 'is_on_or_after':  { const a = toYMD(value); return a ? [a, '9999-12-31'] : ['9999-12-31', '0000-01-01']; }
+    case 'is_between': {
+      const [a, b] = Array.isArray(value) ? value : String(value ?? '').split(',');
+      const x = toYMD(a), y = toYMD(b);
+      if (!x || !y) return ['9999-12-31', '0000-01-01'];
+      return compareYMD(x, y) <= 0 ? [x, y] : [y, x];
+    }
+    default: return null;
+  }
+}
+
+/**
  * Filtra a coleção de notas de acordo com a cláusula de origem (source),
  * lista de filtros (AND/OR) e busca rápida.
  */
 export function queryBaseNotes(notes = [], options = {}) {
-  const { source = {}, filters = [], filterMode = 'and', quickSearch = '' } = options;
+  const { source = {}, filters = [], quickSearch = '', now } = options;
+  // O modo E/OU já foi gravado com dois nomes (filterMode e filterOperator): vale qualquer um
+  const filterMode = String(options.filterMode ?? options.filterOperator ?? 'and').toLowerCase() === 'or' ? 'or' : 'and';
+  const ctx = { now };
 
   let result = notes.filter(note => {
     // 1. Cláusula de origem (source)
-    if (source.folder) {
-      const fLower = String(source.folder).toLowerCase().trim();
+    // "/" (ou vazio) é a raiz = todas as notas; sem esta normalização "/" casava com NENHUMA
+    // nota assim que o parser de YAML passou a entender `source:` aninhado.
+    const pastaDaOrigem = String(source.folder ?? '').trim().replace(/^\/+|\/+$/g, '');
+    if (pastaDaOrigem) {
+      const fLower = pastaDaOrigem.toLowerCase();
       const noteFolder = String(note.pasta || '').toLowerCase().trim();
       if (source.includeSubfolders !== false) {
         const matches = noteFolder === fLower || noteFolder.startsWith(`${fLower}/`);
@@ -210,10 +267,10 @@ export function queryBaseNotes(notes = [], options = {}) {
     // 2. Filtros de visualização (filters)
     if (Array.isArray(filters) && filters.length > 0) {
       if (filterMode === 'or') {
-        const passesAny = filters.some(f => evaluateFilterCondition(note, f));
+        const passesAny = filters.some(f => evaluateFilterCondition(note, f, ctx));
         if (!passesAny) return false;
       } else {
-        const passesAll = filters.every(f => evaluateFilterCondition(note, f));
+        const passesAll = filters.every(f => evaluateFilterCondition(note, f, ctx));
         if (!passesAll) return false;
       }
     }
@@ -248,6 +305,12 @@ export function queryBaseNotes(notes = [], options = {}) {
   return result;
 }
 
+// Instante (ms) de um valor de data pra comparar; sem data válida vai pro fim da comparação
+function parseDateOrder(v) {
+  const n = typeof v === 'number' ? v : Date.parse(String(v));
+  return Number.isFinite(n) ? n : 0;
+}
+
 /**
  * Ordena a lista de notas com suporte a múltiplos níveis de ordenação.
  */
@@ -277,7 +340,8 @@ export function sortBaseNotes(notes = [], sorts = [], schema = {}) {
       } else if (type === 'checkbox') {
         cmp = (valA ? 1 : 0) - (valB ? 1 : 0);
       } else if (type === 'date' || type === 'datetime') {
-        cmp = String(valA).localeCompare(String(valB));
+        const a = parseDateOrder(valA), b = parseDateOrder(valB);
+        cmp = (a === b) ? String(valA).localeCompare(String(valB)) : a - b;
       } else if (type === 'tasks') {
         const pA = valA.percent ?? 0;
         const pB = valB.percent ?? 0;

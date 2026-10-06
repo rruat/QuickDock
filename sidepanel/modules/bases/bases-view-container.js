@@ -11,7 +11,9 @@ import { renderBaseBoardView } from './bases-board-view.js';
 import { renderBaseGalleryView } from './bases-gallery-view.js';
 import { renderBaseListView } from './bases-list-view.js';
 import { renderBaseCalendarView } from './bases-calendar-view.js';
-import { loadAllNotesMeta, createNoteRecord } from '../storage.js';
+import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById } from '../storage.js';
+import { normalizeViews, VIEW_TYPES, createView, duplicateView, newViewId, applyViewPatch } from './config/view-model.js';
+import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
 import { switchToNote } from '../note.js';
 
 /**
@@ -28,9 +30,15 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
 
   // Estado interno da Base
   let rawConfigString = typeof initialConfig === 'string' ? initialConfig : stringifyBaseToYaml(initialConfig);
-  let baseDef = normalizeBaseDefinition(parseYamlOrJson(rawConfigString));
-  let activeViewIndex = baseDef.defaultView ?? 0;
-  if (activeViewIndex < 0 || activeViewIndex >= baseDef.views.length) activeViewIndex = 0;
+  let baseDef = normalizeViews(normalizeBaseDefinition(parseYamlOrJson(rawConfigString)));
+  let activeViewId = baseDef.defaultViewId;
+  let settingsOpen = false;
+  let settingsHandle = null;
+  const activeIndex = () => Math.max(0, baseDef.views.findIndex(v => v.id === activeViewId));
+  const persistBase = () => {
+    rawConfigString = stringifyBaseToYaml(baseDef);
+    if (options.onConfigChange) options.onConfigChange(rawConfigString);
+  };
 
   let searchQuery = '';
   let showRawConfig = false;
@@ -113,29 +121,71 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   headerEl.appendChild(rightGroup);
   rootContainer.appendChild(headerEl);
 
-  // 2. Área Principal de Visualização (Viewport)
+  // 2. Área Principal de Visualização (Viewport) + painel de configuração da view
   const viewportEl = document.createElement('div');
   viewportEl.className = 'base-viewport';
   rootContainer.appendChild(viewportEl);
+  const settingsEl = document.createElement('aside');
+  settingsEl.className = 'base-settings-host';
+  settingsEl.hidden = true;
+  rootContainer.appendChild(settingsEl);
+
+  function renderSettingsPanel() {
+    settingsHandle?.destroy();
+    settingsHandle = null;
+    const view = baseDef.views[activeIndex()];
+    settingsEl.hidden = !settingsOpen || !view;
+    rootContainer.classList.toggle('has-settings', !settingsEl.hidden);
+    if (settingsEl.hidden) { settingsEl.replaceChildren(); return; }
+    const rolagem = settingsEl.querySelector('.bset-body')?.scrollTop ?? 0;
+    settingsHandle = mountViewSettingsPanel(settingsEl, {
+      getView: () => baseDef.views[activeIndex()],
+      getSchema: () => inferBaseSchema(allNotes, baseDef.properties),
+      onPatch: patch => updateActiveView(patch),
+      onRename: nome => updateActiveView({ name: nome }),
+      onDuplicate: () => {
+        const copia = duplicateView(baseDef.views[activeIndex()], baseDef.views.map(v => v.id));
+        baseDef.views.splice(activeIndex() + 1, 0, copia);
+        activeViewId = copia.id;
+        persistBase(); renderViewTabs(); updateViewport();
+      },
+      canDelete: () => baseDef.views.length > 1,
+      onDelete: () => {
+        if (baseDef.views.length <= 1) return;
+        baseDef.views.splice(activeIndex(), 1);
+        activeViewId = baseDef.views[Math.min(activeIndex(), baseDef.views.length - 1)].id;
+        if (!baseDef.views.some(v => v.id === baseDef.defaultViewId)) baseDef.defaultViewId = activeViewId;
+        persistBase(); renderViewTabs(); updateViewport();
+      },
+      onClose: () => { settingsOpen = false; renderSettingsPanel(); },
+    });
+    const corpo = settingsEl.querySelector('.bset-body');
+    if (corpo) corpo.scrollTop = rolagem;
+  }
+
+  function updateActiveView(patch) {
+    const i = activeIndex();
+    baseDef.views[i] = applyViewPatch(baseDef.views[i], patch);
+    persistBase();
+    renderViewTabs();
+    updateViewport();
+  }
 
   // Função para renderizar as abas de visão
   function renderViewTabs() {
     tabsEl.innerHTML = '';
-    baseDef.views.forEach((view, idx) => {
+    baseDef.views.forEach((view) => {
       const tabBtn = document.createElement('button');
-      tabBtn.className = 'base-tab-btn' + (idx === activeViewIndex ? ' is-active' : '');
-
-      let icon = 'table_chart';
-      if (view.type === 'board') icon = 'view_kanban';
-      if (view.type === 'gallery') icon = 'grid_view';
-      if (view.type === 'list') icon = 'format_list_bulleted';
-      if (view.type === 'calendar') icon = 'calendar_today';
+      tabBtn.className = 'base-tab-btn' + (view.id === activeViewId ? ' is-active' : '');
+      const icon = VIEW_TYPES[view.type]?.icon || 'table_chart';
 
       tabBtn.innerHTML = `
-        <span class="base-tab-name">${view.name || view.type}</span>
+        <span class="qd-icon material-symbols-rounded base-tab-icon" aria-hidden="true">${icon}</span>
+        <span class="base-tab-name"></span>
       `;
+      tabBtn.querySelector('.base-tab-name').textContent = view.name || view.type;
       tabBtn.addEventListener('click', () => {
-        activeViewIndex = idx;
+        activeViewId = view.id;
         renderViewTabs();
         updateViewport();
       });
@@ -176,14 +226,10 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       item.textContent = t.label;
       item.addEventListener('click', () => {
         menu.remove();
-        baseDef.views.push({
-          type: t.type,
-          name: t.label,
-          properties: ['title', 'tags', 'updatedAt'],
-        });
-        activeViewIndex = baseDef.views.length - 1;
-        rawConfigString = stringifyBaseToYaml(baseDef);
-        if (options.onConfigChange) options.onConfigChange(rawConfigString);
+        const nova = createView(t.type, { name: t.label, id: newViewId(baseDef.views.map(v => v.id)) });
+        baseDef.views.push(nova);
+        activeViewId = nova.id;
+        persistBase();
         renderViewTabs();
         updateViewport();
       });
@@ -205,8 +251,8 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   }
 
   // Criação de nova nota
-  async function handleCreateNewNote(extraProps = {}) {
-    const pasta = baseDef.source?.folder || '';
+  async function handleCreateNewNote(extraProps = {}, extraTypes = {}) {
+    const pasta = baseDef.source?.folder && baseDef.source.folder !== '/' ? baseDef.source.folder : '';
     const tag = baseDef.source?.tag;
 
     const initialProperties = { ...extraProps };
@@ -219,6 +265,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         title: 'Nova nota',
         pasta,
         properties: initialProperties,
+        propertyTypes: extraTypes,
       });
 
       document.dispatchEvent(new CustomEvent('quickdock:note-created', { detail: { id: noteId } }));
@@ -249,7 +296,8 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       btnApply.textContent = 'Salvar e Atualizar';
       btnApply.addEventListener('click', () => {
         rawConfigString = textarea.value;
-        baseDef = normalizeBaseDefinition(parseYamlOrJson(rawConfigString));
+        baseDef = normalizeViews(normalizeBaseDefinition(parseYamlOrJson(rawConfigString)));
+        if (!baseDef.views.some(v => v.id === activeViewId)) activeViewId = baseDef.defaultViewId;
         if (options.onConfigChange) options.onConfigChange(rawConfigString);
         showRawConfig = false;
         titleEl.querySelector('.base-header-name').textContent = baseDef.name || 'Base de Dados';
@@ -262,8 +310,9 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       return;
     }
 
-    const currentView = baseDef.views[activeViewIndex] || baseDef.views[0];
+    const currentView = baseDef.views[activeIndex()] || baseDef.views[0];
     if (!currentView) return;
+    renderSettingsPanel();
 
     // 1. Infere o schema combinando notas + definições explícitas
     const schema = inferBaseSchema(allNotes, baseDef.properties);
@@ -272,12 +321,13 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const filteredNotes = queryBaseNotes(allNotes, {
       source: baseDef.source,
       filters: currentView.filters,
+      filterMode: currentView.filterMode,
       filterOperator: currentView.filterOperator,
       quickSearch: searchQuery,
     });
 
     // 3. Ordena notas
-    const sortedNotes = sortBaseNotes(filteredNotes, currentView.sort);
+    const sortedNotes = sortBaseNotes(filteredNotes, currentView.sort, schema);
 
     // Callbacks comuns para as visões. showOwnToolbar: false porque a barra
     // de cima (headerEl, logo acima) já dá busca + "Nova Nota" — sem isto, a
@@ -287,9 +337,21 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       onOpenNote: async (noteId) => {
         await switchToNote(noteId);
       },
-      onAddNote: async (extraProps) => {
-        await handleCreateNewNote(extraProps);
+      onAddNote: async (extraProps, extraTypes) => {
+        await handleCreateNewNote(extraProps, extraTypes);
       },
+      // Arrastar/redimensionar no calendário grava a propriedade de data da nota
+      onUpdateNoteProperties: async (note, propPatch, typePatch = {}) => {
+        const properties = { ...(note.properties || {}), ...propPatch };
+        const propertyTypes = { ...(note.propertyTypes || {}), ...typePatch };
+        note.properties = properties;
+        note.propertyTypes = propertyTypes;
+        await updateNoteMetaById(note.id, { properties, propertyTypes });
+        document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id } }));
+      },
+      onOpenSettings: () => { settingsOpen = !settingsOpen; renderSettingsPanel(); },
+      // Ajustes da própria visão (ex.: tamanho dos cartões da galeria) viram parte da Base
+      onUpdateView: patch => updateActiveView(patch),
       showOwnToolbar: false,
     };
 

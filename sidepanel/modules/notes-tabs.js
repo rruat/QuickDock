@@ -1550,6 +1550,10 @@ views:
   - type: board
     name: Quadro
     groupBy: status
+  - type: gallery
+    name: Galeria
+    cardSize: medium
+    properties: [title, tags, updatedAt]
 \`\`\``;
     const blocks = parseMarkdownToBlocks(baseContent);
     id = await createNoteRecord({

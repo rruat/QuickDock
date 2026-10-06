@@ -124,9 +124,25 @@ export function hashDoQuadro(texto) {
   );
 }
 
-export function serializarQuadro(quadro) {
-  const cards = Array.isArray(quadro.cards) ? quadro.cards : [];
+// Arquivos de mídia de cartões (imagem colada, vídeo, áudio, PDF…) vão pra mesma pasta
+// `imagens/` das notas, nomeados pelo hash do conteúdo. Acima disso o arquivo fica só
+// neste aparelho (o cartão sincroniza, o arquivo não) pra não estourar a cota do Drive.
+const MAX_BYTES_ARQUIVO_QUADRO = 25 * 1024 * 1024;
+
+/**
+ * @param {object} quadro
+ * @param {Map<number,string>|null} mapaArquivos fileId local → caminho remoto (imagens/<hash>.<ext>).
+ *   `fileId` é um número do banco DESTE aparelho — não pode viajar no arquivo: em outro
+ *   aparelho ele apontaria pra outro arquivo (ou pra nenhum). Vai o caminho (`arquivo`).
+ */
+export function serializarQuadro(quadro, mapaArquivos = null) {
   const arrows = Array.isArray(quadro.arrows) ? quadro.arrows : [];
+  const cards = (Array.isArray(quadro.cards) ? quadro.cards : []).map(c => {
+    if (c.fileId == null) return c;
+    const { fileId, ...resto } = c;
+    const arquivo = mapaArquivos?.get(fileId) || c.arquivo;
+    return arquivo ? { ...resto, arquivo } : resto;
+  });
 
   // Mapeamento compatível com a especificação JSON Canvas (Obsidian Canvas)
   const nodes = cards.map(c => {
@@ -142,7 +158,7 @@ export function serializarQuadro(quadro) {
       node.label = c.label || '';
     } else if (c.type === 'image') {
       node.type = 'file';
-      node.file = c.alt || `imagem-${c.id}`;
+      node.file = c.arquivo || c.alt || `imagem-${c.id}`;
     } else if (c.type === 'note') {
       node.type = 'file';
       node.file = c.noteUid || '';
@@ -152,7 +168,7 @@ export function serializarQuadro(quadro) {
         node.url = c.src;
       } else {
         node.type = 'file';
-        node.file = c.name || `arquivo-${c.id}`;
+        node.file = c.arquivo || c.name || `arquivo-${c.id}`;
       }
     } else {
       node.type = 'text';
@@ -355,6 +371,77 @@ export class SyncEngine {
     const slug = slugTitulo(quadro.title || 'espaco');
     const pasta = quadro.pasta ? String(quadro.pasta).trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : '';
     return pasta ? `quadros/${pasta}/${slug}.canvas` : `quadros/${slug}.canvas`;
+  }
+
+  /**
+   * Sobe pra `imagens/` os arquivos de mídia dos cartões de um quadro (se ainda não
+   * estão lá) e devolve fileId local → caminho remoto. O que já foi enviado fica num
+   * cache persistido: conferir existência no Drive baixa o arquivo inteiro, e refazer
+   * isso a cada abertura do painel pra cada vídeo seria um desperdício enorme.
+   */
+  async _mapaArquivosDoQuadro(quadro) {
+    const mapa = new Map();
+    const cards = Array.isArray(quadro?.cards) ? quadro.cards : [];
+    const chaveCache = 'quickdock:sync:arquivos-de-quadro';
+    let enviados = {};
+    try { enviados = JSON.parse(localStorage.getItem(chaveCache) || '{}'); } catch {}
+    let mudou = false;
+
+    for (const c of cards) {
+      if (c.fileId == null || (c.type !== 'image' && c.type !== 'media')) continue;
+      if (enviados[c.fileId]) { mapa.set(c.fileId, enviados[c.fileId]); continue; }
+      try {
+        const blob = this.store.obterBlobArquivo
+          ? await this.store.obterBlobArquivo(c.fileId)
+          : (this.store.obterArquivo ? (await this.store.obterArquivo(c.fileId))?.blob : null);
+        if (!blob || blob.size > MAX_BYTES_ARQUIVO_QUADRO) continue;
+        const hash = await calcularHashImagem(blob);
+        let ext = extensaoDeMimeOuNome(blob.type, c.name || blob.name);
+        if (!/^[a-z0-9]{1,5}$/.test(ext)) ext = extensaoDeMimeOuNome(blob.type);
+        const caminhoRemoto = `imagens/${hash}.${ext}`;
+        if (!(await this.adapter.ler(caminhoRemoto))) {
+          await this.adapter.escrever(caminhoRemoto, blob, null);
+        }
+        enviados[c.fileId] = caminhoRemoto;
+        mapa.set(c.fileId, caminhoRemoto);
+        mudou = true;
+      } catch {
+        // Falhou o envio do arquivo: o quadro sobe do mesmo jeito e tenta de novo na próxima rodada
+      }
+    }
+    if (mudou) { try { localStorage.setItem(chaveCache, JSON.stringify(enviados)); } catch {} }
+    return mapa;
+  }
+
+  // Arquivo que veio DO destino já existe lá: marca no cache de "enviados" pra não
+  // baixá-lo de novo só pra conferir quando o quadro for salvo.
+  _lembrarArquivoEnviado(fileId, caminhoRemoto) {
+    const chave = 'quickdock:sync:arquivos-de-quadro';
+    try {
+      const enviados = JSON.parse(localStorage.getItem(chave) || '{}');
+      if (enviados[fileId] === caminhoRemoto) return;
+      enviados[fileId] = caminhoRemoto;
+      localStorage.setItem(chave, JSON.stringify(enviados));
+    } catch {}
+  }
+
+  /**
+   * Quadro baixado traz `arquivo` (caminho) e nenhum fileId. Se o aparelho já tem o
+   * arquivo (é o dono dele), devolve o mesmo fileId ao cartão — senão ele perderia a
+   * imagem que já está aqui e a baixaria de novo.
+   */
+  async _preservarFileIds(cardsRemotos, quadroLocal) {
+    if (!Array.isArray(cardsRemotos) || !quadroLocal) return cardsRemotos;
+    const mapa = await this._mapaArquivosDoQuadro(quadroLocal);
+    if (mapa.size === 0) return cardsRemotos;
+    const locais = new Map((quadroLocal.cards || []).map(c => [c.id, c]));
+    return cardsRemotos.map(c => {
+      const local = locais.get(c.id);
+      if (c.arquivo && c.fileId == null && local?.fileId != null && mapa.get(local.fileId) === c.arquivo) {
+        return { ...c, fileId: local.fileId };
+      }
+      return c;
+    });
   }
 
   _prefixoRelativoImagens(caminhoNota) {
@@ -638,7 +725,7 @@ export class SyncEngine {
             await this.store.excluirEstadoSync(estadoLocal.uid);
             continue;
           }
-          const textoLocalQ = serializarQuadro(quadroLocal);
+          const textoLocalQ = serializarQuadro(quadroLocal, await this._mapaArquivosDoQuadro(quadroLocal));
           if (hashDoQuadro(textoLocalQ) === estadoLocal.hash) {
             if (this.store.excluirQuadroLocal) await this.store.excluirQuadroLocal(quadroLocal.uid);
             await this.store.excluirEstadoSync(quadroLocal.uid);
@@ -695,7 +782,7 @@ export class SyncEngine {
           });
           resultado.baixadas++;
         } else {
-          const textoQLocal = serializarQuadro(quadroLocal);
+          const textoQLocal = serializarQuadro(quadroLocal, await this._mapaArquivosDoQuadro(quadroLocal));
           const hashQLocal = hashDoQuadro(textoQLocal);
 
           if (estadoQPorUid && estadoQPorUid.hash === hashRemotoQ && estadoQPorUid.rev === revRemotaQ) {
@@ -711,7 +798,7 @@ export class SyncEngine {
                 pasta: pastaFinal,
                 viewport: parsedQ.viewport || quadroLocal.viewport,
                 bgMode: parsedQ.bgMode || quadroLocal.bgMode,
-                cards: parsedQ.cards || quadroLocal.cards,
+                cards: (await this._preservarFileIds(parsedQ.cards, quadroLocal)) || quadroLocal.cards,
                 arrows: parsedQ.arrows || quadroLocal.arrows,
                 updatedAt: parsedQ.updatedAt || Date.now(),
               });
@@ -739,7 +826,7 @@ export class SyncEngine {
                 pasta: pastaFinal,
                 viewport: parsedQ.viewport || quadroLocal.viewport,
                 bgMode: parsedQ.bgMode || quadroLocal.bgMode,
-                cards: parsedQ.cards || quadroLocal.cards,
+                cards: (await this._preservarFileIds(parsedQ.cards, quadroLocal)) || quadroLocal.cards,
                 arrows: parsedQ.arrows || quadroLocal.arrows,
                 updatedAt: parsedQ.updatedAt || Date.now(),
               });
@@ -1278,7 +1365,7 @@ export class SyncEngine {
       const quadrosLocais = await this.store.listarQuadrosLocais();
       for (const q of quadrosLocais) {
         if (uidsPulados.has(q.uid)) continue;
-        const textoQ = serializarQuadro(q);
+        const textoQ = serializarQuadro(q, await this._mapaArquivosDoQuadro(q));
         const hashAtualQ = hashDoQuadro(textoQ);
         const estadoQ = await this.store.obterEstadoSync(q.uid);
 
@@ -1380,6 +1467,7 @@ export class SyncEngine {
     if (this.cacheImagensLocais.has(caminhoRemoto)) {
       const idExistente = this.cacheImagensLocais.get(caminhoRemoto);
       if (notaUid) await this._associarImagemLocalANota(notaUid, caminhoImagem, idExistente);
+      this._lembrarArquivoEnviado(idExistente, caminhoRemoto);
       return { fileId: idExistente };
     }
 
@@ -1393,6 +1481,7 @@ export class SyncEngine {
       if (jaTem && jaTem.id != null) {
         this.cacheImagensLocais.set(caminhoRemoto, jaTem.id);
         if (notaUid) await this._associarImagemLocalANota(notaUid, caminhoImagem, jaTem.id);
+        this._lembrarArquivoEnviado(jaTem.id, caminhoRemoto);
         return { fileId: jaTem.id };
       }
     }
@@ -1401,8 +1490,14 @@ export class SyncEngine {
     if (!arq) return null;
 
     const ext = nomeArquivo.split('.').pop().toLowerCase();
-    const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
-               : (ext === 'webp' ? 'image/webp' : (ext === 'gif' ? 'image/gif' : 'image/png'));
+    const MIMES = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml',
+      avif: 'image/avif', bmp: 'image/bmp',
+      mp4: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg', mov: 'video/quicktime', m4v: 'video/mp4',
+      mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac', opus: 'audio/ogg',
+      pdf: 'application/pdf',
+    };
+    const mime = MIMES[ext] || 'image/png';
     const blob = arq.blob || arq.conteudo || arq.texto;
 
     let fileId = null;
@@ -1422,6 +1517,7 @@ export class SyncEngine {
       }
     }
 
+    if (fileId != null) this._lembrarArquivoEnviado(fileId, caminhoRemoto);
     return { fileId, blob };
   }
 

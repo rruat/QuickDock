@@ -6,7 +6,7 @@
 // critério de parada (0% CPU ociosa), painel de configurações persistentes,
 // pan, zoom focal, arraste de nós e navegação direta para notas.
 
-import { loadAllNotesMeta, obterTodosLinks } from './storage.js';
+import { loadAllNotesMeta, obterTodosLinks, garantirIndiceDeLinks } from './storage.js';
 import { construirGrafo } from './links.js';
 import { switchView, goBack, getCurrentView, isViewFullscreen } from './views.js';
 import { escHtml } from './blocks.js';
@@ -382,6 +382,8 @@ export async function carregarERenderizarGrafo() {
   stopSimulation();
 
   try {
+    // v2: passou a reconhecer link externo (?abrirNota=) — reindexa as notas antigas uma vez
+    await garantirIndiceDeLinks(2);
     const [todasNotas, todosLinks] = await Promise.all([
       loadAllNotesMeta(),
       obterTodosLinks()

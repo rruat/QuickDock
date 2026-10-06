@@ -10,6 +10,8 @@
 // http(s) é aceito — `javascript:`/`data:` viram "link inválido" em vez de
 // executar. Vídeos de YouTube/Vimeo/Spotify viram iframe com sandbox.
 
+import { buildLinkBody } from './board-link-card.js';
+
 const IMG_EXT = /\.(png|jpe?g|gif|webp|avif|svg|bmp|ico)$/i;
 const VIDEO_EXT = /\.(mp4|webm|ogv|mov|m4v)$/i;
 const AUDIO_EXT = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus)$/i;
@@ -19,7 +21,7 @@ export const MEDIA_DEFAULT_SIZE = {
   video: { w: 360, h: 240 },
   embed: { w: 360, h: 240 },
   audio: { w: 300, h: 130 },
-  link: { w: 260, h: 110 },
+  link: { w: 280, h: 200 },
   file: { w: 240, h: 100 },
 };
 
@@ -95,13 +97,37 @@ export function mediaHandleLabel(card) {
 // cartões a cada mudança — sem cache, cada render vazava um Blob URL).
 const objectUrls = new Map();
 
-async function urlDoArquivo(fileId, loadFileBlob) {
+export async function urlDoArquivo(fileId, loadFileBlob) {
   if (objectUrls.has(fileId)) return objectUrls.get(fileId);
   const blob = await loadFileBlob(fileId);
   if (!blob) return null;
   const url = URL.createObjectURL(blob);
   objectUrls.set(fileId, url);
   return url;
+}
+
+// Cartões vindos de outro aparelho (sincronização) trazem `arquivo` (caminho em imagens/)
+// e nenhum fileId: o arquivo é baixado sob demanda por este resolvedor, injetado pelo app
+// (que conhece o motor de sync). Sem sincronização configurada, o cartão fica "indisponível".
+let resolvedorRemoto = null;
+let aoResolverArquivo = null;
+
+export function setRemoteFileResolver(resolver, aoResolver = null) {
+  resolvedorRemoto = resolver;
+  aoResolverArquivo = aoResolver;
+}
+
+export async function garantirFileId(card) {
+  if (card.fileId != null || !card.arquivo || !resolvedorRemoto) return;
+  try {
+    const r = await resolvedorRemoto(card.arquivo);
+    if (r?.fileId != null) {
+      card.fileId = r.fileId;
+      aoResolverArquivo?.(card);
+    }
+  } catch (err) {
+    console.warn('Erro ao baixar arquivo do cartão:', err);
+  }
 }
 
 export function releaseMediaFile(fileId) {
@@ -129,7 +155,7 @@ function icone(nome) {
  * Monta o corpo do cartão (já com listeners). `loadFileBlob` vem do storage.
  * Devolve o elemento `.board-card-body`.
  */
-export function buildMediaBody(card, { loadFileBlob }) {
+export function buildMediaBody(card, { loadFileBlob, onMeta = null }) {
   const body = el('div', 'board-card-body board-card-media-body');
   body.dataset.mediaKind = card.kind;
 
@@ -137,11 +163,14 @@ export function buildMediaBody(card, { loadFileBlob }) {
   const stop = e => e.stopPropagation();
 
   const setSource = async mediaEl => {
+    await garantirFileId(card);
     if (card.fileId != null) {
       const url = await urlDoArquivo(card.fileId, loadFileBlob).catch(() => null);
       if (url) mediaEl.src = url; else body.classList.add('is-missing');
     } else if (card.src) {
       mediaEl.src = card.src;
+    } else {
+      body.classList.add('is-missing');
     }
   };
 
@@ -184,18 +213,13 @@ export function buildMediaBody(card, { loadFileBlob }) {
     f.title = card.title || 'Vídeo incorporado';
     body.appendChild(f);
   } else if (card.kind === 'link') {
-    body.classList.add('is-clickable');
-    body.title = card.src;
-    body.appendChild(icone('link'));
-    const textos = el('div', 'board-media-texts');
-    textos.appendChild(el('div', 'board-media-title', card.title || dominio(card.src)));
-    textos.appendChild(el('div', 'board-media-sub', card.src));
-    body.appendChild(textos);
-    body.addEventListener('dblclick', e => {
-      e.stopPropagation();
-      window.open(card.src, '_blank', 'noopener,noreferrer');
-    });
-    body.appendChild(el('span', 'board-media-hint', 'Duplo clique para abrir'));
+    // Miniatura + favicon + título; o cartão todo é um link que abre em nova aba
+    const href = normalizeUrl(card.src);
+    if (href) {
+      buildLinkBody(body, card, href, { onMeta });
+    } else {
+      body.classList.add('is-missing');
+    }
   } else {
     // arquivo local sem pré-visualização (pdf, docs…)
     body.classList.add('is-clickable');
@@ -206,13 +230,15 @@ export function buildMediaBody(card, { loadFileBlob }) {
     body.appendChild(textos);
     body.addEventListener('dblclick', async e => {
       e.stopPropagation();
+      await garantirFileId(card);
       const url = card.fileId != null ? await urlDoArquivo(card.fileId, loadFileBlob).catch(() => null) : null;
       if (url) window.open(url, '_blank', 'noopener');
     });
     body.appendChild(el('span', 'board-media-hint', 'Duplo clique para abrir'));
   }
 
-  if (card.kind === 'link' || card.kind === 'embed' || card.kind === 'file') return body;
+  if (card.kind === 'embed' || card.kind === 'file') return body;
+  if (card.kind === 'link') return body;
   body.appendChild(el('div', 'board-media-missing', 'Mídia indisponível'));
   return body;
 }

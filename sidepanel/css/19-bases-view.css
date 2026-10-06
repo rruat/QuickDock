@@ -694,150 +694,6 @@
   color: var(--accent);
 }
 
-/* CALENDÁRIO */
-.base-calendar-container {
-  padding: 12px;
-}
-
-.base-cal-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.base-cal-month-title {
-  font-size: 13.5px;
-  font-weight: 600;
-}
-
-.base-cal-nav-buttons {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.base-cal-btn {
-  border: 1px solid var(--border);
-  background: var(--bg);
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.base-cal-btn:hover {
-  background: var(--bg-hover);
-}
-
-.base-cal-btn-today {
-  font-weight: 500;
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.base-cal-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.base-cal-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  text-align: center;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-  padding-bottom: 4px;
-}
-
-.base-cal-weekday-cell {
-  padding: 2px 0;
-}
-
-.base-cal-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-}
-
-.base-cal-day-cell {
-  min-height: 70px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 4px 6px;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.base-cal-day-cell.is-other-month {
-  opacity: 0.4;
-  background: var(--bg-secondary);
-}
-
-.base-cal-day-cell.is-today {
-  border-color: var(--accent);
-  background: oklch(60.58% 0.1674 252.7 / 0.04);
-}
-
-.base-cal-day-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.base-cal-day-num {
-  color: var(--text);
-}
-
-.is-today .base-cal-day-num {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.base-cal-day-add {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--text-muted);
-  opacity: 0;
-  transition: opacity 0.12s;
-}
-
-.base-cal-day-cell:hover .base-cal-day-add {
-  opacity: 1;
-}
-
-.base-cal-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.base-cal-item {
-  font-size: 10.5px;
-  padding: 2px 4px;
-  border-radius: 3px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.base-cal-item:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 /* BADGES DE SELECT E POPUP */
 .base-select-badge {
   display: inline-flex;
@@ -1044,3 +900,75 @@
 .bases-empty-action:hover {
   opacity: 0.9;
 }
+
+/* ── Galeria: barra, tamanhos e capa ─────────────────────────────────────── */
+.base-gallery-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.base-gallery-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.base-gallery-sizes {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+
+.base-gallery-size-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.base-gallery-size-btn .qd-icon { font-size: 16px; }
+.base-gallery-size-btn:hover { background: var(--bg-hover); color: var(--text); }
+.base-gallery-size-btn.is-active { background: var(--bg); color: var(--accent); box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12); }
+
+.base-gallery-small  { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.base-gallery-medium { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.base-gallery-large  { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+
+.base-gallery-small  .base-gallery-cover { height: 78px; }
+.base-gallery-medium .base-gallery-cover { height: 105px; }
+.base-gallery-large  .base-gallery-cover { height: 170px; }
+.base-gallery-large  .base-gallery-title { font-size: 14px; }
+.base-gallery-small  .base-gallery-props { display: none; }
+
+.base-gallery-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Sem capa: ícone da nota; com cor, o fundo leva a cor da nota (mistura em OKLCH com o fundo) */
+.base-gallery-cover.cover-placeholder.has-accent {
+  background-color: color-mix(in oklch, var(--cover-accent) 16%, var(--bg));
+  color: var(--cover-accent);
+}
+
+.base-gallery-placeholder-icon { font-size: 32px; opacity: 0.85; }
+.base-gallery-small .base-gallery-placeholder-icon { font-size: 24px; }
+.base-gallery-large .base-gallery-placeholder-icon { font-size: 40px; }
+
+.base-gallery-cover.is-loading { opacity: 0.6; }
+
+.base-gallery-add-inner .qd-icon { font-size: 22px; }
+
+.base-tab-icon { font-size: 14px; margin-right: 4px; vertical-align: -2px; }
+
