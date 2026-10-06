@@ -183,10 +183,12 @@
 
 /* ── Painel "Configurar view" ─────────────────────────────────────────────── */
 .base-settings-host[hidden] { display: none; }
+.base-body-row { display: flex; flex: 1; min-height: 0; position: relative; }
+.base-body-row > :first-child { flex: 1; min-width: 0; overflow: auto; }
+/* Painel empurra o conteúdo; mesmas camadas dos demais painéis: fundo --bg-secondary, borda, sem sombra */
 .base-settings-host {
-  position: absolute; top: 0; right: 0; bottom: 0; z-index: 20; width: min(340px, 100%);
-  display: flex; flex-direction: column; background: var(--bg-card); color: var(--text);
-  border-left: 1px solid var(--border); box-shadow: -6px 0 18px oklch(0% 0 0 / 0.12);
+  flex: none; width: 340px; display: flex; flex-direction: column;
+  background: var(--bg-secondary); color: var(--text); border-left: 1px solid var(--border);
 }
 .bset-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .bset-title { margin: 0; font-size: 14px; font-weight: 600; }
@@ -223,7 +225,6 @@
 .bset-btn:disabled { opacity: 0.45; cursor: default; }
 .bset-btn-danger { color: oklch(45% 0.18 25); border-color: oklch(70% 0.1 25); }
 [data-theme="dark"] .bset-btn-danger { color: oklch(78% 0.13 25); border-color: oklch(45% 0.1 25); }
-@media (max-width: 640px) { .base-settings-host { width: 100%; } }
 
 /* ── Painel: regras de filtro/ordenação (todas as views) ── */
 .bset-rule { display: flex; align-items: center; gap: 6px; }
@@ -367,8 +368,9 @@
 
 /* ── Mobile: o painel de configuração vira folha inferior (4.13) ── */
 @media (max-width: 640px) {
-  .base-settings-host { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: 78vh; border-left: 0; border-top: 1px solid var(--border); border-radius: 14px 14px 0 0; box-shadow: 0 -8px 24px oklch(0% 0 0 / 0.2); }
-  .base-settings-host .bset-head { position: sticky; top: 0; background: var(--bg-card); z-index: 1; }
+  /* no celular não há largura para empurrar: vira folha inferior sobre o conteúdo */
+  .base-settings-host { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; max-height: 78vh; z-index: 20; border-left: 0; border-top: 1px solid var(--border); border-radius: 14px 14px 0 0; }
+  .base-settings-host .bset-head { position: sticky; top: 0; background: var(--bg-secondary); z-index: 1; }
   .bset-select, .bset-input { height: 34px; }
   .bset-btn, .bset-seg { min-height: 34px; }
   .base-tab-more { opacity: 0.7; }
@@ -398,3 +400,20 @@
 .bcal-holiday { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; line-height: 1.3; padding: 0 5px; border-radius: 8px; background: oklch(93% 0.05 75); color: oklch(33% 0.08 60); }
 [data-theme="dark"] .bcal-holiday { background: oklch(32% 0.05 75); color: oklch(90% 0.05 75); }
 .bcal-month-cell.is-holiday, .bcal-day-head.is-holiday { background-image: linear-gradient(oklch(80% 0.1 75 / 0.12), oklch(80% 0.1 75 / 0.12)); }
+
+/* ── Tabela: larguras exatas (colgroup) e células que não estouram ── */
+.base-table { table-layout: fixed; }
+.base-table .base-th, .base-table .base-td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.base-wrap-cells .base-table .base-td { white-space: normal; }
+.base-th-resizer { touch-action: none; }
+
+/* ── Rolagem: a view rola DENTRO da Base, não a página/painel inteiro ── */
+.bases-body > .base-component-root { flex: 1 1 auto; min-height: 0; height: 100%; }
+.base-component-root { overflow: hidden; }
+.base-component-root.is-embedded { overflow: visible; }
+.base-component-root.is-embedded .base-body-row { max-height: 70vh; min-height: 280px; }
+.base-viewport { min-height: 0; }
+.base-body-row > :first-child { overflow: auto; }
+/* views que preenchem a altura */
+.base-viewport > .base-view-container { min-height: 100%; }
+.base-calendar-container, .base-timeline-container, .base-map-container { height: 100%; }

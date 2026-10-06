@@ -188,13 +188,17 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   const peek = createNotePeek(rootContainer, { onOpenNote: id => switchToNote(id) });
 
   // 2. Área Principal de Visualização (Viewport) + painel de configuração da view
+  // Linha própria: a view ocupa o espaço que sobra e o painel EMPURRA o conteúdo (não flutua por cima)
+  const bodyRow = document.createElement('div');
+  bodyRow.className = 'base-body-row';
+  rootContainer.appendChild(bodyRow);
   const viewportEl = document.createElement('div');
   viewportEl.className = 'base-viewport';
-  rootContainer.appendChild(viewportEl);
+  bodyRow.appendChild(viewportEl);
   const settingsEl = document.createElement('aside');
   settingsEl.className = 'base-settings-host';
   settingsEl.hidden = true;
-  rootContainer.appendChild(settingsEl);
+  bodyRow.appendChild(settingsEl);
 
   function renderSettingsPanel() {
     settingsHandle?.destroy();
