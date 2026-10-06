@@ -1,26 +1,25 @@
-QuickDock.zip
+﻿QuickDock.zip
 *.zip
 Thumbs.db
 .DS_Store
 
-# Canvas de design publicado: 2,4 MB de bundle gerado do editor, não é fonte.
+# Canvas de design publicado: 2,4 MB de bundle gerado do editor, nÃ£o Ã© fonte.
 # As fontes da marca (.dc.html, canvas.json, .svg) ficam versionadas.
 brand/quickdock-logo.html
 
-# Arquivo de trava do Affinity, criado enquanto o .af está aberto
+# Arquivo de trava do Affinity, criado enquanto o .af estÃ¡ aberto
 *~lock~
 
-# Chave privada da extensão: define o ID e NUNCA pode ir pro repositório
-# (que é público). A metade pública vai no manifest.json, essa não.
+# Chave privada da extensÃ£o: define o ID e NUNCA pode ir pro repositÃ³rio
+# (que Ã© pÃºblico). A metade pÃºblica vai no manifest.json, essa nÃ£o.
 *.pem
 
-# Projeto bruto do Affinity Designer: fonte de trabalho, não fonte versionada.
-# Os exports (.svg, .dc.html) é que ficam no repositório.
+# Projeto bruto do Affinity Designer: fonte de trabalho, nÃ£o fonte versionada.
+# Os exports (.svg, .dc.html) Ã© que ficam no repositÃ³rio.
 *.af
 
-# Notas internas de passagem de sessão e planejamento: úteis localmente,
-# não fazem parte do histórico público do projeto. A pasta inteira, não só
-# alguns nomes — cada nova rodada de planejamento vem com um nome diferente
-# (HANDOFF-N, PLANEJAMENTO-X, PLANO-Y...) e ficar listando padrão por padrão
-# é perder a corrida. Se um dia precisar de doc público aqui, ela sai daqui.
-docs/
+# Notas internas de passagem de sessÃ£o e planejamento: Ãºteis localmente,
+# nÃ£o fazem parte do histÃ³rico pÃºblico do projeto. A pasta inteira, nÃ£o sÃ³
+# alguns nomes â€” cada nova rodada de planejamento vem com um nome diferente
+# (HANDOFF-N, PLANEJAMENTO-X, PLANO-Y...) e ficar listando padrÃ£o por padrÃ£o
+# Ã© perder a corrida. Se um dia precisar de doc pÃºblico aqui, ela sai daqui.
