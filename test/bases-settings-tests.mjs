@@ -191,4 +191,21 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('rollup · soma de horas das tarefas ligadas', rel[0].__calc.horasTotais, 7);
   igual('fórmula · checkFormula acusa autorreferência', Dc.checkFormula('prop("x")', { x: {} }, 'x').ok, false);
   igual('fórmula · checkFormula lista propriedade desconhecida', Dc.checkFormula('prop("nada")', { a: {} }).desconhecidas, ['nada']);
+
+  // ── formatos de exibição ──
+  const Fo = await import('../sidepanel/modules/bases/engine/format.js');
+  const Sc = await import('../sidepanel/modules/bases/bases-schema.js');
+  igual('formato · moeda BRL', Fo.formatNumber(1234.5, { kind: 'currency', currency: 'BRL' }).replace(/\s/g, ' '), 'R$ 1.234,50');
+  igual('formato · fração vira %', Fo.formatNumber(0.4, { kind: 'percent' }), '40%');
+  igual('formato · 40 já é % (sem 4000%)', Fo.formatNumber(40, { kind: 'progress-bar' }), '40%');
+  igual('formato · divideBy', Fo.formatNumber(2500, { kind: 'plain', divideBy: 1000 }), '2,5');
+  igual('formato · barra limitada a 0–100', [Fo.progressPercent(150), Fo.progressPercent(-5), Fo.progressPercent(0.25)], [100, 0, 25]);
+  igual('formato · lixo não é número', Fo.formatNumber('abc', { kind: 'currency' }), null);
+  const agora = new Date(2026, 9, 6, 12);
+  igual('formato · data relativa', ['2026-10-06', '2026-10-07', '2026-10-05', '2026-10-11', '2026-09-30', '2027-01-01'].map(d => Fo.formatDateValue(d, { kind: 'relative' }, agora)), ['hoje', 'amanhã', 'ontem', 'em 5 dias', 'há 6 dias', '01/01/2027']);
+  igual('formato · data curta e longa', [Fo.formatDateValue('2026-10-06', { kind: 'short' }), Fo.formatDateValue('2026-03-02', { kind: 'long' })], ['6 out', '2 de março de 2026']);
+  igual('formato · data com hora', Fo.formatDateValue('2026-10-06T14:30', { kind: 'absolute', showTime: true }), '06/10/2026 14:30');
+  igual('formato · formatPropertyValue usa o formato novo', Sc.formatPropertyValue(0.5, 'number', { format: { kind: 'percent' } }), '50%');
+  igual('formato · formato antigo em texto continua valendo', Sc.formatPropertyValue(0.5, 'number', { format: 'percent' }), '50.0%');
+  igual('formato · schema herda format da Base', Sc.inferBaseSchema([{ properties: { p: 1 } }], { p: { type: 'number', format: { kind: 'currency' } } }).p.format, { kind: 'currency' });
 }

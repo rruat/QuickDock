@@ -8,6 +8,7 @@ import { getViewProps, resolveGroupConfig, resolveTableLayout, resolveCalc } fro
 import { groupNotes } from './engine/group-engine.js';
 import { renderTableFooter as desenhaRodape, calcCell } from './table/table-footer.js';
 import { formatAggregate } from './engine/aggregate-engine.js';
+import { progressPercent } from './engine/format.js';
 import { getNotePropertyValue, queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { activateCellEditor } from './bases-cell-editors.js';
 import { createNoteRecord } from '../storage.js';
@@ -417,6 +418,22 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       } else {
         td.innerHTML = '<span class="base-empty-cell">—</span>';
       }
+      return;
+    }
+
+    // Número com barra/anel de progresso (formato da propriedade)
+    if (propDef.type === 'number' && rawVal !== undefined && rawVal !== null && rawVal !== ''
+        && (propDef.format?.kind === 'progress-bar' || propDef.format?.kind === 'progress-ring')) {
+      const pct = Math.round(progressPercent(rawVal, propDef.format));
+      const caixa = document.createElement('div');
+      caixa.className = 'base-tasks-progress';
+      caixa.title = `${pct}%`;
+      const barra = document.createElement('div'); barra.className = 'base-tasks-bar';
+      const fill = document.createElement('div'); fill.className = 'base-tasks-fill'; fill.style.width = `${pct}%`;
+      barra.appendChild(fill);
+      const t = document.createElement('span'); t.className = 'base-tasks-text'; t.textContent = `${pct}%`;
+      caixa.append(barra, t);
+      td.appendChild(caixa);
       return;
     }
 

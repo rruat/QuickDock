@@ -3,6 +3,7 @@
 // Funções puras sem DOM nem Dexie — 100% testável no Node.js.
 
 import { PROPERTY_TYPES, inferirTipoPropriedade } from '../property-types.js';
+import { formatNumber, formatDateValue } from './engine/format.js';
 
 /**
  * Catálogo estendido de tipos de propriedade suportados nas Bases:
@@ -23,6 +24,10 @@ export const BASE_PROPERTY_TYPES = {
  */
 export function formatPropertyValue(val, type = 'text', options = {}) {
   if (val === null || val === undefined) return '';
+  // formato novo (objeto em options.format) — ver engine/format.js; o formato antigo é texto ('currency_brl')
+  const fmt = options && typeof options.format === 'object' ? options.format : null;
+  if (fmt && type === 'number') { const t = formatNumber(val, fmt); if (t !== null) return t; }
+  if (fmt && (type === 'date' || type === 'datetime')) { const t = formatDateValue(val, fmt); if (t !== null) return t; }
 
   switch (type) {
     case 'checkbox':
@@ -261,6 +266,7 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
         width: def.width || 160,
         options: def.options || [],
         isSystem: false,
+        ...(def.format ? { format: def.format } : {}),
         ...((def.type === 'formula' || def.type === 'rollup') ? { isDerived: def.type, expr: def.expr } : {}),
       };
     } else {
@@ -273,6 +279,7 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
       }
       if (def.width)   schema[key].width = def.width;
       if (def.options) schema[key].options = def.options;
+      if (def.format)  schema[key].format = def.format;
     }
   }
 
