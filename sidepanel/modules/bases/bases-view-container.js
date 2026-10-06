@@ -15,14 +15,13 @@ import { renderBaseChartView } from './bases-chart-view.js';
 import { renderBaseTimelineView } from './bases-timeline-view.js';
 import { renderBaseFeedView } from './bases-feed-view.js';
 import { renderBaseMapView } from './bases-map-view.js';
-import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, deleteNoteRecordById, loadAllTemplates, updateNoteBlocksById } from '../storage.js';
+import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, loadAllTemplates, updateNoteBlocksById } from '../storage.js';
 import { parseMarkdownToBlocks, blocksToMarkdown } from '../blocks.js';
 import { normalizeViews, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
 import { renderViewTabs as desenhaAbas, abreMenu } from './ui/view-tabs.js';
 import { exportMenuItems } from './ui/export-menu.js';
-import { renderBulkBar } from './ui/bulk-bar.js';
-import { buildBulkPatch, describeBulkAction } from './engine/bulk-actions.js';
+import { createBulkController } from './bases-bulk-controller.js';
 import { renderQuickFilters, loadQuickFilters, saveQuickFilters } from './ui/quick-filters.js';
 import { impliedValues } from './engine/filter-tree.js';
 import { applyDerivedColumns } from './engine/derived-columns.js';
@@ -171,40 +170,10 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   let quickFilters = [];
   let quickFiltersViewId = null;
 
-  // Barra de ações em lote (só aparece com notas selecionadas na tabela)
+  // Seleção e edição em lote (barra só aparece com notas selecionadas na tabela)
   const bulkEl = document.createElement('div');
-  bulkEl.className = 'base-bulkbar';
-  bulkEl.hidden = true;
   rootContainer.appendChild(bulkEl);
-  const selecao = new Set();
-  let esquemaAtual = {};
-  const desenhaBulk = () => {
-    renderBulkBar(bulkEl, { count: selecao.size, schema: esquemaAtual }, {
-      onClear: () => { selecao.clear(); updateViewport(); },
-      onAction: acao => executaEmLote(acao),
-    });
-  };
-  async function executaEmLote(acao) {
-    const alvos = allNotes.filter(n => selecao.has(n.id));
-    if (!alvos.length) return;
-    const resumo = describeBulkAction(acao, alvos.length);
-    const aviso = acao.kind === 'delete'
-      ? `${resumo}?\n\nEsta ação não pode ser desfeita.\n\n${alvos.slice(0, 8).map(n => `• ${n.title || 'Sem título'}`).join('\n')}${alvos.length > 8 ? `\n… e mais ${alvos.length - 8}` : ''}`
-      : `${resumo}?`;
-    if (!window.confirm(aviso)) return;
-    try {
-      for (const n of alvos) {
-        if (acao.kind === 'delete') { await deleteNoteRecordById(n.id); continue; }
-        const patch = buildBulkPatch(n, acao);
-        if (patch) await updateNoteMetaById(n.id, patch);
-      }
-      if (acao.kind === 'delete') selecao.clear();
-      document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { bulk: true } }));
-    } catch (err) {
-      console.error('Erro na edição em lote:', err);
-      window.alert('Não foi possível concluir a ação em todas as notas. Verifique e tente de novo.');
-    }
-  }
+  const bulk = createBulkController(bulkEl, { getNotes: () => allNotes, onChanged: () => updateViewport() });
 
   // 2. Área Principal de Visualização (Viewport) + painel de configuração da view
   const viewportEl = document.createElement('div');
@@ -392,11 +361,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     // 3. Ordena notas
     const sortedNotes = sortBaseNotes(filteredNotes, currentView.sort, schema);
     ultimaVisao = { notes: sortedNotes, schema, view: currentView };
-    esquemaAtual = schema;
-    // a seleção só vale na tabela e só para notas que ainda existem
-    for (const id of [...selecao]) if (!allNotes.some(n => n.id === id)) selecao.delete(id);
-    if (currentView.type !== 'table' || !currentView.layout?.selectable) selecao.clear();
-    desenhaBulk();
+    bulk.sync(currentView, schema);
     renderQuickFilters(quickEl, { filters: quickFilters, schema, count: sortedNotes.length }, lista => {
       quickFilters = lista;
       saveQuickFilters(baseKey(), currentView.id, lista);
@@ -409,8 +374,8 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     // duplicados por cima da primeira.
     const regrasCor = normalizeColorRules(currentView);
     const callbacks = {
-      selection: selecao,
-      onSelectionChange: desenhaBulk,
+      selection: bulk.selection,
+      onSelectionChange: bulk.onSelectionChange,
       rowTone: regrasCor.length ? n => rowTone(n, regrasCor) : null,
       cellTone: regrasCor.length ? (n, k) => cellTone(n, regrasCor, k) : null,
       onOpenNote: async (noteId) => {
