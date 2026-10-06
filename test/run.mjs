@@ -4636,13 +4636,13 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   // 31.3: HTML da seção dedicada — presente e idêntico nos dois arquivos
   for (const [nome, fonte] of [['sidepanel/index.html', sidepanelHtml], ['index.html (raiz)', indexHtml]]) {
-    ok(`bases · ${nome} define a seção #bases-view com cabeçalho completo`,
+    // o cabeçalho próprio da Base ("Base" + botões) foi removido: já existe o cabeçalho de seção
+    // (ícone, título, mover e fechar) e a Base tem a própria barra com abas e botões
+    ok(`bases · ${nome} define a seção #bases-view sem cabeçalho duplicado`,
       fonte.includes('id="bases-view"') &&
       fonte.includes('id="bases-body"') &&
-      fonte.includes('id="btn-bases-back"') &&
-      fonte.includes('id="btn-bases-aux-switcher"') &&
-      fonte.includes('id="btn-bases-toggle-height"') &&
-      fonte.includes('id="btn-bases-toggle-fullscreen"'));
+      !fonte.includes('class="bases-header"') &&
+      !fonte.includes('id="btn-bases-aux-switcher"'));
   }
   ok('bases · index.html e sidepanel/index.html têm a mesma seção #bases-view (cópias mantidas à mão)',
     indexHtml.slice(indexHtml.indexOf('id="bases-view"') - 60, indexHtml.indexOf('id="bases-body"'))
