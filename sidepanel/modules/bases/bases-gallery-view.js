@@ -8,6 +8,7 @@ import { getNotePropertyValue } from './bases-engine.js';
 import { formatPropertyValue } from './bases-schema.js';
 import { getViewProps } from './config/view-model.js';
 import { renderGrouped } from './ui/grouped-sections.js';
+import { enableReorder } from './ui/reorder.js';
 import { hydrateNoteContent, lazyHydrate } from './note-preview.js';
 import { formatSelectBadge } from './bases-cell-editors.js';
 import { loadFileBlob } from '../storage.js';
@@ -215,11 +216,12 @@ export function renderBaseGalleryView(container, notes, schema, viewConfig = {},
     grid.appendChild(card);
   });
 
-  const montaGrade = (box, lista) => {
+  const montaGrade = (box, lista, escopo) => {
     const grid = document.createElement('div');
     grid.className = `base-gallery-grid base-gallery-${cardSize}`;
     desenhaCartoes(grid, lista);
     box.appendChild(grid);
+    enableReorder(grid, { itemSelector: '.base-gallery-card[data-note-id]', scope: escopo, view: viewConfig, onViewChange: callbacks.onUpdateView, grid: true });
   };
   renderGrouped(gridHost, { notes, schema, view: viewConfig }, montaGrade, callbacks.onUpdateView);
   container.appendChild(gridHost);

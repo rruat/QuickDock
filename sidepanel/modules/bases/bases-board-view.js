@@ -7,6 +7,7 @@ import { formatPropertyValue } from './bases-schema.js';
 import { getViewProps, resolveGroupConfig, resolveSubGroup, resolveCalc } from './config/view-model.js';
 import { groupNotes, EMPTY_KEY } from './engine/group-engine.js';
 import { aggregate, formatAggregate } from './engine/aggregate-engine.js';
+import { resolveManualOrder, manualOrderActive, applyManualOrder, moveInOrder, dropBeforeId, scopeKey } from './engine/manual-order.js';
 import { getNotePropertyValue, queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { createNoteRecord, updateNoteMetaById } from '../storage.js';
 
@@ -139,7 +140,8 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       colEl.className = 'base-board-column';
       colEl.dataset.colId = col.id;
 
-      const colNotes = col.notes;
+      const escopo = scopeKey(raia && !raia.empty ? raia.key : null, col.id);
+      const colNotes = manualOrderActive(activeView) ? applyManualOrder(col.notes, resolveManualOrder(activeView)[escopo]) : col.notes;
       if (limite && colNotes.length > limite) colEl.classList.add('is-over-wip');
 
       // Cabeçalho da coluna
@@ -310,8 +312,14 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
       const note = currentNotes.find(n => n.id === noteId);
       if (!note) return;
 
+      // posição do soltar: antes do primeiro cartão cujo meio está abaixo do ponteiro
+      const cartoes = [...cardsList.querySelectorAll('.base-board-card')].filter(c => Number(c.dataset.noteId) !== noteId);
+      const antesDe = dropBeforeId(cartoes.map(c => { const r = c.getBoundingClientRect(); return { id: c.dataset.noteId, top: r.top, height: r.height }; }), e.clientY);
+      const idsAtuais = cartoes.map(c => c.dataset.noteId);
+
       const newVal = targetColId === '__empty__' ? null : targetColId;
       if (!note.properties) note.properties = {};
+      const antes = JSON.stringify([note.properties[groupByProp], raia ? note.properties[resolveSubGroup(activeView).prop] : null]);
       if (newVal === null) delete note.properties[groupByProp];
       else note.properties[groupByProp] = newVal;
       // soltar numa raia também muda o valor do sub-grupo (o cartão muda de faixa)
@@ -319,11 +327,20 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
         const sp = resolveSubGroup(activeView).prop;
         if (raia.empty) delete note.properties[sp]; else note.properties[sp] = raia.key;
       }
+      const mudou = antes !== JSON.stringify([note.properties[groupByProp], raia ? note.properties[resolveSubGroup(activeView).prop] : null]);
 
-      await updateNoteMetaById(note.id, { properties: { ...note.properties } });
+      if (mudou) {
+        await updateNoteMetaById(note.id, { properties: { ...note.properties } });
+        document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id, note } }));
+      }
 
-      document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id, note } }));
-      renderBoard();
+      // ordem manual da coluna (guardada na view); ordenar por propriedade fica desligado a partir daqui
+      if (onViewChange) {
+        const escopo = scopeKey(raia && !raia.empty ? raia.key : null, targetColId);
+        onViewChange({ manualOrder: { [escopo]: moveInOrder(idsAtuais, noteId, antesDe) }, sort: undefined });
+      } else {
+        renderBoard();
+      }
     });
   }
 

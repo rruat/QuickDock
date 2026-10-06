@@ -338,3 +338,11 @@
 .base-lane { display: flex; flex-direction: column; flex: none; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
 .base-lane-header { position: sticky; left: 0; }
 .base-lane-columns { display: flex; align-items: flex-start; gap: 12px; overflow-x: auto; padding: 4px 2px 8px; }
+
+/* ── Ordem manual (arrastar para reordenar) ── */
+.is-reorderable { cursor: grab; }
+.is-reorderable.is-dragging { opacity: 0.5; }
+.is-reorderable.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
+.is-reorderable.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
+.base-gallery-card.is-reorderable.drop-before { box-shadow: -3px 0 0 0 var(--accent); }
+.base-gallery-card.is-reorderable.drop-after { box-shadow: 3px 0 0 0 var(--accent); }

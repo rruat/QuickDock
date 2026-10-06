@@ -6,6 +6,7 @@ import { getNotePropertyValue } from './bases-engine.js';
 import { formatPropertyValue } from './bases-schema.js';
 import { getViewProps } from './config/view-model.js';
 import { renderGrouped } from './ui/grouped-sections.js';
+import { enableReorder } from './ui/reorder.js';
 import { formatSelectBadge } from './bases-cell-editors.js';
 
 /**
@@ -26,7 +27,7 @@ export function renderBaseListView(container, notes, schema, viewConfig = {}, ca
   listEl.className = 'base-list-items' + (viewConfig.density === 'compact' ? ' is-compact' : '');
   const checkProp = viewConfig.checkboxProp || null;
 
-  const desenhaItens = (box, lista) => lista.forEach(note => {
+  const desenhaItens = (box, lista, escopo) => { lista.forEach(note => {
     const row = document.createElement('div');
     row.className = 'base-list-row';
     row.dataset.noteId = note.id;
@@ -91,6 +92,8 @@ export function renderBaseListView(container, notes, schema, viewConfig = {}, ca
     row.appendChild(propsWrap);
     box.appendChild(row);
   });
+    enableReorder(box, { itemSelector: '.base-list-row[data-note-id]', scope: escopo, view: viewConfig, onViewChange: callbacks.onUpdateView });
+  };
   renderGrouped(listEl, { notes, schema, view: viewConfig }, desenhaItens, callbacks.onUpdateView);
 
   // Linha "+ Adicionar nota"

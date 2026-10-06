@@ -7,6 +7,7 @@ import { getNotePropertyValue } from './bases-engine.js';
 import { getViewProps } from './config/view-model.js';
 import { formatPropertyValue } from './bases-schema.js';
 import { renderGrouped } from './ui/grouped-sections.js';
+import { enableReorder } from './ui/reorder.js';
 import { hydrateNoteContent, lazyHydrate } from './note-preview.js';
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -37,7 +38,7 @@ export function renderBaseFeedView(container, notes, schema, viewConfig = {}, ca
   const lazy = lazyHydrate(card => hydrateNoteContent(card.querySelector('.bfeed-body'), card._noteId, marcaSeCortado));
   container._feedCleanup = () => { lazy.disconnect(); container._feedCleanup = null; };
 
-  const desenha = (box, itens) => {
+  const desenha = (box, itens, escopo) => {
     for (const note of itens) {
       const card = el('article', 'bfeed-card');
       card.dataset.noteId = note.id;
@@ -80,6 +81,7 @@ export function renderBaseFeedView(container, notes, schema, viewConfig = {}, ca
       box.appendChild(card);
       lazy.observe(card);
     }
+    enableReorder(box, { itemSelector: '.bfeed-card[data-note-id]', scope: escopo, view: viewConfig, onViewChange: callbacks.onUpdateView });
   };
 
   if (!notes.length) { lista.appendChild(el('p', 'bfeed-empty', 'Nenhuma nota para exibir.')); return; }

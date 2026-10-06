@@ -404,4 +404,21 @@ export async function runBasesSettingsTests({ ok, igual }) {
   ok('cores · cell-editors sem #hex e sem sufixo de alfa colado na cor', !/#[0-9a-fA-F]{6}/.test(ced) && !/\$\{color\}[0-9a-f]{2}/.test(ced));
 
   igual('quadro · sub-grupo padrão e coleta de recolhidas', [V.resolveSubGroup({}), V.resolveSubGroup({ subGroup: { prop: 'p', collapsed: ['x', 3] } })], [{ prop: null, collapsed: [] }, { prop: 'p', collapsed: ['x', '3'] }]);
+
+  // ── ordem manual ──
+  const Mo = await import('../sidepanel/modules/bases/engine/manual-order.js');
+  const mn = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+  igual('ordem · aplica a ordem lembrada e deixa as novas no fim', Mo.applyManualOrder(mn, ['3', '1']).map(n => n.id), [3, 1, 2, 4]);
+  igual('ordem · ids que sumiram são ignorados', Mo.applyManualOrder(mn, ['9', '2']).map(n => n.id), [2, 1, 3, 4]);
+  igual('ordem · sem lista, mesma ordem', Mo.applyManualOrder(mn, undefined), mn);
+  igual('ordem · mover para antes de outro', Mo.moveInOrder(['1', '2', '3'], '3', '1'), ['3', '1', '2']);
+  igual('ordem · mover para o fim', Mo.moveInOrder(['1', '2', '3'], '1', null), ['2', '3', '1']);
+  igual('ordem · mover item de outra coluna para o meio', Mo.moveInOrder(['1', '2'], '9', '2'), ['1', '9', '2']);
+  igual('ordem · antes de id inexistente vai pro fim', Mo.moveInOrder(['1', '2'], '3', 'x'), ['1', '2', '3']);
+  igual('ordem · onde soltar (lista)', [Mo.dropBeforeId([{ id: 'a', top: 0, height: 10 }, { id: 'b', top: 10, height: 10 }], 4), Mo.dropBeforeId([{ id: 'a', top: 0, height: 10 }, { id: 'b', top: 10, height: 10 }], 99)], ['a', null]);
+  const gr = [{ id: 'a', left: 0, top: 0, width: 100, height: 50 }, { id: 'b', left: 100, top: 0, width: 100, height: 50 }, { id: 'c', left: 0, top: 60, width: 100, height: 50 }];
+  igual('ordem · onde soltar (grade)', [Mo.dropBeforeIdGrid(gr, 120, 20), Mo.dropBeforeIdGrid(gr, 190, 20), Mo.dropBeforeIdGrid(gr, 10, 55), Mo.dropBeforeIdGrid(gr, 90, 100)], ['b', 'c', 'c', null]);
+  igual('ordem · escopos', [Mo.scopeKey(), Mo.scopeKey('alta', 'Feito'), Mo.scopeKey(null, 'Feito')], ['__all__', 'alta/Feito', 'Feito']);
+  igual('ordem · ordenar por propriedade desliga a manual', [Mo.manualOrderActive({}), Mo.manualOrderActive({ sort: [{ property: 'a' }] })], [true, false]);
+  igual('ordem · resolve lixo', Mo.resolveManualOrder({ manualOrder: { a: [1, 2], b: 'x' } }), { a: ['1', '2'] });
 }

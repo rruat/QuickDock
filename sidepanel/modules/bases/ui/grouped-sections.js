@@ -5,16 +5,19 @@
 import { resolveGroupConfig } from '../config/view-model.js';
 import { groupNotes } from '../engine/group-engine.js';
 import { getNotePropertyValue } from '../bases-engine.js';
+import { resolveManualOrder, manualOrderActive, applyManualOrder, scopeKey } from '../engine/manual-order.js';
 
 /**
  * @param {HTMLElement} host
  * @param {{ notes, schema, view }} o
- * @param {(box:HTMLElement, notes:Array)=>void} renderItems  desenha os itens de um grupo em `box`
+ * @param {(box:HTMLElement, notes:Array, scope:string)=>void} renderItems  desenha os itens de um grupo em `box` (`scope` = chave da ordem manual)
  * @param {(patch:Object)=>void} [onViewChange]
  */
 export function renderGrouped(host, { notes, schema, view }, renderItems, onViewChange) {
   const cfg = resolveGroupConfig(view);
-  if (!cfg.prop) { renderItems(host, notes); return; }
+  const ordem = manualOrderActive(view) ? resolveManualOrder(view) : {};
+  // sem grupo: uma lista só; os itens chegam na ordem manual (se houver) e o escopo é "__all__"
+  if (!cfg.prop) { renderItems(host, applyManualOrder(notes, ordem[scopeKey()]), scopeKey()); return; }
 
   for (const g of groupNotes(notes, cfg, schema, getNotePropertyValue)) {
     const fechado = cfg.collapsed.includes(g.key);
@@ -46,7 +49,7 @@ export function renderGrouped(host, { notes, schema, view }, renderItems, onView
     if (!fechado) {
       const corpo = document.createElement('div');
       corpo.className = 'base-group-body';
-      renderItems(corpo, g.notes);
+      renderItems(corpo, applyManualOrder(g.notes, ordem[scopeKey(g.key)]), scopeKey(g.key));
       sec.appendChild(corpo);
     }
     host.appendChild(sec);
