@@ -191,3 +191,40 @@ export function applyViewPatch(view, patch) {
   }
   return saida;
 }
+// ── Agrupar · Cálculos · Layout da tabela (compatíveis com as chaves antigas) ──
+
+const SUMMARY_LEGADO = { average: 'avg', percent_checked: 'pct_checked', count_filled: 'filled', count_unique: 'unique' };
+
+/** `group` (novo) ou `groupBy` (antigo, só quadro). Sempre devolve um objeto completo. */
+export function resolveGroupConfig(view = {}) {
+  const g = view.group && typeof view.group === 'object' ? view.group : {};
+  const lista = v => (Array.isArray(v) ? v.map(String) : []);
+  return {
+    prop: g.prop || view.groupBy || null,
+    granularity: ['day', 'week', 'month', 'year'].includes(g.granularity) ? g.granularity : 'month',
+    range: g.range && Number(g.range.step) > 0 ? { step: Number(g.range.step) } : null,
+    order: ['manual', 'asc', 'desc', 'count'].includes(g.order) ? g.order : 'manual',
+    hideEmpty: g.hideEmpty === true || g.hideEmpty === 'true',
+    hidden: lista(g.hidden),
+    collapsed: lista(g.collapsed),
+    showCounts: g.showCounts !== false && g.showCounts !== 'false',
+  };
+}
+
+/** Cálculos por coluna: `calc` (novo) ou `summaries` (antigo, com nomes antigos traduzidos). */
+export function resolveCalc(view = {}) {
+  const calc = {};
+  for (const [k, v] of Object.entries(view.summaries || {})) if (v && v !== 'none') calc[k] = SUMMARY_LEGADO[v] || v;
+  for (const [k, v] of Object.entries(view.calc || {})) { if (v && v !== 'none') calc[k] = v; else delete calc[k]; }
+  return calc;
+}
+
+export function resolveTableLayout(view = {}) {
+  const l = view.layout && typeof view.layout === 'object' ? view.layout : {};
+  return {
+    rowHeight: ['short', 'medium', 'tall'].includes(l.rowHeight) ? l.rowHeight : 'medium',
+    wrapCells: l.wrapCells === true || l.wrapCells === 'true',
+    rowNumbers: l.rowNumbers === true || l.rowNumbers === 'true',
+    borders: ['both', 'rows', 'none'].includes(l.borders) ? l.borders : 'both',
+  };
+}

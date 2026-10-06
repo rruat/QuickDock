@@ -110,6 +110,16 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     rightGroup.appendChild(toggleCodeBtn);
   }
 
+  // Botão ⚙ "Configurar view" (todas as views)
+  const settingsBtn = document.createElement('button');
+  settingsBtn.className = 'base-header-btn base-btn-settings';
+  settingsBtn.type = 'button';
+  settingsBtn.title = 'Configurar view';
+  settingsBtn.setAttribute('aria-label', 'Configurar view');
+  settingsBtn.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">tune</span>';
+  settingsBtn.addEventListener('click', () => { settingsOpen = !settingsOpen; renderSettingsPanel(); });
+  rightGroup.appendChild(settingsBtn);
+
   // Botão "+ Nova Nota"
   const addNoteBtn = document.createElement('button');
   addNoteBtn.className = 'base-header-btn base-btn-primary';
@@ -151,6 +161,8 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const view = baseDef.views[activeIndex()];
     settingsEl.hidden = !settingsOpen || !view;
     rootContainer.classList.toggle('has-settings', !settingsEl.hidden);
+    settingsBtn.classList.toggle('active', !settingsEl.hidden);
+    settingsBtn.setAttribute('aria-pressed', String(!settingsEl.hidden));
     if (settingsEl.hidden) { settingsEl.replaceChildren(); return; }
     const rolagem = settingsEl.querySelector('.bset-body')?.scrollTop ?? 0;
     settingsHandle = mountViewSettingsPanel(settingsEl, {

@@ -263,3 +263,21 @@
 .bqf-add { height: 24px; padding: 0 8px; border: 1px dashed var(--border); border-radius: 12px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 12px; cursor: pointer; }
 .bqf-add:hover { background: var(--bg-hover); color: var(--text); }
 .bqf-count { margin-left: auto; font-size: 11.5px; color: var(--text-muted); }
+
+/* ── Tabela: grupos, cálculo, altura de linha, bordas, numeração ── */
+.base-group-row td { background: var(--bg-hover); border-bottom: 1px solid var(--border); font-size: 12.5px; padding: 4px 8px; }
+.base-group-toggle { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; cursor: pointer; padding: 2px 4px; border-radius: var(--radius-sm); }
+.base-group-toggle:focus-visible { outline: 2px solid var(--accent); }
+.base-group-toggle .qd-icon { font-size: 18px; }
+.base-group-count { font-weight: 400; color: var(--text-muted); }
+.base-group-calc { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.base-th-num, .base-td-num { width: 36px; min-width: 36px; text-align: right; color: var(--text-muted); font-size: 11px; user-select: none; }
+.base-rows-short .base-td { padding-top: 2px; padding-bottom: 2px; }
+.base-rows-tall .base-td { padding-top: 12px; padding-bottom: 12px; }
+.base-wrap-cells .base-td { white-space: normal; word-break: break-word; }
+.base-borders-rows .base-td, .base-borders-rows .base-th { border-left: 0; border-right: 0; }
+.base-borders-none .base-td, .base-borders-none .base-th { border: 0; }
+.base-calc-select { max-width: 100%; height: 22px; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 11.5px; cursor: pointer; }
+.base-calc-select.is-none { opacity: 0; }
+.base-tfoot-td:hover .base-calc-select, .base-calc-select:focus-visible { opacity: 1; }
+.base-tfoot-td .base-summary-value { margin-left: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }

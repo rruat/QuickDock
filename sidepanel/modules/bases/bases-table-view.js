@@ -4,8 +4,11 @@
 // edição inline direta de células e linha de rodapé com somatórios/médias.
 
 import { formatPropertyValue } from './bases-schema.js';
-import { getViewProps } from './config/view-model.js';
-import { getNotePropertyValue, queryBaseNotes, sortBaseNotes, calculateBaseSummaries } from './bases-engine.js';
+import { getViewProps, resolveGroupConfig, resolveTableLayout, resolveCalc } from './config/view-model.js';
+import { groupNotes } from './engine/group-engine.js';
+import { renderTableFooter as desenhaRodape, calcCell } from './table/table-footer.js';
+import { formatAggregate } from './engine/aggregate-engine.js';
+import { getNotePropertyValue, queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { activateCellEditor } from './bases-cell-editors.js';
 import { createNoteRecord } from '../storage.js';
 
@@ -20,7 +23,7 @@ import { createNoteRecord } from '../storage.js';
  * @param {Function} params.onDefChange Callback chamado ao alterar a configuração da Base
  * @returns {HTMLElement} Elemento container da Tabela
  */
-export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, showOwnToolbar = true }) {
+export function createBaseTableView({ notes = [], baseDef = {}, activeView = {}, schema = {}, onDefChange = () => {}, onViewChange = null, showOwnToolbar = true }) {
   const container = document.createElement('div');
   container.className = 'base-view-container base-table-view';
 
@@ -31,7 +34,11 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   const columns = propsView.length > 0 ? propsView : Object.keys(schema).slice(0, 6);
 
   if (!activeView.columnWidths) activeView.columnWidths = {};
-  if (!activeView.summaries) activeView.summaries = { title: 'count' };
+  // grava na Base quando há um callback (container); senão só muta o objeto (uso isolado/testes)
+  const gravaView = patch => { if (onViewChange) onViewChange(patch); else onDefChange(baseDef); };
+  const layout = resolveTableLayout(activeView);
+  container.classList.add(`base-rows-${layout.rowHeight}`, `base-borders-${layout.borders}`);
+  container.classList.toggle('base-wrap-cells', layout.wrapCells);
 
   // ── 1. Barra de ferramentas da Base ─────────────────────────────────────────
   // showOwnToolbar=false quando montada dentro de bases-view-container.js: a
@@ -109,6 +116,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
   function renderTableHeader() {
     thead.innerHTML = '';
     const tr = document.createElement('tr');
+    if (layout.rowNumbers) tr.appendChild(Object.assign(document.createElement('th'), { className: 'base-th base-th-num', textContent: '#' }));
 
     for (const colKey of columns) {
       const propDef = schema[colKey] || { key: colKey, label: colKey, type: 'text' };
@@ -153,9 +161,8 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
           activeSorts = activeSorts.filter(s => s.property !== colKey);
         }
         activeView.sort = activeSorts;
-        renderTableHeader();
-        renderTableBody();
-        onDefChange(baseDef);
+        gravaView({ sort: activeSorts.length ? activeSorts : undefined });
+        if (!onViewChange) { renderTableHeader(); renderTableBody(); }
       });
 
       th.appendChild(content);
@@ -188,7 +195,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
       document.body.classList.remove('base-col-resizing');
-      onDefChange(baseDef);
+      gravaView({ columnWidths: { ...activeView.columnWidths } });
     };
 
     resizer.addEventListener('mousedown', e => {
@@ -223,7 +230,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       const emptyRow = document.createElement('tr');
       const emptyTd = document.createElement('td');
       emptyTd.className = 'base-td-empty';
-      emptyTd.colSpan = columns.length;
+      emptyTd.colSpan = columns.length + (layout.rowNumbers ? 1 : 0);
       emptyTd.innerHTML = '<span class="qd-icon material-symbols-rounded">inbox</span><span>Nenhuma nota encontrada</span>';
       emptyRow.appendChild(emptyTd);
       tbody.appendChild(emptyRow);
@@ -231,10 +238,13 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       return;
     }
 
-    for (const note of sorted) {
+    let contador = 0;
+    const buildRow = note => {
+      const numero = ++contador;
       const tr = document.createElement('tr');
       tr.className = 'base-tr';
       tr.dataset.noteId = note.id;
+      if (layout.rowNumbers) tr.appendChild(Object.assign(document.createElement('td'), { className: 'base-td base-td-num', textContent: String(numero) }));
 
       for (const colKey of columns) {
         const propDef = schema[colKey] || { key: colKey, type: 'text' };
@@ -266,7 +276,47 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         tr.appendChild(td);
       }
 
-      tbody.appendChild(tr);
+      return tr;
+    };
+
+    const grupoCfg = resolveGroupConfig(activeView);
+    const calcCfg = resolveCalc(activeView);
+    const getV = (n, p) => getNotePropertyValue(n, p);
+    if (!grupoCfg.prop) {
+      for (const note of sorted) tbody.appendChild(buildRow(note));
+    } else {
+      for (const g of groupNotes(sorted, grupoCfg, schema, getV)) {
+        const fechado = grupoCfg.collapsed.includes(g.key);
+        const gr = document.createElement('tr');
+        gr.className = 'base-group-row' + (fechado ? ' is-collapsed' : '');
+        gr.dataset.groupKey = g.key;
+        const tdTitulo = document.createElement('td');
+        tdTitulo.colSpan = 1 + (layout.rowNumbers ? 1 : 0);
+        const toggle = document.createElement('button');
+        toggle.type = 'button'; toggle.className = 'base-group-toggle';
+        toggle.setAttribute('aria-expanded', String(!fechado));
+        toggle.innerHTML = `<span class="qd-icon material-symbols-rounded" aria-hidden="true">${fechado ? 'chevron_right' : 'expand_more'}</span>`;
+        const nome = document.createElement('span'); nome.className = 'base-group-label'; nome.textContent = g.label;
+        toggle.appendChild(nome);
+        if (grupoCfg.showCounts) { const c = document.createElement('span'); c.className = 'base-group-count'; c.textContent = String(g.count); toggle.appendChild(c); }
+        toggle.addEventListener('click', () => {
+          const novo = fechado ? grupoCfg.collapsed.filter(k => k !== g.key) : [...grupoCfg.collapsed, g.key];
+          activeView.group = { ...(activeView.group || {}), prop: grupoCfg.prop, collapsed: novo };
+          gravaView({ group: { collapsed: novo } });
+          if (!onViewChange) renderTableBody();
+        });
+        tdTitulo.appendChild(toggle);
+        gr.appendChild(tdTitulo);
+        // demais colunas: cálculo do grupo
+        columns.slice(1).forEach(colKey => {
+          const td = document.createElement('td');
+          td.className = 'base-group-calc';
+          if (calcCfg[colKey]) td.textContent = formatAggregate(calcCell(g.notes, colKey, calcCfg[colKey], schema));
+          gr.appendChild(td);
+        });
+        tbody.appendChild(gr);
+        if (!fechado) for (const note of g.notes) tbody.appendChild(buildRow(note));
+      }
     }
 
     renderTableFooter(sorted);
@@ -370,45 +420,10 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
     if (!formatted) td.classList.add('base-cell-empty');
   }
 
-  // ── 7. Renderização do Rodapé com Cálculos e Resumos ─────────────────────────
+  // ── 7. Rodapé com cálculos por coluna (ver table/table-footer.js) ───────────
   function renderTableFooter(currentFilteredNotes) {
-    tfoot.innerHTML = '';
-    const tr = document.createElement('tr');
-    tr.className = 'base-tfoot-tr';
-
-    const summaries = calculateBaseSummaries(currentFilteredNotes, activeView.summaries, schema);
-
-    for (const colKey of columns) {
-      const propDef = schema[colKey] || { key: colKey, type: 'text' };
-      const td = document.createElement('td');
-      td.className = 'base-tfoot-td';
-      td.dataset.col = colKey;
-
-      const summary = summaries[colKey];
-      if (summary) {
-        td.innerHTML = `
-          <div class="base-summary-content" title="${summary.metric}">
-            <span class="base-summary-label">${summary.metric}:</span>
-            <span class="base-summary-value">${typeof summary.value === 'number' ? summary.value.toLocaleString('pt-BR') : summary.value}</span>
-          </div>
-        `;
-      } else {
-        // Botão sutil para adicionar resumo se coluna numérica
-        const addSummaryBtn = document.createElement('button');
-        addSummaryBtn.className = 'base-add-summary-btn';
-        addSummaryBtn.textContent = '+ Calcular';
-        addSummaryBtn.onclick = () => {
-          activeView.summaries[colKey] = propDef.type === 'number' ? 'sum' : 'count';
-          onDefChange(baseDef);
-          renderTableFooter(currentFilteredNotes);
-        };
-        td.appendChild(addSummaryBtn);
-      }
-
-      tr.appendChild(td);
-    }
-
-    tfoot.appendChild(tr);
+    desenhaRodape(tfoot, { notes: currentFilteredNotes, columns, schema, view: activeView, rowNumbers: layout.rowNumbers },
+      patch => { gravaView(patch); if (!onViewChange) { activeView.calc = { ...resolveCalc(activeView), ...patch.calc }; renderTableFooter(currentFilteredNotes); } });
   }
 
   // Inicializa componentes
@@ -468,6 +483,7 @@ export function renderBaseTableView(container, notes, schema, viewConfig = {}, c
     activeView: viewConfig,
     schema,
     onDefChange: callbacks.onDefChange || (() => {}),
+    onViewChange: callbacks.onUpdateView || null,
     showOwnToolbar: callbacks.showOwnToolbar,
   });
   container.appendChild(tableEl);

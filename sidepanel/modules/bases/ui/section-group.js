@@ -1,19 +1,44 @@
 // ── section-group.js ────────────────────────────────────────────────────────
-// "Agrupar por": hoje só o Quadro agrupa (colunas); grava `groupBy`.
+// "Agrupar": propriedade, granularidade (datas), faixas (números), ordem dos grupos,
+// ocultar vazios e contagens. Grava `group` (e limpa o `groupBy` antigo do quadro).
 
-import { section, row, selectControl } from './controls.js';
+import { resolveGroupConfig } from '../config/view-model.js';
+import { section, row, selectControl, toggle } from './controls.js';
 
 const NENHUM = '__none__';
+const ehData = t => ['date', 'datetime', 'daterange'].includes(t);
 
 export function groupSection({ view, schema, memoria, patch }) {
-  if (view.type !== 'board') return null;
-  const s = section('Agrupar', { chave: 'group', memoria, dica: 'Cada valor da propriedade vira uma coluna.' });
+  if (!['table', 'board', 'list', 'gallery'].includes(view.type)) return null;
+  const cfg = resolveGroupConfig(view);
+  const quadro = view.type === 'board';
+  const s = section('Agrupar', { chave: 'group', memoria, dica: quadro ? 'Cada valor da propriedade vira uma coluna.' : 'Separa as notas em grupos recolhíveis.' });
   const props = Object.entries(schema)
-    .filter(([k, d]) => k !== 'title' && !['date', 'datetime', 'daterange', 'number', 'tasks'].includes(d?.type))
+    .filter(([k, d]) => k !== 'title' && (!quadro || !['date', 'datetime', 'daterange', 'number', 'tasks'].includes(d?.type)))
     .map(([key, def]) => ({ value: def?.key || key, label: def?.label || key }));
+  const opcoes = quadro ? props : [{ value: NENHUM, label: 'Sem agrupamento' }, ...props];
+  const grava = g => patch({ group: g, groupBy: undefined });
+
   s.body.appendChild(row('Agrupar por', id => selectControl({
-    id, value: view.groupBy || 'status', options: props,
-    onChange: v => patch({ groupBy: v }),
+    id, value: cfg.prop || (quadro ? 'status' : NENHUM), options: opcoes,
+    onChange: v => (v === NENHUM ? patch({ group: undefined, groupBy: undefined }) : grava({ prop: v })),
   })));
+  if (!cfg.prop && !quadro) return s.root;
+
+  const tipo = schema[cfg.prop || 'status']?.type;
+  if (ehData(tipo)) {
+    s.body.appendChild(row('Agrupar datas por', id => selectControl({
+      id, value: cfg.granularity,
+      options: [{ value: 'day', label: 'Dia' }, { value: 'week', label: 'Semana' }, { value: 'month', label: 'Mês' }, { value: 'year', label: 'Ano' }],
+      onChange: v => grava({ prop: cfg.prop, granularity: v }),
+    })));
+  }
+  s.body.appendChild(row('Ordem dos grupos', id => selectControl({
+    id, value: cfg.order,
+    options: [{ value: 'manual', label: 'Ordem das opções' }, { value: 'asc', label: 'A → Z' }, { value: 'desc', label: 'Z → A' }, { value: 'count', label: 'Mais itens primeiro' }],
+    onChange: v => grava({ prop: cfg.prop, order: v }),
+  })));
+  s.body.appendChild(row('Ocultar grupos vazios', id => toggle({ id, value: cfg.hideEmpty, onChange: v => grava({ prop: cfg.prop, hideEmpty: v }) })));
+  if (!quadro) s.body.appendChild(row('Mostrar contagem', id => toggle({ id, value: cfg.showCounts, onChange: v => grava({ prop: cfg.prop, showCounts: v }) })));
   return s.root;
 }

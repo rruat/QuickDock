@@ -13,6 +13,7 @@ import { propertiesSection } from './section-properties.js';
 import { filterSection } from './section-filter.js';
 import { sortSection } from './section-sort.js';
 import { groupSection } from './section-group.js';
+import { layoutSection } from './section-layout.js';
 
 const memoria = new Set();   // seções abertas/fechadas, vive enquanto a página estiver aberta
 
@@ -74,6 +75,8 @@ export function mountViewSettingsPanel(host, api) {
   if (view.type === 'calendar') {
     for (const s of calendarSections(ctx)) corpo.appendChild(s);
   } else {
+    const lay = layoutSection(ctx);
+    if (lay) corpo.appendChild(lay);
     corpo.appendChild(propertiesSection(ctx));
     const grupo = groupSection(ctx);
     if (grupo) corpo.appendChild(grupo);

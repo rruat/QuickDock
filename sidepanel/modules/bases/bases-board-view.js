@@ -4,7 +4,7 @@
 // atualizando automaticamente a propriedade correspondente no frontmatter.
 
 import { formatPropertyValue } from './bases-schema.js';
-import { getViewProps } from './config/view-model.js';
+import { getViewProps, resolveGroupConfig } from './config/view-model.js';
 import { getNotePropertyValue, queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { createNoteRecord, updateNoteMetaById } from '../storage.js';
 
@@ -25,7 +25,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
 
   let currentNotes = [...notes];
   let quickSearchQuery = '';
-  const groupByProp = activeView.groupBy || 'status';
+  const groupByProp = resolveGroupConfig(activeView).prop || 'status';
   const groupDef = schema[groupByProp] || { key: groupByProp, type: 'select', options: [] };
   const cardProps = Array.isArray(activeView.props ?? activeView.cardProperties)
     ? getViewProps(activeView) : ['tags', 'prazo', 'prioridade'];
