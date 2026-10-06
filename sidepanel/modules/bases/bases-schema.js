@@ -18,6 +18,8 @@ export const BASE_PROPERTY_TYPES = {
   email:    { icon: 'mail',                   label: 'E-mail' },
   phone:    { icon: 'call',                   label: 'Telefone' },
   button:   { icon: 'smart_button',           label: 'Botão' },
+  uid:      { icon: 'tag',                    label: 'ID único' },
+  reverse:  { icon: 'swap_horiz',             label: 'Relação inversa' },
   folder:   { icon: 'folder',                 label: 'Pasta' },
   tasks:    { icon: 'checklist_rtl',          label: 'Tarefas' },
 };
@@ -306,6 +308,8 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
         options: def.options || [],
         isSystem: false,
         ...(def.format ? { format: def.format } : {}),
+        ...(def.type === 'reverse' ? { type: 'list', isDerived: 'reverse' } : {}),
+        ...(def.type === 'uid' ? { type: 'text', isUniqueId: true, idPrefix: def.prefix || '', idDigits: def.digits || 0 } : {}),
         ...(def.type === 'button' ? { type: 'button', isDerived: 'button', buttonLabel: def.label || 'Executar', set: def.set || null } : {}),
         ...(def.type === 'status' ? { type: 'select', isStatus: true, options: normalizeStatusOptions(def.options) } : {}),
         ...((def.type === 'formula' || def.type === 'rollup') ? { isDerived: def.type, expr: def.expr } : {}),
@@ -320,6 +324,8 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
         schema[key].buttonLabel = def.label || 'Executar';
         schema[key].set = def.set && typeof def.set === 'object' ? { prop: def.set.prop, value: def.set.value } : null;
       }
+      if (def.type === 'reverse') { schema[key].type = 'list'; schema[key].isDerived = 'reverse'; }
+      if (def.type === 'uid') { schema[key].type = 'text'; schema[key].isUniqueId = true; schema[key].idPrefix = def.prefix || ''; schema[key].idDigits = def.digits || 0; }
       if (def.type === 'formula' || def.type === 'rollup') {
         schema[key].type = def.result || (def.type === 'rollup' ? 'number' : 'text');
         schema[key].isDerived = def.type;

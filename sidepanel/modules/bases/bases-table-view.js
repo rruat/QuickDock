@@ -357,7 +357,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         td.setAttribute('role', 'gridcell');
         td.addEventListener('pointerdown', () => { celulaAtiva = { noteId: note.id, key: colKey }; container.querySelectorAll('.is-active-cell').forEach(x => x.classList.remove('is-active-cell')); td.classList.add('is-active-cell'); td.focus({ preventScroll: true }); });
         td.addEventListener('click', e => {
-          if (propDef.isDerived || SO_LEITURA.has(colKey)) return;
+          if (propDef.isDerived || propDef.isUniqueId || SO_LEITURA.has(colKey)) return;
           if (propDef.type === 'checkbox' || propDef.type === 'select' || propDef.type === 'folder') {
             activateCellEditor(td, note, colKey, propDef, () => {
               renderTableBody();
@@ -366,7 +366,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         });
 
         td.addEventListener('dblclick', () => {
-          if (propDef.isDerived || SO_LEITURA.has(colKey)) return;
+          if (propDef.isDerived || propDef.isUniqueId || SO_LEITURA.has(colKey)) return;
           if (propDef.type !== 'checkbox' && propDef.type !== 'select' && propDef.type !== 'folder') {
             activateCellEditor(td, note, colKey, propDef, () => {
               renderTableBody();

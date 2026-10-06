@@ -11,15 +11,15 @@ const RESULTADOS = [
   { value: 'date', label: 'Data' }, { value: 'checkbox', label: 'Sim/Não' },
 ];
 
-export function derivedSection({ baseProps, schema, memoria, patchBase }) {
+export function derivedSection({ baseProps, schema, memoria, patchBase, fillIds }) {
   const s = section('Propriedades calculadas', { chave: 'derived', memoria,
     dica: 'Fórmulas (ex.: prop("custo") * prop("qtd")) e rollups. Valem para todas as views da Base.' });
-  const derivadas = Object.entries(baseProps || {}).filter(([, d]) => isDerivedDef(d) || d?.type === 'button');
+  const derivadas = Object.entries(baseProps || {}).filter(([, d]) => isDerivedDef(d) || d?.type === 'button' || d?.type === 'uid');
 
   for (const [key, def] of derivadas) {
     const caixa = el('div', 'bset-filter');
     const topo = el('div', 'bset-rule');
-    topo.appendChild(el('strong', 'bset-derived-name', `${def.type === 'rollup' ? '∑' : def.type === 'button' ? '▣' : 'ƒ'} ${key}`));
+    topo.appendChild(el('strong', 'bset-derived-name', `${{ rollup: '∑', button: '▣', uid: '#', reverse: '⇄' }[def.type] || 'ƒ'} ${key}`));
     const rm = el('button', 'bset-icon-btn', '✕');
     rm.type = 'button'; rm.title = 'Remover propriedade'; rm.setAttribute('aria-label', `Remover ${key}`);
     rm.addEventListener('click', () => { if (window.confirm(`Remover a propriedade calculada "${key}"?`)) patchBase({ [key]: undefined }); });
@@ -42,6 +42,18 @@ export function derivedSection({ baseProps, schema, memoria, patchBase }) {
       valida();
       caixa.append(campo, msg);
       caixa.appendChild(row('Resultado', id => selectControl({ id, value: def.result || 'text', options: RESULTADOS, onChange: v => patchBase({ [key]: { ...def, result: v } }) })));
+    } else if (def.type === 'uid') {
+      const pre = el('input', 'bset-input'); pre.value = def.prefix || ''; pre.maxLength = 12; pre.setAttribute('aria-label', 'Prefixo do ID');
+      pre.addEventListener('change', () => patchBase({ [key]: { ...def, prefix: pre.value.trim().replace(/[^\w-]/g, '') || undefined } }));
+      caixa.appendChild(row('Prefixo', () => pre));
+      caixa.appendChild(row('Dígitos', id => selectControl({ id, value: def.digits || 0, options: [0, 2, 3, 4, 5].map(n => ({ value: n, label: n === 0 ? 'Sem zeros à esquerda' : String(n) })), onChange: v => patchBase({ [key]: { ...def, digits: Number(v) || undefined } }) })));
+      const gera = el('button', 'bset-btn', 'Gerar IDs das notas sem ID'); gera.type = 'button';
+      gera.addEventListener('click', () => fillIds?.(key, def));
+      caixa.appendChild(gera);
+      caixa.appendChild(el('p', 'bset-hint', 'Notas novas criadas por esta Base já recebem o próximo ID. O número nunca é reaproveitado.'));
+    } else if (def.type === 'reverse') {
+      const props = Object.entries(schema).filter(([k, d]) => !d?.isSystem && !d?.isDerived).map(([k, d]) => ({ value: d?.key || k, label: d?.label || k }));
+      caixa.appendChild(row('Notas que citam esta em', id => selectControl({ id, value: def.relation || '', options: [{ value: '', label: 'Escolher…' }, ...props], onChange: v => patchBase({ [key]: { ...def, relation: v || '' } }) })));
     } else if (def.type === 'button') {
       const props = Object.entries(schema).filter(([k, d]) => !d?.isSystem && !d?.isDerived).map(([k, d]) => ({ value: d?.key || k, label: d?.label || k }));
       const rot = el('input', 'bset-input'); rot.value = def.label || ''; rot.maxLength = 30; rot.setAttribute('aria-label', 'Texto do botão');
@@ -75,12 +87,14 @@ export function derivedSection({ baseProps, schema, memoria, patchBase }) {
     const n = nome.value.trim();
     if (!n) { nome.focus(); return; }
     if (n in (baseProps || {}) || n in schema) { nome.setCustomValidity('Já existe uma propriedade com esse nome'); nome.reportValidity(); nome.setCustomValidity(''); return; }
-    patchBase({ [n]: tipo === 'formula' ? { type: 'formula', expr: '', result: 'number' } : tipo === 'button' ? { type: 'button', label: 'Executar', set: { prop: '', value: '' } } : { type: 'rollup', agg: 'count', relation: '', target: '' } });
+    patchBase({ [n]: tipo === 'formula' ? { type: 'formula', expr: '', result: 'number' } : tipo === 'button' ? { type: 'button', label: 'Executar', set: { prop: '', value: '' } } : tipo === 'uid' ? { type: 'uid', prefix: n.slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, ''), digits: 0 } : tipo === 'reverse' ? { type: 'reverse', relation: '' } : { type: 'rollup', agg: 'count', relation: '', target: '' } });
   };
   const f = el('button', 'bset-btn', '+ Fórmula'); f.type = 'button'; f.addEventListener('click', () => cria('formula'));
   const r = el('button', 'bset-btn', '+ Rollup'); r.type = 'button'; r.addEventListener('click', () => cria('rollup'));
   const bt = el('button', 'bset-btn', '+ Botão'); bt.type = 'button'; bt.addEventListener('click', () => cria('button'));
-  acoes.append(f, r, bt);
+  const id = el('button', 'bset-btn', '+ ID único'); id.type = 'button'; id.addEventListener('click', () => cria('uid'));
+  const rv = el('button', 'bset-btn', '+ Relação inversa'); rv.type = 'button'; rv.addEventListener('click', () => cria('reverse'));
+  acoes.append(f, r, bt, id, rv);
   s.body.appendChild(acoes);
   return s.root;
 }

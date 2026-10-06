@@ -14,6 +14,7 @@ import { renderViewTabs as desenhaAbas, abreMenu } from './ui/view-tabs.js';
 import { exportMenuItems } from './ui/export-menu.js';
 import { createBulkController } from './bases-bulk-controller.js';
 import { createNotePeek } from './ui/note-peek.js';
+import { nextId, planMissingIds } from './engine/unique-id.js';
 import { readLinkedDefinition, effectiveSource, effectiveProperties, findBaseNotes } from './engine/linked-base.js';
 import { renderQuickFilters, loadQuickFilters, saveQuickFilters } from './ui/quick-filters.js';
 import { impliedValues } from './engine/filter-tree.js';
@@ -218,6 +219,17 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       },
       getTemplates: () => templates,
       getViews: () => baseDef.views,
+      // Gera os IDs que faltam (ação explícita; abrir uma view nunca grava)
+      onFillIds: async (key, def) => {
+        const plano = planMissingIds(allNotes, key, def.prefix || '', def.digits || 0);
+        if (!plano.length) { window.alert('Todas as notas já têm ID.'); return; }
+        if (!window.confirm(`Gerar ${plano.length} ID(s) em ${key}? As notas serão alteradas.`)) return;
+        for (const { id, value } of plano) {
+          const n = allNotes.find(x => x.id === id);
+          await updateNoteMetaById(id, { properties: { ...(n?.properties || {}), [key]: value }, propertyTypes: { ...(n?.propertyTypes || {}), [key]: 'text' } });
+        }
+        document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { ids: true } }));
+      },
       getBaseProps: () => baseDef.properties || {},
       onBasePatch: patch => {
         const props = { ...(baseDef.properties || {}) };
@@ -293,6 +305,8 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const reservadas = new Set(['title', 'folder', 'tags', 'createdAt', 'updatedAt', 'tasks']);
     const herdadas = Object.fromEntries(Object.entries(implicitos).filter(([k]) => !reservadas.has(k)));
     const initialProperties = { ...herdadas, ...extraProps };
+    // ID único: a nota nova já nasce com o próximo número livre
+    for (const [k, d] of Object.entries(propsEfetivas())) if (d?.type === 'uid' && !(k in initialProperties)) initialProperties[k] = nextId(allNotes, k, d.prefix || '', d.digits || 0);
     const tiposHerdados = {};
     const esquema = inferBaseSchema(allNotes, propsEfetivas());
     for (const k of Object.keys(herdadas)) if (esquema[k]?.type) tiposHerdados[k] = esquema[k].type;

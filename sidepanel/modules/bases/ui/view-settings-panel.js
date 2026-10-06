@@ -117,7 +117,7 @@ export function mountViewSettingsPanel(host, api) {
   }
   if (api.getLinkInfo) corpo.appendChild(sourceSection({ info: api.getLinkInfo(), memoria, patchSource: p => api.onSourcePatch(p) }));
   if (api.getBaseProps) corpo.appendChild(statusSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) }));
-  if (api.getBaseProps) corpo.appendChild(derivedSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p) }));
+  if (api.getBaseProps) corpo.appendChild(derivedSection({ baseProps: api.getBaseProps(), schema: api.getSchema(), memoria, patchBase: p => api.onBasePatch(p), fillIds: (k, d) => api.onFillIds?.(k, d) }));
 
   const onKey = e => { if (e.key === 'Escape') api.onClose(); };
   host.addEventListener('keydown', onKey);

@@ -9,7 +9,7 @@ import { aggregate } from './aggregate-engine.js';
 import { getNotePropertyValue } from '../bases-engine.js';
 import { fmtData } from './formula/functions.js';
 
-export const isDerivedDef = def => def && (def.type === 'formula' || def.type === 'rollup');
+export const isDerivedDef = def => def && (def.type === 'formula' || def.type === 'rollup' || def.type === 'reverse');
 
 const norm = s => String(s ?? '').trim().toLowerCase();
 const tituloDeLink = v => String(v ?? '').replace(/^\[\[|\]\]$/g, '').split('|')[0].trim();
@@ -54,7 +54,9 @@ export function applyDerivedColumns(notes, baseProps = {}, opts = {}) {
     if (visitando.has(chave)) return '⚠ Referência circular';
     visitando.add(chave);
     let v;
-    if (def.type === 'formula') {
+    if (def.type === 'reverse') {
+      v = reversa(note, def);
+    } else if (def.type === 'formula') {
       const a = asts.get(chave);
       v = a.erro ? `⚠ ${a.erro}` : paraValor(runFormula(a.ast, {
         now: opts.now,
@@ -69,6 +71,27 @@ export function applyDerivedColumns(notes, baseProps = {}, opts = {}) {
     visitando.delete(chave);
     note.__calc[chave] = v;
     return v;
+  }
+
+  // Relação INVERSA: títulos das notas cuja propriedade `relation` cita esta nota (backlinks por propriedade)
+  const citantes = new Map();     // chave da relação → Map(título normalizado → [notas que citam])
+  function reversa(note, def) {
+    const rel = porNome.get(norm(def.relation)) ?? def.relation;
+    if (!citantes.has(rel)) {
+      const mapa = new Map();
+      for (const o of out) {
+        const bruto = getNotePropertyValue(o, rel);
+        const lista = Array.isArray(bruto) ? bruto : bruto ? String(bruto).split(',') : [];
+        for (const t of lista) {
+          const k = norm(tituloDeLink(t));
+          if (!k) continue;
+          if (!mapa.has(k)) mapa.set(k, []);
+          if (!mapa.get(k).includes(o)) mapa.get(k).push(o);
+        }
+      }
+      citantes.set(rel, mapa);
+    }
+    return (citantes.get(rel).get(norm(note.title || note.titulo)) || []).filter(o => o.id !== note.id).map(o => `[[${o.title || o.titulo}]]`);
   }
 
   function rollup(note, def, visitando) {

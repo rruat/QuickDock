@@ -47,7 +47,7 @@ export function planPaste(grade, inicio, notas, colunas, schema) {
       if (key === undefined) { skipped++; return; }               // além da última coluna
       const def = schema[key] || {};
       const tipo = def.type || 'text';
-      if (NAO_COLAVEIS.has(key) || def.isDerived || def.isSystem || !COLAVEIS.has(tipo)) {
+      if (NAO_COLAVEIS.has(key) || def.isDerived || def.isUniqueId || def.isSystem || !COLAVEIS.has(tipo)) {
         errors.push({ row: inicio.row + r, col: inicio.col + c, key, motivo: 'esta coluna não pode ser editada' });
         return;
       }

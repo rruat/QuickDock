@@ -489,4 +489,30 @@ export async function runBasesSettingsTests({ ok, igual }) {
   igual('sistema · tem capa', [E.getNotePropertyValue({ coverUrl: 'x' }, 'hasCover'), E.getNotePropertyValue({ coverFileId: 3 }, 'hasCover'), E.getNotePropertyValue({}, 'hasCover')], [true, true, false]);
   ok('sistema · aparecem no schema como propriedades de sistema', tpS.wordCount.isSystem && tpS.hasCover.isSystem);
   igual('colar · e-mail inválido bloqueia, válido passa', [Pg.planPaste([['x@y']], { row: 0, col: 1 }, [{ id: 1, properties: {} }], ['title', 'mail'], { mail: { type: 'email' } }).errors.length, Pg.planPaste([['a@b.co']], { row: 0, col: 1 }, [{ id: 1, properties: {} }], ['title', 'mail'], { mail: { type: 'email' } }).errors.length], [1, 0]);
+
+  // ── ID único e relação inversa ──
+  const Ui = await import('../sidepanel/modules/bases/engine/unique-id.js');
+  const un = [
+    { id: 1, createdAt: 3, properties: { ident: 'TAR-7' } },
+    { id: 2, createdAt: 2, properties: {} },
+    { id: 3, createdAt: 1, properties: { ident: 'TAR-12' } },
+    { id: 4, createdAt: 4, properties: { ident: 'OUTRO-99' } },
+    { id: 5, createdAt: 0, properties: { ident: '' } },
+  ];
+  igual('id · maior número do prefixo manda (nunca reaproveita)', Ui.maxIdNumber(un, 'ident', 'TAR'), 12);
+  igual('id · próximo livre, com zeros à esquerda', [Ui.nextId(un, 'ident', 'TAR'), Ui.nextId(un, 'ident', 'TAR', 4), Ui.nextId([], 'ident', 'X')], ['TAR-13', 'TAR-0013', 'X-1']);
+  igual('id · prefixo vazio usa só número', [Ui.formatId('', 5), Ui.nextId([{ properties: { n: '8' } }], 'n', '')], ['5', '9']);
+  igual('id · gera só para quem não tem, na ordem de criação', Ui.planMissingIds(un, 'ident', 'TAR', 0), [{ id: 5, value: 'TAR-13' }, { id: 2, value: 'TAR-14' }]);
+  igual('id · duplicados', Ui.duplicateIds([{ id: 1, properties: { k: 'A-1' } }, { id: 2, properties: { k: 'A-1' } }, { id: 3, properties: { k: 'A-2' } }], 'k'), { 'A-1': [1, 2] });
+  igual('id · prefixo com ponto não vira regex curinga', Ui.maxIdNumber([{ properties: { k: 'AxB-5' } }], 'k', 'A.B'), 0);
+  const rvDefs = { citadoPor: { type: 'reverse', relation: 'depende' } };
+  const rvN = [
+    { id: 1, title: 'Fundação', properties: {} },
+    { id: 2, title: 'Paredes', properties: { depende: ['[[Fundação]]'] } },
+    { id: 3, title: 'Telhado', properties: { depende: '[[Paredes]], Fundação' } },
+  ];
+  const rvR = Dc.applyDerivedColumns(rvN, rvDefs);
+  igual('inversa · quem cita cada nota', rvR.map(n => n.__calc.citadoPor), [['[[Paredes]]', '[[Telhado]]'], ['[[Telhado]]'], []]);
+  igual('inversa · schema vira lista derivada (não editável)', [Sc.inferBaseSchema(rvN, rvDefs).citadoPor.type, !!Sc.inferBaseSchema(rvN, rvDefs).citadoPor.isDerived], ['list', true]);
+  igual('id · schema marca ID único como texto não editável', [Sc.inferBaseSchema([], { ident: { type: 'uid', prefix: 'TAR' } }).ident.isUniqueId, Sc.inferBaseSchema([], { ident: { type: 'uid', prefix: 'TAR' } }).ident.idPrefix], [true, 'TAR']);
 }
