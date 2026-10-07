@@ -1231,6 +1231,152 @@
     #app.has-right-aside-collapsed #rightAsideResizer {
       display: none !important;
     }
+    /* ══ MOBILE (≤ 768px) — estilo Obsidian Mobile ══
+       A navbar fica oculta por enquanto. As asides viram drawers que EMPURRAM o
+       conteúdo (header + view deslizam), em vez de disputar espaço com ele. */
+    .mock-mobile-only { display: none !important; }
+
+    @media (max-width: 768px) {
+      .mock-mobile-only { display: inline-flex !important; }
+
+      #app,
+      #app.has-right-aside-collapsed {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100dvh !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+      }
+
+      #mNav,
+      #mNavDivider,
+      #mFooter,
+      #rightAsideResizer,
+      #app.has-left-aside-hidden #mNav {
+        display: none !important;
+      }
+
+      #mHeader,
+      #mMain {
+        transform: translate3d(var(--push-x, 0px), 0, 0);
+        transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1);
+      }
+
+      #mMain { padding: 0 !important; }
+
+      /* A seção do calendário ocupa a tela toda e mantém o header (troca de view) */
+      #mMain > .calendar-section {
+        display: flex !important;
+        position: absolute !important;
+        inset: 0 !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        border: none !important;
+        border-radius: 0 !important;
+      }
+
+      #mMain > .calendar-section > .section-header {
+        display: flex !important;
+        border-radius: 0 !important;
+      }
+
+      /* ── Drawer esquerdo (#mAside) ── */
+      #app.has-left-aside-hidden #mAside {
+        position: fixed !important;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: min(85vw, 320px) !important;
+        height: 100dvh !important;
+        z-index: 100;
+        display: flex !important;
+        margin: 0 !important;
+        border: none !important;
+        border-right: 1px solid var(--border) !important;
+        border-radius: 0 !important;
+        transform: translate3d(-100%, 0, 0);
+        transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s linear 260ms;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      #app.has-left-aside-hidden #mAside.is-open-mobile {
+        transform: translate3d(0, 0, 0);
+        transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        box-shadow: 4px 0 20px oklch(0% 0 0 / 0.2) !important;
+      }
+
+      /* ── Drawer direito (#mRightAside: configurações / constelações / nota) ── */
+      #app #mRightAside,
+      #app.has-right-aside-collapsed #mRightAside {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        left: auto;
+        width: min(85vw, 340px) !important;
+        max-width: 85vw;
+        height: 100dvh;
+        z-index: 100;
+        display: flex !important;
+        margin: 0 !important;
+        border: none;
+        border-left: 1px solid var(--border);
+        border-radius: 0;
+        transform: translate3d(100%, 0, 0);
+        transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s linear 260ms;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      #app:not(.has-right-aside-collapsed) #mRightAside {
+        transform: translate3d(0, 0, 0);
+        transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s;
+        visibility: visible;
+        pointer-events: auto;
+        box-shadow: -4px 0 20px oklch(0% 0 0 / 0.2);
+      }
+
+      /* Empurra header + view quando um drawer abre */
+      #app:has(#mAside.is-open-mobile) { --push-x: min(85vw, 320px); }
+      #app:not(.has-right-aside-collapsed) { --push-x: calc(-1 * min(85vw, 340px)); }
+
+      /* Conteúdo compacto para telas estreitas */
+      .calendar-day { padding: 4px 3px; }
+      .calendar-day-add-btn,
+      .week-col-add-btn,
+      .cal-note-more { display: none !important; }
+
+      .calendar-day .cal-note-chip,
+      .calendar-week-col .cal-note-chip {
+        font-size: 0;
+        height: 5px;
+        padding: 0;
+        border: none;
+        border-radius: 3px;
+        background: var(--chip-color);
+        margin-top: 2px;
+      }
+
+      .calendar-week-header { height: 44px; line-height: 1.2; }
+      .calendar-week-header .week-header-cell { flex-direction: column; gap: 0; }
+      .week-col-time-slot .slot-time { font-size: 8px; }
+
+      .view-switcher-list { gap: 4px; padding: 6px 8px; }
+      .view-switch-btn { flex-direction: column; text-align: center; gap: 2px; padding: 6px 4px; }
+      .view-switch-btn span:last-child { align-items: center; }
+      .view-switch-btn small { display: none; }
+
+      .notes-table th:nth-child(4),
+      .notes-table td:nth-child(4) { display: none; }
+      .notes-table td { max-width: 180px; padding: 10px 10px; }
+      .notes-gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 10px; gap: 8px; }
+      .calendar-day-subbar { padding: 0 8px; }
+      .day-subbar-title { font-size: 11px; }
+    }
   </style>
 </head>
 <body class="booting">
@@ -1242,6 +1388,9 @@
          ======================================================== -->
     <header id="mHeader">
       <div class="header-left">
+        <button id="btnMobileLeftDrawer" class="aside-btn mock-mobile-only" title="Painel lateral esquerdo" aria-label="Abrir painel lateral esquerdo" type="button">
+          <span class="material-symbols-rounded">menu</span>
+        </button>
         <div id="mLogo" class="header-brand" title="QuickDock">
           <img class="header-brand-icon" src="../icons/icon.svg" width="20" height="20" alt="QuickDock" onerror="this.style.display='none'" />
           <span class="header-brand-title">QuickDock</span>
@@ -2729,6 +2878,47 @@
     };
     dataTableView.addEventListener('click', openFromData);
     dataGalleryView.addEventListener('click', openFromData);
+
+    // ── MOBILE: asides viram drawers que empurram o conteúdo (estilo Obsidian) ──
+    const mobileMQ = window.matchMedia('(max-width: 768px)');
+    const leftDrawer = document.getElementById('mAside');
+    const btnMobileLeftDrawer = document.getElementById('btnMobileLeftDrawer');
+    const mainEl = document.getElementById('mMain');
+    const isLeftDrawerOpen = () => leftDrawer.classList.contains('is-open-mobile');
+    const closeLeftDrawer = () => leftDrawer.classList.remove('is-open-mobile');
+
+    // No mobile as asides começam fechadas; ao voltar para desktop a direita reabre
+    function syncAsidesToViewport() {
+      closeLeftDrawer();
+      if (mobileMQ.matches) closeRightAside(); else openRightAside();
+      setAsideMode(currentAsideMode);
+    }
+    mobileMQ.addEventListener('change', syncAsidesToViewport);
+    if (mobileMQ.matches) syncAsidesToViewport();
+
+    btnMobileLeftDrawer?.addEventListener('click', () => {
+      if (isLeftDrawerOpen()) { closeLeftDrawer(); return; }
+      closeRightAside();
+      leftDrawer.classList.add('is-open-mobile');
+      setAsideMode(currentAsideMode);
+    });
+
+    // Abrir a aside direita fecha a esquerda (uma por vez)
+    new MutationObserver(() => {
+      if (mobileMQ.matches && isRightAsideOpen()) closeLeftDrawer();
+    }).observe(appContainer, { attributes: true, attributeFilter: ['class'] });
+
+    // Tocar no conteúdo empurrado fecha o drawer aberto, sem acionar o que há embaixo
+    mainEl.addEventListener('click', (e) => {
+      if (!mobileMQ.matches) return;
+      if (isLeftDrawerOpen() || isRightAsideOpen()) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeLeftDrawer();
+        closeRightAside();
+        btnToggleGraph?.classList.remove('is-active');
+      }
+    }, true);
 
     renderMonthNotes();
     renderWeekNotes();
