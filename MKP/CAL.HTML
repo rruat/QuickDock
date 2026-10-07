@@ -1,0 +1,2746 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light" data-platform="desktop">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>QuickDock - Calendário Spatial Shell</title>
+
+  <!-- Tipografia e Ícones Oficiais do QuickDock -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+
+  <!-- Folha de Estilos Modular do QuickDock -->
+  <link rel="stylesheet" href="../sidepanel/style.css" />
+
+  <style>
+    /* ── GRID DO SPATIAL SHELL: ASIDE NA ESQUERDA, MAIN NO CENTRO, ASIDE NA DIREITA ── */
+    #app {
+      display: grid !important;
+      grid-template-rows: auto minmax(0, 1fr) auto !important;
+      grid-template-columns: calc(var(--nav-width, 49px) + var(--nav-gap, 0px)) var(--left-divider-width, 1px) var(--left-aside-width, var(--aside-width, 280px)) minmax(0, 1fr) calc(var(--right-aside-width, var(--aside-width, 280px)) + var(--gap-size, 4px)) !important;
+      grid-template-areas:
+        "mHeader mHeader mHeader mHeader mHeader"
+        "mNav mNavDivider mAside mMain mRightAside"
+        "mFooter mFooter mFooter mFooter mFooter" !important;
+      height: 100dvh;
+      padding: var(--gap-size, 4px);
+      overflow: hidden;
+      background: var(--bg);
+      gap: 0;
+      transition: grid-template-columns 180ms ease;
+    }
+
+    /* Quando a Aside da Direita estiver recolhida */
+    #app.has-right-aside-collapsed {
+      grid-template-columns: calc(var(--nav-width, 49px) + var(--nav-gap, 0px)) var(--left-divider-width, 1px) var(--left-aside-width, var(--aside-width, 280px)) minmax(0, 1fr) 0px !important;
+    }
+
+    /* Aside esquerda oculta por enquanto: fica só a nav.
+       Para voltar, remova a classe "has-left-aside-hidden" de #app. */
+    #app.has-left-aside-hidden {
+      --left-aside-width: 0px;
+      --left-divider-width: 0px;
+      --nav-gap: var(--gap-size, 4px);
+    }
+
+    #app.has-left-aside-hidden #mAside,
+    #app.has-left-aside-hidden #mNavDivider {
+      display: none !important;
+    }
+
+    /* Sem a aside, a nav vira um cartão próprio: outline completo, cantos
+       arredondados e o mesmo gap das demais seções */
+    #app.has-left-aside-hidden #mNav {
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      margin-right: var(--gap-size, 4px);
+    }
+
+    #app.has-right-aside-collapsed #mRightAside {
+      display: none !important;
+    }
+
+    /* ── MAIN WORKSPACE (#mMain) ── */
+    #mMain {
+      grid-area: mMain;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Janela do calendário ocupando 100% da área da seção */
+    .calendar-view,
+    #mMain .calendar-view,
+    html[data-platform="desktop"] #mMain .calendar-view {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background-color: var(--bg);
+      position: relative;
+      border: none !important;
+      border-left: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Grade do calendário (Somente Outline, Colada no Container, Cellspace 0) */
+    .calendar-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column !important;
+      overflow: hidden;
+      padding: 0 !important;
+      margin: 0 !important;
+      gap: 0 !important;
+      min-height: 0;
+    }
+
+    .calendar-view-mode-panel.is-hidden {
+      display: none !important;
+    }
+
+    .calendar-weekdays {
+      display: grid !important;
+      grid-template-columns: repeat(7, 1fr) !important;
+      gap: 0 !important;
+      padding: 0 !important;
+      height: 32px;
+      line-height: 32px;
+      border-bottom: 1px solid var(--border) !important;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+      overflow: hidden;
+      transition: height 340ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                  grid-template-columns 340ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                  opacity 200ms ease;
+    }
+
+    .calendar-body.is-cell-expanded .calendar-weekdays {
+      height: 0 !important;
+      line-height: 0 !important;
+      opacity: 0 !important;
+      border-bottom: 1px solid var(--border) !important;
+      pointer-events: none !important;
+    }
+
+    .calendar-weekdays span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .calendar-weekdays span:last-child {
+      border-right: none;
+    }
+
+    .calendar-grid {
+      flex: 1;
+      display: grid !important;
+      grid-template-columns: 14.2857% 14.2857% 14.2857% 14.2857% 14.2857% 14.2857% 14.2857%;
+      grid-template-rows: 20% 20% 20% 20% 20%;
+      gap: 0 !important;
+      margin: 0 !important;
+      min-height: 0;
+      overflow: hidden;
+      transition: grid-template-columns 340ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                  grid-template-rows 340ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+
+    .calendar-day {
+      background: transparent !important;
+      border: none !important;
+      border-right: 1px solid var(--border) !important;
+      border-bottom: 1px solid var(--border) !important;
+      border-radius: 0 !important;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      min-width: 0;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      box-sizing: border-box;
+      transition: background-color 0.12s ease,
+                  padding 340ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+
+    /* Remove borda direita na 7ª coluna (encosta na borda do container) */
+    .calendar-day:nth-child(7n) {
+      border-right: none !important;
+    }
+
+    /* Remove borda inferior na última linha (encosta no fundo do container) */
+    .calendar-day:nth-child(n+29) {
+      border-bottom: none !important;
+    }
+
+    .calendar-day:hover {
+      background-color: var(--bg-hover) !important;
+    }
+
+    /* Quando uma célula está expandida: todas as outras encolhem e somem empurradas,
+       mantendo seus outlines visíveis até colapsarem nas bordas da view */
+    .calendar-grid.is-cell-expanded .calendar-day:not(.is-expanded) {
+      padding: 0 !important;
+      pointer-events: none !important;
+      overflow: hidden !important;
+    }
+
+    .calendar-grid.is-cell-expanded .calendar-day:not(.is-expanded) > * {
+      opacity: 0 !important;
+      transition: opacity 160ms ease;
+    }
+
+    /* Célula expandida que ocupa o espaço inteiro do calendário */
+    .calendar-day.is-expanded {
+      background-color: var(--bg) !important;
+      box-shadow: inset 0 0 0 1px var(--border) !important;
+      padding: 0 !important;
+      cursor: default !important;
+      z-index: 10;
+    }
+
+    .calendar-day.is-expanded.notepad-active > *:not(.in-cell-notepad) {
+      display: none !important;
+    }
+
+    .calendar-day-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .calendar-day-number {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .calendar-day-other-month {
+      opacity: 0.35;
+      background: transparent !important;
+    }
+
+    /* Dia atual somente com outline (sem preenchimento sólido) */
+    .calendar-day-today {
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .calendar-day-today .calendar-day-number {
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: transparent !important;
+      border-radius: 4px;
+      padding: 1px 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    /* Botão de adicionar nota visível no hover da célula */
+    .calendar-day-add-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.15s ease, background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+      padding: 0;
+      margin: 0;
+    }
+
+    .calendar-day-add-btn .material-symbols-rounded {
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .calendar-day:hover .calendar-day-add-btn {
+      opacity: 0.85;
+    }
+
+    .calendar-day-add-btn:hover {
+      opacity: 1;
+      color: var(--accent);
+      background-color: var(--bg-hover);
+      border-color: var(--border);
+    }
+
+    /* Pré-visualização de texto anotado na célula */
+    .calendar-day-note-preview {
+      font-size: 10px;
+      line-height: 1.3;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      padding: 2px 4px;
+      border: 1px dashed var(--border);
+      border-radius: 3px;
+      background: var(--bg);
+      word-break: break-word;
+    }
+
+    /* ── BLOCO DE NOTAS INTEGRADO NA PRÓPRIA CÉLULA (ZERO POPUP) ── */
+    .in-cell-notepad {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+      background-color: var(--bg);
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 180ms ease;
+    }
+
+    .in-cell-notepad.is-revealed {
+      opacity: 1;
+    }
+
+    .notepad-body {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      background-color: var(--bg);
+      padding: 0;
+    }
+
+    .notepad-editor {
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      padding: 12px 14px;
+      font-family: inherit;
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--text);
+      background: transparent;
+      resize: none;
+      box-sizing: border-box;
+    }
+
+    .notepad-editor::placeholder {
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    .notepad-footer {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-top: 1px solid var(--border);
+      background-color: var(--bg);
+      font-size: 11.5px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .notepad-status-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .notepad-save-btn {
+      background: var(--accent);
+      color: oklch(100% 0 0);
+      border: none;
+      border-radius: 4px;
+      padding: 4px 12px;
+      font-size: 11.5px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.12s ease;
+    }
+
+    .notepad-save-btn:hover {
+      opacity: 0.9;
+    }
+
+    /* ── RIGHT ASIDE (#mRightAside) - APENAS UMA ASIDE À DIREITA ── */
+    #mRightAside {
+      grid-area: mRightAside;
+      width: var(--right-aside-width, var(--aside-width, 280px));
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      margin-left: var(--gap-size, 4px);
+      margin-right: 0;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background-color: var(--bg);
+      min-height: 0;
+      box-sizing: border-box;
+    }
+
+    /* ── ESTILOS DO CONTEÚDO DE CONFIGURAÇÕES ── */
+    .config-aside-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .config-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .config-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .config-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .config-card-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      font-size: 12.5px;
+      color: var(--text);
+      gap: 8px;
+    }
+
+    .config-card-item + .config-card-item {
+      border-top: 1px solid var(--border);
+    }
+
+    .config-card-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .config-card-label strong {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .config-card-label small {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .config-select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 6px;
+      color: var(--text);
+      font-size: 11.5px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .category-chip-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 120ms ease;
+    }
+
+    .category-chip-row:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .cat-color-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .cat-tag-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cat-tag-count {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 10px;
+    }
+
+    /* ── SELETOR DE TIPOS DE VISUALIZAÇÃO NA ASIDE (MÊS, SEMANA, DIA) ── */
+    .calendar-view-type-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+    }
+
+    .view-type-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 7px 4px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 500;
+      transition: all 0.12s ease;
+    }
+
+    .view-type-btn:hover {
+      color: var(--text);
+      background: var(--bg-hover);
+    }
+
+    .view-type-btn.is-active {
+      background: var(--bg);
+      color: var(--accent);
+      font-weight: 600;
+      border-color: var(--border);
+      box-shadow: 0 1px 3px oklch(0% 0 0 / 0.05);
+    }
+
+    .view-type-btn .view-type-icon {
+      font-size: 19px;
+    }
+
+    .view-type-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+      user-select: none;
+    }
+
+    .view-type-item + .view-type-item {
+      border-top: 1px solid var(--border);
+    }
+
+    .view-type-item:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .view-type-item.is-active {
+      background-color: var(--bg-hover);
+    }
+
+    .view-type-item.is-active .config-card-label strong {
+      color: var(--accent);
+    }
+
+    .view-type-item .view-item-icon {
+      font-size: 18px;
+      color: var(--text-secondary);
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .view-type-item.is-active .view-item-icon {
+      background: var(--accent);
+      color: oklch(100% 0 0);
+    }
+
+    .view-type-item .view-item-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      background: var(--bg);
+      margin-left: auto;
+    }
+
+    .view-type-item.is-active .view-item-badge {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: oklch(100% 0 0);
+    }
+
+    /* ── VISUALIZAÇÃO SEMANAL (.calendar-week-view) ── */
+    .calendar-week-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+      background-color: var(--bg);
+    }
+
+    .calendar-week-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      height: 34px;
+      line-height: 34px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .calendar-week-header .week-header-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-right: 1px solid var(--border);
+    }
+
+    .calendar-week-header .week-header-cell:last-child {
+      border-right: none;
+    }
+
+    .calendar-week-header .week-header-cell.is-today strong {
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 0 5px;
+      border-radius: 4px;
+    }
+
+    .calendar-week-header {
+      grid-template-columns: 14.2857% 14.2857% 14.2857% 14.2857% 14.2857% 14.2857% 14.2857%;
+      overflow: hidden;
+      transition: height 340ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                  grid-template-columns 340ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                  opacity 200ms ease;
+    }
+
+    .calendar-week-view.is-col-expanded .calendar-week-header {
+      height: 0;
+      line-height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .calendar-week-header .week-header-cell {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .calendar-week-columns {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 14.2857% 14.2857% 14.2857% 14.2857% 14.2857% 14.2857% 14.2857%;
+      gap: 0;
+      min-height: 0;
+      overflow: hidden;
+      transition: grid-template-columns 340ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+
+    .calendar-week-col {
+      border: none;
+      border-right: 1px solid var(--border);
+      border-radius: 0;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+      background: transparent;
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .calendar-week-col.is-today {
+      border-color: var(--border);
+    }
+
+    /* Coluna expandida: as demais encolhem até sumirem nas bordas */
+    .calendar-week-view.is-col-expanded .calendar-week-col:not(.is-expanded) {
+      pointer-events: none;
+    }
+
+    .calendar-week-view.is-col-expanded .calendar-week-col:not(.is-expanded) > * {
+      opacity: 0;
+      transition: opacity 160ms ease;
+    }
+
+    .calendar-week-col.is-expanded {
+      background-color: var(--bg);
+      cursor: default;
+      z-index: 10;
+    }
+
+    .calendar-week-col.is-expanded.notepad-active > *:not(.in-cell-notepad) {
+      display: none !important;
+    }
+
+    .calendar-week-col:last-child {
+      border-right: none;
+    }
+
+    .calendar-week-col:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .week-col-time-slot {
+      height: 52px;
+      border-bottom: 1px solid var(--border);
+      padding: 4px 6px;
+      position: relative;
+      box-sizing: border-box;
+    }
+
+    .week-col-time-slot:last-child {
+      border-bottom: none;
+    }
+
+    .week-col-time-slot .slot-time {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    .week-col-note-chip {
+      margin-top: 4px;
+      padding: 4px 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px oklch(0% 0 0 / 0.05);
+    }
+
+    .calendar-week-col .week-col-add-btn {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.15s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+
+    .calendar-week-col:hover .week-col-add-btn {
+      opacity: 0.85;
+    }
+
+    .calendar-week-col .week-col-add-btn:hover {
+      opacity: 1;
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* ── VISUALIZAÇÃO DIÁRIA (.calendar-day-view) ── */
+    .calendar-day-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+      background-color: var(--bg);
+    }
+
+    .calendar-day-subbar {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--bg);
+      flex-shrink: 0;
+    }
+
+    .day-subbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .day-subbar-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .day-subbar-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+
+    .day-subbar-nav-btn {
+      width: 22px;
+      height: 22px;
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: 4px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: background-color 0.12s ease;
+    }
+
+    .day-subbar-nav-btn:hover {
+      background-color: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .calendar-day-timeline {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .day-timeline-hour {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      min-height: 48px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+      box-sizing: border-box;
+    }
+
+    .day-timeline-hour:last-child {
+      border-bottom: none;
+    }
+
+    .day-timeline-hour:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .day-hour-label {
+      border-right: 1px solid var(--border);
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: right;
+      user-select: none;
+    }
+
+    .day-hour-content {
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .day-hour-note-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 1px 3px oklch(0% 0 0 / 0.05);
+    }
+
+    /* Alça de redimensionamento na borda esquerda do Right Aside */
+    /* ── HEADER EXPANSÍVEL: ESCOLHA DO TIPO DE VIEW (CALENDÁRIO / TABELA / GALERIA) ── */
+    #sectionHeader { cursor: pointer; }
+
+    .header-view-caret {
+      font-size: 18px;
+      color: var(--text-muted);
+      transition: transform 240ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+
+    .main-section.is-switcher-open .header-view-caret { transform: rotate(180deg); }
+
+    .view-switcher {
+      display: grid;
+      grid-template-rows: 0fr;
+      flex-shrink: 0;
+      transition: grid-template-rows 240ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+
+    .main-section.is-switcher-open .view-switcher { grid-template-rows: 1fr; }
+
+    .view-switcher-inner {
+      overflow: hidden;
+      min-height: 0;
+      background: var(--bg);
+    }
+
+    .view-switcher-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .view-switch-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      min-width: 0;
+      transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+
+    .view-switch-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+    .view-switch-btn.is-active {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .view-switch-btn .material-symbols-rounded { font-size: 20px; flex-shrink: 0; }
+    .view-switch-btn.is-active .material-symbols-rounded { color: var(--accent); }
+    .view-switch-btn span:last-child { display: flex; flex-direction: column; min-width: 0; }
+    .view-switch-btn strong { font-size: 12px; font-weight: 600; }
+    .view-switch-btn small { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── NOTAS FAKES NAS VIEWS (somente modelo) ── */
+    :root { --graph-pessoal: var(--graph-pessoa); }
+
+    .cal-note-chip {
+      --chip-color: var(--accent);
+      margin-top: 3px;
+      padding: 2px 5px;
+      background: color-mix(in oklch, var(--chip-color) 14%, var(--bg));
+      border-left: 3px solid var(--chip-color);
+      border-radius: 3px;
+      font-size: 10.5px;
+      line-height: 1.3;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+    }
+
+    .cal-note-more { margin-top: 3px; font-size: 10px; color: var(--text-muted); }
+    .cal-note-chip[data-group="projeto"] { --chip-color: var(--graph-projeto); }
+    .cal-note-chip[data-group="reuniao"] { --chip-color: var(--graph-reuniao); }
+    .cal-note-chip[data-group="ideia"]   { --chip-color: var(--graph-ideia); }
+    .cal-note-chip[data-group="pessoal"] { --chip-color: var(--graph-pessoal); }
+
+    .calendar-week-col .week-col-time-slot .cal-note-chip { margin-top: 2px; }
+    .day-hour-content .cal-note-chip { padding: 6px 10px; font-size: 12px; margin: 0 0 4px; }
+    .day-hour-content .cal-note-chip small { color: var(--text-secondary); margin-left: 6px; }
+
+    /* ── VIEW TABELA ── */
+    .data-view { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
+
+    .notes-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+    .notes-table th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg);
+      text-align: left;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .notes-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      max-width: 340px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .notes-table tbody tr { cursor: pointer; transition: background-color 0.12s ease; }
+    .notes-table tbody tr:hover { background: var(--bg-hover); }
+    .notes-table td.muted { color: var(--text-secondary); }
+    .notes-table td.title { font-weight: 600; }
+
+    .group-pill {
+      --pill-color: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 1px 8px 1px 6px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .group-pill::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--pill-color);
+    }
+
+    .group-pill[data-group="projeto"] { --pill-color: var(--graph-projeto); }
+    .group-pill[data-group="reuniao"] { --pill-color: var(--graph-reuniao); }
+    .group-pill[data-group="ideia"]   { --pill-color: var(--graph-ideia); }
+    .group-pill[data-group="pessoal"] { --pill-color: var(--graph-pessoal); }
+
+    /* ── VIEW GALERIA ── */
+    .notes-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 10px;
+      padding: 12px;
+      align-content: start;
+    }
+
+    .gallery-card {
+      --card-color: var(--accent);
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--bg);
+      cursor: pointer;
+      transition: border-color 0.12s ease, transform 0.12s ease;
+    }
+
+    .gallery-card:hover { border-color: var(--card-color); transform: translateY(-1px); }
+
+    .gallery-cover {
+      height: 64px;
+      background: color-mix(in oklch, var(--card-color) 22%, var(--bg));
+      display: grid;
+      place-items: center;
+      color: var(--card-color);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gallery-cover .material-symbols-rounded { font-size: 26px; }
+    .gallery-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .gallery-body strong { font-size: 13px; color: var(--text); }
+    .gallery-body p { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--text-muted); }
+    .gallery-card[data-group="projeto"] { --card-color: var(--graph-projeto); }
+    .gallery-card[data-group="reuniao"] { --card-color: var(--graph-reuniao); }
+    .gallery-card[data-group="ideia"]   { --card-color: var(--graph-ideia); }
+    .gallery-card[data-group="pessoal"] { --card-color: var(--graph-pessoal); }
+
+    /* ── GRAFO DE CONEXÕES (CONSTELAÇÕES) NA ASIDE DIREITA ── */
+    :root {
+      --graph-projeto: oklch(58% 0.17 255);
+      --graph-reuniao: oklch(60% 0.15 150);
+      --graph-ideia: oklch(68% 0.15 70);
+      --graph-pessoa: oklch(60% 0.17 330);
+      --graph-edge: oklch(70% 0.01 260);
+    }
+    html[data-theme="dark"] {
+      --graph-projeto: oklch(72% 0.14 255);
+      --graph-reuniao: oklch(74% 0.14 150);
+      --graph-ideia: oklch(80% 0.13 70);
+      --graph-pessoa: oklch(74% 0.14 330);
+      --graph-edge: oklch(45% 0.01 260);
+    }
+
+    #asideGraphMode {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .graph-stage {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    #noteGraph {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    #noteGraph .g-edge {
+      stroke: var(--graph-edge);
+      stroke-width: 1.2;
+      transition: opacity 0.15s ease, stroke 0.15s ease;
+    }
+
+    #noteGraph .g-node circle {
+      stroke: var(--bg);
+      stroke-width: 2;
+      transition: opacity 0.15s ease;
+    }
+
+    #noteGraph .g-node text {
+      font-size: 8.5px;
+      fill: var(--text);
+      text-anchor: middle;
+      pointer-events: none;
+      paint-order: stroke;
+      stroke: var(--bg);
+      stroke-width: 3px;
+      transition: opacity 0.15s ease;
+    }
+
+    #noteGraph .g-node { cursor: pointer; }
+    #noteGraph .g-node.is-active circle { stroke: var(--accent); stroke-width: 3; }
+
+    #noteGraph.has-focus .g-node:not(.is-near),
+    #noteGraph.has-focus .g-edge:not(.is-near) { opacity: 0.15; }
+    #noteGraph.has-focus .g-edge.is-near { stroke: var(--accent); }
+
+    .graph-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .graph-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .graph-legend i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+
+    .graph-info {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    .graph-info strong { color: var(--text); display: block; font-size: 12px; margin-bottom: 2px; }
+
+    #rightAsideResizer.aside-indicator-right {
+      grid-area: mRightAside;
+      position: relative;
+      left: auto;
+      justify-self: start;
+      align-self: stretch;
+      width: var(--gap-size, 4px);
+      touch-action: none;
+    }
+
+    #rightAsideResizer.aside-indicator-right::before {
+      left: -3px;
+      right: -3px;
+    }
+
+    #app.has-right-aside-collapsed #rightAsideResizer {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="booting">
+
+  <div id="app" class="has-left-aside-hidden">
+
+    <!-- ========================================================
+         HEADER (#mHeader) - Conforme design oficial do QuickDock
+         ======================================================== -->
+    <header id="mHeader">
+      <div class="header-left">
+        <div id="mLogo" class="header-brand" title="QuickDock">
+          <img class="header-brand-icon" src="../icons/icon.svg" width="20" height="20" alt="QuickDock" onerror="this.style.display='none'" />
+          <span class="header-brand-title">QuickDock</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div id="smartSearchBar" class="smart-search-bar" role="search">
+          <span class="material-symbols-rounded search-icon">search</span>
+          <input type="text" id="smartSearchInput" class="smart-search-input" placeholder="Buscar no calendário, notas, comandos... (Ctrl + K)" autocomplete="off" spellcheck="false" />
+          <kbd class="search-shortcut-badge">Ctrl K</kbd>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button id="btn-header-theme" class="aside-btn desktop-only-btn" title="Alternar tema claro/escuro" type="button">
+          <span class="material-symbols-rounded">dark_mode</span>
+        </button>
+        <button id="btn-header-sync" class="aside-btn desktop-only-btn" title="Sincronização" type="button">
+          <span class="material-symbols-rounded">sync</span>
+        </button>
+        <button id="btnToggleRightHeader" class="aside-btn desktop-only-btn" title="Alternar Painel Lateral Direito" type="button">
+          <span class="material-symbols-rounded">dock_to_left</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ========================================================
+         NAV ESQUERDA (#mNav) - Barra de Atividades
+         ======================================================== -->
+    <nav id="mNav" aria-label="Barra de Atividades Esquerda">
+      <ul>
+        <li id="navItemExplorer" class="nav-item" data-nav-view="notes" title="Explorador de Notas">
+          <span class="material-symbols-rounded">folder_open</span>
+        </li>
+        <li class="nav-item" data-nav-view="bases" title="Bases de Dados">
+          <span class="material-symbols-rounded">table_rows</span>
+        </li>
+        <li class="nav-item" data-nav-view="board" title="Espaço Infinito (Quadro)">
+          <span class="material-symbols-rounded">space_dashboard</span>
+        </li>
+        <li class="nav-item" data-nav-view="graph" title="Constelações (Grafo)">
+          <span class="material-symbols-rounded">hub</span>
+        </li>
+        <!-- Item ativo de Calendário -->
+        <li class="nav-item is-active" data-nav-view="calendar" title="Calendário">
+          <span class="material-symbols-rounded">calendar_today</span>
+        </li>
+        <li class="nav-item" data-nav-view="templates" title="Galeria de Modelos">
+          <span class="material-symbols-rounded">auto_stories</span>
+        </li>
+        <li class="nav-item" data-nav-view="json" title="JSON Studio">
+          <span class="material-symbols-rounded">data_object</span>
+        </li>
+        <li class="nav-item nav-item-settings" data-nav-view="settings" title="Configurações">
+          <span class="material-symbols-rounded">settings</span>
+        </li>
+      </ul>
+    </nav>
+
+    <div id="mNavDivider" aria-hidden="true"></div>
+
+    <!-- ========================================================
+         ASIDE ESQUERDA (#mAside) - Painel Lateral de Visões
+         ======================================================== -->
+    <aside id="mAside" class="mode-notes" aria-label="Painel Lateral de Visões">
+      <header class="aside-header">
+        <span class="aside-title">VIEWS</span>
+        <div class="aside-actions">
+          <button id="btnToggleLayout" class="aside-btn" title="Alternar layout (Empilhado / Lado a Lado)" type="button">
+            <span class="material-symbols-rounded">view_agenda</span>
+          </button>
+          <div class="aside-add-wrapper">
+            <button id="btnAddSection" class="aside-btn" title="Adicionar nova view" type="button">
+              <span class="material-symbols-rounded">add</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div id="asideSectionList" class="aside-section-list" style="padding: 8px;">
+        <div class="aside-section-item is-open is-focused" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; background: var(--bg-hover);">
+          <span class="aside-item-icon" style="width: 22px; height: 22px; border-radius: 4px; background: var(--border); display: grid; place-items: center;">
+            <span class="material-symbols-rounded" style="font-size: 15px;">calendar_today</span>
+          </span>
+          <span class="aside-item-title" style="flex: 1; font-size: 12.5px; font-weight: 500; color: var(--text);">Calendário</span>
+          <span class="aside-item-badge" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--text); color: var(--bg);">Ativo</span>
+        </div>
+      </div>
+
+      <!-- Alça de redimensionamento da Aside Esquerda -->
+      <span class="aside-indicator" title="Arraste para redimensionar">
+        <span class="indicator-dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span>
+      </span>
+    </aside>
+
+    <!-- ========================================================
+         MAIN (#mMain) - Workspace Principal (Janela Vazia)
+         ======================================================== -->
+    <main id="mMain">
+      <section class="main-section calendar-section" id="section-calendar" tabindex="0">
+
+        <!-- CABEÇALHO DA SEÇÃO (PADRÃO SPATIAL SHELL: CALENDÁRIO OU NOTA) -->
+        <header class="section-header" id="sectionHeader" title="Calendário">
+          <div class="section-header-left">
+            <button class="section-btn btn-back-note" id="btnBackToCalendar" type="button" title="Voltar ao Calendário (Esc)" style="display: none; margin-right: 4px;">
+              <span class="material-symbols-rounded">arrow_back</span>
+            </button>
+            <span class="section-icon"><span class="material-symbols-rounded" id="sectionHeaderIcon">calendar_today</span></span>
+            <span class="section-title" id="sectionHeaderTitle">Calendário</span>
+            <span class="material-symbols-rounded header-view-caret" id="headerViewCaret" aria-hidden="true">expand_more</span>
+          </div>
+          <div class="section-header-actions">
+            <button class="section-btn" id="btnToggleGraph" type="button" title="Constelações (grafo de conexões)">
+              <span class="material-symbols-rounded">hub</span>
+            </button>
+            <button class="section-btn" id="btnToggleRightAside" type="button" title="Configurações do Calendário">
+              <span class="material-symbols-rounded">tune</span>
+            </button>
+            <button class="section-btn btn-close-note" id="btnCloseNoteHeader" type="button" title="Fechar Nota (Esc)" style="display: none;">
+              <span class="material-symbols-rounded">close</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- Expande ao clicar no header: outras formas de ver as mesmas notas -->
+        <div class="view-switcher" id="viewSwitcher">
+          <div class="view-switcher-inner">
+            <div class="view-switcher-list" role="tablist" aria-label="Tipo de view">
+              <button type="button" class="view-switch-btn is-active" data-data-view="calendar" role="tab">
+                <span class="material-symbols-rounded">calendar_month</span>
+                <span><strong>Calendário</strong><small>Mês, semana e dia</small></span>
+              </button>
+              <button type="button" class="view-switch-btn" data-data-view="table" role="tab">
+                <span class="material-symbols-rounded">table_rows</span>
+                <span><strong>Tabela</strong><small>Propriedades em colunas</small></span>
+              </button>
+              <button type="button" class="view-switch-btn" data-data-view="gallery" role="tab">
+                <span class="material-symbols-rounded">grid_view</span>
+                <span><strong>Galeria</strong><small>Cartões com prévia</small></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MAIN DA VIEW: GRADE DE CALENDÁRIO -->
+        <div class="calendar-view" id="calendarView">
+          <!-- 1. VISÃO MENSAL (MONTH VIEW) -->
+          <div class="calendar-body calendar-view-mode-panel" id="calendarMonthView">
+            <!-- Cabeçalho dos dias da semana -->
+            <div class="calendar-weekdays">
+              <span>DOM</span>
+              <span>SEG</span>
+              <span>TER</span>
+              <span>QUA</span>
+              <span>QUI</span>
+              <span>SEX</span>
+              <span>SÁB</span>
+            </div>
+
+            <!-- Grade de dias (5 semanas x 7 dias = 35 células) -->
+            <div class="calendar-grid">
+              <!-- Semana 1 -->
+              <div class="calendar-day calendar-day-other-month" data-day="27"><div class="calendar-day-header"><span class="calendar-day-number">27</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day calendar-day-other-month" data-day="28"><div class="calendar-day-header"><span class="calendar-day-number">28</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day calendar-day-other-month" data-day="29"><div class="calendar-day-header"><span class="calendar-day-number">29</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day calendar-day-other-month" data-day="30"><div class="calendar-day-header"><span class="calendar-day-number">30</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="1"><div class="calendar-day-header"><span class="calendar-day-number">1</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="2"><div class="calendar-day-header"><span class="calendar-day-number">2</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="3"><div class="calendar-day-header"><span class="calendar-day-number">3</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+
+              <!-- Semana 2 -->
+              <div class="calendar-day" data-day="4"><div class="calendar-day-header"><span class="calendar-day-number">4</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="5"><div class="calendar-day-header"><span class="calendar-day-number">5</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="6"><div class="calendar-day-header"><span class="calendar-day-number">6</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day calendar-day-today" data-day="7"><div class="calendar-day-header"><span class="calendar-day-number">7</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="8"><div class="calendar-day-header"><span class="calendar-day-number">8</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="9"><div class="calendar-day-header"><span class="calendar-day-number">9</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="10"><div class="calendar-day-header"><span class="calendar-day-number">10</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+
+              <!-- Semana 3 -->
+              <div class="calendar-day" data-day="11"><div class="calendar-day-header"><span class="calendar-day-number">11</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="12"><div class="calendar-day-header"><span class="calendar-day-number">12</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="13"><div class="calendar-day-header"><span class="calendar-day-number">13</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="14"><div class="calendar-day-header"><span class="calendar-day-number">14</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="15"><div class="calendar-day-header"><span class="calendar-day-number">15</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="16"><div class="calendar-day-header"><span class="calendar-day-number">16</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="17"><div class="calendar-day-header"><span class="calendar-day-number">17</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+
+              <!-- Semana 4 -->
+              <div class="calendar-day" data-day="18"><div class="calendar-day-header"><span class="calendar-day-number">18</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="19"><div class="calendar-day-header"><span class="calendar-day-number">19</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="20"><div class="calendar-day-header"><span class="calendar-day-number">20</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="21"><div class="calendar-day-header"><span class="calendar-day-number">21</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="22"><div class="calendar-day-header"><span class="calendar-day-number">22</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="23"><div class="calendar-day-header"><span class="calendar-day-number">23</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="24"><div class="calendar-day-header"><span class="calendar-day-number">24</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+
+              <!-- Semana 5 -->
+              <div class="calendar-day" data-day="25"><div class="calendar-day-header"><span class="calendar-day-number">25</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="26"><div class="calendar-day-header"><span class="calendar-day-number">26</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="27"><div class="calendar-day-header"><span class="calendar-day-number">27</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="28"><div class="calendar-day-header"><span class="calendar-day-number">28</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="29"><div class="calendar-day-header"><span class="calendar-day-number">29</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="30"><div class="calendar-day-header"><span class="calendar-day-number">30</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+              <div class="calendar-day" data-day="31"><div class="calendar-day-header"><span class="calendar-day-number">31</span><button class="calendar-day-add-btn" type="button" title="Adicionar nota"><span class="material-symbols-rounded">add</span></button></div></div>
+            </div>
+          </div>
+
+          <!-- 2. VISÃO SEMANAL (WEEK VIEW - CELLSPACE 0, SOMENTE OUTLINE) -->
+          <div class="calendar-week-view calendar-view-mode-panel is-hidden" id="calendarWeekView">
+            <div class="calendar-week-header">
+              <div class="week-header-cell"><span>DOM</span><strong>4</strong></div>
+              <div class="week-header-cell"><span>SEG</span><strong>5</strong></div>
+              <div class="week-header-cell"><span>TER</span><strong>6</strong></div>
+              <div class="week-header-cell is-today"><span>QUA</span><strong>7</strong></div>
+              <div class="week-header-cell"><span>QUI</span><strong>8</strong></div>
+              <div class="week-header-cell"><span>SEX</span><strong>9</strong></div>
+              <div class="week-header-cell"><span>SÁB</span><strong>10</strong></div>
+            </div>
+
+            <div class="calendar-week-columns">
+              <div class="calendar-week-col" data-day="4" data-day-name="Domingo, 4 de Outubro">
+                <div class="week-col-time-slot"><span class="slot-time">08:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">10:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">12:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">14:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">16:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">18:00</span></div>
+                <button class="week-col-add-btn" type="button" title="Adicionar nota para Domingo 4"><span class="material-symbols-rounded">add</span></button>
+              </div>
+              <div class="calendar-week-col" data-day="5" data-day-name="Segunda, 5 de Outubro">
+                <div class="week-col-time-slot"><span class="slot-time">08:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">10:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">12:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">14:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">16:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">18:00</span></div>
+                <button class="week-col-add-btn" type="button" title="Adicionar nota para Segunda 5"><span class="material-symbols-rounded">add</span></button>
+              </div>
+              <div class="calendar-week-col" data-day="6" data-day-name="Terça, 6 de Outubro">
+                <div class="week-col-time-slot"><span class="slot-time">08:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">10:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">12:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">14:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">16:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">18:00</span></div>
+                <button class="week-col-add-btn" type="button" title="Adicionar nota para Terça 6"><span class="material-symbols-rounded">add</span></button>
+              </div>
+              <div class="calendar-week-col is-today" data-day="7" data-day-name="Quarta, 7 de Outubro">
+                <div class="week-col-time-slot"><span class="slot-time">08:00</span></div>
+                <div class="week-col-time-slot">
+                  <span class="slot-time">10:00</span>
+                </div>
+                <div class="week-col-time-slot"><span class="slot-time">12:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">14:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">16:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">18:00</span></div>
+                <button class="week-col-add-btn" type="button" title="Editar nota de hoje"><span class="material-symbols-rounded">add</span></button>
+              </div>
+              <div class="calendar-week-col" data-day="8" data-day-name="Quinta, 8 de Outubro">
+                <div class="week-col-time-slot"><span class="slot-time">08:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">10:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">12:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">14:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">16:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">18:00</span></div>
+                <button class="week-col-add-btn" type="button" title="Adicionar nota para Quinta 8"><span class="material-symbols-rounded">add</span></button>
+              </div>
+              <div class="calendar-week-col" data-day="9" data-day-name="Sexta, 9 de Outubro">
+                <div class="week-col-time-slot"><span class="slot-time">08:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">10:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">12:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">14:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">16:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">18:00</span></div>
+                <button class="week-col-add-btn" type="button" title="Adicionar nota para Sexta 9"><span class="material-symbols-rounded">add</span></button>
+              </div>
+              <div class="calendar-week-col" data-day="10" data-day-name="Sábado, 10 de Outubro">
+                <div class="week-col-time-slot"><span class="slot-time">08:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">10:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">12:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">14:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">16:00</span></div>
+                <div class="week-col-time-slot"><span class="slot-time">18:00</span></div>
+                <button class="week-col-add-btn" type="button" title="Adicionar nota para Sábado 10"><span class="material-symbols-rounded">add</span></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Views de dados: mesmas notas, outras formas de ver (Bases) -->
+          <div class="data-view calendar-view-mode-panel is-hidden" id="dataTableView"></div>
+          <div class="data-view calendar-view-mode-panel is-hidden" id="dataGalleryView"></div>
+
+          <!-- 3. VISÃO DIÁRIA (DAY VIEW - CELLSPACE 0, SOMENTE OUTLINE) -->
+          <div class="calendar-day-view calendar-view-mode-panel is-hidden" id="calendarDayView">
+            <div class="calendar-day-subbar">
+              <div class="day-subbar-left">
+                <button class="day-subbar-nav-btn" id="btnPrevDay" type="button" title="Dia anterior"><span class="material-symbols-rounded">chevron_left</span></button>
+                <span class="day-subbar-title" id="dayViewCurrentTitle">Quarta-feira, 7 de Outubro de 2026</span>
+                <span class="day-subbar-badge">Hoje</span>
+                <button class="day-subbar-nav-btn" id="btnNextDay" type="button" title="Próximo dia"><span class="material-symbols-rounded">chevron_right</span></button>
+              </div>
+              <div class="day-subbar-actions">
+                <button class="section-btn" id="btnDayQuickAdd" type="button" title="Editar anotação do dia">
+                  <span class="material-symbols-rounded">edit_note</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="calendar-day-timeline">
+              <div class="day-timeline-hour" data-hour="08:00">
+                <span class="day-hour-label">08:00</span>
+                <div class="day-hour-content"><span style="font-size: 11px; color: var(--text-muted); opacity: 0.5;">Toque para adicionar nota neste horário</span></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="09:00">
+                <span class="day-hour-label">09:00</span>
+                <div class="day-hour-content"><span style="font-size: 11px; color: var(--text-muted); opacity: 0.5;">Toque para adicionar nota neste horário</span></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="10:00">
+                <span class="day-hour-label">10:00</span>
+                <div class="day-hour-content">
+                  </div>
+              </div>
+              <div class="day-timeline-hour" data-hour="11:00">
+                <span class="day-hour-label">11:00</span>
+                <div class="day-hour-content"></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="12:00">
+                <span class="day-hour-label">12:00</span>
+                <div class="day-hour-content"></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="13:00">
+                <span class="day-hour-label">13:00</span>
+                <div class="day-hour-content"></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="14:00">
+                <span class="day-hour-label">14:00</span>
+                <div class="day-hour-content"></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="15:00">
+                <span class="day-hour-label">15:00</span>
+                <div class="day-hour-content"></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="16:00">
+                <span class="day-hour-label">16:00</span>
+                <div class="day-hour-content"></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="17:00">
+                <span class="day-hour-label">17:00</span>
+                <div class="day-hour-content"></div>
+              </div>
+              <div class="day-timeline-hour" data-hour="18:00">
+                <span class="day-hour-label">18:00</span>
+                <div class="day-hour-content"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco de notas integrado na célula (Zero popup, a própria célula expande) -->
+          <div id="inCellNotepad" class="in-cell-notepad" style="display: none;">
+            <div class="notepad-body">
+              <textarea id="notepadTextarea" class="notepad-editor" placeholder="Escreva suas anotações para este dia..."></textarea>
+            </div>
+            <div class="notepad-footer">
+              <span id="notepadStatus" class="notepad-status-hint">Salvo automaticamente localmente</span>
+              <button id="btnSaveNotepad" class="notepad-save-btn" type="button">Concluído</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- ========================================================
+         RIGHT ASIDE (#mRightAside) - APENAS UMA ASIDE À DIREITA
+         ======================================================== -->
+    <!-- Alça de redimensionamento: fica no vão entre a main e a aside direita -->
+    <span id="rightAsideResizer" class="aside-indicator aside-indicator-right" title="Arraste para redimensionar (duplo clique restaura)">
+      <span class="indicator-dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span>
+    </span>
+    <aside id="mRightAside" class="mode-config" aria-label="Painel Lateral de Configurações">
+      <header class="aside-header">
+        <span class="aside-title" id="rightAsideTitle">CONFIGURAÇÕES</span>
+        <div class="aside-actions">
+          <button id="btnSwapAsideGraph" class="aside-btn" title="Alternar entre configurações e constelações" type="button">
+            <span class="material-symbols-rounded" id="btnSwapAsideGraphIcon">hub</span>
+          </button>
+          <button id="btnCloseRightAside" class="aside-btn" title="Recolher configurações" type="button">
+            <span class="material-symbols-rounded">close</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="config-aside-body">
+
+        <!-- ==================== MODO 1: CONFIGURAÇÕES DO CALENDÁRIO ==================== -->
+        <!-- ==================== MODO 3: GRAFO DE CONEXÕES (CONSTELAÇÕES) ==================== -->
+        <div id="asideGraphMode">
+          <div class="graph-stage">
+            <svg id="noteGraph" viewBox="0 0 300 340" role="img" aria-label="Grafo de conexões entre notas (exemplo)"></svg>
+          </div>
+          <div class="graph-legend">
+            <span><i style="background: var(--graph-projeto)"></i>Projeto</span>
+            <span><i style="background: var(--graph-reuniao)"></i>Reunião</span>
+            <span><i style="background: var(--graph-ideia)"></i>Ideia</span>
+            <span><i style="background: var(--graph-pessoa)"></i>Pessoa</span>
+          </div>
+          <div class="graph-info" id="graphInfo">
+            <strong>Nota do dia 7</strong>
+            4 conexões • passe o mouse num ponto para destacar os vizinhos
+          </div>
+        </div>
+
+        <div id="asideCalendarMode">
+          <!-- Grupo: Tipo de Visualização (Dia, Semana, Mês) -->
+          <div class="config-group">
+            <span class="config-group-title">Tipo de Visualização</span>
+            <div class="calendar-view-type-grid" id="viewTypeSwitcher">
+              <button type="button" class="view-type-btn is-active" data-view-mode="month" title="Visualização Mensal">
+                <span class="material-symbols-rounded view-type-icon">calendar_view_month</span>
+                <span class="view-type-name">Mês</span>
+              </button>
+              <button type="button" class="view-type-btn" data-view-mode="week" title="Visualização Semanal">
+                <span class="material-symbols-rounded view-type-icon">calendar_view_week</span>
+                <span class="view-type-name">Semana</span>
+              </button>
+              <button type="button" class="view-type-btn" data-view-mode="day" title="Visualização Diária">
+                <span class="material-symbols-rounded view-type-icon">calendar_view_day</span>
+                <span class="view-type-name">Dia</span>
+              </button>
+            </div>
+
+            <div class="config-card" style="margin-top: 4px;">
+              <div class="view-type-item is-active" data-view-mode="month">
+                <span class="material-symbols-rounded view-item-icon">calendar_view_month</span>
+                <div class="config-card-label">
+                  <strong>Visão Mensal</strong>
+                  <small>Grade de 35 dias com expansão espacial</small>
+                </div>
+                <span class="view-item-badge">Ativo</span>
+              </div>
+              <div class="view-type-item" data-view-mode="week">
+                <span class="material-symbols-rounded view-item-icon">calendar_view_week</span>
+                <div class="config-card-label">
+                  <strong>Visão Semanal</strong>
+                  <small>7 colunas (4 a 10 de Outubro)</small>
+                </div>
+                <span class="view-item-badge">Selecionar</span>
+              </div>
+              <div class="view-type-item" data-view-mode="day">
+                <span class="material-symbols-rounded view-item-icon">calendar_view_day</span>
+                <div class="config-card-label">
+                  <strong>Visão Diária</strong>
+                  <small>Linha do tempo horária de hoje</small>
+                </div>
+                <span class="view-item-badge">Selecionar</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grupo: Exibição & Grade -->
+          <div class="config-group">
+            <span class="config-group-title">Exibição & Grade</span>
+            <div class="config-card">
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Primeiro dia da semana</strong>
+                  <small>Padrão para exibição da grade</small>
+                </div>
+                <select class="config-select">
+                  <option>Domingo</option>
+                  <option>Segunda-feira</option>
+                </select>
+              </div>
+
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Mostrar fins de semana</strong>
+                  <small>Sábados e Domingos visíveis</small>
+                </div>
+                <input type="checkbox" class="ios-toggle" role="switch" checked />
+              </div>
+
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Mostrar números da semana</strong>
+                  <small>Colunas de numeração anual</small>
+                </div>
+                <input type="checkbox" class="ios-toggle" role="switch" />
+              </div>
+
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Dias de outros meses</strong>
+                  <small>Aparecer esmaecidos no início/fim</small>
+                </div>
+                <input type="checkbox" class="ios-toggle" role="switch" checked />
+              </div>
+            </div>
+          </div>
+
+          <!-- Grupo: Categorias / Calendários -->
+          <div class="config-group">
+            <span class="config-group-title">Calendários & Camadas</span>
+            <div class="config-card" style="padding: 4px;">
+              <label class="category-chip-row">
+                <input type="checkbox" checked />
+                <span class="cat-color-dot" style="background: #3b82f6;"></span>
+                <span class="cat-tag-title">Trabalho & Projetos</span>
+                <span class="cat-tag-count">1</span>
+              </label>
+              <label class="category-chip-row">
+                <input type="checkbox" checked />
+                <span class="cat-color-dot" style="background: #10b981;"></span>
+                <span class="cat-tag-title">Diários & Notas Pessoais</span>
+                <span class="cat-tag-count">1</span>
+              </label>
+              <label class="category-chip-row">
+                <input type="checkbox" checked />
+                <span class="cat-color-dot" style="background: #f59e0b;"></span>
+                <span class="cat-tag-title">Design & Mockups</span>
+                <span class="cat-tag-count">1</span>
+              </label>
+              <label class="category-chip-row">
+                <input type="checkbox" checked />
+                <span class="cat-color-dot" style="background: #8b5cf6;"></span>
+                <span class="cat-tag-title">Entregas & Releases</span>
+                <span class="cat-tag-count">1</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Grupo: Preferências -->
+          <div class="config-group">
+            <span class="config-group-title">Preferências</span>
+            <div class="config-card">
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Formato de hora</strong>
+                </div>
+                <select class="config-select">
+                  <option>24 horas (14:00)</option>
+                  <option>12 horas (2:00 PM)</option>
+                </select>
+              </div>
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Destaque do dia atual</strong>
+                  <small>Pílula e borda ativa</small>
+                </div>
+                <input type="checkbox" class="ios-toggle" role="switch" checked />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== MODO 2: PAINEL DA NOTA ==================== -->
+        <div id="asideNoteMode" style="display: none;">
+          <!-- Grupo: Propriedades da Nota -->
+          <div class="config-group">
+            <span class="config-group-title">Propriedades da Nota</span>
+            <div class="config-card">
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Data Vinculada</strong>
+                  <small id="asideNoteSubDate">Referência no calendário</small>
+                </div>
+                <span id="asideNoteDateBadge" style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--bg-hover); color: var(--accent); border: 1px solid var(--border);">7 de Outubro</span>
+              </div>
+
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Estatísticas</strong>
+                  <small>Tamanho do texto</small>
+                </div>
+                <span id="asideNoteStats" style="font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums;">0 palavras • 0 caracteres</span>
+              </div>
+
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Status</strong>
+                  <small>Estado da anotação</small>
+                </div>
+                <span style="font-size: 11px; color: var(--accent); display: inline-flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-rounded" style="font-size: 14px;">check_circle</span> Ativa
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grupo: Categoria & Prioridade -->
+          <div class="config-group">
+            <span class="config-group-title">Categoria & Classificação</span>
+            <div class="config-card">
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Camada / Categoria</strong>
+                  <small>Organização no calendário</small>
+                </div>
+                <select id="asideNoteCategorySelect" class="config-select">
+                  <option value="Trabalho & Projetos">Trabalho & Projetos</option>
+                  <option value="Diários & Notas Pessoais">Diários & Notas Pessoais</option>
+                  <option value="Design & Mockups">Design & Mockups</option>
+                  <option value="Entregas & Releases">Entregas & Releases</option>
+                </select>
+              </div>
+
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Prioridade</strong>
+                  <small>Destaque visual</small>
+                </div>
+                <select class="config-select">
+                  <option>Normal</option>
+                  <option>Alta</option>
+                  <option>Urgente</option>
+                </select>
+              </div>
+
+              <div class="config-card-item">
+                <div class="config-card-label">
+                  <strong>Notificar no dia</strong>
+                  <small>Alarme do QuickDock</small>
+                </div>
+                <input type="checkbox" class="ios-toggle" role="switch" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Grupo: Ações da Nota -->
+          <div class="config-group">
+            <span class="config-group-title">Ações da Nota</span>
+            <div class="config-card" style="padding: 6px; display: flex; flex-direction: column; gap: 6px;">
+              <button id="btnAsideClearNote" type="button" class="category-chip-row" style="width: 100%; border: 1px solid var(--border); justify-content: flex-start; gap: 8px;">
+                <span class="material-symbols-rounded" style="font-size: 16px; color: #ef4444;">delete_outline</span>
+                <span style="font-size: 12px; color: var(--text);">Limpar anotação</span>
+              </button>
+              <button id="btnAsideDoneNote" type="button" class="category-chip-row" style="width: 100%; border: 1px solid var(--accent); background: var(--bg-hover); justify-content: flex-start; gap: 8px;">
+                <span class="material-symbols-rounded" style="font-size: 16px; color: var(--accent);">check_circle</span>
+                <span style="font-size: 12px; font-weight: 600; color: var(--accent);">Concluir e voltar ao calendário</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </aside>
+
+    <!-- ========================================================
+         FOOTER (#mFooter) - Conforme design oficial do QuickDock
+         ======================================================== -->
+    <footer id="mFooter">
+      <div class="footer-left">
+        <span class="footer-status-dot"></span>
+        <span id="footer-status-text" class="footer-status-text">QuickDock Spatial Shell</span>
+        <span class="footer-divider">|</span>
+        <span id="footer-active-view-name" class="footer-view-badge">Calendário</span>
+      </div>
+      <div class="footer-right">
+        <span class="footer-shortcut"><kbd>Ctrl K</kbd> Omnibar</span>
+        <span class="footer-shortcut"><kbd>Alt L</kbd> Layout</span>
+        <span class="footer-shortcut"><kbd>Alt [ ]</kbd> Focar View</span>
+        <span class="footer-shortcut"><kbd>Alt W</kbd> Fechar View</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Interações básicas para teste do mockup -->
+  <script>
+    // Alternar tema claro / escuro
+    const btnTheme = document.getElementById('btn-header-theme');
+    btnTheme?.addEventListener('click', () => {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+    });
+
+    // Controles do Painel Lateral Direito (#mRightAside)
+    const appContainer = document.getElementById('app');
+    const btnToggleRightHeader = document.getElementById('btnToggleRightHeader');
+    const btnToggleRightAside = document.getElementById('btnToggleRightAside');
+    const btnCloseRightAside = document.getElementById('btnCloseRightAside');
+    const rightAside = document.getElementById('mRightAside');
+    const rightAsideTitle = document.getElementById('rightAsideTitle');
+
+    // ── REDIMENSIONAR ENTRE A VIEW E A ASIDE DE CONFIGURAÇÕES ──
+    (function initRightAsideResize() {
+      const handle = document.getElementById('rightAsideResizer');
+      const MIN_W = 220, MAX_W = 560, KEY = 'qd-cal-right-aside-width';
+      const setW = (w) => appContainer.style.setProperty('--right-aside-width', Math.min(MAX_W, Math.max(MIN_W, Math.round(w))) + 'px');
+      try { const saved = parseInt(localStorage.getItem(KEY), 10); if (saved) setW(saved); } catch (_) {}
+
+      handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        handle.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        const startX = e.clientX, startW = rightAside.getBoundingClientRect().width;
+        appContainer.style.transition = 'none';
+        const onMove = (ev) => setW(startW + (startX - ev.clientX));
+        const onUp = () => {
+          handle.removeEventListener('pointermove', onMove);
+          handle.removeEventListener('pointerup', onUp);
+          handle.removeEventListener('pointercancel', onUp);
+          handle.classList.remove('dragging');
+          document.body.style.cursor = '';
+          appContainer.style.transition = '';
+          try { localStorage.setItem(KEY, parseInt(appContainer.style.getPropertyValue('--right-aside-width'), 10)); } catch (_) {}
+        };
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onUp);
+        handle.addEventListener('pointercancel', onUp);
+      });
+
+      handle.addEventListener('dblclick', () => {
+        appContainer.style.removeProperty('--right-aside-width');
+        try { localStorage.removeItem(KEY); } catch (_) {}
+      });
+    })();
+    const asideCalendarMode = document.getElementById('asideCalendarMode');
+    const asideNoteMode = document.getElementById('asideNoteMode');
+    const asideNoteDateBadge = document.getElementById('asideNoteDateBadge');
+    const asideNoteSubDate = document.getElementById('asideNoteSubDate');
+    const asideNoteStats = document.getElementById('asideNoteStats');
+    const btnAsideClearNote = document.getElementById('btnAsideClearNote');
+    const btnAsideDoneNote = document.getElementById('btnAsideDoneNote');
+
+    // Header da View Principal (Muda entre Calendário e Nota)
+    const sectionHeader = document.getElementById('sectionHeader');
+    const sectionHeaderIcon = document.getElementById('sectionHeaderIcon');
+    const sectionHeaderTitle = document.getElementById('sectionHeaderTitle');
+    const btnBackToCalendar = document.getElementById('btnBackToCalendar');
+    const btnCloseNoteHeader = document.getElementById('btnCloseNoteHeader');
+
+    // Célula Expansiva e Bloco de Notas Integrado (Zero Popup)
+    const calendarView = document.getElementById('calendarView');
+    const calendarMonthView = document.getElementById('calendarMonthView');
+    const calendarWeekView = document.getElementById('calendarWeekView');
+    const calendarDayView = document.getElementById('calendarDayView');
+    const calendarBody = document.querySelector('.calendar-body');
+    const calendarWeekdays = document.querySelector('.calendar-weekdays');
+    const calendarGrid = document.querySelector('.calendar-grid');
+    const inCellNotepad = document.getElementById('inCellNotepad');
+    const notepadTextarea = document.getElementById('notepadTextarea');
+    const notepadStatus = document.getElementById('notepadStatus');
+    const btnSaveNotepad = document.getElementById('btnSaveNotepad');
+    const footerActiveViewName = document.getElementById('footer-active-view-name');
+
+    const dayCells = Array.from(calendarGrid.querySelectorAll('.calendar-day'));
+    let activeCell = null;
+    let isTransitioning = false;
+    let currentAsideMode = 'calendar'; // 'calendar' ou 'note'
+    let currentViewMode = 'month';     // 'month' | 'week' | 'day'
+    let activeDayNumber = '7';
+    let dataView = 'calendar';         // 'calendar' | 'table' | 'gallery'
+
+    // ── CONTROLE DO TIPO DE VISUALIZAÇÃO (MÊS, SEMANA, DIA) ──
+    function setCalendarViewMode(mode) {
+      if (activeWeekCol) {
+        // Troca de visão com coluna aberta: fecha sem esperar a animação
+        activeWeekCol.dataset.noteText = notepadTextarea.value.trim();
+        activeWeekCol.classList.remove('is-expanded', 'notepad-active');
+        calendarWeekView.classList.remove('is-col-expanded');
+        weekColumnsEl.style.gridTemplateColumns = '';
+        weekHeaderEl.style.gridTemplateColumns = '';
+        inCellNotepad.classList.remove('is-revealed');
+        inCellNotepad.style.display = 'none';
+        calendarView.appendChild(inCellNotepad);
+        activeWeekCol = null;
+        isWeekTransitioning = false;
+      } else if (activeCell) {
+        collapseCell();
+      } else if (inCellNotepad.style.display !== 'none') {
+        closeDirectNoteView();
+      }
+
+      currentViewMode = mode;
+
+      // 1. Atualiza botões no switcher rápido da aside
+      document.querySelectorAll('.view-type-btn').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.viewMode === mode);
+      });
+
+      // 2. Atualiza itens no card detalhado da aside
+      document.querySelectorAll('.view-type-item').forEach(item => {
+        const isActive = item.dataset.viewMode === mode;
+        item.classList.toggle('is-active', isActive);
+        const badge = item.querySelector('.view-item-badge');
+        if (badge) {
+          badge.textContent = isActive ? 'Ativo' : 'Selecionar';
+        }
+      });
+
+      // 3. Exibe a visualização correspondente
+      // Escolher mês/semana/dia sempre volta para o calendário
+      dataView = 'calendar';
+      syncViewSwitcher();
+      applyPanelVisibility();
+
+      // 4. Atualiza os títulos no Header e Footer
+      updateHeaderForCurrentViewMode();
+    }
+
+    function updateHeaderForCurrentViewMode() {
+      if (typeof renderDayNotes === 'function') renderDayNotes();
+      sectionHeaderIcon.textContent = dataView === 'table' ? 'table_rows' : dataView === 'gallery' ? 'grid_view' : 'calendar_today';
+      btnBackToCalendar.style.display = 'none';
+      btnCloseNoteHeader.style.display = 'none';
+      btnToggleRightAside.title = 'Configurações do Calendário';
+
+      if (dataView !== 'calendar') {
+        const name = dataView === 'table' ? 'Tabela' : 'Galeria';
+        sectionHeaderTitle.textContent = name;
+        if (footerActiveViewName) footerActiveViewName.textContent = name;
+      } else if (currentViewMode === 'month') {
+        sectionHeaderTitle.textContent = 'Calendário';
+        if (footerActiveViewName) footerActiveViewName.textContent = 'Calendário (Mês)';
+      } else if (currentViewMode === 'week') {
+        sectionHeaderTitle.textContent = 'Calendário • Semana';
+        if (footerActiveViewName) footerActiveViewName.textContent = 'Calendário (Semana)';
+      } else if (currentViewMode === 'day') {
+        sectionHeaderTitle.textContent = `Calendário • Dia ${activeDayNumber}`;
+        if (footerActiveViewName) footerActiveViewName.textContent = 'Calendário (Dia)';
+      }
+    }
+
+    // A aside direita exibe OU o grafo de conexões OU as configurações (calendário/nota)
+    const asideGraphMode = document.getElementById('asideGraphMode');
+    const btnToggleGraph = document.getElementById('btnToggleGraph');
+    const btnSwapAsideGraph = document.getElementById('btnSwapAsideGraph');
+    const btnSwapAsideGraphIcon = document.getElementById('btnSwapAsideGraphIcon');
+    let graphView = false;
+
+    function setAsideMode(mode) {
+      currentAsideMode = mode;
+      const isNote = mode === 'note';
+      if (asideGraphMode) asideGraphMode.style.display = graphView ? 'flex' : 'none';
+      if (asideCalendarMode) asideCalendarMode.style.display = (!graphView && !isNote) ? 'block' : 'none';
+      if (asideNoteMode) asideNoteMode.style.display = (!graphView && isNote) ? 'block' : 'none';
+      if (rightAsideTitle) {
+        rightAsideTitle.textContent = graphView ? 'CONSTELAÇÕES' : (isNote ? 'PAINEL DA NOTA' : 'CONFIGURAÇÕES');
+      }
+      // O botão da aside mostra a alternativa: no grafo → configs (tune); nas configs → grafo (hub)
+      if (btnSwapAsideGraphIcon) btnSwapAsideGraphIcon.textContent = graphView ? 'tune' : 'hub';
+      if (btnSwapAsideGraph) btnSwapAsideGraph.title = graphView ? 'Ver configurações' : 'Ver constelações';
+      btnToggleGraph?.classList.toggle('is-active', graphView && isRightAsideOpen());
+    }
+
+    function setGraphView(on) {
+      graphView = on;
+      setAsideMode(currentAsideMode);
+    }
+
+    function toggleGraphFromButton() {
+      if (!isRightAsideOpen()) {
+        openRightAside();
+        setGraphView(true);
+      } else if (graphView) {
+        closeRightAside();
+        setGraphView(false);
+      } else {
+        setGraphView(true);
+      }
+    }
+
+    function isRightAsideOpen() {
+      return !appContainer.classList.contains('has-right-aside-collapsed');
+    }
+
+    function openRightAside() {
+      appContainer.classList.remove('has-right-aside-collapsed');
+    }
+
+    function closeRightAside() {
+      appContainer.classList.add('has-right-aside-collapsed');
+    }
+
+    function toggleRightAsideForCurrentView() {
+      const isNoteOpen = activeCell !== null || activeWeekCol !== null || inCellNotepad.style.display !== 'none';
+      const targetMode = isNoteOpen ? 'note' : 'calendar';
+      if (isRightAsideOpen() && graphView) {
+        // Aside mostrando o grafo: o botão de configurações troca para as configs
+        setGraphView(false);
+        return;
+      }
+      if (!isRightAsideOpen()) {
+        // Se a aside estiver recolhida: abre diretamente na visão atual (nota ou calendário)
+        setAsideMode(targetMode);
+        openRightAside();
+      } else if (currentAsideMode !== targetMode) {
+        // Se já estiver aberta mas mostrando a visão anterior: troca para o painel atual
+        setAsideMode(targetMode);
+      } else {
+        // Se já estiver aberta na mesma visão: recolhe
+        closeRightAside();
+      }
+    }
+
+    function updateNoteStats() {
+      const text = notepadTextarea.value;
+      const trimmed = text.trim();
+      const words = trimmed ? trimmed.split(/\s+/).length : 0;
+      const chars = text.length;
+      const statStr = `${words} palavra${words === 1 ? '' : 's'} • ${chars} caractere${chars === 1 ? '' : 's'}`;
+      if (asideNoteStats) asideNoteStats.textContent = statStr;
+      if (notepadStatus) {
+        notepadStatus.textContent = trimmed ? `${statStr} (Salvo automaticamente)` : 'Salvo automaticamente localmente';
+      }
+    }
+
+    // ── EXPANSÃO DA CÉLULA (VISÃO MENSAL) ──
+    function expandCell(cell) {
+      if (isTransitioning || activeCell === cell) return;
+      isTransitioning = true;
+      activeCell = cell;
+
+      const dayIndex = dayCells.indexOf(cell);
+      const colIndex = dayIndex % 7;
+      const rowIndex = Math.floor(dayIndex / 7);
+
+      const dayNum = cell.getAttribute('data-day') || cell.querySelector('.calendar-day-number')?.textContent || '';
+      activeDayNumber = dayNum;
+      const isOtherMonth = cell.classList.contains('calendar-day-other-month');
+
+      // 1. O Header da view equipara ao cabeçalho da nota
+      sectionHeaderIcon.textContent = 'edit_note';
+      sectionHeaderTitle.textContent = 'Nota';
+      btnBackToCalendar.style.display = 'inline-flex';
+      btnCloseNoteHeader.style.display = 'inline-flex';
+      btnToggleRightAside.title = 'Painel da Nota';
+
+      // 2. Prepara o conteúdo do bloco de notas dentro da célula
+      notepadTextarea.value = cell.dataset.noteText || '';
+      updateNoteStats();
+
+      cell.appendChild(inCellNotepad);
+      inCellNotepad.style.display = 'flex';
+      inCellNotepad.classList.remove('is-revealed');
+      cell.classList.remove('notepad-active');
+
+      cell.classList.add('is-expanded');
+      calendarGrid.classList.add('is-cell-expanded');
+      calendarBody.classList.add('is-cell-expanded');
+
+      // 3. Atualiza os dados na Aside da Nota e comuta o modo da aside
+      if (asideNoteDateBadge) asideNoteDateBadge.textContent = `Dia ${dayNum} de Outubro`;
+      if (asideNoteSubDate) asideNoteSubDate.textContent = isOtherMonth ? 'Dia de outro mês' : 'Outubro de 2026';
+      setAsideMode('note');
+
+      // 4. Colunas e linhas expandem a 100%, empurrando as demais células até sumirem nas bordas
+      const cols = Array.from({ length: 7 }, (_, i) => i === colIndex ? '100%' : '0%').join(' ');
+      const rows = Array.from({ length: 5 }, (_, i) => i === rowIndex ? '100%' : '0%').join(' ');
+
+      if (calendarWeekdays) calendarWeekdays.style.gridTemplateColumns = cols;
+      calendarGrid.style.gridTemplateColumns = cols;
+      calendarGrid.style.gridTemplateRows = rows;
+
+      // Revela suavemente o conteúdo do editor à medida que os outlines atingem as bordas
+      setTimeout(() => {
+        if (activeCell === cell) {
+          cell.classList.add('notepad-active');
+          inCellNotepad.classList.add('is-revealed');
+        }
+      }, 200);
+
+      setTimeout(() => {
+        isTransitioning = false;
+        notepadTextarea.focus();
+      }, 350);
+    }
+
+    function collapseCell() {
+      if (!activeCell || isTransitioning) return;
+      isTransitioning = true;
+
+      // 1. Salva a nota na célula e atualiza a prévia
+      const noteText = notepadTextarea.value.trim();
+      activeCell.dataset.noteText = noteText;
+
+      let previewEl = activeCell.querySelector('.calendar-day-note-preview');
+      if (noteText) {
+        if (!previewEl) {
+          previewEl = document.createElement('div');
+          previewEl.className = 'calendar-day-note-preview';
+          activeCell.appendChild(previewEl);
+        }
+        previewEl.textContent = noteText;
+      } else if (previewEl) {
+        previewEl.remove();
+      }
+
+      // Esconde o conteúdo do editor para que a contração mostre os outlines voltando à célula
+      inCellNotepad.classList.remove('is-revealed');
+      activeCell.classList.remove('notepad-active');
+
+      // 2. Restaura o Header da view de volta para Calendário
+      updateHeaderForCurrentViewMode();
+
+      // 3. Retorna a Aside para o modo de configurações do Calendário
+      setAsideMode('calendar');
+
+      // 4. Restaura a grade e o cabeçalho dos dias para 7 colunas e 5 linhas iguais
+      const defaultCols = Array.from({ length: 7 }, () => '14.2857%').join(' ');
+      const defaultRows = Array.from({ length: 5 }, () => '20%').join(' ');
+
+      if (calendarWeekdays) calendarWeekdays.style.gridTemplateColumns = defaultCols;
+      calendarGrid.style.gridTemplateColumns = defaultCols;
+      calendarGrid.style.gridTemplateRows = defaultRows;
+      calendarGrid.classList.remove('is-cell-expanded');
+      calendarBody.classList.remove('is-cell-expanded');
+
+      setTimeout(() => {
+        if (activeCell) {
+          activeCell.classList.remove('is-expanded');
+          inCellNotepad.style.display = 'none';
+          calendarView.appendChild(inCellNotepad);
+          activeCell = null;
+        }
+        isTransitioning = false;
+      }, 350);
+    }
+
+    // ── EXPANSÃO DA COLUNA (VISÃO SEMANAL) — mesma animação da célula do mês ──
+    const weekColumnsEl = document.querySelector('.calendar-week-columns');
+    const weekHeaderEl = document.querySelector('.calendar-week-header');
+    let activeWeekCol = null;
+    let isWeekTransitioning = false;
+
+    function setWeekTracks(openIndex) {
+      const tracks = Array.from({ length: 7 }, (_, i) =>
+        openIndex === null ? '14.2857%' : (i === openIndex ? '100%' : '0%')).join(' ');
+      weekColumnsEl.style.gridTemplateColumns = tracks;
+      weekHeaderEl.style.gridTemplateColumns = tracks;
+    }
+
+    function expandWeekCol(col) {
+      if (isWeekTransitioning || activeWeekCol === col) return;
+      isWeekTransitioning = true;
+      activeWeekCol = col;
+
+      const day = col.getAttribute('data-day') || '7';
+      const dayName = col.getAttribute('data-day-name') || `Dia ${day} de Outubro`;
+      activeDayNumber = day;
+
+      sectionHeaderIcon.textContent = 'edit_note';
+      sectionHeaderTitle.textContent = 'Nota';
+      btnBackToCalendar.style.display = 'inline-flex';
+      btnCloseNoteHeader.style.display = 'inline-flex';
+      btnToggleRightAside.title = 'Painel da Nota';
+
+      notepadTextarea.value = col.dataset.noteText || (day === '7' ? 'Reunião de alinhamento QuickDock Spatial Shell • Revisão das views de Mês, Semana e Dia.' : '');
+      updateNoteStats();
+
+      col.appendChild(inCellNotepad);
+      inCellNotepad.style.display = 'flex';
+      inCellNotepad.classList.remove('is-revealed');
+      col.classList.remove('notepad-active');
+      col.classList.add('is-expanded');
+      calendarWeekView.classList.add('is-col-expanded');
+
+      if (asideNoteDateBadge) asideNoteDateBadge.textContent = `Dia ${day} de Outubro`;
+      if (asideNoteSubDate) asideNoteSubDate.textContent = dayName;
+      setAsideMode('note');
+
+      setWeekTracks(Array.from(weekColumnsEl.children).indexOf(col));
+
+      setTimeout(() => {
+        if (activeWeekCol === col) {
+          col.classList.add('notepad-active');
+          inCellNotepad.classList.add('is-revealed');
+        }
+      }, 200);
+      setTimeout(() => {
+        isWeekTransitioning = false;
+        notepadTextarea.focus();
+      }, 350);
+    }
+
+    function collapseWeekCol() {
+      if (!activeWeekCol || isWeekTransitioning) return;
+      isWeekTransitioning = true;
+      const col = activeWeekCol;
+      col.dataset.noteText = notepadTextarea.value.trim();
+
+      inCellNotepad.classList.remove('is-revealed');
+      col.classList.remove('notepad-active');
+      updateHeaderForCurrentViewMode();
+      setAsideMode('calendar');
+
+      setWeekTracks(null);
+      calendarWeekView.classList.remove('is-col-expanded');
+
+      setTimeout(() => {
+        col.classList.remove('is-expanded');
+        inCellNotepad.style.display = 'none';
+        calendarView.appendChild(inCellNotepad);
+        activeWeekCol = null;
+        isWeekTransitioning = false;
+      }, 350);
+    }
+
+    // ── NOTA DIRETA PARA VISÃO SEMANAL E DIÁRIA ──
+    function openDirectNoteForDay(dayNumber, dayTitle) {
+      activeDayNumber = dayNumber;
+      sectionHeaderIcon.textContent = 'edit_note';
+      sectionHeaderTitle.textContent = 'Nota';
+      btnBackToCalendar.style.display = 'inline-flex';
+      btnCloseNoteHeader.style.display = 'inline-flex';
+      btnToggleRightAside.title = 'Painel da Nota';
+
+      [calendarMonthView, calendarWeekView, calendarDayView, dataTableView, dataGalleryView]
+        .forEach(p => p?.classList.add('is-hidden'));
+
+      // Configura conteúdo da nota
+      calendarView.appendChild(inCellNotepad);
+      inCellNotepad.style.display = 'flex';
+      inCellNotepad.classList.add('is-revealed');
+
+      notepadTextarea.value = (dayNumber === '7') ? 'Reunião de alinhamento QuickDock Spatial Shell • Revisão das views de Mês, Semana e Dia.' : '';
+      updateNoteStats();
+
+      if (asideNoteDateBadge) asideNoteDateBadge.textContent = `Dia ${dayNumber} de Outubro`;
+      if (asideNoteSubDate) asideNoteSubDate.textContent = dayTitle || 'Outubro de 2026';
+      setAsideMode('note');
+
+      setTimeout(() => {
+        notepadTextarea.focus();
+      }, 100);
+    }
+
+    function closeDirectNoteView() {
+      inCellNotepad.classList.remove('is-revealed');
+      inCellNotepad.style.display = 'none';
+      calendarView.appendChild(inCellNotepad);
+
+      // Restaura a visão ativa atual
+      applyPanelVisibility();
+
+      updateHeaderForCurrentViewMode();
+      setAsideMode('calendar');
+    }
+
+    function handleCloseNote() {
+      if (activeWeekCol) {
+        collapseWeekCol();
+      } else if (activeCell) {
+        collapseCell();
+      } else if (inCellNotepad.style.display !== 'none') {
+        closeDirectNoteView();
+      }
+    }
+
+    // Delegação de cliques para a Grade Mensal
+    calendarGrid?.addEventListener('click', (e) => {
+      if (activeCell) return;
+
+      const addBtn = e.target.closest('.calendar-day-add-btn');
+      if (addBtn) {
+        e.stopPropagation();
+        const cell = addBtn.closest('.calendar-day');
+        if (cell) expandCell(cell);
+        return;
+      }
+
+      const cell = e.target.closest('.calendar-day');
+      if (cell) {
+        expandCell(cell);
+      }
+    });
+
+    // Delegação de cliques para a Visão Semanal
+    calendarWeekView?.addEventListener('click', (e) => {
+      if (activeWeekCol) return;
+      const col = e.target.closest('.calendar-week-col');
+      if (col) expandWeekCol(col);
+    });
+
+    // Delegação de cliques para a Visão Diária
+    calendarDayView?.addEventListener('click', (e) => {
+      const slot = e.target.closest('.day-timeline-hour');
+      if (slot) {
+        openDirectNoteForDay(activeDayNumber, `Dia ${activeDayNumber} de Outubro`);
+        return;
+      }
+      const quickAdd = e.target.closest('#btnDayQuickAdd');
+      if (quickAdd) {
+        openDirectNoteForDay(activeDayNumber, `Dia ${activeDayNumber} de Outubro`);
+      }
+    });
+
+    // Navegação de dias na Visão Diária
+    document.getElementById('btnPrevDay')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      let n = parseInt(activeDayNumber, 10);
+      if (n > 1) {
+        activeDayNumber = String(n - 1);
+        const titleEl = document.getElementById('dayViewCurrentTitle');
+        if (titleEl) titleEl.textContent = `${activeDayNumber} de Outubro de 2026`;
+        updateHeaderForCurrentViewMode();
+      }
+    });
+
+    document.getElementById('btnNextDay')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      let n = parseInt(activeDayNumber, 10);
+      if (n < 31) {
+        activeDayNumber = String(n + 1);
+        const titleEl = document.getElementById('dayViewCurrentTitle');
+        if (titleEl) titleEl.textContent = `${activeDayNumber} de Outubro de 2026`;
+        updateHeaderForCurrentViewMode();
+      }
+    });
+
+    // Eventos do Seletor de Tipo de Visualização na Aside (Mês, Semana, Dia)
+    document.querySelectorAll('.view-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.getAttribute('data-view-mode');
+        if (mode) setCalendarViewMode(mode);
+      });
+    });
+
+    document.querySelectorAll('.view-type-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const mode = item.getAttribute('data-view-mode');
+        if (mode) setCalendarViewMode(mode);
+      });
+    });
+
+    // Controles dos painéis laterais e botões de ação
+    btnToggleRightHeader?.addEventListener('click', toggleRightAsideForCurrentView);
+    btnToggleRightAside?.addEventListener('click', toggleRightAsideForCurrentView);
+    btnCloseRightAside?.addEventListener('click', () => { closeRightAside(); btnToggleGraph?.classList.remove('is-active'); });
+    btnToggleGraph?.addEventListener('click', toggleGraphFromButton);
+    btnSwapAsideGraph?.addEventListener('click', () => setGraphView(!graphView));
+
+    // ── GRAFO DE CONEXÕES (notas fictícias, só para modelo) ──
+    (function initNoteGraph() {
+      const svg = document.getElementById('noteGraph');
+      const info = document.getElementById('graphInfo');
+      if (!svg) return;
+      const NS = 'http://www.w3.org/2000/svg';
+      const nodes = [
+        { id: 'dia7',  t: 'Nota do dia 7',        g: 'reuniao', x: 150, y: 175, active: true },
+        { id: 'shell', t: 'Spatial Shell',        g: 'projeto', x: 78,  y: 100 },
+        { id: 'views', t: 'Views Mês/Semana/Dia', g: 'projeto', x: 205, y: 80 },
+        { id: 'bases', t: 'Bases',                g: 'projeto', x: 245, y: 165 },
+        { id: 'road',  t: 'Roadmap Q4',           g: 'projeto', x: 55,  y: 205 },
+        { id: 'alin',  t: 'Alinhamento',          g: 'reuniao', x: 150, y: 265 },
+        { id: 'retro', t: 'Retro semanal',        g: 'reuniao', x: 242, y: 250 },
+        { id: 'const', t: 'Ideia: constelações',  g: 'ideia',   x: 40,  y: 125 },
+        { id: 'datas', t: 'Ideia: notas por data',g: 'ideia',   x: 120, y: 38 },
+        { id: 'marina',t: 'Marina',               g: 'pessoa',  x: 70,  y: 295 },
+        { id: 'caio',  t: 'Caio',                 g: 'pessoa',  x: 215, y: 318 }
+      ];
+      const edges = [
+        ['dia7','shell'], ['dia7','views'], ['dia7','alin'], ['dia7','const'],
+        ['shell','views'], ['shell','const'], ['views','bases'], ['views','datas'],
+        ['bases','datas'], ['bases','retro'], ['road','shell'], ['road','alin'],
+        ['alin','marina'], ['alin','caio'], ['retro','caio'], ['road','marina']
+      ];
+      const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+      const el = (name, attrs) => {
+        const e = document.createElementNS(NS, name);
+        for (const k in attrs) e.setAttribute(k, attrs[k]);
+        return e;
+      };
+      const links = edges.map(([a, b]) => {
+        const l = el('line', { class: 'g-edge', x1: byId[a].x, y1: byId[a].y, x2: byId[b].x, y2: byId[b].y });
+        l.dataset.a = a; l.dataset.b = b;
+        svg.appendChild(l);
+        return l;
+      });
+      const neighbors = id => edges.filter(e => e.includes(id)).map(e => e[0] === id ? e[1] : e[0]);
+      const groupNames = { projeto: 'Projeto', reuniao: 'Reunião', ideia: 'Ideia', pessoa: 'Pessoa' };
+      const nodeEls = nodes.map(n => {
+        const g = el('g', { class: 'g-node' + (n.active ? ' is-active' : ''), transform: `translate(${n.x} ${n.y})` });
+        g.dataset.id = n.id;
+        g.appendChild(el('circle', { r: n.active ? 9 : 6.5, fill: `var(--graph-${n.g})` }));
+        const label = el('text', { y: n.active ? 21 : 18 });
+        label.textContent = n.t;
+        g.appendChild(label);
+        svg.appendChild(g);
+        return g;
+      });
+      const showInfo = id => {
+        const n = byId[id];
+        const c = neighbors(id).length;
+        info.innerHTML = '';
+        const s = document.createElement('strong');
+        s.textContent = n.t;
+        info.append(s, `${groupNames[n.g]} • ${c} conexõe${c === 1 ? '' : 's'}`);
+      };
+      const focusNode = id => {
+        const near = new Set([id, ...neighbors(id)]);
+        svg.classList.add('has-focus');
+        nodeEls.forEach(g => g.classList.toggle('is-near', near.has(g.dataset.id)));
+        links.forEach(l => l.classList.toggle('is-near', l.dataset.a === id || l.dataset.b === id));
+        showInfo(id);
+      };
+      const clearFocus = () => {
+        svg.classList.remove('has-focus');
+        showInfo('dia7');
+      };
+      nodeEls.forEach(g => {
+        g.addEventListener('mouseenter', () => focusNode(g.dataset.id));
+        g.addEventListener('mouseleave', clearFocus);
+      });
+      showInfo('dia7');
+    })();
+
+    btnBackToCalendar?.addEventListener('click', handleCloseNote);
+    btnCloseNoteHeader?.addEventListener('click', handleCloseNote);
+    btnSaveNotepad?.addEventListener('click', handleCloseNote);
+    btnAsideDoneNote?.addEventListener('click', handleCloseNote);
+
+    btnAsideClearNote?.addEventListener('click', () => {
+      notepadTextarea.value = '';
+      updateNoteStats();
+      if (activeCell) {
+        activeCell.dataset.noteText = '';
+        const previewEl = activeCell.querySelector('.calendar-day-note-preview');
+        if (previewEl) previewEl.remove();
+      }
+    });
+
+    notepadTextarea?.addEventListener('input', updateNoteStats);
+
+    // ══ NOTAS FAKES (SÓ MODELO) + VIEWS DE DADOS ══
+    // Toda nota aparece no calendário pela data de criação; tabela e galeria são
+    // outras formas de ver as mesmas notas (conceito de Bases).
+    const GROUP_LABEL = { projeto: 'Projeto', reuniao: 'Reunião', ideia: 'Ideia', pessoal: 'Pessoal' };
+    const GROUP_ICON = { projeto: 'rocket_launch', reuniao: 'groups', ideia: 'lightbulb', pessoal: 'person' };
+    const FAKE_NOTES = [
+      { day: 1,  time: '09:00', group: 'projeto', title: 'Revisar backlog de Bases',       text: 'Priorizar as views pendentes: tabela, galeria e linha do tempo.' },
+      { day: 1,  time: '15:00', group: 'pessoal', title: 'Lista de compras do escritório',  text: 'Café, papel A4, cabos USB-C e um suporte de monitor.' },
+      { day: 2,  time: '14:00', group: 'ideia',   title: 'Ideia: calendário como Base',     text: 'Toda nota aparece pela data de criação; outra data vira propriedade.' },
+      { day: 3,  time: '11:00', group: 'pessoal', title: 'Receitas para o fim de semana',   text: 'Testar o risoto de limão siciliano e o pão de fermentação longa.' },
+      { day: 5,  time: '10:00', group: 'projeto', title: 'Planejar sprint',                 text: 'Definir metas da semana: aside separada das views e grafo de conexões.' },
+      { day: 5,  time: '15:00', group: 'reuniao', title: '1:1 com Marina',                  text: 'Feedback do mockup, dúvidas sobre o fluxo mobile.' },
+      { day: 6,  time: '16:00', group: 'ideia',   title: 'Rascunho do PRD Constelações',    text: 'Constelações vira aside que abre do calendário e da nota.' },
+      { day: 7,  time: '10:00', group: 'reuniao', title: 'Nota do dia 7',                   text: 'Reunião de alinhamento QuickDock Spatial Shell • Revisão das views.' },
+      { day: 7,  time: '14:00', group: 'reuniao', title: 'Reunião de alinhamento',          text: 'Alinhar escopo de Bases com o time e revisar o cronograma.' },
+      { day: 7,  time: '17:00', group: 'ideia',   title: 'Ideias de ícones para as views',  text: 'Testar hub, table_rows e grid_view como ícones padrão.' },
+      { day: 8,  time: '16:00', group: 'reuniao', title: 'Retro da semana',                 text: 'O que funcionou, o que travou e o que muda na próxima.' },
+      { day: 9,  time: '09:00', group: 'projeto', title: 'Checklist de release',            text: 'Bumpar CACHE_NAME do sw.js e rodar node test/run.mjs.' },
+      { day: 12, time: '18:00', group: 'pessoal', title: 'Estudar OKLCH',                   text: 'Ajustar a paleta: diferença de L ≥ 55 entre fundo e texto.' },
+      { day: 14, time: '11:00', group: 'reuniao', title: 'Entrevista com designer',         text: 'Perguntar sobre sistemas de design e prototipação no mobile.' },
+      { day: 15, time: '10:00', group: 'projeto', title: 'Roteiro do vídeo demo',           text: 'Abrir o calendário, expandir uma célula e mostrar o grafo.' },
+      { day: 19, time: '15:00', group: 'projeto', title: 'Mockup da galeria',               text: 'Cartões com capa, prévia de três linhas e grupo da nota.' },
+      { day: 20, time: '09:00', group: 'ideia',   title: 'Ideia: widgets de nota',          text: 'Mini-calendário e contagem de notas por grupo no dashboard.' },
+      { day: 22, time: '10:00', group: 'reuniao', title: 'Planejamento do Q4',              text: 'Metas de trimestre, riscos e dependências entre os módulos.' },
+      { day: 26, time: '16:00', group: 'projeto', title: 'Release v0.9',                    text: 'Publicar a versão com Bases e o novo calendário.' },
+      { day: 28, time: '13:00', group: 'pessoal', title: 'Notas da conferência',            text: 'Três ideias de UX para espaços de trabalho espaciais.' }
+    ];
+    const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const notesOfDay = d => FAKE_NOTES.filter(n => n.day === Number(d)).sort((a, b) => a.time.localeCompare(b.time));
+    const noteDateLabel = n => `${WEEKDAYS[(n.day + 3) % 7]}, ${n.day} de Outubro • ${n.time}`; // 1/out/2026 = quinta
+
+    const mkChip = (n, withTime) => {
+      const c = document.createElement('div');
+      c.className = 'cal-note-chip';
+      c.dataset.group = n.group;
+      c.title = `${n.title} — ${n.time}`;
+      c.textContent = withTime ? `${n.time} ${n.title}` : n.title;
+      return c;
+    };
+
+    function renderMonthNotes() {
+      dayCells.forEach(cell => {
+        cell.querySelectorAll('.cal-note-chip, .cal-note-more').forEach(e => e.remove());
+        if (cell.classList.contains('calendar-day-other-month')) return;
+        const notes = notesOfDay(cell.dataset.day);
+        notes.slice(0, 2).forEach(n => cell.appendChild(mkChip(n, false)));
+        if (notes.length > 2) {
+          const more = document.createElement('div');
+          more.className = 'cal-note-more';
+          more.textContent = `+${notes.length - 2} notas`;
+          cell.appendChild(more);
+        }
+      });
+    }
+
+    function renderWeekNotes() {
+      document.querySelectorAll('.calendar-week-col').forEach(col => {
+        col.querySelectorAll('.cal-note-chip').forEach(e => e.remove());
+        const slots = col.querySelectorAll('.week-col-time-slot');
+        notesOfDay(col.dataset.day).forEach(n => {
+          const h = parseInt(n.time, 10);
+          const idx = Math.min(slots.length - 1, Math.max(0, Math.floor((h - 8) / 2)));
+          slots[idx].appendChild(mkChip(n, false));
+        });
+      });
+    }
+
+    function renderDayNotes() {
+      document.querySelectorAll('.day-timeline-hour').forEach(row => {
+        const box = row.querySelector('.day-hour-content');
+        box.querySelectorAll('.cal-note-chip').forEach(e => e.remove());
+        const notes = notesOfDay(activeDayNumber).filter(n => n.time.slice(0, 2) === row.dataset.hour.slice(0, 2));
+        notes.forEach(n => {
+          const chip = mkChip(n, false);
+          const small = document.createElement('small');
+          small.textContent = n.text;
+          chip.appendChild(small);
+          box.prepend(chip);
+        });
+        const hint = box.querySelector(':scope > span');
+        if (hint) hint.style.display = notes.length ? 'none' : '';
+      });
+    }
+
+    function renderTableView() {
+      const rows = FAKE_NOTES.slice().sort((a, b) => a.day - b.day || a.time.localeCompare(b.time)).map(n => `
+        <tr data-day="${n.day}" data-title="${n.title}">
+          <td class="title">${n.title}</td>
+          <td class="muted">${String(n.day).padStart(2, '0')}/10/2026 ${n.time}</td>
+          <td><span class="group-pill" data-group="${n.group}">${GROUP_LABEL[n.group]}</span></td>
+          <td class="muted">${n.text}</td>
+        </tr>`).join('');
+      dataTableView.innerHTML = `
+        <table class="notes-table">
+          <thead><tr><th>Nota</th><th>Criada em</th><th>Grupo</th><th>Prévia</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    }
+
+    function renderGalleryView() {
+      const cards = FAKE_NOTES.slice().sort((a, b) => a.day - b.day || a.time.localeCompare(b.time)).map(n => `
+        <article class="gallery-card" data-group="${n.group}" data-day="${n.day}" data-title="${n.title}">
+          <div class="gallery-cover"><span class="material-symbols-rounded">${GROUP_ICON[n.group]}</span></div>
+          <div class="gallery-body">
+            <strong>${n.title}</strong>
+            <p>${n.text}</p>
+            <div class="gallery-meta"><span class="group-pill" data-group="${n.group}">${GROUP_LABEL[n.group]}</span><span>${n.day}/10 • ${n.time}</span></div>
+          </div>
+        </article>`).join('');
+      dataGalleryView.innerHTML = `<div class="notes-gallery">${cards}</div>`;
+    }
+
+    // Visibilidade dos painéis conforme tipo de view (calendário/tabela/galeria) e modo (mês/semana/dia)
+    function applyPanelVisibility() {
+      const cal = dataView === 'calendar';
+      calendarMonthView.classList.toggle('is-hidden', !(cal && currentViewMode === 'month'));
+      calendarWeekView.classList.toggle('is-hidden', !(cal && currentViewMode === 'week'));
+      calendarDayView.classList.toggle('is-hidden', !(cal && currentViewMode === 'day'));
+      dataTableView.classList.toggle('is-hidden', dataView !== 'table');
+      dataGalleryView.classList.toggle('is-hidden', dataView !== 'gallery');
+    }
+
+    function syncViewSwitcher() {
+      document.querySelectorAll('.view-switch-btn').forEach(b =>
+        b.classList.toggle('is-active', b.dataset.dataView === dataView));
+    }
+
+    function setDataView(next) {
+      if (activeWeekCol || activeCell || inCellNotepad.style.display !== 'none') handleCloseNote();
+      dataView = next;
+      syncViewSwitcher();
+      applyPanelVisibility();
+      updateHeaderForCurrentViewMode();
+    }
+
+    const dataTableView = document.getElementById('dataTableView');
+    const dataGalleryView = document.getElementById('dataGalleryView');
+    const calendarSection = document.getElementById('section-calendar');
+
+    // Clique no header expande/recolhe o seletor de tipo de view (não dispara com os botões nem com nota aberta)
+    sectionHeader.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      if (activeCell || activeWeekCol || inCellNotepad.style.display !== 'none') return;
+      calendarSection.classList.toggle('is-switcher-open');
+    });
+
+    document.querySelectorAll('.view-switch-btn').forEach(btn =>
+      btn.addEventListener('click', () => setDataView(btn.dataset.dataView)));
+
+    // Abrir nota a partir da tabela/galeria
+    const openFromData = (e) => {
+      const item = e.target.closest('[data-day][data-title]');
+      if (item) openDirectNoteForDay(item.dataset.day, item.dataset.title);
+    };
+    dataTableView.addEventListener('click', openFromData);
+    dataGalleryView.addEventListener('click', openFromData);
+
+    renderMonthNotes();
+    renderWeekNotes();
+    renderDayNotes();
+    renderTableView();
+    renderGalleryView();
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        handleCloseNote();
+      }
+    });
+  </script>
+</body>
+</html>
