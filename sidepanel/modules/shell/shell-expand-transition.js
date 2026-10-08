@@ -56,41 +56,73 @@ export function playExpandOpen(sectionEl) {
   origin.opened = true; // lembra que esta abertura veio de um item: o "voltar" encolhe até ele
   const from = insetFor(origin.rect, sectionEl.getBoundingClientRect());
   sectionEl.animate([{ clipPath: from, opacity: 0.4 }, { clipPath: FULL, opacity: 1 }], { duration: DURATION, easing: EASING });
-  // o conteúdo (editor/quadro) já aparece desde o primeiro quadro: o recorte o vai revelando
-  // enquanto a tela cresce, sem esperar a abertura terminar
+  // cabeçalho e conteúdo vão aparecendo aos poucos enquanto o recorte cresce
+  for (const filho of sectionEl.children) {
+    if (!filho.animate) continue;
+    const header = filho.classList.contains('section-header');
+    filho.animate([{ opacity: 0 }, { opacity: 1 }], { duration: header ? DURATION * 0.7 : DURATION * 0.9, delay: header ? 0 : 30, easing: 'ease-out', fill: 'backwards' });
+  }
 }
 
-/**
- * Abertura SOBRE a Base (célula do mês / coluna da semana): a nota ou o quadro já está montado
- * e é revelado por um recorte que cresce do item clicado, ao mesmo tempo em que a grade da Base
- * (por baixo) expande. `done` quando o recorte termina.
- */
+// ── Abertura/fechamento SOBRE a Base (célula do mês / coluna da semana) ─────────────────────
+// A nota ou o quadro é revelado DENTRO da célula (ou coluna) enquanto ela expande: a cada quadro o
+// recorte acompanha o retângulo real da célula, então as linhas da grade e o contorno da célula
+// continuam por fora, e as outras células vão sendo empurradas para todos os lados. O cabeçalho da
+// nota/quadro e o conteúdo vão aparecendo aos poucos (e some do mesmo jeito ao voltar).
+const EXPANDED_SEL = '#bases-body .is-expanded-cell, #bases-body .is-expanded-col';
+const OUTLINE = 1; // px do contorno da célula que o recorte deixa à mostra
+const smooth = p => p * p * (3 - 2 * p);
+
+function trackReveal(sectionEl, { reverse, done }) {
+  sectionEl.classList.add('is-expand-overlay');
+  const start = performance.now();
+  const kids = [...sectionEl.children];
+  let lastRect = origin?.rect ?? null;
+  let finished = false;
+
+  const clear = () => {
+    sectionEl.style.clipPath = ''; sectionEl.style.opacity = '';
+    kids.forEach(k => { k.style.opacity = ''; });
+    sectionEl.classList.remove('is-expand-overlay');
+  };
+  const finish = () => { if (finished) return; finished = true; clear(); done(); };
+
+  const frame = (now) => {
+    if (finished) return;
+    const t = Math.min(1, (now - start) / DURATION);
+    const p = reverse ? 1 - t : t;
+    const target = document.querySelector(EXPANDED_SEL);
+    if (target) lastRect = target.getBoundingClientRect();
+    if (lastRect) {
+      const box = sectionEl.getBoundingClientRect();
+      const r = lastRect;
+      const top = Math.max(0, r.top - box.top + OUTLINE), left = Math.max(0, r.left - box.left + OUTLINE);
+      const right = Math.max(0, box.right - r.right + OUTLINE), bottom = Math.max(0, box.bottom - r.bottom + OUTLINE);
+      sectionEl.style.clipPath = `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+    }
+    kids.forEach((k, i) => {
+      const header = k.classList.contains('section-header');
+      // cabeçalho aparece primeiro; o conteúdo vem logo atrás
+      k.style.opacity = String(smooth(Math.min(1, Math.max(0, header ? p * 1.4 : (p - 0.1) / 0.9))));
+    });
+    if (t < 1) requestAnimationFrame(frame); else finish();
+  };
+  requestAnimationFrame(frame);
+  setTimeout(finish, DURATION + 80); // painel oculto não dispara quadros: nunca fica preso
+}
+
+/** `done` quando a revelação termina. */
 export function playOverlayOpen(sectionEl, done = () => {}) {
-  if (!sectionEl?.animate || !origin) { done(); return; }
+  if (!sectionEl || !origin) { done(); return; }
   origin.opened = true;
-  sectionEl.classList.add('is-expand-overlay');
-  const from = insetFor(origin.rect, sectionEl.getBoundingClientRect());
-  const anim = sectionEl.animate([{ clipPath: from, opacity: 0.5 }, { clipPath: FULL, opacity: 1 }], { duration: DURATION, easing: EASING });
-  let acabou = false;
-  const end = () => { if (acabou) return; acabou = true; sectionEl.classList.remove('is-expand-overlay'); done(); };
-  anim.addEventListener('finish', end, { once: true });
-  anim.addEventListener('cancel', end, { once: true });
+  trackReveal(sectionEl, { reverse: false, done });
 }
 
-/**
- * Fechamento SOBRE a Base: a nota/quadro continua visível e encolhe até o item de origem enquanto
- * a grade da Base (por baixo) volta ao tamanho normal. `done` ao terminar (aí a seção é escondida).
- */
+/** Fechamento: a nota/quadro vai sumindo e encolhendo junto com a célula; `done` ao terminar. */
 export function playOverlayClose(sectionEl, done = () => {}) {
-  if (!sectionEl?.animate || !origin) { done(); return; }
+  if (!sectionEl || !origin) { done(); return; }
   origin.opened = false;
-  sectionEl.classList.add('is-expand-overlay');
-  const to = insetFor(origin.rect, sectionEl.getBoundingClientRect());
-  const anim = sectionEl.animate([{ clipPath: FULL, opacity: 1 }, { clipPath: to, opacity: 0.5 }], { duration: DURATION, easing: EASING, fill: 'forwards' });
-  let acabou = false;
-  const end = () => { if (acabou) return; acabou = true; anim.cancel(); sectionEl.classList.remove('is-expand-overlay'); done(); };
-  anim.addEventListener('finish', end, { once: true });
-  anim.addEventListener('cancel', end, { once: true });
+  trackReveal(sectionEl, { reverse: true, done });
 }
 
 /** Voltar: a tela encolhe até o item de origem e então `done()` troca de tela. */

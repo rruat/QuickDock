@@ -203,6 +203,12 @@ export async function runShellViewsListTests({ ok, igual }) {
     np.includes('data-note-delete') && np.includes('deleteNoteById') && np.includes("querySelector('[data-note-actions]')?.remove()") &&
     (await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8')).includes('export async function deleteNoteById'));
 
+  const trans = await readFile(new URL('../sidepanel/modules/shell/shell-expand-transition.js', import.meta.url), 'utf8');
+  ok('abrir/fechar · o recorte acompanha o retângulo REAL da célula/coluna (contorno de 1px à mostra) e cabeçalho/conteúdo aparecem aos poucos',
+    trans.includes("'#bases-body .is-expanded-cell, #bases-body .is-expanded-col'") && trans.includes('const OUTLINE = 1') && trans.includes('getBoundingClientRect()') && trans.includes('header ? p * 1.4'));
+  ok('abrir/fechar · a Base não é escondida nem reordenada durante a animação (display:none/mover nós cancelam as transições da grade)',
+    ss.includes('if (!overlayOpen && !overlayClose) reorderMainSections()') && ss.includes('keepVisibleIds.has(id)'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[4].type, 'board');
@@ -380,7 +386,7 @@ export async function runShellViewsListTests({ ok, igual }) {
   const shellSrc = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
   ok('mês · a nota/quadro abre JUNTO com a expansão da célula (por cima da Base) e fecha do mesmo jeito, sem requestAnimationFrame para recolher',
     shellSrc.includes('expandMonthCell(cell,') && shellSrc.includes("openOrFocusView(viewId, { skipTransition: true, overlayOpen: true })") &&
-    shellSrc.includes('overlayClose: document.querySelector(sel)') && shellSrc.includes('keepBasesVisible()') &&
+    shellSrc.includes('overlayClose: document.querySelector(sel)') && shellSrc.includes('keepVisibleIds') &&
     shellSrc.includes('collapseMonthCell();') && !shellSrc.includes('requestAnimationFrame(() => collapseMonthCell'));
   ok('mês · voltar à Base por outro caminho não deixa a grade expandida (resetMonthExpansion)',
     shellSrc.includes("viewId === 'bases') { resetMonthExpansion(); resetWeekExpansion(); }"));

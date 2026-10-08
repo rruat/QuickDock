@@ -528,20 +528,9 @@ function anticipateHeaderTitle(viewId) {
 // Seção (#section-note / #board-view) de um destino de item
 const itemSectionOf = viewId => document.querySelector(viewId === 'board' ? '#board-view' : '#section-note');
 
-// Durante a animação sobre a Base, ela continua à vista por baixo da nota/quadro
-function keepBasesVisible() {
-  const bases = document.getElementById('bases-view');
-  if (!bases) return;
-  bases.hidden = false;
-  bases.style.setProperty('display', 'flex', 'important');
-}
-
-// Mostra de novo uma seção que o foco já escondeu (ela encolhe por cima da Base ao voltar)
-function keepSectionVisible(el) {
-  if (!el) return;
-  el.hidden = false;
-  el.style.setProperty('display', 'flex', 'important');
-}
+// Durante a animação sobre a Base, a seção "de baixo" (a Base ao abrir; a nota/quadro ao voltar) NÃO
+// pode ser escondida: display:none cancela as transições da grade. applyViewVisibility a mantém.
+let keepVisibleIds = new Set();
 
 export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = false, overlayClose = null } = {}) {
   const prevFocus = focusedViewId;
@@ -554,7 +543,7 @@ export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = 
         monthExpanding = true;
         anticipateHeaderTitle(viewId);
         // a nota/quadro já abre agora, revelada pelo recorte, enquanto a célula expande por baixo
-        expandMonthCell(cell, () => { monthExpanding = false; applyViewVisibility(); });
+        expandMonthCell(cell, () => { monthExpanding = false; keepVisibleIds = new Set(); applyViewVisibility(); reorderMainSections(); });
         openOrFocusView(viewId, { skipTransition: true, overlayOpen: true });
       }
       return;
@@ -564,7 +553,7 @@ export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = 
       if (!monthExpanding) {
         monthExpanding = true;
         anticipateHeaderTitle(viewId);
-        expandWeekColumn(col, () => { monthExpanding = false; applyViewVisibility(); });
+        expandWeekColumn(col, () => { monthExpanding = false; keepVisibleIds = new Set(); applyViewVisibility(); reorderMainSections(); });
         openOrFocusView(viewId, { skipTransition: true, overlayOpen: true });
       }
       return;
@@ -604,7 +593,9 @@ export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = 
     });
   }
 
-  reorderMainSections();
+  // reordenar move os nós no DOM e CANCELA as transições da grade que está expandindo por baixo
+  if (!overlayOpen && !overlayClose) reorderMainSections();
+  keepVisibleIds = overlayOpen ? new Set(['bases']) : (overlayClose ? new Set([overlayClose.dataset.id]) : new Set());
   applyViewVisibility();
   renderAsideViewList();
   setupSectionDividers();
@@ -626,13 +617,11 @@ export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = 
 
   // Nota e quadro CRESCEM a partir do item clicado na view (animação do mockup)
   if (overlayOpen) {
-    // sobre a grade que expande: mostra o conteúdo já, revelado pelo recorte
-    keepBasesVisible();
+    // sobre a grade que expande: mostra o conteúdo já, revelado dentro da célula
     playOverlayOpen(itemSectionOf(targetViewId));
   } else if (overlayClose) {
-    // voltando: a nota/quadro encolhe até o item enquanto a grade por baixo volta ao normal
-    keepSectionVisible(overlayClose);
-    playOverlayClose(overlayClose, () => applyViewVisibility());
+    // voltando: a nota/quadro encolhe junto com a célula enquanto a grade por baixo volta ao normal
+    playOverlayClose(overlayClose, () => { keepVisibleIds = new Set(); applyViewVisibility(); reorderMainSections(); });
   } else if (skipTransition) {
     // a célula do mês já fez a animação (ou a Base voltou animada): nada a mais
   } else if (prevFocus === 'bases' && (targetViewId === 'notes' || targetViewId === 'board') && !(window.innerWidth <= 768 || isMobileMode())) {
@@ -821,7 +810,7 @@ function applyViewVisibility() {
   }
   for (const [id, el] of Object.entries(viewMap)) {
     if (!el) continue;
-    const isSectionOpen = openViewIds.includes(id);
+    const isSectionOpen = openViewIds.includes(id) || keepVisibleIds.has(id);
 
     el.hidden = !isSectionOpen;
     if (id === 'docs') el.classList.toggle('is-collapsed', !isSectionOpen);
