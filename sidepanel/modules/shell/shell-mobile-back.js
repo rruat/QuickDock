@@ -7,7 +7,7 @@
 import { closeAllMobileDrawers } from './shell-mobile.js';
 
 const HISTORY_KEY = 'qdMobileView';
-const ROOT_VIEW = 'notes';
+const ROOT_VIEW = 'bases'; // a Base (views) é a raiz; nota e quadro são itens abertos a partir dela
 
 function isMobilePlatform() {
   return document.documentElement.dataset.platform === 'mobile';

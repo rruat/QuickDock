@@ -4972,8 +4972,8 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const spatialShellSource = rawSpatial.replace(/\r\n/g, '\n');
 
   ok('spatial-shell.js · setupActivityBar: Home/Modelos/Configurações garantem setAsideMode("notes") e trocam o painel/abrem-recolhem a aside esquerda',
-    spatialShellSource.includes("viewId === 'home'") &&
-    spatialShellSource.includes('setCollapsed: setAsideCollapsed') &&
+    spatialShellSource.includes('NAV_TO_PANEL[viewId]') &&
+    spatialShellSource.includes('setCollapsed: setAsideCollapsed') && spatialShellSource.includes('openMobileLeftDrawer()') &&
     spatialShellSource.includes("setAsideMode('notes')"));
 
   ok('spatial-shell.js · openOrFocusView("notes") e foco de notas ativam setAsideMode("notes")',

@@ -5,6 +5,10 @@
 import { isMobileMode } from '../platform.js';
 import { loadAllNotesMeta } from '../storage.js';
 import { SHELL_VIEWS } from './shell-views.js';
+import { setRightAsideOpen, isRightAsideOpen as isRightAsideOpenAny } from './shell-right-aside.js';
+
+// no desktop a aside direita é uma coluna, não um drawer: só conta como "drawer aberto" no mobile
+export const isRightAsideOpen = () => isMobileMode() && isRightAsideOpenAny();
 
 let _getOpenViewIds = () => [];
 let _getFocusedViewId = () => null;
@@ -156,13 +160,12 @@ export function getLeftDrawerWidth() {
 }
 
 export function getRightDrawerWidth() {
-  const drawer = document.getElementById('mobileRightDrawer');
+  const drawer = document.getElementById('mRightAside');
   return drawer ? Math.min(window.innerWidth * 0.85, 340) : 320;
 }
 
 export function openMobileLeftDrawer() {
   const mAside = document.getElementById('mAside');
-  const rightDrawer = document.getElementById('mobileRightDrawer');
   const app = document.getElementById('app');
 
   closeMobileRightDrawer();
@@ -224,68 +227,30 @@ export function toggleMobileLeftDrawer(force) {
   else closeMobileLeftDrawer();
 }
 
-export function openMobileRightDrawer(tab) {
-  const rightDrawer = document.getElementById('mobileRightDrawer');
-  const app = document.getElementById('app');
-
+// A aside direita do shell (#mRightAside: configurações da view, painel da nota/quadro, constelações)
+// é o drawer direito no mobile; quem guarda o estado é shell-right-aside.js.
+export function openMobileRightDrawer() {
+  if (!isMobileMode()) return;
   closeMobileLeftDrawer();
-
-  if (rightDrawer) {
-    rightDrawer.classList.add('is-open-mobile');
-    rightDrawer.style.removeProperty('transform');
-    rightDrawer.style.removeProperty('transition');
-    rightDrawer.style.removeProperty('pointer-events');
-  }
-  app?.classList.add('has-right-drawer-open');
-  document.body.classList.add('has-right-drawer-open');
-
-  const mHeader = document.getElementById('mHeader');
-  const mMain = document.getElementById('mMain');
-  if (mHeader) {
-    mHeader.style.removeProperty('transform');
-    mHeader.style.removeProperty('transition');
-  }
-  if (mMain) {
-    mMain.style.removeProperty('transform');
-    mMain.style.removeProperty('transition');
-  }
-
+  clearPush();
+  setRightAsideOpen(true);
   triggerSnapHaptic();
-
-  document.dispatchEvent(new CustomEvent('quickdock:open-mobile-inspector', {
-    detail: { tab: tab || 'outline' }
-  }));
 }
 
 export function closeMobileRightDrawer() {
-  const rightDrawer = document.getElementById('mobileRightDrawer');
-  const app = document.getElementById('app');
+  if (isRightAsideOpen()) setRightAsideOpen(false); // (no desktop não faz nada)
+  clearPush();
+}
 
-  if (rightDrawer) {
-    rightDrawer.classList.remove('is-open-mobile');
-    rightDrawer.style.removeProperty('transform');
-    rightDrawer.style.removeProperty('transition');
-    rightDrawer.style.removeProperty('pointer-events');
-  }
-  app?.classList.remove('has-right-drawer-open');
-  document.body.classList.remove('has-right-drawer-open');
-
-  const mHeader = document.getElementById('mHeader');
-  const mMain = document.getElementById('mMain');
-  if (mHeader) {
-    mHeader.style.removeProperty('transform');
-    mHeader.style.removeProperty('transition');
-  }
-  if (mMain) {
-    mMain.style.removeProperty('transform');
-    mMain.style.removeProperty('transition');
+function clearPush() {
+  for (const el of [document.getElementById('mHeader'), document.getElementById('mMain')]) {
+    el?.style.removeProperty('transform');
+    el?.style.removeProperty('transition');
   }
 }
 
 export function toggleMobileRightDrawer(force) {
-  const rightDrawer = document.getElementById('mobileRightDrawer');
-  if (!rightDrawer) return;
-  const isCurrentlyOpen = rightDrawer.classList.contains('is-open-mobile') || document.body.classList.contains('has-right-drawer-open');
+  const isCurrentlyOpen = isRightAsideOpen();
   const shouldOpen = force !== undefined ? Boolean(force) : !isCurrentlyOpen;
   if (shouldOpen) openMobileRightDrawer();
   else closeMobileRightDrawer();
@@ -353,7 +318,7 @@ export function setupMobileObsidianUI() {
   if (mainEl) {
     mainEl.addEventListener('click', (e) => {
       const isLeftOpen = document.body.classList.contains('has-left-drawer-open') || document.getElementById('mAside')?.classList.contains('is-open-mobile');
-      const isRightOpen = document.body.classList.contains('has-right-drawer-open') || document.getElementById('mobileRightDrawer')?.classList.contains('is-open-mobile');
+      const isRightOpen = isRightAsideOpen();
       if (isLeftOpen || isRightOpen) {
         e.stopPropagation();
         e.preventDefault();

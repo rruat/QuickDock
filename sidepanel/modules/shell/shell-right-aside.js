@@ -12,6 +12,7 @@ import { showNotePanel, hideNotePanel } from './shell-note-panel.js';
 import { renderBoardPanel } from './shell-board-panel.js';
 import { showGraphPanel, hideGraphPanel } from './shell-graph-panel.js';
 import { slideIn } from './shell-motion.js';
+import { isMobileMode } from '../platform.js';
 
 const KEY_OPEN = 'quickdock:spatial:right-aside-open';
 const KEY_MODE = 'quickdock:spatial:right-aside-mode'; // 'config' | 'graph'
@@ -34,6 +35,14 @@ const GRAPH_TITLE = 'CONSTELAÇÕES';
 const clampWidth = w => Math.min(RIGHT_ASIDE_MAX, Math.max(RIGHT_ASIDE_MIN, Math.round(w)));
 const readStore = k => { try { return localStorage.getItem(k); } catch { return null; } };
 const writeStore = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sem storage */ } };
+
+// No mobile a aside direita é um DRAWER (estilo Obsidian): nasce fechada, abre pelo botão do cabeçalho
+// ou pelo gesto da borda, e esse estado não se mistura com o do desktop (não é gravado).
+let mobileOpen = false;
+let api = null;
+export const isRightAsideOpen = () => !!api && api.isOpen();
+/** Abre/fecha a aside direita (no mobile, o drawer). */
+export function setRightAsideOpen(open) { api?.setOpen(!!open); }
 
 export function initRightAside() {
   const app = document.getElementById('app');
@@ -78,20 +87,44 @@ export function initRightAside() {
     hub.innerHTML = '<span class="material-symbols-rounded">hub</span>';
     tune.after(hub);
   }
+  // Mobile: os cabeçalhos das seções somem; as Constelações abrem por um botão `hub` no cabeçalho do app
+  const appHeaderRight = document.querySelector('#mHeader .header-right');
+  if (appHeaderRight && !appHeaderRight.querySelector('[data-aside-graph]')) {
+    const hub = document.createElement('button');
+    hub.type = 'button';
+    hub.className = 'aside-btn mobile-header-btn mobile-only-btn';
+    hub.dataset.asideGraph = '';
+    hub.title = 'Constelações';
+    hub.setAttribute('aria-label', 'Constelações');
+    hub.innerHTML = '<span class="material-symbols-rounded">hub</span>';
+    appHeaderRight.insertBefore(hub, document.getElementById('btn-mobile-right-drawer'));
+  }
   const toggles = () => document.querySelectorAll('[data-aside-toggle]');
 
   // Padrão: aberta (a navegação do calendário, a busca e os filtros moram nela)
   let wantOpen = readStore(KEY_OPEN) !== '0';
   let wasVisible = false;
+  const mobile = () => isMobileMode();
   let asideMode = readStore(KEY_MODE) === 'graph' ? 'graph' : 'config'; // lembra o último modo
 
   // A aside só aparece nas telas que têm painel; trocar de tela troca o conteúdo, não o estado
   function apply() {
     const focus = shellFocus();
     const mode = ASIDE_MODES[focus];
-    const visible = wantOpen && !!mode;
-    app.classList.toggle('is-right-aside-collapsed', !visible);
-    if (visible && !wasVisible) slideIn(aside, 28); // abre deslizando da direita
+    const visible = (mobile() ? mobileOpen : wantOpen) && !!mode;
+    if (mobile()) {
+      // drawer: a grade do desktop não muda; abrir é uma classe no próprio drawer (+ push do conteúdo)
+      app.classList.add('is-right-aside-collapsed');
+      aside.classList.toggle('is-open-mobile', visible);
+      app.classList.toggle('has-right-drawer-open', visible);
+      document.body.classList.toggle('has-right-drawer-open', visible);
+    } else {
+      aside.classList.remove('is-open-mobile');
+      app.classList.remove('has-right-drawer-open');
+      document.body.classList.remove('has-right-drawer-open');
+      app.classList.toggle('is-right-aside-collapsed', !visible);
+      if (visible && !wasVisible) slideIn(aside, 28); // abre deslizando da direita
+    }
     wasVisible = visible;
     const graph = visible && asideMode === 'graph';
     const cfg = visible && !graph;
@@ -119,10 +152,15 @@ export function initRightAside() {
   }
 
   function setOpen(open) {
-    wantOpen = open;
-    writeStore(KEY_OPEN, open ? '1' : '0');
+    if (mobile()) {
+      mobileOpen = open;
+    } else {
+      wantOpen = open;
+      writeStore(KEY_OPEN, open ? '1' : '0');
+    }
     apply();
   }
+  api = { setOpen, isOpen: () => (mobile() ? mobileOpen : wantOpen) };
   function setMode(m) {
     asideMode = m;
     writeStore(KEY_MODE, m);
@@ -132,7 +170,7 @@ export function initRightAside() {
     const hub = e.target.closest?.('[data-aside-graph]');
     if (hub) { // hub: abre no grafo; se já está no grafo, recolhe
       e.stopPropagation();
-      if (wantOpen && asideMode === 'graph') { setOpen(false); return; }
+      if (api.isOpen() && asideMode === 'graph') { setOpen(false); return; }
       setMode('graph');
       setOpen(true);
       return;
@@ -140,17 +178,15 @@ export function initRightAside() {
     const btn = e.target.closest?.('[data-aside-toggle]');
     if (btn) { // tune: volta às configurações; se já está nelas, recolhe
       e.stopPropagation();
-      if (wantOpen && asideMode === 'graph') { setMode('config'); apply(); return; }
-      setOpen(!wantOpen);
+      if (api.isOpen() && asideMode === 'graph') { setMode('config'); apply(); return; }
+      setOpen(!api.isOpen());
     }
   });
   closeBtn?.addEventListener('click', () => setOpen(false));
   // o "X" do painel de configurações da view também recolhe a aside
   document.addEventListener(EVT_SETTINGS_CLOSED, () => {
     if (asideMode === 'graph') return; // o "X" das configurações não deve fechar o grafo
-    wantOpen = false;
-    writeStore(KEY_OPEN, '0');
-    apply();
+    setOpen(false);
   });
   document.addEventListener('quickdock:shell-focus', apply);
 

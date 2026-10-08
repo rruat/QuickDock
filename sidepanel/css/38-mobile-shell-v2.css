@@ -1,0 +1,121 @@
+/* ── 38-mobile-shell-v2.css — shell novo no MOBILE (padrão do mockup: MKP/cal/css/13-mobile.css) ──
+   Nav vira barra inferior (Home, Modelos, Configurações); as asides viram DRAWERS que empurram o
+   conteúdo: a esquerda (painéis Home | Modelos | Configurações) e a direita (configurações da view,
+   painel da nota/quadro, constelações). Carrega depois de 23-mobile-spatial.css e o sobrepõe. */
+@media (max-width: 768px) {
+  /* ── Barra de navegação inferior ── */
+  html #app #mNav {
+    order: 3 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+    flex-shrink: 0 !important;
+    padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-top: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    background: var(--bg) !important;
+    overflow: hidden !important;
+    position: relative; z-index: 110; /* fica à frente dos drawers: dá para trocar de painel com um aberto */
+  }
+  html #app #mNav ul { flex-direction: row !important; justify-content: space-around !important; align-items: center !important; flex: 1 !important; gap: 0 !important; margin: 0 !important; padding: 0 !important; }
+  html #app #mNav .nav-item { width: 72px; height: 44px; margin: 0 !important; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
+  html #app #mNav .nav-item .material-symbols-rounded { font-size: 26px; }
+
+  /* os drawers ocupam só a área acima da nav (a nav fica parada); a aside direita também empurra o conteúdo */
+  :root { --m-nav-h: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  html #app #mAside, html #app #mRightAside { bottom: var(--m-nav-h) !important; height: auto !important; max-height: none !important; }
+  html #app .mobile-drawer-scrim { bottom: var(--m-nav-h) !important; }
+  #app.has-right-drawer-open #mHeader, #app.has-right-drawer-open #mMain,
+  body.has-right-drawer-open #mHeader, body.has-right-drawer-open #mMain { --push-x: calc(-1 * min(85vw, 340px)); }
+  #mMain { flex: 1 1 auto !important; min-height: 0 !important; }
+
+  /* ── Drawer esquerdo: só os painéis novos (some o explorador antigo e o menu de "visões") ── */
+  html[data-platform] #app #mAside.mode-notes .notes-aside-drawer,
+  html[data-platform] #app #mAside.mode-notes #asideSectionList,
+  html #mAside .notes-aside-drawer,
+  html #mAside #asideSectionList,
+  html #mAside .aside-actions #btnToggleLayout,
+  html #mAside .aside-actions .aside-add-wrapper { display: none !important; }
+  html #mAside .aside-actions #btnCloseAsideMobile { display: inline-flex !important; }
+  html #mAside #asideViews, html #mAside #asideModels, html #mAside #asideSettings {
+    display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; padding: 8px 8px 4px;
+  }
+  html #mAside[data-aside-panel="models"] #asideViews,
+  html #mAside[data-aside-panel="settings"] #asideViews,
+  html #mAside:not([data-aside-panel="models"]) #asideModels,
+  html #mAside:not([data-aside-panel="settings"]) #asideSettings { display: none !important; }
+  /* sem hover no toque: ações das views sempre visíveis */
+  html #mAside .aside-view-actions { display: inline-flex; }
+
+  /* ── Drawer direito = #mRightAside ── */
+  html #app #mobileRightDrawer { display: none !important; }
+  html #app #mRightAside {
+    position: fixed !important;
+    top: 0; bottom: 0; right: 0; left: auto;
+    width: min(85vw, 340px) !important;
+    max-width: 85vw;
+    height: 100dvh;
+    z-index: 100;
+    display: flex !important;
+    flex-direction: column;
+    margin: 0 !important;
+    border: 0; border-left: 1px solid var(--border); border-radius: 0;
+    background: var(--bg);
+    transform: translate3d(var(--right-x, 100%), 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease, visibility 0s linear 260ms;
+    visibility: hidden;
+    pointer-events: none;
+    box-shadow: none;
+  }
+  html #app #mRightAside.is-open-mobile {
+    --right-x: 0px;
+    visibility: visible;
+    pointer-events: auto;
+    box-shadow: -4px 0 20px oklch(0% 0 0 / 0.2);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 260ms ease, visibility 0s;
+  }
+  html body.is-dragging-drawer #mRightAside { transition: none; will-change: transform; }
+  #rightAsideResizer { display: none !important; }
+
+  /* ── Views no mobile (mockup): calendário em barras, tabela enxuta, galeria de cartões menores ── */
+  .bcal-month-cell .bcal-day-add, .bcal-month-more { display: none !important; }
+  .bcal-month-cell .bcal-ev {
+    font-size: 0; height: 5px; padding: 0; border: 0; border-radius: 3px; margin-top: 2px;
+    background: var(--bcal-ev-edge);
+  }
+  .bcal-month-cell .bcal-ev > * { display: none; }
+  .bcal-month-cell .bcal-ev[data-kind="quadro"] {
+    height: 8px; border-radius: 2px;
+    background: color-mix(in oklch, var(--bcal-ev-edge) 35%, var(--bg));
+    box-shadow: inset 0 0 0 1.5px var(--bcal-ev-edge);
+  }
+  .bcal-month-cell .bcal-ev[data-kind="quadro"] .bcal-ev-title::before { display: none; }
+  .base-table th:nth-child(n+4), .base-table td:nth-child(n+4) { display: none; }
+  .base-gallery-grid, .base-gallery-container .base-gallery-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 8px !important; }
+
+  /* Explorador: sem as colunas de data e tipo */
+  .bex-head, .bex-row, .bex-body.is-list .bex-row:has(.bex-cell-where), .bex-head:has(.bex-hcell:nth-child(4)) { grid-template-columns: minmax(0, 1fr); }
+  .bex-hcell:nth-child(n+2), .bex-cell-date, .bex-cell-type, .bex-cell-where { display: none; }
+  .bex-bar { flex-wrap: wrap; }
+  .bex-bar-btn { padding: 5px 8px; }
+
+  /* Quick bar das Constelações cabe na largura */
+  .gq-bar { max-width: calc(100% - 12px); bottom: 8px; }
+  .gq-panel-content { min-width: 0; width: calc(100vw - 24px); max-width: 100%; }
+
+  /* o painel lateral esquerdo é o drawer: o interruptor "mostrar painel" não faz sentido; o link do mockup também não */
+  html #asideSettings label.settings-option:has(#settings-aside-open), #btn-header-mockup { display: none !important; }
+
+  /* o cabeçalho do app (com o voltar) já identifica a tela: o do quadro duplicaria e se sobreporia */
+  html #board-view > .section-header, html #bases-view > .section-header, html #section-note > .section-header { display: none !important; }
+
+  /* o gesto de borda abre os drawers: o navegador não deve usá-lo para voltar/avançar no histórico */
+  html, body { overscroll-behavior-x: none; }
+
+  /* gestos horizontais ficam livres para os drawers */
+  #app { touch-action: pan-y; }
+}

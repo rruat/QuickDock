@@ -38,8 +38,14 @@ export function initModelsPanel({ openView }) {
     if (!item) return;
     if (item.dataset.kind === 'note') {
       const tpl = notes.find(t => String(t.id) === item.dataset.id);
-      // o ouvinte de notes-tabs.js cria a nota a partir do modelo e a ativa (o shell a abre)
-      if (tpl) document.dispatchEvent(new CustomEvent('quickdock:use-template-note', { detail: { template: tpl } }));
+      if (tpl) {
+        // notes-tabs.js cria a nota a partir do modelo e a ativa, mas não muda de tela: quando a nota
+        // ficar ativa, abrimos a tela de notas
+        const aoAtivar = () => { document.removeEventListener('quickdock:active-note-changed', aoAtivar); openView('notes'); };
+        document.addEventListener('quickdock:active-note-changed', aoAtivar);
+        setTimeout(() => document.removeEventListener('quickdock:active-note-changed', aoAtivar), 5000);
+        document.dispatchEvent(new CustomEvent('quickdock:use-template-note', { detail: { template: tpl } }));
+      }
     } else {
       const tpl = BOARD_TEMPLATES.find(t => t.id === item.dataset.id);
       if (!tpl) return;

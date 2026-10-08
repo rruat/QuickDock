@@ -287,3 +287,15 @@ Referências no mockup: `MKP/cal/css/13-mobile.css`, `js/19-mobile.js`, `js/20-g
 - **Constelações:** quick bar inferior no desenho da do quadro (zoom, centralizar, reorganizar; Filtros e Física expandem para cima) e câmera que se centraliza ao iniciar, ao assentar a simulação e ao redimensionar (enquanto não foi mexida manualmente). `shell/shell-graph-quickbar.js`.
 - **Extensão e mobile:** adiados por decisão do dono.
 - **Em aberto (a decidir):** E2 (Documentos / JSON Studio / calendário legado), §6.6.
+
+### Mobile (§7) — implementado (largura ≤ 768px)
+
+- **Nav inferior** (Home, Modelos, Configurações) que fica parada e à frente dos drawers: dá para trocar de painel com um aberto; clicar no painel aberto fecha o drawer.
+- **Drawer esquerdo** = `#mAside` com os painéis novos (views + grupos | modelos | configurações); o explorador e o menu de "visões" antigos ficam ocultos. Escolher uma view, abrir um item ou usar um modelo fecha o drawer.
+- **Drawer direito** = `#mRightAside` (configurações da view, painel da nota/quadro, constelações); estado próprio no mobile (não grava a preferência do desktop). Botões no cabeçalho do app: `hub` (Constelações) e o painel. O `#mobileRightDrawer` antigo ficou oculto.
+- **Gestos** (`shell-mobile-gestures.js`, matemática de `shell-mobile-gesture-math.js` reaproveitada): borda esquerda → views, borda direita → configurações; com um drawer aberto, arrastar em sentido contrário fecha (vale começar sobre um botão); tocar no conteúdo empurrado fecha. `overscroll-behavior-x: none` evita que o navegador use o gesto de borda para voltar no histórico.
+- **Voltar** do cabeçalho agora tem a Base como raiz (nota e quadro voltam às views); a pílula do cabeçalho mostra o nome da view ativa (ou do quadro).
+- **Views**: calendário em barrinhas (quadro com contorno), tabela sem as colunas ≥ 4, galeria com cartões menores, Explorador sem as colunas de data/tipo e abre pasta/item com **um toque**.
+- Arquivos: `css/38-mobile-shell-v2.css`, `shell/shell-mobile-title.js`; ajustes em `shell-right-aside.js`, `shell-mobile.js`, `shell-mobile-gestures.js`, `shell-mobile-back.js`, `spatial-shell.js`.
+- Correção de passagem: "Usar" uma nota modelo agora abre a tela de notas (antes criava a nota e ficava na Base).
+- Fora de escopo/limites: tablets > 768px usam o layout desktop; as animações de abrir (célula expande) são só do desktop; a extensão (painel estreito) segue adiada.

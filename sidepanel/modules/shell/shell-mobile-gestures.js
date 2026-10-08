@@ -9,6 +9,7 @@ import {
   openMobileLeftDrawer,
   closeMobileLeftDrawer,
   openMobileRightDrawer,
+  isRightAsideOpen,
   closeMobileRightDrawer,
   updateMobileCarouselPositions,
   getLeftDrawerWidth,
@@ -42,12 +43,12 @@ export function setupMobileTouchGestures() {
   let els = null;
 
   const isLeftOpen = () => document.getElementById('mAside')?.classList.contains('is-open-mobile') || document.body.classList.contains('has-left-drawer-open');
-  const isRightOpen = () => document.getElementById('mobileRightDrawer')?.classList.contains('is-open-mobile') || document.body.classList.contains('has-right-drawer-open');
+  const isRightOpen = () => isRightAsideOpen();
 
   function collectEls() {
     return {
       aside: document.getElementById('mAside'),
-      right: document.getElementById('mobileRightDrawer'),
+      right: document.getElementById('mRightAside'),
       header: document.getElementById('mHeader'),
       main: document.getElementById('mMain')
     };
@@ -88,9 +89,11 @@ export function setupMobileTouchGestures() {
     if (!e.touches || e.touches.length !== 1) return;
 
     const target = e.target;
-    if (target.closest('input, textarea, select, .property-input, .property-select, button')) return;
+    if (target.closest('input, textarea, select, .property-input, .property-select')) return;
     const ae = document.activeElement;
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
+    // botões atrapalham só quem ABRE um drawer; para FECHAR vale começar em qualquer lugar (a lista é toda botão)
+    const onButton = !!target.closest('button');
 
     const x = e.touches[0].clientX;
     startX = x;
@@ -106,6 +109,7 @@ export function setupMobileTouchGestures() {
     } else if (isRightOpen()) {
       action = 'close-right';
     } else {
+      if (onButton) return;
       if (target.closest(SCROLL_OWNERS)) return;
       const sel = window.getSelection && window.getSelection();
       if (sel && sel.type === 'Range') return;

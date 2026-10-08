@@ -15,7 +15,9 @@ import {
   initShellMobile,
   updateMobileCarouselPositions,
   transitionToMobileCard,
-  setupMobileTouchGestures
+  setupMobileTouchGestures,
+  openMobileLeftDrawer,
+  closeMobileLeftDrawer
 } from './shell/shell-mobile.js';
 import { setupMobileBack } from './shell/shell-mobile-back.js';
 import { initAsideViewsList } from './shell/shell-views-list.js';
@@ -24,6 +26,7 @@ import { initViewSwitcher } from './shell/shell-view-switcher.js';
 import { setAsidePanel, toggleAsidePanel, getAsidePanel, NAV_TO_PANEL } from './shell/shell-aside-panels.js';
 import { initModelsPanel } from './shell/shell-models-panel.js';
 import { initViewGroups } from './shell/shell-view-groups.js';
+import { initMobileTitle } from './shell/shell-mobile-title.js';
 import { initDraftBar } from './shell/shell-draft-bar.js';
 import { initFooterLabel } from './shell/shell-footer-label.js';
 import { initEscapeBack } from './shell/shell-escape-back.js';
@@ -153,6 +156,7 @@ export function initSpatialShell() {
   initModelsPanel({ openView: (id) => openOrFocusView(id) });
   initSettingsPanelActions();
   initViewGroups();
+  initMobileTitle();
   initDraftBar();
   initFooterLabel();
   initEscapeBack();
@@ -256,18 +260,13 @@ function setupActivityBar() {
     const asideEl = document.getElementById('mAside');
     const isMobile = window.innerWidth <= 768 || isMobileMode();
 
-    // Home / Modelos / Configurações (desktop): trocam o PAINEL da aside esquerda, não a tela principal
-    if (!isMobile && NAV_TO_PANEL[viewId]) {
+    // Home / Modelos / Configurações trocam o PAINEL da aside esquerda (no desktop ela abre/recolhe;
+    // no mobile ela é o drawer), sem trocar a tela principal. Clicar no painel aberto fecha.
+    if (NAV_TO_PANEL[viewId]) {
       setAsideMode('notes');
-      toggleAsidePanel(NAV_TO_PANEL[viewId], { isCollapsed: () => asideCollapsed, setCollapsed: setAsideCollapsed });
-      syncNavHome();
-      return;
-    }
-
-    // Home no mobile: abre/recolhe a gaveta
-    if (viewId === 'home') {
-      setAsideMode('notes');
-      asideEl?.classList.toggle('is-open-mobile');
+      toggleAsidePanel(NAV_TO_PANEL[viewId], isMobile
+        ? { isCollapsed: () => !asideEl?.classList.contains('is-open-mobile'), setCollapsed: c => (c ? closeMobileLeftDrawer() : openMobileLeftDrawer()) }
+        : { isCollapsed: () => asideCollapsed, setCollapsed: setAsideCollapsed });
       syncNavHome();
       return;
     }
@@ -275,6 +274,10 @@ function setupActivityBar() {
     if (asideEl && isMobile) asideEl.classList.remove('is-open-mobile');
     openOrFocusView(viewId);
   };
+
+  // no mobile o drawer abre/fecha por gesto e scrim também: o item ativo da nav acompanha
+  const asideNode = document.getElementById('mAside');
+  if (asideNode) new MutationObserver(() => syncNavHome()).observe(asideNode, { attributes: true, attributeFilter: ['class'] });
 
   navEl.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => onNavItem(item));
@@ -310,7 +313,7 @@ function syncNavHome() {
   const asideEl = document.getElementById('mAside');
   const open = isMobile ? !!asideEl?.classList.contains('is-open-mobile') : !asideCollapsed;
   // no desktop cada botão da nav acende com o painel que está aberto na aside esquerda
-  const panel = isMobile ? 'home' : getAsidePanel();
+  const panel = getAsidePanel();
   document.querySelectorAll('#mNav .nav-item').forEach(item => {
     item.classList.toggle('is-active', open && NAV_TO_PANEL[item.dataset.navView] === panel);
   });
@@ -531,6 +534,9 @@ const itemSectionOf = viewId => document.querySelector(viewId === 'board' ? '#bo
 // Durante a animação sobre a Base, a seção "de baixo" (a Base ao abrir; a nota/quadro ao voltar) NÃO
 // pode ser escondida: display:none cancela as transições da grade. applyViewVisibility a mantém.
 let keepVisibleIds = new Set();
+
+// ponte para módulos que não importam o shell (voltar do mobile, gaveta antiga de notas)
+if (typeof window !== 'undefined') window.quickdockOpenView = id => openOrFocusView(id);
 
 export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = false, overlayClose = null } = {}) {
   // Animação de abrir em andamento: pedidos repetidos (a ativação da nota dispara outro openOrFocusView)

@@ -105,7 +105,9 @@ export function renderBaseExplorerView(container, notes, schema, viewConfig = {}
       row.append(glyph, name);
     }
 
-    row.addEventListener('click', (e) => { e.stopPropagation(); selected = key; body.querySelectorAll('.is-selected').forEach(x => x.classList.remove('is-selected')); row.classList.add('is-selected'); });
+    // no toque não existe duplo clique: um toque abre a pasta/o item (como no Explorador de Arquivos do celular)
+    const touchOpen = !!window.matchMedia?.('(pointer: coarse), (max-width: 768px)').matches;
+    row.addEventListener('click', (e) => { e.stopPropagation(); if (touchOpen) { open(entry); return; } selected = key; body.querySelectorAll('.is-selected').forEach(x => x.classList.remove('is-selected')); row.classList.add('is-selected'); });
     row.addEventListener('dblclick', () => open(entry));
     if (isFolder) dropTarget(row, entry.folder.path);
     else {

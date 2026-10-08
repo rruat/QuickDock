@@ -216,6 +216,24 @@ export async function runShellViewsListTests({ ok, igual }) {
     ss.indexOf("classList.add('is-expand-overlay')") < ss.indexOf('keepVisibleIds = overlayOpen') &&
     trans.includes('frame(start);') && (await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8')).includes('height: 100% !important;'));
 
+  // Mobile · nav inferior + drawers (esquerdo: painéis; direito: #mRightAside) + gestos
+  const mcss = await readFile(new URL('../sidepanel/css/38-mobile-shell-v2.css', import.meta.url), 'utf8');
+  ok('mobile · CSS: nav inferior, só os painéis novos no drawer esquerdo, #mRightAside como drawer, views enxutas',
+    ['#mNav {', 'html #mAside #asideModels', '#mRightAside {', '--right-x', '.bcal-month-cell .bcal-ev', '.bex-cell-date'].every(x => mcss.includes(x)) &&
+    (await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8')).includes('38-mobile-shell-v2.css'));
+  ok('mobile · nenhuma cor literal (hex/rgb) no CSS novo', !/#[0-9a-fA-F]{3,8}\b(?![\w-])(?=[;\s,)])/.test(mcss.replace(/#m\w+|#app|#asid\w+|#board\w*|#bases\w*|#section\w*|#btn[\w-]*|#rightAsideResizer|#settings[\w-]*/g, '')) && !/rgba?\(/.test(mcss));
+  const raSrc = await readFile(new URL('../sidepanel/modules/shell/shell-right-aside.js', import.meta.url), 'utf8');
+  ok('mobile · a aside direita vira drawer (estado próprio, não gravado) e tem API setRightAsideOpen/isRightAsideOpen',
+    raSrc.includes('export function setRightAsideOpen') && raSrc.includes('export const isRightAsideOpen') && raSrc.includes('let mobileOpen') && raSrc.includes("classList.toggle('is-open-mobile', visible)"));
+  const smSrc = await readFile(new URL('../sidepanel/modules/shell/shell-mobile.js', import.meta.url), 'utf8');
+  const sgSrc = await readFile(new URL('../sidepanel/modules/shell/shell-mobile-gestures.js', import.meta.url), 'utf8');
+  ok('mobile · o drawer direito e os gestos usam #mRightAside; para fechar vale começar o gesto em botão',
+    smSrc.includes('setRightAsideOpen(true)') && !smSrc.includes("getElementById('mobileRightDrawer')") && sgSrc.includes("getElementById('mRightAside')") && sgSrc.includes('const onButton'));
+  ok('mobile · a nav troca o painel do drawer; o voltar tem a Base como raiz; título da pílula acompanha a view',
+    ss.includes('closeMobileLeftDrawer()') && (await readFile(new URL('../sidepanel/modules/shell/shell-mobile-back.js', import.meta.url), 'utf8')).includes("ROOT_VIEW = 'bases'") &&
+    (await readFile(new URL('../sidepanel/modules/shell/shell-mobile-title.js', import.meta.url), 'utf8')).includes('closeMobileLeftDrawer') && swP4.includes('shell/shell-mobile-title.js') && swP4.includes('css/38-mobile-shell-v2.css'));
+  ok('mobile · usar nota modelo abre a tela de notas; Explorador abre com um toque', (await readFile(new URL('../sidepanel/modules/shell/shell-models-panel.js', import.meta.url), 'utf8')).includes("openView('notes')") && exSrc.includes('touchOpen'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[4].type, 'board');
