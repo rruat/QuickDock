@@ -13,10 +13,12 @@ import { loadWorkspaceYaml, saveWorkspaceYaml, getActiveViewId, setActiveViewId,
 import { goBack } from './views.js';
 import { isDesktopMode } from './platform.js';
 import { toggleDesktopPanel } from './desktop-panels.js';
+import { fadeIn } from './shell/shell-motion.js';
 
 let bodyEl = null;
 // O que está montado agora: evita remontar (e piscar) a cada evento de atualização da tela.
 let mountedYaml = null;
+let lastViewId = null;
 
 function limparMontagemAnterior() {
   if (typeof bodyEl?._cleanup === 'function') bodyEl._cleanup();
@@ -37,7 +39,13 @@ async function montarWorkspace() {
     baseId: WORKSPACE_BASE_ID,
     // mudanças feitas dentro do painel (abas, filtros, configurações) gravam em silêncio
     onConfigChange: (novoYaml) => { mountedYaml = novoYaml; saveWorkspaceYaml(novoYaml, { silent: true }); },
-    onViewChange: (id) => { setActiveViewId(id); atualizarTituloDaTela(id); },
+    onViewChange: (id) => {
+      setActiveViewId(id);
+      atualizarTituloDaTela(id);
+      // trocou de view (não é só um redesenho das abas): a área da view aparece suavemente
+      if (lastViewId && lastViewId !== id) fadeIn(bodyEl.querySelector('.base-viewport'));
+      lastViewId = id;
+    },
   });
 }
 

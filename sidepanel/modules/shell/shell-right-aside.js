@@ -9,6 +9,7 @@
 import { requestViewSettings, EVT_SETTINGS_CLOSED } from '../bases/engine/view-request.js';
 import { showNotePanel, hideNotePanel } from './shell-note-panel.js';
 import { renderBoardPanel } from './shell-board-panel.js';
+import { slideIn } from './shell-motion.js';
 
 const KEY_OPEN = 'quickdock:spatial:right-aside-open';
 const KEY_WIDTH = 'quickdock:spatial:right-aside-width';
@@ -60,6 +61,7 @@ export function initRightAside() {
   const toggles = () => document.querySelectorAll('[data-aside-toggle]');
 
   let wantOpen = readStore(KEY_OPEN) === '1';
+  let wasVisible = false;
 
   // A aside só aparece nas telas que têm painel; trocar de tela troca o conteúdo, não o estado
   function apply() {
@@ -67,6 +69,8 @@ export function initRightAside() {
     const mode = ASIDE_MODES[focus];
     const visible = wantOpen && !!mode;
     app.classList.toggle('is-right-aside-collapsed', !visible);
+    if (visible && !wasVisible) slideIn(aside, 28); // abre deslizando da direita
+    wasVisible = visible;
     if (mode && titleEl) titleEl.textContent = mode;
     toggles().forEach(b => {
       b.classList.toggle('is-active', visible);

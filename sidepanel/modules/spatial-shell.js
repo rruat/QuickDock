@@ -22,6 +22,7 @@ import { initAsideViewsList } from './shell/shell-views-list.js';
 import { initRightAside } from './shell/shell-right-aside.js';
 import { initViewSwitcher } from './shell/shell-view-switcher.js';
 import { trackExpandOrigin, playExpandOpen, playCollapseClose } from './shell/shell-expand-transition.js';
+import { fadeIn, slideIn, motionEnabled, setMotionEnabled } from './shell/shell-motion.js';
 import {
   reorderMainSections as _reorderMainSections,
   updateSectionMoveButtons as _updateSectionMoveButtons,
@@ -275,6 +276,7 @@ export function setAsideCollapsed(collapsed) {
   try { localStorage.setItem(ASIDE_COLLAPSED_KEY, asideCollapsed ? '1' : '0'); } catch {}
   applyAsideCollapsed();
   syncNavHome();
+  if (!asideCollapsed) slideIn(document.getElementById('mAside'), -28); // a aside esquerda entra deslizando
   const toggle = document.getElementById('settings-aside-open');
   if (toggle) toggle.checked = !asideCollapsed;
 }
@@ -401,6 +403,12 @@ function setupSettingsView() {
   if (!toggle) return;
   toggle.checked = !asideCollapsed;
   toggle.addEventListener('change', () => setAsideCollapsed(!toggle.checked));
+
+  const anim = document.getElementById('settings-animations');
+  if (anim) {
+    anim.checked = motionEnabled();
+    anim.addEventListener('change', () => setMotionEnabled(anim.checked));
+  }
 }
 
 export function renderAsideViewList() {
@@ -521,6 +529,9 @@ export function openOrFocusView(viewId) {
   // Nota e quadro CRESCEM a partir do item clicado na view (animação do mockup)
   if (prevFocus === 'bases' && (targetViewId === 'notes' || targetViewId === 'board') && !(window.innerWidth <= 768 || isMobileMode())) {
     playExpandOpen(document.querySelector(targetViewId === 'notes' ? '#section-note' : '#board-view'));
+  } else if (prevFocus !== targetViewId && !(window.innerWidth <= 768 || isMobileMode())) {
+    // demais trocas de tela (Base, Modelos, Configurações…): aparece suavemente
+    fadeIn(document.querySelector(`#mMain > .main-section[data-id="${targetViewId}"]`));
   }
 }
 

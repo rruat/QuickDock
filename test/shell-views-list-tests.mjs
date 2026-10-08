@@ -166,4 +166,23 @@ export async function runShellViewsListTests({ ok, igual }) {
     ok(`shell · ${f} tem a aside direita, a alça de redimensionar, o botão de configurações e o seletor de tipo`,
       ['id="mRightAside"', 'id="rightAsideResizer"', 'id="rightAsideViewHost"', 'id="rightAsideNoteHost"', 'id="rightAsideBoardHost"', 'id="btnViewSettings"', 'id="viewSwitcherList"', 'id="btnNewBoardAside"'].every(s => html.includes(s)));
   }
+
+  // ── Animações de abertura (liga/desliga próprio; não herda "reduzir movimento" do sistema) ──
+  const motionSrc = await readFile(new URL('../sidepanel/modules/shell/shell-motion.js', import.meta.url), 'utf8');
+  ok('animações · a chave de movimento do shell é própria (localStorage), ligada por padrão',
+    motionSrc.includes("'quickdock:spatial:animations'") && motionSrc.includes("!== '0'") && !motionSrc.includes('matchMedia'));
+  const exp = await readFile(new URL('../sidepanel/modules/shell/shell-expand-transition.js', import.meta.url), 'utf8');
+  ok('animações · abrir item usa a chave própria (não o prefers-reduced-motion) e revela o conteúdo depois',
+    exp.includes('motionEnabled') && !exp.includes('matchMedia') && exp.includes('delay: 160'));
+  const rightSrc = await readFile(new URL('../sidepanel/modules/shell/shell-right-aside.js', import.meta.url), 'utf8');
+  ok('animações · a aside direita abre deslizando e a esquerda também', rightSrc.includes('slideIn(aside, 28)') &&
+    (await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8')).includes("slideIn(document.getElementById('mAside'), -28)"));
+  ok('animações · trocar de tela e de view aparece suavemente (fadeIn)',
+    (await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8')).includes('fadeIn(document.querySelector(') &&
+    (await readFile(new URL('../sidepanel/modules/bases-view.js', import.meta.url), 'utf8')).includes("fadeIn(bodyEl.querySelector('.base-viewport'))"));
+  for (const f of ['index.html', '404.html', 'sidepanel/index.html']) {
+    const html = await readFile(new URL(`../${f}`, import.meta.url), 'utf8');
+    ok(`animações · ${f} tem o toggle "Animações de abertura" em Configurações`, html.includes('id="settings-animations"'));
+  }
+  ok('animações · shell-motion.js está no pré-cache do PWA', (await readFile(new URL('../sw.js', import.meta.url), 'utf8')).includes('sidepanel/modules/shell/shell-motion.js'));
 }

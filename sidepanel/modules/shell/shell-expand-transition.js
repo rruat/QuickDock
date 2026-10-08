@@ -4,15 +4,15 @@
 // um recorte (clip-path) animado na tela que abre — funciona igual para a célula do
 // calendário, a linha da tabela e o cartão da galeria, sem mexer nas views.
 
-const DURATION = 340;
-const EASING = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
+import { motionEnabled, MOTION_MS as DURATION, MOTION_EASING as EASING } from './shell-motion.js';
+
 const FRESH_MS = 2500;   // o clique de origem só vale por alguns segundos
 // o que conta como "o item clicado" dentro da view (senão, o próprio alvo do clique)
 const ORIGIN_SELECTOR = 'tr, [class*="card"], [class*="event"], [class*="chip"], [class*="cell"], [data-note-id]';
 
 let origin = null; // { rect, at }
 
-const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const reduceMotion = () => !motionEnabled(); // ligado/desligado em Configurações > Animações de abertura (shell-motion.js)
 
 /** Guarda o retângulo do item clicado dentro de `root` (a tela da Base). */
 export function trackExpandOrigin(root) {
@@ -43,6 +43,11 @@ export function playExpandOpen(sectionEl) {
   origin.opened = true; // lembra que esta abertura veio de um item: o "voltar" encolhe até ele
   const from = insetFor(origin.rect, sectionEl.getBoundingClientRect());
   sectionEl.animate([{ clipPath: from, opacity: 0.4 }, { clipPath: FULL, opacity: 1 }], { duration: DURATION, easing: EASING });
+  // o conteúdo (editor/quadro) aparece depois, enquanto a tela termina de crescer
+  for (const filho of sectionEl.children) {
+    if (filho.classList.contains('section-header') || !filho.animate) continue;
+    filho.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 160, easing: 'ease', fill: 'backwards' });
+  }
 }
 
 /** Voltar: a tela encolhe até o item de origem e então `done()` troca de tela. */
