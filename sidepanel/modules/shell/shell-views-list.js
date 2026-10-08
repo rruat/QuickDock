@@ -6,12 +6,13 @@
 import { createBlankNote } from '../notes-tabs.js';
 import { VIEW_TYPES } from '../bases/config/view-model.js';
 import { requestSelectViewNow } from '../bases/engine/view-request.js';
-import { loadWorkspaceDef, saveWorkspaceDef, getActiveViewId, setActiveViewId } from '../workspace-base.js';
+import { loadWorkspaceDef, saveWorkspaceDef, getActiveViewId, setActiveViewId, getModifiedViewIds } from '../workspace-base.js';
 import {
   NEW_VIEW_TYPES, filterWorkspaceViews, addWorkspaceView, duplicateWorkspaceView,
   deleteWorkspaceView, renameWorkspaceView,
 } from '../workspace-base-model.js';
 import { escapeHtml } from './shell-views.js';
+import { resolveDraftBeforeAction } from './shell-draft-bar.js';
 
 export function initAsideViewsList({ openView }) {
   const listEl = document.getElementById('asideViewsList');
@@ -31,6 +32,7 @@ export function initAsideViewsList({ openView }) {
       return;
     }
     const canDelete = def.views.length > 1;
+    const modified = new Set(getModifiedViewIds());
     listEl.innerHTML = views.map(v => {
       const type = VIEW_TYPES[v.type] || { label: v.type, icon: 'table_chart' };
       const nome = v.name || type.label;
@@ -39,7 +41,7 @@ export function initAsideViewsList({ openView }) {
           <button type="button" class="aside-view-main" data-act="open" title="Abrir ${escapeHtml(nome)}">
             <span class="material-symbols-rounded">${escapeHtml(v.icon || type.icon)}</span>
             <span class="aside-view-text">
-              <strong>${escapeHtml(nome)}</strong>
+              <strong>${escapeHtml(nome)}${modified.has(v.id) ? '<i class="aside-view-dirty" title="Alterações não salvas" aria-label="Modificada"></i>' : ''}</strong>
               <small>${escapeHtml(type.label)}</small>
             </span>
           </button>
@@ -72,6 +74,7 @@ export function initAsideViewsList({ openView }) {
     const row = e.target.closest('.aside-view-item');
     if (!btn || !row) return;
     const id = row.dataset.id;
+    if (btn.dataset.act !== 'open' && !resolveDraftBeforeAction()) return;
     const def = loadWorkspaceDef();
     const view = def.views.find(v => v.id === id);
     if (btn.dataset.act === 'open') selectView(id);
@@ -98,9 +101,10 @@ export function initAsideViewsList({ openView }) {
   typesEl.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-type]');
     if (!btn) return;
-    const r = addWorkspaceView(loadWorkspaceDef(), btn.dataset.type);
     typesEl.hidden = true;
     addBtn.setAttribute('aria-expanded', 'false');
+    if (!resolveDraftBeforeAction()) return;
+    const r = addWorkspaceView(loadWorkspaceDef(), btn.dataset.type);
     commit(r.def, r.id);
   });
 
@@ -117,7 +121,7 @@ export function initAsideViewsList({ openView }) {
     openView('board');
   });
 
-  ['quickdock:workspace-base-saved', 'quickdock:workspace-active-view-changed'].forEach(ev =>
+  ['quickdock:workspace-base-saved', 'quickdock:workspace-active-view-changed', 'quickdock:workspace-draft-changed'].forEach(ev =>
     document.addEventListener(ev, render));
 
   render();

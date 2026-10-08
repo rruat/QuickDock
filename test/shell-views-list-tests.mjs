@@ -20,6 +20,21 @@ export async function runShellViewsListTests({ ok, igual }) {
   igual('workspace · view ativa que não existe mais cai na padrão', m.resolveActiveViewId(def, 'sumiu'), 'v_calendario');
   igual('workspace · view ativa guardada é respeitada', m.resolveActiveViewId(def, 'v_galeria'), 'v_galeria');
 
+  // Rascunho (fluxo "modificada")
+  igual('rascunho · iguais não são modificados', m.isWorkspaceModified(def, m.parseWorkspaceDef(yaml)), false);
+  const mudado = JSON.parse(JSON.stringify(def)); mudado.views[1].sort = [{ property: 'title', direction: 'desc' }];
+  igual('rascunho · mudar a ordenação marca modificada', m.isWorkspaceModified(def, mudado), true);
+  igual('rascunho · só a view alterada recebe o ponto', m.modifiedViewIds(def, mudado), ['v_tabela']);
+  const renomeado = JSON.parse(JSON.stringify(def)); renomeado.views[0].name = 'Outro'; renomeado.name = 'X';
+  igual('rascunho · renomear não suja', m.isWorkspaceModified(def, renomeado), false);
+  const nova = m.saveDraftAsNewView(def, mudado, 'v_tabela');
+  igual('rascunho · salvar como nova põe a cópia no fim, com o conteúdo do rascunho', [nova.def.views.length, nova.def.views[3].sort, nova.def.views[3].id === nova.id], [4, mudado.views[1].sort, true]);
+  igual('rascunho · salvar como nova não altera a original salva', nova.def.views[1].sort, def.views[1].sort);
+  const bv = await readFile(new URL('../sidepanel/modules/bases-view.js', import.meta.url), 'utf8');
+  const wb = await readFile(new URL('../sidepanel/modules/workspace-base.js', import.meta.url), 'utf8');
+  ok('rascunho · o painel grava no rascunho, não na Base salva', bv.includes('saveWorkspaceDraft(novoYaml)') && !bv.includes('saveWorkspaceYaml(') && wb.includes('export function commitWorkspaceDraft'));
+  ok('rascunho · barra Salvar/Descartar no pré-cache', (await readFile(new URL('../sw.js', import.meta.url), 'utf8')).includes('shell/shell-draft-bar.js'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');
@@ -58,9 +73,9 @@ export async function runShellViewsListTests({ ok, igual }) {
     container.includes('removeEventListener(EVT_SELECT_VIEW') && container.includes('options.onViewChange?.(activeViewId)'));
 
   const basesView = await readFile(new URL('../sidepanel/modules/bases-view.js', import.meta.url), 'utf8');
-  ok('workspace · bases-view.js monta a Base ÚNICA do workspace (não a de uma nota) e grava em silêncio',
+  ok('workspace · bases-view.js monta a Base ÚNICA do workspace (não a de uma nota) e grava no rascunho',
     basesView.includes('WORKSPACE_BASE_ID') && basesView.includes('loadWorkspaceYaml()') &&
-    basesView.includes('panel: true') && basesView.includes('{ silent: true }') &&
+    basesView.includes('panel: true') && basesView.includes('saveWorkspaceDraft(novoYaml)') &&
     !basesView.includes('getCurrentNoteId') && !basesView.includes('appendBaseBlockToCurrentNote'));
 
   const lista = await readFile(new URL('../sidepanel/modules/shell/shell-views-list.js', import.meta.url), 'utf8');

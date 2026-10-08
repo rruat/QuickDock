@@ -4629,8 +4629,8 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     basesViewJsSource.includes("addEventListener('quickdock:refresh-bases-view'") &&
     basesViewJsSource.includes("addEventListener('quickdock:view-changed'") &&
     basesViewJsSource.includes("addEventListener('quickdock:workspace-base-changed'"));
-  ok('bases-view.js · grava a configuração da Base do workspace em silêncio (workspace-base.js), sem escrever em nota nenhuma',
-    basesViewJsSource.includes('saveWorkspaceYaml(novoYaml, { silent: true })') &&
+  ok('bases-view.js · grava a configuração da Base do workspace no rascunho (workspace-base.js), sem escrever em nota nenhuma',
+    basesViewJsSource.includes('saveWorkspaceDraft(novoYaml)') &&
     basesViewJsSource.includes('onViewChange') &&
     !basesViewJsSource.includes('requestSaveFromExternalEdit'));
   // 31.3: HTML da seção dedicada — presente e idêntico nos dois arquivos

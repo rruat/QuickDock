@@ -426,3 +426,20 @@ html[data-theme="dark"] .aside-panel-btn.is-danger { color: oklch(72% 0.17 25); 
 }
 #bases-view.is-month-expanding > #basesSectionHeader { overflow: hidden; opacity: 0; border-bottom-color: transparent; }
 #bases-view.is-month-expanding .view-switcher { grid-template-rows: 0fr; }
+/* ── Fluxo "modificada": barra no cabeçalho da Base + ponto na lista de views ── */
+.draft-bar { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; }
+.draft-bar[hidden] { display: none; }
+.draft-bar-dot, .aside-view-dirty {
+  width: 7px; height: 7px; border-radius: 50%; flex: none; display: inline-block;
+  background: oklch(62% 0.19 55);
+}
+html[data-theme="dark"] .draft-bar-dot, html[data-theme="dark"] .aside-view-dirty { background: oklch(78% 0.16 70); }
+.aside-view-dirty { margin-left: 6px; vertical-align: middle; }
+.draft-bar-label { font-size: 11px; color: var(--text-muted); }
+.draft-bar-btn {
+  font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--text); border: 1px solid var(--border);
+}
+.draft-bar-btn:hover { background: var(--bg-hover); }
+.draft-bar-btn.is-primary { background: var(--accent); border-color: var(--accent); color: oklch(98% 0.01 250); }
+html[data-theme="dark"] .draft-bar-btn.is-primary { color: oklch(18% 0.02 250); }

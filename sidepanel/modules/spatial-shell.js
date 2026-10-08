@@ -21,6 +21,7 @@ import { setupMobileBack } from './shell/shell-mobile-back.js';
 import { initAsideViewsList } from './shell/shell-views-list.js';
 import { initRightAside } from './shell/shell-right-aside.js';
 import { initViewSwitcher } from './shell/shell-view-switcher.js';
+import { initDraftBar } from './shell/shell-draft-bar.js';
 import { trackExpandOrigin, playExpandOpen, playCollapseClose, getMonthOriginCell } from './shell/shell-expand-transition.js';
 import { expandMonthCell, collapseMonthCell, resetMonthExpansion, canExpandMonthCell, monthExpansionActive } from './shell/shell-month-expand.js';
 import { fadeIn, slideIn, motionEnabled, setMotionEnabled } from './shell/shell-motion.js';
@@ -143,6 +144,7 @@ export function initSpatialShell() {
   initAsideViewsList({ openView: (id) => openOrFocusView(id) });
   initRightAside();
   initViewSwitcher();
+  initDraftBar();
   trackExpandOrigin(document.getElementById('bases-body'));
   setupOmnibar();
   setupKeyboardShortcuts();

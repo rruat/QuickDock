@@ -79,3 +79,52 @@ export function filterWorkspaceViews(views, query) {
   if (!q) return views;
   return views.filter(v => norm(`${v.name || ''} ${VIEW_TYPES[v.type]?.label || ''}`).includes(q));
 }
+
+// ── Rascunho (fluxo "modificada" do mockup) ──
+// Alterar tipo, filtros ou ordenação mexe no RASCUNHO; só "Salvar" grava na Base salva.
+
+/** JSON canônico (chaves em ordem) sem os nomes: renomear salva na hora e nunca "suja". */
+function canon(v) {
+  if (Array.isArray(v)) return v.map(canon);
+  if (v && typeof v === 'object') {
+    const o = {};
+    for (const k of Object.keys(v).sort()) if (v[k] !== undefined) o[k] = canon(v[k]);
+    return o;
+  }
+  return v;
+}
+// Passa pelo YAML para que a Base montada em código e a relida do texto sejam comparáveis
+const viaYaml = def => parseWorkspaceDef(workspaceDefToYaml(def));
+function semNomes(def) {
+  const d = viaYaml(def);
+  return { ...d, name: undefined, views: d.views.map(v => ({ ...v, name: undefined })) };
+}
+
+/** O rascunho difere da Base salva? (ignora os nomes). */
+export function isWorkspaceModified(savedDef, draftDef) {
+  if (!savedDef || !draftDef) return false;
+  return JSON.stringify(canon(semNomes(savedDef))) !== JSON.stringify(canon(semNomes(draftDef)));
+}
+
+/** Views cujo conteúdo (sem o nome) difere entre a salva e o rascunho — para o ponto da lista. */
+export function modifiedViewIds(savedDef, draftDef) {
+  if (!savedDef || !draftDef) return [];
+  const key = v => JSON.stringify(canon({ ...v, name: undefined }));
+  const draftViews = viaYaml(draftDef).views;
+  const saved = new Map(viaYaml(savedDef).views.map(v => [v.id, key(v)]));
+  const ids = new Set();
+  for (const v of draftViews) if (saved.get(v.id) !== key(v)) ids.add(v.id);
+  for (const id of saved.keys()) if (!draftViews.some(v => v.id === id)) ids.add(id);
+  return [...ids];
+}
+
+/**
+ * "Salvar como nova view": a view ativa do rascunho vira uma view nova na Base SALVA
+ * (a original continua como estava). Devolve { def, id }.
+ */
+export function saveDraftAsNewView(savedDef, draftDef, activeId) {
+  const src = draftDef.views.find(v => v.id === activeId) || draftDef.views[0];
+  const id = newViewId(savedDef.views.map(v => v.id));
+  const copia = { ...JSON.parse(JSON.stringify(src)), id, name: nomeLivre(savedDef, `${src.name || 'View'} (cópia)`) };
+  return { def: { ...savedDef, views: [...savedDef.views, copia] }, id };
+}

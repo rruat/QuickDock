@@ -9,7 +9,7 @@
 import { renderBaseComponent } from './bases/bases-view-container.js';
 import { requestBaseView } from './bases/engine/view-request.js';
 import { WORKSPACE_BASE_ID } from './workspace-base-model.js';
-import { loadWorkspaceYaml, saveWorkspaceYaml, getActiveViewId, setActiveViewId, loadWorkspaceDef } from './workspace-base.js';
+import { loadWorkspaceYaml, saveWorkspaceDraft, getActiveViewId, setActiveViewId, loadWorkspaceDef } from './workspace-base.js';
 import { goBack } from './views.js';
 import { isDesktopMode } from './platform.js';
 import { toggleDesktopPanel } from './desktop-panels.js';
@@ -38,8 +38,9 @@ async function montarWorkspace() {
     toolsHost: document.getElementById('rightAsideViewTools'),
     settingsOpen: !!document.getElementById('app') && !document.getElementById('app').classList.contains('is-right-aside-collapsed'),
     baseId: WORKSPACE_BASE_ID,
-    // mudanças feitas dentro do painel (abas, filtros, configurações) gravam em silêncio
-    onConfigChange: (novoYaml) => { mountedYaml = novoYaml; saveWorkspaceYaml(novoYaml, { silent: true }); },
+    // mudanças feitas dentro do painel (abas, filtros, configurações) vão para o RASCUNHO:
+    // a Base salva só muda em "Salvar" (barra "modificada" do cabeçalho)
+    onConfigChange: (novoYaml) => { mountedYaml = novoYaml; saveWorkspaceDraft(novoYaml); },
     onViewChange: (id) => {
       setActiveViewId(id);
       atualizarTituloDaTela(id);
