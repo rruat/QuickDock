@@ -6,8 +6,9 @@
 // critério de parada (0% CPU ociosa), painel de configurações persistentes,
 // pan, zoom focal, arraste de nós e navegação direta para notas.
 
-import { loadAllNotesMeta, obterTodosLinks, garantirIndiceDeLinks } from './storage.js';
+import { loadAllNotesMeta, loadAllBoards, obterTodosLinks, garantirIndiceDeLinks } from './storage.js';
 import { construirGrafo } from './links.js';
+import { boardGraphNodes } from './shell/graph-board-nodes.js';
 import { switchView, goBack, getCurrentView, isViewFullscreen } from './views.js';
 import { escHtml } from './blocks.js';
 import { getCurrentNoteId } from './note.js';
@@ -400,6 +401,8 @@ export async function carregarERenderizarGrafo() {
     }
 
     const grafo = construirGrafo(todasNotas, todosLinks);
+    // quadros também são itens da Base: entram como nós (sem links, aparecem se "órfãos" estiver ligado)
+    grafo.nodes.push(...boardGraphNodes(await loadAllBoards().catch(() => [])));
     for (const n of grafo.nodes) {
       const saved = posMap.get(n.id);
       if (saved) {
@@ -1068,7 +1071,9 @@ function onPointerUp(e) {
     if (!isDesktopMode() && !document.getElementById('mMain') && isViewFullscreen()) {
       switchView('grafo', { split: true });
     }
-    document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
+    if (target.isBoard) {
+      document.dispatchEvent(new CustomEvent('quickdock:open-board', { detail: { id: target.boardId } }));
+    } else document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
       detail: { id: target.noteId, uid: target.id }
     }));
     render();

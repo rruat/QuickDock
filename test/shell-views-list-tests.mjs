@@ -122,6 +122,13 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('desempenho · leituras simultâneas dos itens se fundem (uma em andamento + uma seguinte)', wi.includes('let followUp') && wi.includes('inflight.catch(() => {}).then(') && wi.includes('export function loadWorkspaceItems'));
   ok('teclado · setas percorrem a lista de views', (await readFile(new URL('../sidepanel/modules/shell/shell-views-list.js', import.meta.url), 'utf8')).includes("e.key !== 'ArrowDown' && e.key !== 'ArrowUp'"));
 
+  // Quadros no grafo
+  const gb = await import('../sidepanel/modules/shell/graph-board-nodes.js');
+  const nos = gb.boardGraphNodes([{ id: 4, uid: 'b_x', title: 'Q', pasta: 'P' }, { id: 5 }]);
+  igual('grafo · quadros viram nós sem aresta, com id de abertura', [nos[0].id, nos[0].boardId, nos[0].isBoard, nos[0].degree, nos[1].id, nos[1].title], ['b_x', 4, true, 0, 'board-5', 'Quadro sem título']);
+  const gv = await readFile(new URL('../sidepanel/modules/graph-view.js', import.meta.url), 'utf8');
+  ok('grafo · clicar num quadro dispara open-board', gv.includes('boardGraphNodes(await loadAllBoards()') && gv.includes("'quickdock:open-board'"));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');
