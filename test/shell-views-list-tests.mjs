@@ -45,6 +45,28 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('título · o cabeçalho vira Nota/Quadro no início da expansão do mês', ss.indexOf('anticipateHeaderTitle(viewId);') < ss.indexOf('expandMonthCell(cell,'));
   ok('estado vazio · a view do workspace sem itens mostra "Nenhum item nesta view"', (await readFile(new URL('../sidepanel/modules/bases/bases-view-container.js', import.meta.url), 'utf8')).includes('Nenhum item nesta view'));
 
+  // P4 · painéis Modelos e Configurações na aside esquerda
+  const bt = await import('../sidepanel/modules/shell/models-board-templates.js');
+  ok('modelos · há mapa mental, fluxo e storyboard', ['mapa-mental', 'fluxo', 'storyboard'].every(id => bt.BOARD_TEMPLATES.some(t => t.id === id)));
+  for (const t of bt.BOARD_TEMPLATES) {
+    const b = bt.buildBoardFromTemplate(t);
+    const ids = new Set(b.cards.map(c => c.id));
+    ok(`modelos · ${t.id}: toda seta liga cartões existentes e os ids são únicos`,
+      b.arrows.length > 0 && b.arrows.every(a => ids.has(a.from) && ids.has(a.to)) && ids.size === b.cards.length && new Set(b.arrows.map(a => a.id)).size === b.arrows.length);
+  }
+  const ap = await readFile(new URL('../sidepanel/modules/shell/shell-aside-panels.js', import.meta.url), 'utf8');
+  ok('aside esquerda · 3 painéis; clicar no painel aberto recolhe a aside', ap.includes("NAV_TO_PANEL = { home: 'home', templates: 'models', settings: 'settings' }") && ap.includes('setCollapsed(true)'));
+  for (const f of ['index.html', '404.html', 'sidepanel/index.html']) {
+    const html = await readFile(new URL(`../${f}`, import.meta.url), 'utf8');
+    ok(`aside esquerda · ${f} tem os painéis Modelos e Configurações (toggles movidos para a aside)`,
+      ['id="asideModels"', 'id="asideModelsBody"', 'id="btnManageTemplates"', 'id="asideSettings"', 'id="asideSettingsTheme"', 'id="asideSettingsSync"'].every(x => html.includes(x)) &&
+      html.indexOf('id="settings-aside-open"') > html.indexOf('id="asideSettings"') && html.indexOf('id="settings-animations"') > html.indexOf('id="asideSettings"'));
+  }
+  ok('aside esquerda · a nav do desktop troca o painel em vez de abrir telas cheias', ss.includes('toggleAsidePanel(NAV_TO_PANEL[viewId]'));
+  ok('aside esquerda · createBlankBoard aceita cartões/setas iniciais do modelo', (await readFile(new URL('../sidepanel/modules/board-engine.js', import.meta.url), 'utf8')).includes('inicial?.cards'));
+  const swP4 = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  ok('aside esquerda · módulos novos no pré-cache', ['shell-aside-panels', 'shell-models-panel', 'models-board-templates'].every(n => swP4.includes(`shell/${n}.js`)));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');

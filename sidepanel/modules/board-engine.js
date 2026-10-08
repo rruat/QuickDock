@@ -516,7 +516,8 @@ export async function flushBoardSave() {
   }
 }
 
-export async function createBlankBoard(title = 'Novo Espaço', pasta = '') {
+/** `inicial`: { cards, arrows } de um quadro modelo (sem ele, nasce com um cartão de ideia). */
+export async function createBlankBoard(title = 'Novo Espaço', pasta = '', inicial = null) {
   await flushBoardSave();
   const cw = container?.clientWidth || window.innerWidth || 800;
   const ch = container?.clientHeight || window.innerHeight || 600;
@@ -530,10 +531,10 @@ export async function createBlankBoard(title = 'Novo Espaço', pasta = '') {
     pasta: pasta || '',
     viewport: { x: cx - 150, y: cy - 70, zoom: 1 },
     bgMode: 'stars',
-    cards: [
+    cards: inicial?.cards || [
       { id: 'c1', x: 0, y: 0, w: 220, h: 120, text: '💡 Nova Ideia\nEscreva seus pensamentos aqui.', color: 'yellow' }
     ],
-    arrows: []
+    arrows: inicial?.arrows || []
   };
 
   const id = await saveBoardRecord(novo);

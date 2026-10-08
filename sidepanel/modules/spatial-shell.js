@@ -21,6 +21,8 @@ import { setupMobileBack } from './shell/shell-mobile-back.js';
 import { initAsideViewsList } from './shell/shell-views-list.js';
 import { initRightAside } from './shell/shell-right-aside.js';
 import { initViewSwitcher } from './shell/shell-view-switcher.js';
+import { setAsidePanel, toggleAsidePanel, getAsidePanel, NAV_TO_PANEL } from './shell/shell-aside-panels.js';
+import { initModelsPanel } from './shell/shell-models-panel.js';
 import { initDraftBar } from './shell/shell-draft-bar.js';
 import { initFooterLabel } from './shell/shell-footer-label.js';
 import { initEscapeBack } from './shell/shell-escape-back.js';
@@ -146,6 +148,8 @@ export function initSpatialShell() {
   initAsideViewsList({ openView: (id) => openOrFocusView(id) });
   initRightAside();
   initViewSwitcher();
+  initModelsPanel({ openView: (id) => openOrFocusView(id) });
+  initSettingsPanelActions();
   initDraftBar();
   initFooterLabel();
   initEscapeBack();
@@ -249,11 +253,18 @@ function setupActivityBar() {
     const asideEl = document.getElementById('mAside');
     const isMobile = window.innerWidth <= 768 || isMobileMode();
 
-    // Home: abre/recolhe a aside esquerda (explorador de notas + views); não troca a view principal
+    // Home / Modelos / Configurações (desktop): trocam o PAINEL da aside esquerda, não a tela principal
+    if (!isMobile && NAV_TO_PANEL[viewId]) {
+      setAsideMode('notes');
+      toggleAsidePanel(NAV_TO_PANEL[viewId], { isCollapsed: () => asideCollapsed, setCollapsed: setAsideCollapsed });
+      syncNavHome();
+      return;
+    }
+
+    // Home no mobile: abre/recolhe a gaveta
     if (viewId === 'home') {
       setAsideMode('notes');
-      if (isMobile) asideEl?.classList.toggle('is-open-mobile');
-      else setAsideCollapsed(!asideCollapsed);
+      asideEl?.classList.toggle('is-open-mobile');
       syncNavHome();
       return;
     }
@@ -295,7 +306,18 @@ function syncNavHome() {
   const isMobile = window.innerWidth <= 768 || isMobileMode();
   const asideEl = document.getElementById('mAside');
   const open = isMobile ? !!asideEl?.classList.contains('is-open-mobile') : !asideCollapsed;
-  home.classList.toggle('is-active', open);
+  // no desktop cada botão da nav acende com o painel que está aberto na aside esquerda
+  const panel = isMobile ? 'home' : getAsidePanel();
+  document.querySelectorAll('#mNav .nav-item').forEach(item => {
+    item.classList.toggle('is-active', open && NAV_TO_PANEL[item.dataset.navView] === panel);
+  });
+}
+
+// Configurações (painel da aside): tema e sincronização reaproveitam os botões que já existem
+function initSettingsPanelActions() {
+  document.getElementById('asideSettingsTheme')?.addEventListener('click', () => document.getElementById('btn-header-theme')?.click());
+  document.getElementById('asideSettingsSync')?.addEventListener('click', () => document.getElementById('btn-sync')?.click());
+  document.addEventListener('quickdock:aside-panel-changed', syncNavHome);
 }
 
 // ── Header Menu (#mMenu) ──────────────────────────────────────────────────────

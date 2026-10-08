@@ -4971,9 +4971,9 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const rawSpatial = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
   const spatialShellSource = rawSpatial.replace(/\r\n/g, '\n');
 
-  ok('spatial-shell.js · setupActivityBar: Home garante setAsideMode("notes") e abre/recolhe a aside esquerda',
+  ok('spatial-shell.js · setupActivityBar: Home/Modelos/Configurações garantem setAsideMode("notes") e trocam o painel/abrem-recolhem a aside esquerda',
     spatialShellSource.includes("viewId === 'home'") &&
-    spatialShellSource.includes('setAsideCollapsed(!asideCollapsed)') &&
+    spatialShellSource.includes('setCollapsed: setAsideCollapsed') &&
     spatialShellSource.includes("setAsideMode('notes')"));
 
   ok('spatial-shell.js · openOrFocusView("notes") e foco de notas ativam setAsideMode("notes")',

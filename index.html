@@ -197,6 +197,55 @@
         </label>
         <div id="asideViewsList" class="aside-views-list"></div>
       </section>
+
+      <section id="asideModels" class="aside-views aside-models" aria-label="Modelos" hidden>
+        <div class="aside-views-head">
+          <span class="aside-views-title">Modelos</span>
+          <button id="btnManageTemplates" class="aside-btn" title="Gerenciar modelos" aria-label="Gerenciar modelos" type="button">
+            <span class="material-symbols-rounded">tune</span>
+          </button>
+        </div>
+        <div id="asideModelsBody" class="aside-views-list"></div>
+      </section>
+
+      <section id="asideSettings" class="aside-views aside-settings" aria-label="Configurações" hidden>
+        <div class="aside-views-head"><span class="aside-views-title">Configurações</span></div>
+        <div class="aside-views-list">
+        <div class="settings-section">
+          <h3 class="settings-section-title">Layout</h3>
+          <p class="settings-section-desc">O QuickDock abre uma view por vez. Aqui você controla o painel lateral esquerdo.</p>
+          <label class="settings-option">
+            <div class="settings-option-text">
+              <span class="settings-option-title">Mostrar o painel lateral esquerdo</span>
+              <span class="settings-option-desc">Explorador de notas e views. Desligado, sobra só a barra de navegação (Home também abre e recolhe o painel).</span>
+            </div>
+            <input type="checkbox" class="ios-toggle" role="switch" id="settings-aside-open">
+          </label>
+          <label class="settings-option">
+            <div class="settings-option-text">
+              <span class="settings-option-title">Animações de abertura</span>
+              <span class="settings-option-desc">Notas e quadros crescem a partir do item, e os painéis laterais deslizam. Independe da configuração de movimento do sistema.</span>
+            </div>
+            <input type="checkbox" class="ios-toggle" role="switch" id="settings-animations">
+          </label>
+        </div>      
+          <div class="settings-section">
+            <h3 class="settings-section-title">Aparência e dados</h3>
+            <button type="button" class="settings-option aside-settings-action" id="asideSettingsTheme">
+              <div class="settings-option-text"><span class="settings-option-title">Alternar tema</span><span class="settings-option-desc">Claro ou escuro.</span></div>
+              <span class="material-symbols-rounded">contrast</span>
+            </button>
+            <button type="button" class="settings-option aside-settings-action" id="asideSettingsSync">
+              <div class="settings-option-text"><span class="settings-option-title">Sincronização</span><span class="settings-option-desc">Abre as opções de sincronizar suas notas.</span></div>
+              <span class="material-symbols-rounded">sync</span>
+            </button>
+          </div>
+          <div class="settings-section">
+            <h3 class="settings-section-title">Sobre</h3>
+            <p class="settings-section-desc">QuickDock — notas, quadros e bases que funcionam offline e ficam com você.</p>
+          </div>
+        </div>
+      </section>
       <aside class="app-aside" id="app-aside">
         <div class="notes-tabbar">
           <div class="aside-brand" id="aside-brand">
@@ -1088,23 +1137,9 @@
       </header>
       <div class="settings-body">
         <div class="settings-section">
-          <h3 class="settings-section-title">Layout</h3>
-          <p class="settings-section-desc">O QuickDock abre uma view por vez. Aqui você controla o painel lateral esquerdo.</p>
-          <label class="settings-option">
-            <div class="settings-option-text">
-              <span class="settings-option-title">Mostrar o painel lateral esquerdo</span>
-              <span class="settings-option-desc">Explorador de notas e views. Desligado, sobra só a barra de navegação (Home também abre e recolhe o painel).</span>
-            </div>
-            <input type="checkbox" class="ios-toggle" role="switch" id="settings-aside-open">
-          </label>
-          <label class="settings-option">
-            <div class="settings-option-text">
-              <span class="settings-option-title">Animações de abertura</span>
-              <span class="settings-option-desc">Notas e quadros crescem a partir do item, e os painéis laterais deslizam. Independe da configuração de movimento do sistema.</span>
-            </div>
-            <input type="checkbox" class="ios-toggle" role="switch" id="settings-animations">
-          </label>
-        </div>      </div>
+          <p class="settings-section-desc">As configurações agora ficam no painel lateral esquerdo (botão de engrenagem da barra de navegação).</p>
+        </div>
+      </div>
     </section>
 
     </main>
