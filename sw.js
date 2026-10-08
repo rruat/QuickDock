@@ -287,6 +287,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/shell/shell-month-expand.js',
   'sidepanel/modules/workspace-base-model.js',
   'sidepanel/modules/workspace-base.js',
+  'sidepanel/modules/workspace-base-sync.js',
   'sidepanel/modules/json-view.js',
   'sidepanel/modules/json-templates.js',
   'sidepanel/modules/json-model.js',

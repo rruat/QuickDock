@@ -23,6 +23,7 @@ import { criarProvedorDeTokenWeb } from './google-auth-web.js';
 import { isExtension } from './platform.js';
 import { DexieSyncStore, getSyncMeta, setSyncMeta, deleteSyncMeta, db } from './storage.js';
 import { positionPopover } from './popover.js';
+import { sincronizarConfigWorkspace } from './workspace-base-sync.js';
 
 export const SYNC_STATE = {
   DISCONNECTED: 'disconnected',
@@ -417,6 +418,21 @@ export class SyncController {
     this._notificar();
   }
 
+  // A configuração da Base do workspace viaja num arquivo à parte (workspace-base-sync.js).
+  // Falhar aqui nunca derruba a sincronização das notas: a Base fica para a próxima rodada.
+  async _sincronizarBaseDoWorkspace() {
+    if (typeof document === 'undefined' || !this.engine?.adapter) return; // só no app (precisa do localStorage)
+    try {
+      const { workspaceSyncLocal } = await import('./workspace-base.js');
+      await sincronizarConfigWorkspace(this.engine.adapter, workspaceSyncLocal, {
+        obter: chave => this._obterMeta(chave),
+        salvar: (chave, valor) => this._salvarMeta(chave, valor),
+      });
+    } catch (err) {
+      console.warn('Sincronização da Base do workspace falhou:', err);
+    }
+  }
+
   async sincronizarAgora({ manual = false } = {}) {
     this.rodadaManual = !!manual;
     if (!this.engine || this.state === SYNC_STATE.DISCONNECTED || this.state === SYNC_STATE.NEEDS_REAUTH) {
@@ -442,6 +458,8 @@ export class SyncController {
         this.state = estadoAnterior;
         return;
       }
+
+      await this._sincronizarBaseDoWorkspace();
 
       this.lastSyncAt = Date.now();
       this.lastSyncError = null;

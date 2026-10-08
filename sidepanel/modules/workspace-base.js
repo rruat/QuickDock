@@ -98,3 +98,14 @@ export function saveDraftAsNewWorkspaceView(activeId = getActiveViewId()) {
   saveWorkspaceDef(r.def); // grava, zera o rascunho e remonta
   return r.id;
 }
+
+// ── Sincronização (ver workspace-base-sync.js) ──
+
+const KEY_BACKUP = 'quickdock:workspace-base-conflict';
+
+/** Callbacks que o sincronizador usa para ler/gravar a Base SALVA deste aparelho. */
+export const workspaceSyncLocal = {
+  ler: () => read(KEY_DEF), // null enquanto a pessoa nunca mexeu: a Base inicial não sobe
+  gravar: yaml => saveWorkspaceYaml(yaml), // remonta a tela com a Base vinda do outro aparelho
+  guardarCopia: yaml => write(KEY_BACKUP, yaml),
+};

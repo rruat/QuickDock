@@ -129,6 +129,40 @@ export async function runShellViewsListTests({ ok, igual }) {
   const gv = await readFile(new URL('../sidepanel/modules/graph-view.js', import.meta.url), 'utf8');
   ok('grafo · clicar num quadro dispara open-board', gv.includes('boardGraphNodes(await loadAllBoards()') && gv.includes("'quickdock:open-board'"));
 
+  // E1 · sincronização da Base do workspace
+  const ws = await import('../sidepanel/modules/workspace-base-sync.js');
+  const { MemorySyncAdapter } = await import('../sidepanel/modules/sync-adapter.js');
+  const decide = (l, b, r) => ws.decidirSyncWorkspace({ localHash: l, baseHash: b, remoteHash: r });
+  igual('sync base · tabela de decisão', [decide(null, null, null), decide('a', null, null), decide(null, null, 'r'), decide('a', 'a', 'a'), decide('l', 'b', 'b'), decide('b', 'b', 'r'), decide('l', 'b', 'r'), decide('l', null, 'r')],
+    ['nada', 'subir', 'baixar', 'nada', 'subir', 'baixar', 'conflito', 'conflito']);
+  igual('sync base · arquivo ilegível ou de outro tipo não é aceito', [ws.lerConfigWorkspace('{'), ws.lerConfigWorkspace('{"tipo":"x","yaml":"a"}'), ws.lerConfigWorkspace(ws.serializarConfigWorkspace('name: A\n'))], [null, null, 'name: A\n']);
+  const mkAparelho = (yaml0) => {
+    let yaml = yaml0, copia = null; const metas = new Map();
+    return {
+      local: { ler: () => yaml, gravar: y => { yaml = y; }, guardarCopia: y => { copia = y; } },
+      meta: { obter: async k => metas.get(k), salvar: async (k, v) => { metas.set(k, v); } },
+      get yaml() { return yaml; }, set yaml(v) { yaml = v; }, get copia() { return copia; },
+    };
+  };
+  const nuvem = new MemorySyncAdapter();
+  const A = mkAparelho('name: A\nviews: v1\n'), Bp = mkAparelho(null);
+  igual('sync base · A sobe a primeira vez', await ws.sincronizarConfigWorkspace(nuvem, A.local, A.meta), 'subiu');
+  igual('sync base · B (nunca mexeu) baixa', [await ws.sincronizarConfigWorkspace(nuvem, Bp.local, Bp.meta), Bp.yaml], ['baixou', 'name: A\nviews: v1\n']);
+  igual('sync base · nada muda → nada', await ws.sincronizarConfigWorkspace(nuvem, A.local, A.meta), 'nada');
+  A.yaml = 'name: A\nviews: v2\n';
+  igual('sync base · A editou → sobe', await ws.sincronizarConfigWorkspace(nuvem, A.local, A.meta), 'subiu');
+  igual('sync base · B recebe a edição de A', [await ws.sincronizarConfigWorkspace(nuvem, Bp.local, Bp.meta), Bp.yaml], ['baixou', 'name: A\nviews: v2\n']);
+  A.yaml = 'name: A\nviews: v3-de-A\n'; Bp.yaml = 'name: A\nviews: v3-de-B\n';
+  await ws.sincronizarConfigWorkspace(nuvem, A.local, A.meta);
+  igual('sync base · edição dos dois lados: o remoto vence e o local vira cópia', [await ws.sincronizarConfigWorkspace(nuvem, Bp.local, Bp.meta), Bp.yaml, Bp.copia], ['conflito', 'name: A\nviews: v3-de-A\n', 'name: A\nviews: v3-de-B\n']);
+  const ruim = new MemorySyncAdapter(); await ruim.escrever(ws.CAMINHO_CONFIG_WORKSPACE, 'lixo', null);
+  const C = mkAparelho('name: C\n');
+  igual('sync base · remoto ilegível não é sobrescrito nem baixado', [await ws.sincronizarConfigWorkspace(ruim, C.local, C.meta), C.yaml], ['nada', 'name: C\n']);
+  ok('sync base · o controlador sincroniza a Base depois do motor e o app agenda a rodada ao salvar',
+    (await readFile(new URL('../sidepanel/modules/sync-controller.js', import.meta.url), 'utf8')).includes('await this._sincronizarBaseDoWorkspace()') &&
+    (await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8')).includes("'quickdock:workspace-base-saved'") &&
+    swP4.includes('workspace-base-sync.js'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');

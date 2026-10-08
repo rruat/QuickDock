@@ -328,6 +328,10 @@ async function init() {
     document.addEventListener('quickdock:board-changed', () => {
       syncController?.notificarAtividadeEditor();
     });
+    // Views da Base do workspace salvas (Salvar no rascunho ou ação da aside): sobem na próxima rodada
+    document.addEventListener('quickdock:workspace-base-saved', () => {
+      syncController?.notificarAtividadeEditor();
+    });
   } finally {
     // no finally: se um init falhar, o painel ainda aparece em vez de travar no véu
     revealApp();
