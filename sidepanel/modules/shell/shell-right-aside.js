@@ -4,14 +4,17 @@
 //   • Base (views)  → configurações da view (o motor de Bases monta o painel dentro dela)
 //   • Nota          → propriedades e sumário/backlinks da nota (shell-note-panel.js)
 //   • Quadro        → propriedades, fundo e zoom do espaço infinito (shell-board-panel.js)
+//   • Constelações → grafo de conexões (shell-graph-panel.js); botão `hub` alterna com as configurações
 // Redimensiona pela alça no vão entre a tela e a aside e lembra a largura e se estava aberta.
 
 import { requestViewSettings, EVT_SETTINGS_CLOSED } from '../bases/engine/view-request.js';
 import { showNotePanel, hideNotePanel } from './shell-note-panel.js';
 import { renderBoardPanel } from './shell-board-panel.js';
+import { showGraphPanel, hideGraphPanel } from './shell-graph-panel.js';
 import { slideIn } from './shell-motion.js';
 
 const KEY_OPEN = 'quickdock:spatial:right-aside-open';
+const KEY_MODE = 'quickdock:spatial:right-aside-mode'; // 'config' | 'graph'
 const KEY_WIDTH = 'quickdock:spatial:right-aside-width';
 export const RIGHT_ASIDE_MIN = 260;
 export const RIGHT_ASIDE_MAX = 560;
@@ -25,6 +28,8 @@ export const ASIDE_MODES = {
 
 // Tela → seletor da seção onde o botão da aside é colocado (a Base já traz o dela no HTML)
 const TOGGLE_SECTIONS = { notes: '#section-note', board: '#board-view' };
+
+const GRAPH_TITLE = 'CONSTELAÇÕES';
 
 const clampWidth = w => Math.min(RIGHT_ASIDE_MAX, Math.max(RIGHT_ASIDE_MIN, Math.round(w)));
 const readStore = k => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -42,6 +47,7 @@ export function initRightAside() {
     tools: document.getElementById('rightAsideViewTools'),
     notes: document.getElementById('rightAsideNoteHost'),
     board: document.getElementById('rightAsideBoardHost'),
+    graph: document.getElementById('rightAsideGraphHost'),
   };
   const shellFocus = () => document.documentElement.dataset.shellFocus;
 
@@ -59,11 +65,25 @@ export function initRightAside() {
     actions.prepend(btn);
   }
   document.getElementById('btnViewSettings')?.setAttribute('data-aside-toggle', '');
+  // Botão `hub` (Constelações) ao lado do `tune` em todos os cabeçalhos
+  for (const tune of document.querySelectorAll('[data-aside-toggle]')) {
+    const actions = tune.parentElement;
+    if (!actions || actions.querySelector('[data-aside-graph]')) continue;
+    const hub = document.createElement('button');
+    hub.type = 'button';
+    hub.className = 'section-btn btn-aside-graph';
+    hub.dataset.asideGraph = '';
+    hub.title = 'Constelações';
+    hub.setAttribute('aria-label', 'Constelações');
+    hub.innerHTML = '<span class="material-symbols-rounded">hub</span>';
+    tune.after(hub);
+  }
   const toggles = () => document.querySelectorAll('[data-aside-toggle]');
 
   // Padrão: aberta (a navegação do calendário, a busca e os filtros moram nela)
   let wantOpen = readStore(KEY_OPEN) !== '0';
   let wasVisible = false;
+  let asideMode = readStore(KEY_MODE) === 'graph' ? 'graph' : 'config'; // lembra o último modo
 
   // A aside só aparece nas telas que têm painel; trocar de tela troca o conteúdo, não o estado
   function apply() {
@@ -73,20 +93,27 @@ export function initRightAside() {
     app.classList.toggle('is-right-aside-collapsed', !visible);
     if (visible && !wasVisible) slideIn(aside, 28); // abre deslizando da direita
     wasVisible = visible;
-    if (mode && titleEl) titleEl.textContent = mode;
+    const graph = visible && asideMode === 'graph';
+    const cfg = visible && !graph;
+    if (mode && titleEl) titleEl.textContent = graph ? GRAPH_TITLE : mode;
     toggles().forEach(b => {
-      b.classList.toggle('is-active', visible);
-      b.setAttribute('aria-pressed', String(visible));
+      b.classList.toggle('is-active', cfg);
+      b.setAttribute('aria-pressed', String(cfg));
+    });
+    document.querySelectorAll('[data-aside-graph]').forEach(b => {
+      b.classList.toggle('is-active', graph);
+      b.setAttribute('aria-pressed', String(graph));
     });
 
-    // Cada tela mostra só o seu painel
-    requestViewSettings(visible && focus === 'bases');
-    if (focus !== 'bases') hosts.bases.hidden = true;
-    if (hosts.tools) hosts.tools.hidden = !(visible && focus === 'bases');
-    hosts.notes.hidden = !(visible && focus === 'notes');
-    hosts.board.hidden = !(visible && focus === 'board');
-    if (visible && focus === 'notes') showNotePanel(hosts.notes); else hideNotePanel(hosts.notes);
-    if (visible && focus === 'board') renderBoardPanel(hosts.board);
+    // Cada tela mostra só o seu painel (o modo Constelações cobre todos)
+    requestViewSettings(cfg && focus === 'bases');
+    if (focus !== 'bases' || graph) hosts.bases.hidden = true;
+    if (hosts.tools) hosts.tools.hidden = !(cfg && focus === 'bases');
+    hosts.notes.hidden = !(cfg && focus === 'notes');
+    hosts.board.hidden = !(cfg && focus === 'board');
+    if (cfg && focus === 'notes') showNotePanel(hosts.notes); else hideNotePanel(hosts.notes);
+    if (cfg && focus === 'board') renderBoardPanel(hosts.board);
+    if (graph) showGraphPanel(hosts.graph); else hideGraphPanel(hosts.graph);
 
     window.dispatchEvent(new CustomEvent('resize')); // motores canvas reencaixam na nova largura
   }
@@ -96,14 +123,31 @@ export function initRightAside() {
     writeStore(KEY_OPEN, open ? '1' : '0');
     apply();
   }
+  function setMode(m) {
+    asideMode = m;
+    writeStore(KEY_MODE, m);
+  }
 
   document.addEventListener('click', (e) => {
+    const hub = e.target.closest?.('[data-aside-graph]');
+    if (hub) { // hub: abre no grafo; se já está no grafo, recolhe
+      e.stopPropagation();
+      if (wantOpen && asideMode === 'graph') { setOpen(false); return; }
+      setMode('graph');
+      setOpen(true);
+      return;
+    }
     const btn = e.target.closest?.('[data-aside-toggle]');
-    if (btn) { e.stopPropagation(); setOpen(!wantOpen); }
+    if (btn) { // tune: volta às configurações; se já está nelas, recolhe
+      e.stopPropagation();
+      if (wantOpen && asideMode === 'graph') { setMode('config'); apply(); return; }
+      setOpen(!wantOpen);
+    }
   });
   closeBtn?.addEventListener('click', () => setOpen(false));
   // o "X" do painel de configurações da view também recolhe a aside
   document.addEventListener(EVT_SETTINGS_CLOSED, () => {
+    if (asideMode === 'graph') return; // o "X" das configurações não deve fechar o grafo
     wantOpen = false;
     writeStore(KEY_OPEN, '0');
     apply();

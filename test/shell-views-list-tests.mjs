@@ -217,7 +217,18 @@ export async function runShellViewsListTests({ ok, igual }) {
     cont3.includes('options.panel ? options.toolsHost : null') && cont3.includes('toolsHost.append(calBarEl, headerEl)') &&
     cont3.includes('toolbarHost: calBarEl') && cont3.includes('calBarEl?.replaceChildren()'));
   ok('ferramentas na aside · a aside direita abre por padrão e mostra a zona de ferramentas só junto da Base',
-    right.includes("readStore(KEY_OPEN) !== '0'") && right.includes("hosts.tools.hidden = !(visible && focus === 'bases')"));
+    right.includes("readStore(KEY_OPEN) !== '0'") && right.includes("hosts.tools.hidden = !(cfg && focus === 'bases')"));
+
+  // ── P1 · Constelações como modo da aside direita ──
+  const graphPanel = await readFile(new URL('../sidepanel/modules/shell/shell-graph-panel.js', import.meta.url), 'utf8');
+  const swSrc = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  ok('constelações · host nos 3 HTMLs',
+    (await Promise.all(['../index.html', '../404.html', '../sidepanel/index.html'].map(p => readFile(new URL(p, import.meta.url), 'utf8'))))
+      .every(h => h.includes('id="rightAsideGraphHost"')));
+  ok('constelações · aside tem modo grafo, botão hub e lembra o último modo',
+    right.includes("GRAPH_TITLE = 'CONSTELAÇÕES'") && right.includes('data-aside-graph') && right.includes('dataset.asideGraph') && right.includes('KEY_MODE'));
+  ok('constelações · o painel move o contêiner do canvas e devolve ao sair; pré-cache no sw.js',
+    graphPanel.includes('host.appendChild(el)') && graphPanel.includes('origin.parent.insertBefore') && swSrc.includes('shell/shell-graph-panel.js'));
   ok('ferramentas na aside · CSS da zona de ferramentas', (await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8')).includes('.right-aside-view-tools .bcal-toolbar'));
 
   // ── A célula expande até o cabeçalho da tela (ele não "pisca" na troca) ──

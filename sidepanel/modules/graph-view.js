@@ -18,6 +18,8 @@ import { isDesktopPanelOpen, toggleDesktopPanel } from './desktop-panels.js';
 // desktop-panels.js) em vez de "a visão atual" — fora do desktop continua
 // tudo pelo modelo antigo de switchView/currentView.
 function isGrafoVisivel() {
+  // Hospedado na aside direita do shell (modo Constelações): visível enquanto a aside o mostra
+  if (container?.closest('#rightAsideGraphHost')) return !container.closest('[hidden]');
   return isDesktopMode() ? isDesktopPanelOpen('grafo') : getCurrentView() === 'grafo';
 }
 

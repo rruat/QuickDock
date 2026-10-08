@@ -320,6 +320,10 @@
 /* ══ Aside direita: painéis da nota e do quadro ══ */
 .right-aside-note-host, .right-aside-board-host { flex: 1; min-height: 0; overflow-y: auto; background: var(--bg); }
 .right-aside-note-host[hidden], .right-aside-board-host[hidden] { display: none; }
+/* Constelações na aside: o contêiner do canvas ocupa o corpo inteiro */
+.right-aside-graph-host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+.right-aside-graph-host[hidden] { display: none; }
+.right-aside-graph-host > .graph-canvas-container { flex: 1 1 auto; min-height: 0; width: 100%; height: auto; }
 
 /* Nota: as propriedades e o sumário/backlinks (movidos do editor) ocupam a largura da aside */
 .right-aside-note-host.has-note-panel { display: flex; flex-direction: column; gap: 0; }
