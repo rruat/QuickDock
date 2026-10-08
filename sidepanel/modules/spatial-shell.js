@@ -22,6 +22,8 @@ import { initAsideViewsList } from './shell/shell-views-list.js';
 import { initRightAside } from './shell/shell-right-aside.js';
 import { initViewSwitcher } from './shell/shell-view-switcher.js';
 import { initDraftBar } from './shell/shell-draft-bar.js';
+import { initFooterLabel } from './shell/shell-footer-label.js';
+import { initEscapeBack } from './shell/shell-escape-back.js';
 import { trackExpandOrigin, playExpandOpen, playCollapseClose, getMonthOriginCell } from './shell/shell-expand-transition.js';
 import { expandMonthCell, collapseMonthCell, resetMonthExpansion, canExpandMonthCell, monthExpansionActive } from './shell/shell-month-expand.js';
 import { fadeIn, slideIn, motionEnabled, setMotionEnabled } from './shell/shell-motion.js';
@@ -145,6 +147,8 @@ export function initSpatialShell() {
   initRightAside();
   initViewSwitcher();
   initDraftBar();
+  initFooterLabel();
+  initEscapeBack();
   trackExpandOrigin(document.getElementById('bases-body'));
   setupOmnibar();
   setupKeyboardShortcuts();
@@ -487,6 +491,12 @@ export function buildNotePlaceholderSection() {}
 // Abrir um item a partir da célula do mês: a célula EXPANDE primeiro e só então a tela troca.
 let monthExpanding = false;
 
+// O cabeçalho da tela passa a "Nota"/"Quadro" já no INÍCIO da expansão (como no mockup)
+function anticipateHeaderTitle(viewId) {
+  const titulo = document.querySelector('#bases-view > .section-header .section-title');
+  if (titulo) titulo.textContent = viewId === 'board' ? 'Quadro' : 'Nota';
+}
+
 export function openOrFocusView(viewId, { skipTransition = false } = {}) {
   const prevFocus = focusedViewId;
   const isItem = viewId === 'notes' || viewId === 'board' || (typeof viewId === 'string' && viewId.startsWith('note-'));
@@ -496,6 +506,7 @@ export function openOrFocusView(viewId, { skipTransition = false } = {}) {
     if (cell && canExpandMonthCell(cell)) {
       if (!monthExpanding) {
         monthExpanding = true;
+        anticipateHeaderTitle(viewId);
         expandMonthCell(cell, () => { monthExpanding = false; openOrFocusView(viewId, { skipTransition: true }); });
       }
       return;
@@ -503,6 +514,7 @@ export function openOrFocusView(viewId, { skipTransition = false } = {}) {
   }
   // voltar à Base por outro caminho (lista de views, Home…): a grade não pode ficar expandida
   if (!skipTransition && viewId === 'bases') resetMonthExpansion();
+  if (viewId === 'bases') document.dispatchEvent(new CustomEvent('quickdock:workspace-title-refresh'));
   let targetViewId = viewId;
   let targetNoteId = null;
 

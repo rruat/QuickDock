@@ -500,6 +500,13 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
 
 
     renderViewByType(viewportEl, currentView, sortedNotes, schema, montaCallbacks(currentView));
+    // Painel do workspace: view sem itens (filtro, busca ou Base vazia) avisa em vez de parecer quebrada
+    if (options.panel && sortedNotes.length === 0 && currentView.type !== 'dashboard') {
+      const vazio = document.createElement('div');
+      vazio.className = 'view-empty';
+      vazio.textContent = 'Nenhum item nesta view';
+      viewportEl.appendChild(vazio);
+    }
   }
 
   // Carregamento inicial de notas

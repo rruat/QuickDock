@@ -443,3 +443,11 @@ html[data-theme="dark"] .draft-bar-dot, html[data-theme="dark"] .aside-view-dirt
 .draft-bar-btn:hover { background: var(--bg-hover); }
 .draft-bar-btn.is-primary { background: var(--accent); border-color: var(--accent); color: oklch(98% 0.01 250); }
 html[data-theme="dark"] .draft-bar-btn.is-primary { color: oklch(18% 0.02 250); }
+
+/* Estado vazio da view (mockup: view-empty) */
+.base-viewport:has(> .view-empty) { position: relative; }
+.view-empty {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); pointer-events: none;
+  padding: 6px 14px; border-radius: 999px; font-size: 12px;
+  background: var(--bg-hover); color: var(--text-muted); border: 1px solid var(--border);
+}

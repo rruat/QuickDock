@@ -75,6 +75,7 @@ export function initBasesView() {
   };
   document.addEventListener('quickdock:view-changed', e => { if (e.detail?.view === 'bases') garantirMontada(); });
   document.addEventListener('quickdock:refresh-bases-view', garantirMontada);
+  document.addEventListener('quickdock:workspace-title-refresh', () => atualizarTituloDaTela());
 
   // A aside esquerda criou, duplicou, renomeou ou excluiu uma view: remonta com a Base nova
   document.addEventListener('quickdock:workspace-base-changed', () => montarWorkspace());

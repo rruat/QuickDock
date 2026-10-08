@@ -35,6 +35,16 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('rascunho · o painel grava no rascunho, não na Base salva', bv.includes('saveWorkspaceDraft(novoYaml)') && !bv.includes('saveWorkspaceYaml(') && wb.includes('export function commitWorkspaceDraft'));
   ok('rascunho · barra Salvar/Descartar no pré-cache', (await readFile(new URL('../sw.js', import.meta.url), 'utf8')).includes('shell/shell-draft-bar.js'));
 
+  // P8 · fidelidade
+  const fl = await import('../sidepanel/modules/shell/shell-footer-label.js');
+  igual('rodapé · calendário mostra a escala', fl.footerLabelFor({ name: 'Calendário', type: 'calendar', mode: 'week' }), 'Calendário (Semana)');
+  igual('rodapé · outras views só o nome', fl.footerLabelFor({ name: 'Tabela', type: 'table' }), 'Tabela');
+  const esc = await readFile(new URL('../sidepanel/modules/shell/shell-escape-back.js', import.meta.url), 'utf8');
+  ok('esc · volta às views só fora de edição/diálogo, pelo botão voltar', esc.includes('isEditing(document.activeElement)') && esc.includes('.btn-back-views') && esc.includes("'Escape'"));
+  const ss = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
+  ok('título · o cabeçalho vira Nota/Quadro no início da expansão do mês', ss.indexOf('anticipateHeaderTitle(viewId);') < ss.indexOf('expandMonthCell(cell,'));
+  ok('estado vazio · a view do workspace sem itens mostra "Nenhum item nesta view"', (await readFile(new URL('../sidepanel/modules/bases/bases-view-container.js', import.meta.url), 'utf8')).includes('Nenhum item nesta view'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');
