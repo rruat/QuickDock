@@ -4,6 +4,8 @@
 // de Bases (título, pasta, datas), com id `board-<id>` para nunca colidir com o id numérico
 // das notas. PURO — a leitura do banco fica em workspace-items.js.
 
+import { lightBoard } from './shell/board-thumb.js';
+
 export const BOARD_ITEM_PREFIX = 'board-';
 
 export const isBoardItemId = id => typeof id === 'string' && id.startsWith(BOARD_ITEM_PREFIX);
@@ -39,6 +41,7 @@ export function boardToItem(board) {
     boardId: board.id,
     cardCount: Array.isArray(board.cards) ? board.cards.length : 0,
     arrowCount: Array.isArray(board.arrows) ? board.arrows.length : 0,
+    thumb: lightBoard(board.cards, board.arrows), // miniatura da galeria (shell/board-thumb.js)
   };
 }
 

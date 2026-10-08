@@ -481,3 +481,7 @@ tr[data-kind="quadro"] { outline: 1px dashed var(--border); outline-offset: -2px
   content: "space_dashboard"; font-family: "Material Symbols Rounded"; font-size: 1.1em; line-height: 1;
   vertical-align: -0.15em; margin-right: 4px; opacity: 0.75; font-feature-settings: "liga";
 }
+
+/* Miniatura do quadro na galeria */
+.base-gallery-cover.has-board-thumb { display: flex; align-items: center; justify-content: center; padding: 8px; }
+.base-gallery-cover.has-board-thumb .board-thumb { width: 100%; height: 100%; color: var(--text-muted); }

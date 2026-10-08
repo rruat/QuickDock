@@ -75,6 +75,19 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('quadros · calendário sem "colorir por" usa a pasta como cor', (await readFile(new URL('../sidepanel/modules/bases/calendar/calendar-event-el.js', import.meta.url), 'utf8')).includes('hueForValue(ev.note?.pasta)'));
   ok('quadros · views novas do workspace incluem a coluna Tipo', m.defaultWorkspaceDef().views.find(v => v.type === 'table').props.includes('kind') && m.addWorkspaceView(def, 'gallery').def.views[3].props.includes('kind') && !m.addWorkspaceView(def, 'calendar').def.views[3].props);
 
+  // P6 · miniatura do quadro
+  const th = await import('../sidepanel/modules/shell/board-thumb.js');
+  const exemplo = th.lightBoard(
+    [{ id: 'a', x: 0, y: 0, w: 200, h: 100, color: 'blue' }, { id: 'b', x: 300, y: 50, w: 200, h: 100 }, { id: 'c', x: 600, y: 0, w: 200, h: 100, color: 'red', texto: 'x' }],
+    [{ from: 'a', to: 'b', style: 'solid' }, { from: 'b', to: 'zzz' }]);
+  const svg = th.boardThumbSvg(exemplo);
+  igual('miniatura · um retângulo por cartão e linha só para setas válidas', [(svg.match(/<rect/g) || []).length, (svg.match(/<line/g) || []).length], [3, 1]);
+  ok('miniatura · viewBox fixo e cores em OKLCH (sem hex)', svg.includes('viewBox="0 0 160 100"') && svg.includes('oklch(') && !/#[0-9a-f]{3,6}\b/i.test(svg));
+  igual('miniatura · quadro vazio não desenha retângulos', (th.boardThumbSvg({ cards: [], arrows: [] }).match(/<rect/g) || []).length, 0);
+  igual('miniatura · o item leve só leva x, y, w, h, cor e id', Object.keys(exemplo.cards[2]).sort(), ['color', 'h', 'id', 'w', 'x', 'y']);
+  igual('miniatura · o item-quadro carrega a miniatura leve', (await import('../sidepanel/modules/workspace-items-model.js')).boardToItem({ id: 3, cards: [{ id: 'a', x: 1, y: 2, w: 3, h: 4 }], arrows: [] }).thumb.cards.length, 1);
+  ok('miniatura · a galeria usa a miniatura quando o quadro não tem capa', (await readFile(new URL('../sidepanel/modules/bases/bases-gallery-view.js', import.meta.url), 'utf8')).includes('boardThumbSvg(note.thumb)'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');

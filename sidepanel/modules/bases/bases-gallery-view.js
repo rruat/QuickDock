@@ -4,6 +4,7 @@
 // capa do cabeçalho da nota), título e propriedades. Sem capa, o cartão mostra o ícone
 // e a cor da nota.
 
+import { boardThumbSvg } from '../shell/board-thumb.js';
 import { getNotePropertyValue } from './bases-engine.js';
 import { formatPropertyValue } from './bases-schema.js';
 import { getViewProps } from './config/view-model.js';
@@ -70,6 +71,11 @@ function buildCover(note, coverProp) {
 // Sem capa: ícone da nota sobre um fundo na cor dela (ou neutro)
 function colocarPlaceholder(cover, note) {
   cover.classList.add('cover-placeholder');
+  if (note.isBoard && note.thumb) { // quadro sem capa: miniatura dos cartões e conexões
+    cover.classList.add('has-board-thumb');
+    cover.innerHTML = boardThumbSvg(note.thumb);
+    return;
+  }
   if (note.color) {
     cover.style.setProperty('--cover-accent', note.color);
     cover.classList.add('has-accent');
