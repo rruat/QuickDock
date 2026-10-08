@@ -1,0 +1,189 @@
+/* Mobile (até 768px): drawers que empurram o conteúdo */
+/* ══ MOBILE (≤ 768px) — estilo Obsidian Mobile ══
+   A nav vira uma barra inferior. As asides viram drawers que EMPURRAM o
+   conteúdo (header + view + nav deslizam), em vez de disputar espaço com ele. */
+@media (max-width: 768px) {
+  #app,
+  #app.has-right-aside-collapsed {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100dvh !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #mNavDivider,
+  #mFooter,
+  #rightAsideResizer {
+    display: none !important;
+  }
+
+  /* Nav: barra inferior com Home, Modelos e Configurações */
+  #app #mNav,
+  #app.has-left-aside-hidden #mNav {
+    order: 3 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: 56px;
+    flex-shrink: 0;
+    padding: 0 8px !important;
+    margin: 0 !important;
+    border: none !important;
+    border-top: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #mNav ul {
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    flex: 1 !important;
+    gap: 0 !important;
+  }
+
+  #mNav .nav-item-settings { margin-top: 0; }
+
+  #mHeader,
+  #mMain,
+  #mNav {
+    transform: translate3d(var(--push-x, 0px), 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  #mMain { padding: 0 !important; }
+
+  /* A seção do calendário ocupa a tela toda e mantém o header (troca de view) */
+  #mMain > .calendar-section {
+    display: flex !important;
+    position: absolute !important;
+    inset: 0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  #mMain > .calendar-section > .section-header {
+    display: flex !important;
+    border-radius: 0 !important;
+  }
+
+  /* ── Drawer esquerdo (#mAside): painel do item ativo da nav ── */
+  #app #mAside,
+  #app.has-left-aside-hidden #mAside {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(85vw, 320px) !important;
+    height: 100dvh !important;
+    z-index: 100;
+    display: flex !important;
+    margin: 0 !important;
+    border: none !important;
+    border-right: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    transform: translate3d(-100%, 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s linear 260ms;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  #app #mAside.is-open-mobile {
+    transform: translate3d(0, 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    box-shadow: 4px 0 20px oklch(0% 0 0 / 0.2) !important;
+  }
+
+  /* ── Drawer direito (#mRightAside: configurações / constelações / nota) ── */
+  #app #mRightAside,
+  #app.has-right-aside-collapsed #mRightAside {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: auto;
+    width: min(85vw, 340px) !important;
+    max-width: 85vw;
+    height: 100dvh;
+    z-index: 100;
+    display: flex !important;
+    margin: 0 !important;
+    border: none;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+    transform: translate3d(100%, 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s linear 260ms;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  #app:not(.has-right-aside-collapsed) #mRightAside {
+    transform: translate3d(0, 0, 0);
+    transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s;
+    visibility: visible;
+    pointer-events: auto;
+    box-shadow: -4px 0 20px oklch(0% 0 0 / 0.2);
+  }
+
+  /* Empurra header + view quando um drawer abre */
+  #app:has(#mAside.is-open-mobile) { --push-x: min(85vw, 320px); }
+  #app:not(.has-right-aside-collapsed) { --push-x: calc(-1 * min(85vw, 340px)); }
+
+  /* Conteúdo compacto para telas estreitas */
+  .calendar-day { padding: 4px 3px; }
+  .calendar-day-add-btn,
+  .week-col-add-btn,
+  .cal-note-more { display: none !important; }
+
+  .calendar-day .cal-note-chip,
+  .calendar-week-col .cal-note-chip {
+    font-size: 0;
+    height: 5px;
+    padding: 0;
+    border: none;
+    border-radius: 3px;
+    background: var(--chip-color);
+    margin-top: 2px;
+  }
+
+  .calendar-day .cal-note-chip[data-kind="quadro"],
+  .calendar-week-col .cal-note-chip[data-kind="quadro"] {
+    display: block;
+    height: 8px;
+    border: none;
+    border-radius: 2px;
+    background: color-mix(in oklch, var(--chip-color) 55%, var(--bg));
+    box-shadow: inset 0 0 0 1.5px var(--chip-color);
+  }
+
+  .cal-note-chip[data-kind="quadro"]::before { display: none; }
+
+  .calendar-week-header { height: 44px; line-height: 1.2; }
+  .calendar-week-header .week-header-cell { flex-direction: column; gap: 0; }
+  .week-col-time-slot .slot-time { font-size: 8px; }
+
+  .view-switcher-list { gap: 4px; padding: 6px 8px; }
+  .view-switch-btn { flex-direction: column; text-align: center; gap: 2px; padding: 6px 4px; }
+  .view-switch-btn span:last-child { align-items: center; }
+  .view-switch-btn small { display: none; }
+
+  .notes-table th:nth-child(3),
+  .notes-table td:nth-child(3),
+  .notes-table th:nth-child(6),
+  .notes-table td:nth-child(6) { display: none; }
+  .notes-table td { max-width: 180px; padding: 10px 10px; }
+  .notes-gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 10px; gap: 8px; }
+  .calendar-day-subbar { padding: 0 8px; }
+  .day-subbar-title { font-size: 11px; }
+
+  /* Ações da lista de views sempre visíveis (não há hover) e gestos horizontais livres para os drawers */
+  .view-row-actions { display: inline-flex; }
+  #app { touch-action: pan-y; }
+}

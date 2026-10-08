@@ -1,0 +1,238 @@
+/* Aside direita: configurações do calendário e seletor de visão */
+/* ── RIGHT ASIDE (#mRightAside) - APENAS UMA ASIDE À DIREITA ── */
+#mRightAside {
+  grid-area: mRightAside;
+  width: var(--right-aside-width, var(--aside-width, 280px));
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  margin-left: var(--gap-size, 4px);
+  margin-right: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg);
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/* ── ESTILOS DO CONTEÚDO DE CONFIGURAÇÕES ── */
+.config-aside-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.config-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.config-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.config-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--text);
+  gap: 8px;
+}
+
+.config-card-item + .config-card-item {
+  border-top: 1px solid var(--border);
+}
+
+.config-card-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.config-card-label strong {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.config-card-label small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.config-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: var(--text);
+  font-size: 11.5px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.category-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 120ms ease;
+}
+
+.category-chip-row:hover {
+  background-color: var(--bg-hover);
+}
+
+.cat-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cat-tag-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-tag-count {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+
+/* ── SELETOR DE TIPOS DE VISUALIZAÇÃO NA ASIDE (MÊS, SEMANA, DIA) ── */
+.calendar-view-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+
+.view-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 7px 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.view-type-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.view-type-btn.is-active {
+  background: var(--bg);
+  color: var(--accent);
+  font-weight: 600;
+  border-color: var(--border);
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.05);
+}
+
+.view-type-btn .view-type-icon {
+  font-size: 19px;
+}
+
+.view-type-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  user-select: none;
+}
+
+.view-type-item + .view-type-item {
+  border-top: 1px solid var(--border);
+}
+
+.view-type-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.view-type-item.is-active {
+  background-color: var(--bg-hover);
+}
+
+.view-type-item.is-active .config-card-label strong {
+  color: var(--accent);
+}
+
+.view-type-item .view-item-icon {
+  font-size: 18px;
+  color: var(--text-secondary);
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.view-type-item.is-active .view-item-icon {
+  background: var(--accent);
+  color: oklch(100% 0 0);
+}
+
+.view-type-item .view-item-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--bg);
+  margin-left: auto;
+}
+
+.view-type-item.is-active .view-item-badge {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: oklch(100% 0 0);
+}
+

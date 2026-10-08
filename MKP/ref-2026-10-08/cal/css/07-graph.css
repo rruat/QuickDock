@@ -1,0 +1,107 @@
+/* Grafo de conexões (constelações) e alça de resize da aside */
+/* ── GRAFO DE CONEXÕES (CONSTELAÇÕES) NA ASIDE DIREITA ── */
+:root {
+  --graph-projeto: oklch(58% 0.17 255);
+  --graph-reuniao: oklch(60% 0.15 150);
+  --graph-ideia: oklch(68% 0.15 70);
+  --graph-pessoa: oklch(60% 0.17 330);
+  --graph-edge: oklch(70% 0.01 260);
+}
+html[data-theme="dark"] {
+  --graph-projeto: oklch(72% 0.14 255);
+  --graph-reuniao: oklch(74% 0.14 150);
+  --graph-ideia: oklch(80% 0.13 70);
+  --graph-pessoa: oklch(74% 0.14 330);
+  --graph-edge: oklch(45% 0.01 260);
+}
+
+#asideGraphMode {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.graph-stage {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+#noteGraph {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+#noteGraph .g-edge {
+  stroke: var(--graph-edge);
+  stroke-width: 1.2;
+  transition: opacity 0.15s ease, stroke 0.15s ease;
+}
+
+#noteGraph .g-node circle {
+  stroke: var(--bg);
+  stroke-width: 2;
+  transition: opacity 0.15s ease;
+}
+
+#noteGraph .g-node text {
+  font-size: 8.5px;
+  fill: var(--text);
+  text-anchor: middle;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  transition: opacity 0.15s ease;
+}
+
+#noteGraph .g-node { cursor: pointer; }
+#noteGraph .g-node.is-active circle { stroke: var(--accent); stroke-width: 3; }
+
+#noteGraph.has-focus .g-node:not(.is-near),
+#noteGraph.has-focus .g-edge:not(.is-near) { opacity: 0.15; }
+#noteGraph.has-focus .g-edge.is-near { stroke: var(--accent); }
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.graph-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.graph-legend i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+
+.graph-info {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.graph-info strong { color: var(--text); display: block; font-size: 12px; margin-bottom: 2px; }
+
+#rightAsideResizer.aside-indicator-right {
+  grid-area: mRightAside;
+  position: relative;
+  left: auto;
+  justify-self: start;
+  align-self: stretch;
+  width: var(--gap-size, 4px);
+  touch-action: none;
+}
+
+#rightAsideResizer.aside-indicator-right::before {
+  left: -3px;
+  right: -3px;
+}
+
+#app.has-right-aside-collapsed #rightAsideResizer {
+  display: none !important;
+}

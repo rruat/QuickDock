@@ -1,0 +1,198 @@
+/* Header expansível, chips de itens, tabela e galeria */
+/* ── HEADER EXPANSÍVEL: ESCOLHA DO TIPO DE VIEW (CALENDÁRIO / TABELA / GALERIA) ── */
+#sectionHeader { cursor: pointer; }
+
+.header-view-caret {
+  font-size: 18px;
+  color: var(--text-muted);
+  transition: transform 240ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.main-section.is-switcher-open .header-view-caret { transform: rotate(180deg); }
+
+.view-switcher {
+  display: grid;
+  grid-template-rows: 0fr;
+  flex-shrink: 0;
+  transition: grid-template-rows 240ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.main-section.is-switcher-open .view-switcher { grid-template-rows: 1fr; }
+
+.view-switcher-inner {
+  overflow: hidden;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.view-switcher-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.view-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.view-switch-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+.view-switch-btn.is-active {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.view-switch-btn .material-symbols-rounded { font-size: 20px; flex-shrink: 0; }
+.view-switch-btn.is-active .material-symbols-rounded { color: var(--accent); }
+.view-switch-btn span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.view-switch-btn strong { font-size: 12px; font-weight: 600; }
+.view-switch-btn small { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── NOTAS FAKES NAS VIEWS (somente modelo) ── */
+:root { --graph-pessoal: var(--graph-pessoa); }
+
+.cal-note-chip {
+  --chip-color: var(--accent);
+  margin-top: 3px;
+  padding: 2px 5px;
+  background: color-mix(in oklch, var(--chip-color) 14%, var(--bg));
+  border-left: 3px solid var(--chip-color);
+  border-radius: 3px;
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.cal-note-more { margin-top: 3px; font-size: 10px; color: var(--text-muted); }
+.cal-note-chip[data-group="projeto"] { --chip-color: var(--graph-projeto); }
+.cal-note-chip[data-group="reuniao"] { --chip-color: var(--graph-reuniao); }
+.cal-note-chip[data-group="ideia"]   { --chip-color: var(--graph-ideia); }
+.cal-note-chip[data-group="pessoal"] { --chip-color: var(--graph-pessoal); }
+
+.calendar-week-col .week-col-time-slot .cal-note-chip { margin-top: 2px; }
+.day-hour-content .cal-note-chip { padding: 6px 10px; font-size: 12px; margin: 0 0 4px; }
+.day-hour-content .cal-note-chip small { color: var(--text-secondary); margin-left: 6px; }
+
+/* ── VIEW TABELA ── */
+.data-view { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
+
+.notes-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+.notes-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.notes-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-table tbody tr { cursor: pointer; transition: background-color 0.12s ease; }
+.notes-table tbody tr:hover { background: var(--bg-hover); }
+.notes-table td.muted { color: var(--text-secondary); }
+.notes-table td.title { font-weight: 600; }
+
+.group-pill {
+  --pill-color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.group-pill::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pill-color);
+}
+
+.group-pill[data-group="projeto"] { --pill-color: var(--graph-projeto); }
+.group-pill[data-group="reuniao"] { --pill-color: var(--graph-reuniao); }
+.group-pill[data-group="ideia"]   { --pill-color: var(--graph-ideia); }
+.group-pill[data-group="pessoal"] { --pill-color: var(--graph-pessoal); }
+
+/* ── VIEW GALERIA ── */
+.notes-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  align-content: start;
+}
+
+.gallery-card {
+  --card-color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+}
+
+.gallery-card:hover { border-color: var(--card-color); transform: translateY(-1px); }
+
+.gallery-cover {
+  height: 64px;
+  background: color-mix(in oklch, var(--card-color) 22%, var(--bg));
+  display: grid;
+  place-items: center;
+  color: var(--card-color);
+  border-bottom: 1px solid var(--border);
+}
+
+.gallery-cover .material-symbols-rounded { font-size: 26px; }
+.gallery-cover.has-thumb { height: 84px; padding: 8px; box-sizing: border-box; }
+.gallery-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gallery-body strong { font-size: 13px; color: var(--text); }
+.gallery-body p { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.gallery-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--text-muted); }
+.gallery-card[data-group="projeto"] { --card-color: var(--graph-projeto); }
+.gallery-card[data-group="reuniao"] { --card-color: var(--graph-reuniao); }
+.gallery-card[data-group="ideia"]   { --card-color: var(--graph-ideia); }
+.gallery-card[data-group="pessoal"] { --card-color: var(--graph-pessoal); }
+

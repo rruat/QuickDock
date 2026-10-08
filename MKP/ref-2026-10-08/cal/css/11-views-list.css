@@ -1,0 +1,142 @@
+/* Lista de views (aside esquerda), busca e barra "modificada" do header */
+
+.views-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.views-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 34px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.views-search:focus-within { border-color: var(--accent); }
+.views-search .material-symbols-rounded { font-size: 18px; }
+
+.views-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+
+.view-list { display: flex; flex-direction: column; gap: 4px; }
+
+.view-row {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.view-row:hover { background: var(--bg-hover); }
+.view-row.is-active { background: var(--bg-hover); border-color: var(--accent); }
+
+.view-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.view-row.is-active .view-row-main { color: var(--text); }
+.view-row-main > .material-symbols-rounded { font-size: 20px; flex-shrink: 0; }
+.view-row.is-active .view-row-main > .material-symbols-rounded { color: var(--accent); }
+
+.view-row-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.view-row-text strong { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.view-row-text small { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.view-row-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Ações aparecem no hover (no mobile ficam sempre visíveis) */
+.view-row-actions { display: none; padding-right: 4px; gap: 2px; }
+.view-row:hover .view-row-actions,
+.view-row:focus-within .view-row-actions { display: inline-flex; }
+
+.view-list-empty {
+  padding: 16px 8px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Estado vazio das views de dados (filtros sem resultado) */
+.view-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  min-height: 200px;
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.view-empty .material-symbols-rounded { font-size: 32px; }
+.view-empty strong { font-size: 13px; color: var(--text); }
+
+/* Barra "modificada" no header: ponto + Salvar / Descartar */
+.view-dirty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+}
+
+.view-dirty[hidden] { display: none; }
+
+.view-dirty-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.view-dirty button {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.view-dirty button:hover { color: var(--text); background: var(--bg-hover); }
+.view-dirty button:first-of-type { border-color: var(--accent); color: var(--accent); }

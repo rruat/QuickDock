@@ -1,0 +1,127 @@
+/* Nav (Home / Modelos / Configurações) e painéis da aside esquerda */
+
+/* Itens da nav: o app já estiliza #mNav ul li; aqui só o foco por teclado */
+#mNav .nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── PAINÉIS DA ASIDE ESQUERDA (um por item da nav) ── */
+.left-panel {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.left-panel.is-active { display: flex; }
+
+/* Lista de views / modelos */
+.left-view-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.left-view-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.left-view-item:hover { background: var(--bg-hover); color: var(--text); }
+
+.left-view-item.is-active {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.left-view-item > .material-symbols-rounded { font-size: 20px; flex-shrink: 0; }
+.left-view-item.is-active > .material-symbols-rounded { color: var(--accent); }
+
+.left-view-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.left-view-text strong { font-size: 12.5px; font-weight: 600; }
+
+.left-view-text small {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.left-view-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.left-view-item.is-active .left-view-badge {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: oklch(100% 0 0);
+}
+
+/* Escala do calendário ativa */
+#leftModeSegmented button.is-active,
+#settingsThemeSegmented button.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-hover);
+  font-weight: 600;
+}
+
+/* Grupos (legenda com contagem) */
+.left-group-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.left-group-row + .left-group-row { border-top: 1px solid var(--border); }
+.left-group-row .group-pill { flex: none; }
+.left-group-count { margin-left: auto; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Botão "Novo modelo" */
+.left-new-template {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.left-new-template:hover { color: var(--accent); border-color: var(--accent); }
+.left-new-template .material-symbols-rounded { font-size: 18px; }

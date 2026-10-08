@@ -1,0 +1,56 @@
+/* Grid do shell: nav, aside esquerda, main (view) e aside direita */
+
+/* ── GRID DO SPATIAL SHELL: NAV | ASIDE ESQUERDA | MAIN | ASIDE DIREITA ── */
+#app {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  grid-template-columns:
+    calc(var(--nav-width, 49px) + var(--nav-gap, 0px))
+    var(--left-divider-width, 1px)
+    var(--left-aside-width, var(--aside-width, 280px))
+    minmax(0, 1fr)
+    calc(var(--right-aside-width, var(--aside-width, 280px)) + var(--gap-size, 4px)) !important;
+  grid-template-areas:
+    "mHeader mHeader mHeader mHeader mHeader"
+    "mNav mNavDivider mAside mMain mRightAside"
+    "mFooter mFooter mFooter mFooter mFooter" !important;
+  height: 100dvh;
+  padding: var(--gap-size, 4px);
+  overflow: hidden;
+  background: var(--bg);
+  gap: 0;
+  transition: grid-template-columns 180ms ease;
+}
+
+/* Aside direita recolhida */
+#app.has-right-aside-collapsed {
+  grid-template-columns:
+    calc(var(--nav-width, 49px) + var(--nav-gap, 0px))
+    var(--left-divider-width, 1px)
+    var(--left-aside-width, var(--aside-width, 280px))
+    minmax(0, 1fr)
+    0px !important;
+}
+
+#app.has-right-aside-collapsed #mRightAside {
+  display: none !important;
+}
+
+/* Aside esquerda recolhida (estado padrão): sobra só a nav, que vira um cartão
+   próprio — outline completo, cantos arredondados e o mesmo gap das demais seções */
+#app.has-left-aside-hidden {
+  --left-aside-width: 0px;
+  --left-divider-width: 0px;
+  --nav-gap: var(--gap-size, 4px);
+}
+
+#app.has-left-aside-hidden #mAside,
+#app.has-left-aside-hidden #mNavDivider {
+  display: none !important;
+}
+
+#app.has-left-aside-hidden #mNav {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  margin-right: var(--gap-size, 4px);
+}
