@@ -1,0 +1,370 @@
+/* ── 35-shell-v2.css — Novo design do shell (padrão: mockup MKP/CAL.HTML) ──
+   Nav enxuta (Home / Modelos / Configurações), aside esquerda recolhível com a lista de
+   VIEWS de uma Base única, e uma view por vez. Só desktop; o mobile mantém o drawer atual. */
+
+@media (min-width: 768px) {
+  /* ── Aside esquerda recolhida: sobra só a nav, como cartão próprio ── */
+  html[data-platform="desktop"] #app.is-aside-collapsed {
+    grid-template-columns: calc(var(--nav-width, 49px) + var(--gap-size, 4px)) 0 0 minmax(0, 1fr);
+  }
+
+  html[data-platform="desktop"] #app.is-aside-collapsed #mAside,
+  html[data-platform="desktop"] #app.is-aside-collapsed #mNavDivider {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] #app.is-aside-collapsed #mNav {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    margin-right: var(--gap-size, 4px);
+  }
+
+  /* ── Home: só a lista de views. Sem menu de "ferramentas": calendário, tabela, galeria,
+     linha do tempo… são views da Base, não telas separadas. ── */
+  html[data-platform="desktop"] #mAside.mode-notes #asideSectionList {
+    display: none !important;
+  }
+
+  /* Explorador de arquivos antigo desligado por ora (reversível: remover esta regra).
+     As notas se abrem pelas views, pela Omnibar (Ctrl+K) e pelo botão "Nova nota". */
+  html[data-platform="desktop"] #mAside.mode-notes .notes-aside-drawer {
+    display: none !important;
+  }
+
+  html[data-platform="desktop"] #mAside.mode-notes .aside-views {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px 8px 4px;
+  }
+
+  html[data-platform="desktop"] #mAside:not(.mode-notes) .aside-views { display: none; }
+
+  /* ── Uma view por vez: sem controles de mosaico no cabeçalho da view ── */
+  html[data-platform="desktop"] #mMain .section-header {
+    cursor: default;
+  }
+
+  html[data-platform="desktop"] #mMain .section-header .btn-move-prev,
+  html[data-platform="desktop"] #mMain .section-header .btn-move-next,
+  html[data-platform="desktop"] #mMain .section-header .section-close,
+  html[data-platform="desktop"] #mMain .section-header .section-focus-indicator,
+  html[data-platform="desktop"] #mMain .section-divider {
+    display: none !important;
+  }
+}
+
+.aside-views { display: none; }
+
+/* ── Cabeçalho da lista: título + Nova nota + Nova view ── */
+.aside-views-head {
+  display: flex;
+  align-items: center;
+  padding: 0 0 4px 8px;
+}
+
+.aside-views-title {
+  flex: 1;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Seletor do tipo da nova view ── */
+.aside-new-view-types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.aside-new-view-types[hidden] { display: none; }
+
+.aside-new-view-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aside-new-view-type:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
+.aside-new-view-type .material-symbols-rounded { font-size: 17px; }
+
+/* ── Busca ── */
+.aside-views-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.aside-views-search:focus-within { border-color: var(--accent); }
+.aside-views-search .material-symbols-rounded { font-size: 17px; }
+
+.aside-views-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+/* ── Lista de views ── */
+.aside-views-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.aside-view-item {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.aside-view-item:hover { background: var(--bg-hover); }
+.aside-view-item.is-active { background: var(--bg-hover); border-color: var(--accent); }
+
+.aside-view-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aside-view-item.is-active .aside-view-main { color: var(--text); }
+.aside-view-main > .material-symbols-rounded { font-size: 20px; flex-shrink: 0; }
+.aside-view-item.is-active .aside-view-main > .material-symbols-rounded { color: var(--accent); }
+
+.aside-view-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.aside-view-text strong { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aside-view-text small { font-size: 10.5px; color: var(--text-muted); }
+
+/* Ações (renomear, duplicar, excluir) aparecem no hover */
+.aside-view-actions { display: none; padding-right: 4px; gap: 2px; }
+.aside-view-item:hover .aside-view-actions,
+.aside-view-item:focus-within .aside-view-actions { display: inline-flex; }
+
+.aside-views-empty {
+  padding: 16px 8px;
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Botão "Voltar às views" (nota e quadro): só no desktop; no mobile já existe a pilha de navegação */
+.btn-back-views { margin-right: 4px; }
+
+@media (max-width: 767px) {
+  .btn-back-views { display: none; }
+}
+/* ══ Grade com a aside DIREITA (configurações da view) — desktop ══ */
+@media (min-width: 768px) {
+  html[data-platform="desktop"] #app {
+    grid-template-columns:
+      var(--nav-width, 49px) 1px var(--aside-width, 280px) minmax(0, 1fr)
+      calc(var(--right-aside-width, 320px) + var(--gap-size, 4px));
+    grid-template-areas:
+      "mHeader mHeader mHeader mHeader mHeader"
+      "mNav mNavDivider mAside mMain mRightAside"
+      "mFooter mFooter mFooter mFooter mFooter";
+    transition: grid-template-columns 180ms ease;
+  }
+
+  html[data-platform="desktop"] #app.is-aside-collapsed {
+    grid-template-columns:
+      calc(var(--nav-width, 49px) + var(--gap-size, 4px)) 0 0 minmax(0, 1fr)
+      calc(var(--right-aside-width, 320px) + var(--gap-size, 4px));
+  }
+
+  html[data-platform="desktop"] #app.is-right-aside-collapsed {
+    grid-template-columns: var(--nav-width, 49px) 1px var(--aside-width, 280px) minmax(0, 1fr) 0px;
+  }
+
+  html[data-platform="desktop"] #app.is-aside-collapsed.is-right-aside-collapsed {
+    grid-template-columns: calc(var(--nav-width, 49px) + var(--gap-size, 4px)) 0 0 minmax(0, 1fr) 0px;
+  }
+
+  html[data-platform="desktop"] #mRightAside {
+    grid-area: mRightAside;
+    width: var(--right-aside-width, 320px);
+    margin-left: var(--gap-size, 4px);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--bg);
+    min-height: 0;
+    box-sizing: border-box;
+  }
+
+  html[data-platform="desktop"] #app.is-right-aside-collapsed #mRightAside,
+  html[data-platform="desktop"] #app.is-right-aside-collapsed #rightAsideResizer {
+    display: none !important;
+  }
+
+  /* Alça de redimensionar no vão entre a view e a aside direita */
+  html[data-platform="desktop"] #rightAsideResizer.aside-indicator-right {
+    grid-area: mRightAside;
+    position: relative;
+    left: auto;
+    justify-self: start;
+    align-self: stretch;
+    width: var(--gap-size, 4px);
+    touch-action: none;
+  }
+
+  html[data-platform="desktop"] #rightAsideResizer.aside-indicator-right::before { left: -3px; right: -3px; }
+}
+
+@media (max-width: 767px) {
+  #mRightAside, #rightAsideResizer { display: none !important; }
+}
+
+.right-aside-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.right-aside-view-host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+.right-aside-view-host[hidden] { display: none; }
+/* o painel de configuração do motor de Bases ocupa a aside inteira */
+.right-aside-view-host .bset-head { display: none; }
+.right-aside-view-host .bset-body { padding: 8px 12px 16px; }
+
+/* ══ Tela da Base como "Views": o título é o nome da view; as abas e o cabeçalho próprio saem ══ */
+#bases-view > .section-header .section-title { font-weight: 600; }
+.base-component-root.is-workspace-panel .base-header-left,
+.base-component-root.is-workspace-panel .base-btn-settings,
+.base-component-root.is-workspace-panel .base-btn-code { display: none !important; }
+.base-component-root.is-workspace-panel .base-header-bar { justify-content: flex-end; }
+
+/* ══ Header expansível: formas de ver a mesma Base (calendário, tabela, galeria…) ══ */
+#basesSectionHeader { cursor: pointer; }
+
+.header-view-caret {
+  font-size: 18px;
+  color: var(--text-muted);
+  transition: transform 240ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+#bases-view.is-switcher-open .header-view-caret { transform: rotate(180deg); }
+
+.view-switcher {
+  display: grid;
+  grid-template-rows: 0fr;
+  flex-shrink: 0;
+  transition: grid-template-rows 240ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+#bases-view.is-switcher-open .view-switcher { grid-template-rows: 1fr; }
+.view-switcher-inner { overflow: hidden; min-height: 0; background: var(--bg); }
+
+.view-switcher-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.view-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.view-switch-btn:hover { background: var(--bg-hover); color: var(--text); }
+.view-switch-btn.is-active { background: var(--bg-hover); border-color: var(--accent); color: var(--text); }
+.view-switch-btn .material-symbols-rounded { font-size: 20px; flex-shrink: 0; }
+.view-switch-btn.is-active .material-symbols-rounded { color: var(--accent); }
+.view-switch-btn strong { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#btnViewSettings.is-active { background: var(--bg-hover); color: var(--accent); }
+/* ══ Aside direita: painéis da nota e do quadro ══ */
+.right-aside-note-host, .right-aside-board-host { flex: 1; min-height: 0; overflow-y: auto; background: var(--bg); }
+.right-aside-note-host[hidden], .right-aside-board-host[hidden] { display: none; }
+
+/* Nota: as propriedades e o sumário/backlinks (movidos do editor) ocupam a largura da aside */
+.right-aside-note-host.has-note-panel { display: flex; flex-direction: column; gap: 0; }
+.right-aside-note-host #note-properties-bar { margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--border); max-width: none; width: auto; }
+.right-aside-note-host #note-outline-sidebar {
+  display: flex !important; flex-direction: column; position: static; width: auto; max-width: none;
+  min-width: 0; height: auto; flex: 1 1 auto; border: none; transform: none;
+}
+.right-aside-note-host #btn-toggle-outline-sidebar { display: none; }
+
+/* Quadro: grupos de propriedades, como no mockup */
+.aside-panel-group { padding: 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.aside-panel-group h4 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
+.aside-panel-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+.aside-panel-field input[type="text"] {
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+  color: var(--text); font-family: inherit; font-size: 12.5px; outline: none;
+}
+.aside-panel-field input[type="text"]:focus { border-color: var(--accent); }
+.aside-panel-range input { accent-color: var(--accent); width: 100%; }
+.aside-panel-range b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+.aside-panel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+.aside-panel-row strong { color: var(--text); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.aside-panel-row .material-symbols-rounded { font-size: 16px; }
+.aside-panel-segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.aside-panel-segmented button {
+  padding: 6px 4px; border: 1px solid var(--border); border-radius: 6px; background: transparent;
+  color: var(--text-secondary); font-family: inherit; font-size: 11.5px; cursor: pointer;
+}
+.aside-panel-segmented button:hover { background: var(--bg-hover); color: var(--text); }
+.aside-panel-segmented button.is-active { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); font-weight: 600; }
+.aside-panel-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text);
+  font-family: inherit; font-size: 12.5px; cursor: pointer;
+}
+.aside-panel-btn:hover { background: var(--bg-hover); }
+.aside-panel-btn .material-symbols-rounded { font-size: 18px; }
+.aside-panel-btn.is-danger { color: oklch(52% 0.2 25); }
+html[data-theme="dark"] .aside-panel-btn.is-danger { color: oklch(72% 0.17 25); }
+.aside-panel-empty { padding: 24px 12px; text-align: center; font-size: 12px; color: var(--text-muted); }
+
+/* O quadro já abre pelo "Voltar às views": o botão antigo (volta para "documentos") sai no desktop */
+@media (min-width: 768px) {
+  html[data-platform="desktop"] #board-view #btn-board-back { display: none; }
+}
+/* Com o sumário na aside direita, o botão flutuante do editor não faz sentido */
+#section-note.outline-in-aside #btn-outline-floating-toggle { display: none !important; }

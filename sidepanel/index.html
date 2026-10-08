@@ -78,33 +78,17 @@
 
     <nav id="mNav" aria-label="Barra de Atividades">
       <ul>
-        <li id="navItemExplorer" class="nav-item is-active" data-nav-view="notes" title="Explorador de Notas">
-          <span class="material-symbols-rounded">folder_open</span>
+        <li id="navItemExplorer" class="nav-item" data-nav-view="home" title="Home — notas e views" role="button" tabindex="0">
+          <span class="material-symbols-rounded">home</span>
         </li>
-        <li class="nav-item" data-nav-view="bases" title="Bases de Dados">
-          <span class="material-symbols-rounded">table_rows</span>
-        </li>
-        <li class="nav-item" data-nav-view="board" title="Espaço Infinito (Quadro)">
-          <span class="material-symbols-rounded">space_dashboard</span>
-        </li>
-        <li class="nav-item" data-nav-view="graph" title="Constelações (Grafo)">
-          <span class="material-symbols-rounded">hub</span>
-        </li>
-        <li class="nav-item" data-nav-view="calendar" title="Calendário">
-          <span class="material-symbols-rounded">calendar_today</span>
-        </li>
-        <li class="nav-item" data-nav-view="templates" title="Galeria de Modelos">
+        <li class="nav-item" data-nav-view="templates" title="Modelos — notas e quadros modelo" role="button" tabindex="0">
           <span class="material-symbols-rounded">auto_stories</span>
         </li>
-        <li class="nav-item" data-nav-view="json" title="JSON Studio (Editor/Criador)">
-          <span class="material-symbols-rounded">data_object</span>
-        </li>
-        <li class="nav-item nav-item-settings" data-nav-view="settings" title="Configurações">
+        <li class="nav-item nav-item-settings" data-nav-view="settings" title="Configurações" role="button" tabindex="0">
           <span class="material-symbols-rounded">settings</span>
         </li>
       </ul>
     </nav>
-
     <div id="mNavDivider" aria-hidden="true"></div>
 
     <aside id="mAside" class="mode-notes" aria-label="Painel Lateral de Visões e Notas">
@@ -185,6 +169,26 @@
       </header>
       <div id="asideSectionList" class="aside-section-list"></div>
 
+      <section id="asideViews" class="aside-views" aria-label="Views">
+        <div class="aside-views-head">
+          <span class="aside-views-title">Views</span>
+          <button id="btnNewNoteAside" class="aside-btn" title="Nova nota" aria-label="Nova nota" type="button">
+            <span class="material-symbols-rounded">note_add</span>
+          </button>
+          <button id="btnNewBoardAside" class="aside-btn" title="Novo quadro (espaço infinito)" aria-label="Novo quadro" type="button">
+            <span class="material-symbols-rounded">space_dashboard</span>
+          </button>
+          <button id="btnNewBaseView" class="aside-btn" title="Nova view" aria-label="Nova view" aria-expanded="false" type="button">
+            <span class="material-symbols-rounded">add</span>
+          </button>
+        </div>
+        <div id="asideNewViewTypes" class="aside-new-view-types" hidden></div>
+        <label class="aside-views-search">
+          <span class="material-symbols-rounded">search</span>
+          <input id="asideViewsSearch" type="search" placeholder="Buscar views…" autocomplete="off" spellcheck="false" />
+        </label>
+        <div id="asideViewsList" class="aside-views-list"></div>
+      </section>
       <aside class="app-aside" id="app-aside">
         <div class="notes-tabbar">
           <div class="aside-brand" id="aside-brand">
@@ -850,18 +854,24 @@
 
     <!-- Visão dedicada de Base (a mesma Base do bloco embutido, num painel/tela própria) -->
     <section class="bases-view main-section" id="bases-view" data-id="bases" tabindex="0" hidden>
-      <header class="section-header" draggable="true" title="Arraste para reordenar esta view">
+      <header class="section-header" id="basesSectionHeader">
         <div class="section-header-left">
           <span class="section-icon"><span class="material-symbols-rounded">table_rows</span></span>
-          <span class="section-title">Bases</span>
-          <span class="section-focus-indicator"><i class="focus-dot"></i>Em foco</span>
+          <span class="section-title">Views</span>
+          <span class="material-symbols-rounded header-view-caret" aria-hidden="true">expand_more</span>
         </div>
         <div class="section-header-actions">
-          <button class="section-btn btn-move-prev" type="button" title="Mover para antes (Alt + ←)"><span class="material-symbols-rounded">arrow_back</span></button>
-          <button class="section-btn btn-move-next" type="button" title="Mover para depois (Alt + →)"><span class="material-symbols-rounded">arrow_forward</span></button>
-          <button class="section-close" type="button" aria-label="Fechar Bases" title="Fechar view (Alt + W)"><span class="material-symbols-rounded">close</span></button>
+          <button class="section-btn" id="btnViewSettings" type="button" title="Configurações da view" aria-pressed="false">
+            <span class="material-symbols-rounded">tune</span>
+          </button>
         </div>
       </header>
+      <!-- Clicar no header expande as formas de ver a mesma Base (tipo da view ativa) -->
+      <div class="view-switcher" id="viewSwitcher">
+        <div class="view-switcher-inner">
+          <div class="view-switcher-list" id="viewSwitcherList" role="tablist" aria-label="Tipo da view"></div>
+        </div>
+      </div>
       <div class="bases-body" id="bases-body"></div>
     </section>
 
@@ -1070,20 +1080,42 @@
       </header>
       <div class="settings-body">
         <div class="settings-section">
-          <h3 class="settings-section-title">Mosaico de Views</h3>
-          <p class="settings-section-desc">Controla o que acontece ao clicar numa view (barra de atividades, menu ou "+") que ainda não está aberta.</p>
+          <h3 class="settings-section-title">Layout</h3>
+          <p class="settings-section-desc">O QuickDock abre uma view por vez. Aqui você controla o painel lateral esquerdo.</p>
           <label class="settings-option">
             <div class="settings-option-text">
-              <span class="settings-option-title">Acrescentar views ao abrir</span>
-              <span class="settings-option-desc">Ligado: o clique abre a view ao lado das que já estão abertas. Desligado: o clique fecha as outras views e abre só essa. Segure Shift para usar o modo oposto.</span>
+              <span class="settings-option-title">Mostrar o painel lateral esquerdo</span>
+              <span class="settings-option-desc">Explorador de notas e views. Desligado, sobra só a barra de navegação (Home também abre e recolhe o painel).</span>
             </div>
-            <input type="checkbox" class="ios-toggle" role="switch" id="settings-open-mode-add">
+            <input type="checkbox" class="ios-toggle" role="switch" id="settings-aside-open">
           </label>
-        </div>
-      </div>
+        </div>      </div>
     </section>
 
     </main>
+
+    <!-- Alça de redimensionamento: fica no vão entre a view e a aside direita -->
+    <span id="rightAsideResizer" class="aside-indicator aside-indicator-right" title="Arraste para redimensionar (duplo clique restaura)">
+      <span class="indicator-dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span>
+    </span>
+
+    <!-- Aside direita: configurações da view (e, nas próximas fases, nota, quadro e constelações) -->
+    <aside id="mRightAside" aria-label="Configurações da view">
+      <header class="aside-header">
+        <span class="aside-title" id="rightAsideTitle">CONFIGURAÇÕES DA VIEW</span>
+        <div class="aside-actions">
+          <button id="btnCloseRightAside" class="aside-btn" title="Recolher configurações" type="button">
+            <span class="material-symbols-rounded">close</span>
+          </button>
+        </div>
+      </header>
+      <div class="right-aside-body">
+        <div id="rightAsideViewHost" class="right-aside-view-host" hidden></div>
+        <div id="rightAsideNoteHost" class="right-aside-note-host" hidden></div>
+        <div id="rightAsideBoardHost" class="right-aside-board-host" hidden></div>
+      </div>
+    </aside>
+
 
     <footer id="mFooter">
       <div class="footer-left">

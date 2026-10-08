@@ -27,6 +27,8 @@ import {
 import { absorbDataUrls } from '../note.js';
 import { openNoteFromBase } from './open-note.js';
 import { normalizeNoteId } from './engine/note-id.js';
+import { loadWorkspaceItems } from '../workspace-items.js';
+import { takePendingView, EVT_SELECT_VIEW, EVT_ADD_VIEW, EVT_SET_TYPE, EVT_SETTINGS_OPEN, EVT_SETTINGS_CLOSED } from './engine/view-request.js';
 
 /**
  * Renderiza um componente completo de Base num elemento contêiner.
@@ -43,8 +45,11 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   // Estado interno da Base
   let rawConfigString = typeof initialConfig === 'string' ? initialConfig : stringifyBaseToYaml(initialConfig);
   let baseDef = normalizeViews(normalizeBaseDefinition(parseYamlOrJson(rawConfigString)));
-  let activeViewId = baseDef.defaultViewId;
-  let settingsOpen = false;
+  // Se a aside do shell pediu uma view desta Base antes de ela montar, abre direto nela
+  let activeViewId = takePendingView(options.baseId, baseDef.views) ?? baseDef.defaultViewId;
+  // Painel do workspace: as configurações da view moram na aside direita do shell (options.settingsHost)
+  const externalSettings = !!(options.panel && options.settingsHost);
+  let settingsOpen = externalSettings ? !!options.settingsOpen : false;
   let settingsHandle = null;
   const activeIndex = () => Math.max(0, baseDef.views.findIndex(v => v.id === activeViewId));
   const persistBase = () => {
@@ -74,7 +79,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   }
 
   rootContainer.innerHTML = '';
-  rootContainer.className = 'base-component-root' + (options.embedded ? ' is-embedded' : '');
+  rootContainer.className = 'base-component-root' + (options.embedded ? ' is-embedded' : '') + (options.panel ? ' is-workspace-panel' : '');
 
   // 1. Barra de Ferramentas Superior (Header / Toolbar)
   const headerEl = document.createElement('div');
@@ -197,17 +202,19 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   const viewportEl = document.createElement('div');
   viewportEl.className = 'base-viewport';
   bodyRow.appendChild(viewportEl);
-  const settingsEl = document.createElement('aside');
-  settingsEl.className = 'base-settings-host';
-  settingsEl.hidden = true;
-  bodyRow.appendChild(settingsEl);
+  const settingsEl = externalSettings ? options.settingsHost : document.createElement('aside');
+  if (!externalSettings) {
+    settingsEl.className = 'base-settings-host';
+    settingsEl.hidden = true;
+    bodyRow.appendChild(settingsEl);
+  }
 
   function renderSettingsPanel() {
     settingsHandle?.destroy();
     settingsHandle = null;
     const view = baseDef.views[activeIndex()];
     settingsEl.hidden = !settingsOpen || !view;
-    rootContainer.classList.toggle('has-settings', !settingsEl.hidden);
+    rootContainer.classList.toggle('has-settings', !settingsEl.hidden && !externalSettings);
     settingsBtn.classList.toggle('active', !settingsEl.hidden);
     settingsBtn.setAttribute('aria-pressed', String(!settingsEl.hidden));
     if (settingsEl.hidden) { settingsEl.replaceChildren(); return; }
@@ -248,7 +255,10 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
       onDuplicate: () => { const r = duplicateViewAt(baseDef, activeViewId); aplica(r.baseDef, r.newId); },
       canDelete: () => baseDef.views.length > 1 && !baseDef.views[activeIndex()]?.locked,
       onDelete: () => { const r = deleteViewById(baseDef, activeViewId, activeViewId); aplica(r.baseDef, r.activeId); },
-      onClose: () => { settingsOpen = false; renderSettingsPanel(); },
+      onClose: () => {
+        settingsOpen = false; renderSettingsPanel();
+        if (externalSettings) document.dispatchEvent(new CustomEvent(EVT_SETTINGS_CLOSED)); // a aside direita recolhe
+      },
     });
     const corpo = settingsEl.querySelector('.bset-body');
     if (corpo) corpo.scrollTop = rolagem;
@@ -274,6 +284,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     persistBase(); renderViewTabs(); updateViewport();
   };
   function renderViewTabs() {
+    options.onViewChange?.(activeViewId); // o painel do workspace guarda a view ativa
     desenhaAbas(tabsEl, { views: baseDef.views, activeId: activeViewId, defaultId: baseDef.defaultViewId }, {
       onSelect: id => { activeViewId = id; renderViewTabs(); updateViewport(); },
       onAdd: type => {
@@ -479,8 +490,10 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   }
 
   // Carregamento inicial de notas
+  // O painel do workspace mostra notas E quadros; as Bases embutidas em notas, só notas
+  const loadItems = () => (options.panel ? loadWorkspaceItems() : loadAllNotesMeta());
   async function loadData() {
-    allNotes = await loadAllNotesMeta();
+    allNotes = await loadItems();
     await carregaOrigem();
     try { templates = await loadAllTemplates(); } catch { templates = []; }
     renderViewTabs();
@@ -489,7 +502,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
 
   // Ouvinte reativo para atualizações externas
   const onNoteEvent = async () => {
-    allNotes = await loadAllNotesMeta();
+    allNotes = await loadItems();
     if (baseDef.source?.base) await carregaOrigem();
     updateViewport();
   };
@@ -509,7 +522,41 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   document.addEventListener('quickdock:note-updated', onNoteEvent);
   document.addEventListener('quickdock:note-created', onNoteEvent);
 
+  // Pedidos da aside esquerda (só o painel dedicado, não as Bases embutidas em notas)
+  const onSelectViewRequest = e => {
+    const id = e.detail?.viewId;
+    if (id && baseDef.views.some(v => v.id === id) && id !== activeViewId) { activeViewId = id; renderViewTabs(); updateViewport(); }
+  };
+  const onAddViewRequest = e => {
+    const type = e.detail?.type in VIEW_TYPES ? e.detail.type : 'table';
+    const nova = createView(type, { name: VIEW_TYPES[type].label, id: newViewId(baseDef.views.map(v => v.id)) });
+    aplica({ ...baseDef, views: [...baseDef.views, nova] }, nova.id);
+  };
+  const onSetTypeRequest = e => {
+    const type = e.detail?.type;
+    const i = baseDef.views.findIndex(v => v.id === activeViewId);
+    if (!(type in VIEW_TYPES) || i < 0 || baseDef.views[i].type === type || baseDef.views[i].locked) return;
+    const atual = baseDef.views[i];
+    // padrões do tipo novo por baixo; o que a view já tem (nome, filtros, ordem…) por cima
+    baseDef.views[i] = { ...createView(type, { id: atual.id, name: atual.name }), ...atual, type };
+    persistBase(); renderViewTabs(); updateViewport(); renderSettingsPanel();
+  };
+  const onSettingsRequest = e => { settingsOpen = !!e.detail?.open; renderSettingsPanel(); };
+  if (options.panel) {
+    document.addEventListener(EVT_SELECT_VIEW, onSelectViewRequest);
+    document.addEventListener(EVT_ADD_VIEW, onAddViewRequest);
+    document.addEventListener(EVT_SET_TYPE, onSetTypeRequest);
+    document.addEventListener('quickdock:board-changed', onNoteEvent); // quadro criado/renomeado/excluído
+    if (externalSettings) document.addEventListener(EVT_SETTINGS_OPEN, onSettingsRequest);
+  }
+
   rootContainer._cleanup = () => {
+    document.removeEventListener(EVT_SELECT_VIEW, onSelectViewRequest);
+    document.removeEventListener(EVT_ADD_VIEW, onAddViewRequest);
+    document.removeEventListener(EVT_SET_TYPE, onSetTypeRequest);
+    document.removeEventListener('quickdock:board-changed', onNoteEvent);
+    document.removeEventListener(EVT_SETTINGS_OPEN, onSettingsRequest);
+    if (externalSettings) { settingsHandle?.destroy(); settingsEl.replaceChildren(); settingsEl.hidden = true; }
     peek.fechar();
     document.removeEventListener('quickdock:note-updated', onNoteEvent);
     document.removeEventListener('quickdock:note-created', onNoteEvent);
@@ -517,4 +564,5 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   };
 
   await loadData();
+  if (externalSettings && settingsOpen) renderSettingsPanel(); // remontou com a aside direita aberta
 }

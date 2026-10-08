@@ -18,6 +18,10 @@ import {
   setupMobileTouchGestures
 } from './shell/shell-mobile.js';
 import { setupMobileBack } from './shell/shell-mobile-back.js';
+import { initAsideViewsList } from './shell/shell-views-list.js';
+import { initRightAside } from './shell/shell-right-aside.js';
+import { initViewSwitcher } from './shell/shell-view-switcher.js';
+import { trackExpandOrigin, playExpandOpen, playCollapseClose } from './shell/shell-expand-transition.js';
 import {
   reorderMainSections as _reorderMainSections,
   updateSectionMoveButtons as _updateSectionMoveButtons,
@@ -42,17 +46,20 @@ export const SHELL_VIEWS = [
 ];
 
 let openViewIds = [];
-let focusedViewId = 'notes';
+let focusedViewId = 'bases';
 let layoutMode = 'side-by-side'; // 'side-by-side' ou 'stacked'
 let searchActiveIdx = -1;
 let searchCandidates = [];
 let draggedViewId = null; // reordenação de views por arrastar o .section-header
 let activeNoteId = null;
 
-// 'add' (padrão): clicar numa view fechada ACRESCENTA às já abertas; segurar
-// Shift inverte pra substituir. 'replace': clicar SUBSTITUI; Shift acrescenta.
-// Configurável na view "Configurações" (id 'settings').
-let openViewsMode = 'add';
+// Novo design (mockup MKP/CAL.HTML): uma view por vez. Clicar numa view SUBSTITUI
+// a que estava aberta; não há mais mosaico lado a lado nem acrescentar com Shift.
+
+// Aside esquerda recolhível (desktop). Recolhida, sobra só a #mNav como cartão
+// arredondado. O estado fica salvo; o padrão é aberta para não esconder o explorador.
+const ASIDE_COLLAPSED_KEY = 'quickdock:spatial:aside-collapsed';
+let asideCollapsed = false;
 
 // Utilitários de texto e regex
 function normalizeStr(str) {
@@ -105,19 +112,19 @@ export function initSpatialShell() {
           .map(id => (typeof id === 'string' && id.startsWith('note-')) ? 'notes' : id)
           .filter(id => SHELL_VIEWS.some(v => v.id === id));
         openViewIds = [...new Set(openViewIds)];
+        // Uma view por vez: de uma sessão antiga com várias abertas, fica a mais recente
+        openViewIds = openViewIds.slice(-1);
       }
     }
-    const savedOpenMode = localStorage.getItem('quickdock:spatial:open-view-mode');
-    if (savedOpenMode === 'add' || savedOpenMode === 'replace') {
-      openViewsMode = savedOpenMode;
-    }
+    asideCollapsed = localStorage.getItem(ASIDE_COLLAPSED_KEY) === '1';
   } catch {}
 
+  // A tela inicial é a Base do workspace (suas views); notas e quadros abrem a partir dela
   if (openViewIds.length === 0) {
-    openViewIds = ['notes'];
+    openViewIds = ['bases'];
   }
   if (!focusedViewId || !openViewIds.includes(focusedViewId)) {
-    focusedViewId = openViewIds[0] || 'notes';
+    focusedViewId = openViewIds[0] || 'bases';
   }
 
   // Garante que todas as seções de view de primeiro nível no mMain tenham a classe main-section
@@ -127,12 +134,18 @@ export function initSpatialShell() {
   }
 
   setupLayoutMode();
+  applyAsideCollapsed();
   setupActivityBar();
   setupHeaderMenu();
   setupAside();
+  initAsideViewsList({ openView: (id) => openOrFocusView(id) });
+  initRightAside();
+  initViewSwitcher();
+  trackExpandOrigin(document.getElementById('bases-body'));
   setupOmnibar();
   setupKeyboardShortcuts();
   setupSectionInteractions();
+  setupBackToViews();
   setupSettingsView();
   initShellMobile({
     getOpenViewIds: () => openViewIds,
@@ -157,6 +170,14 @@ export function initSpatialShell() {
       asideEl.classList.remove('is-open-mobile');
     }
     openOrFocusView('notes');
+  });
+  // Quadro aberto a partir da Base (item-quadro): troca para ele e mostra a tela do quadro
+  document.addEventListener('quickdock:open-board', async e => {
+    const id = e.detail?.id;
+    if (id == null) return;
+    const { switchBoard } = await import('./board-engine.js');
+    await switchBoard(Number(id));
+    openOrFocusView('board');
   });
   document.addEventListener('quickdock:open-view', e => {
     const asideEl = document.getElementById('mAside');
@@ -214,26 +235,58 @@ function setupActivityBar() {
   const navEl = document.getElementById('mNav');
   if (!navEl) return;
 
-  navEl.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      const viewId = item.dataset.navView;
-      if (!viewId) return;
+  const onNavItem = (item) => {
+    const viewId = item.dataset.navView;
+    if (!viewId) return;
+    const asideEl = document.getElementById('mAside');
+    const isMobile = window.innerWidth <= 768 || isMobileMode();
 
-      navEl.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('is-active', i === item));
-      const asideEl = document.getElementById('mAside');
-      if (viewId === 'notes') {
-        setAsideMode('notes');
-        if (asideEl && (window.innerWidth <= 768 || isMobileMode())) {
-          asideEl.classList.toggle('is-open-mobile');
-        }
-      } else {
-        if (asideEl && (window.innerWidth <= 768 || isMobileMode())) {
-          asideEl.classList.remove('is-open-mobile');
-        }
-      }
-      openOrFocusView(viewId, { invertMode: e.shiftKey });
+    // Home: abre/recolhe a aside esquerda (explorador de notas + views); não troca a view principal
+    if (viewId === 'home') {
+      setAsideMode('notes');
+      if (isMobile) asideEl?.classList.toggle('is-open-mobile');
+      else setAsideCollapsed(!asideCollapsed);
+      syncNavHome();
+      return;
+    }
+
+    if (asideEl && isMobile) asideEl.classList.remove('is-open-mobile');
+    openOrFocusView(viewId);
+  };
+
+  navEl.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => onNavItem(item));
+    item.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavItem(item); }
     });
   });
+  syncNavHome();
+}
+
+// ── Aside esquerda recolhível (desktop) ──────────────────────────────────────
+function applyAsideCollapsed() {
+  document.getElementById('app')?.classList.toggle('is-aside-collapsed', asideCollapsed);
+  // Os motores canvas (Quadro/Grafo) reencaixam quando a largura da view muda
+  window.dispatchEvent(new CustomEvent('resize'));
+}
+
+export function setAsideCollapsed(collapsed) {
+  asideCollapsed = !!collapsed;
+  try { localStorage.setItem(ASIDE_COLLAPSED_KEY, asideCollapsed ? '1' : '0'); } catch {}
+  applyAsideCollapsed();
+  syncNavHome();
+  const toggle = document.getElementById('settings-aside-open');
+  if (toggle) toggle.checked = !asideCollapsed;
+}
+
+// Home fica ativo enquanto a aside esquerda está aberta; Modelos/Configurações, quando são a view em foco
+function syncNavHome() {
+  const home = document.querySelector('#mNav .nav-item[data-nav-view="home"]');
+  if (!home) return;
+  const isMobile = window.innerWidth <= 768 || isMobileMode();
+  const asideEl = document.getElementById('mAside');
+  const open = isMobile ? !!asideEl?.classList.contains('is-open-mobile') : !asideCollapsed;
+  home.classList.toggle('is-active', open);
 }
 
 // ── Header Menu (#mMenu) ──────────────────────────────────────────────────────
@@ -322,17 +375,32 @@ function setupAside() {
   }
 }
 
-// ── View "Configurações" (Mosaico de Views: acrescentar vs substituir) ──────
+// Notas (explorador logo abaixo), Modelos e Configurações já têm lugar na nav/aside
+const ASIDE_LIST_HIDDEN = new Set(['notes', 'templates', 'settings']);
+
+// ── Voltar às views: nota e quadro são itens da Base, abertos a partir dela ──────
+function setupBackToViews() {
+  for (const sel of ['#section-note', '#board-view']) {
+    const left = document.querySelector(`${sel} > .section-header .section-header-left`);
+    if (!left || left.querySelector('.btn-back-views')) continue;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'section-btn btn-back-views';
+    btn.title = 'Voltar às views';
+    btn.setAttribute('aria-label', 'Voltar às views');
+    btn.innerHTML = '<span class="material-symbols-rounded">arrow_back</span>';
+    // volta encolhendo até o item de onde a nota/quadro saiu
+    btn.addEventListener('click', () => playCollapseClose(document.querySelector(sel), () => openOrFocusView('bases')));
+    left.prepend(btn);
+  }
+}
+
+// ── View "Configurações": liga/desliga o painel lateral esquerdo ───────────────
 function setupSettingsView() {
-  const addToggle = document.getElementById('settings-open-mode-add');
-  if (!addToggle) return;
-
-  addToggle.checked = openViewsMode === 'add';
-
-  addToggle.addEventListener('change', () => {
-    openViewsMode = addToggle.checked ? 'add' : 'replace';
-    try { localStorage.setItem('quickdock:spatial:open-view-mode', openViewsMode); } catch {}
-  });
+  const toggle = document.getElementById('settings-aside-open');
+  if (!toggle) return;
+  toggle.checked = !asideCollapsed;
+  toggle.addEventListener('change', () => setAsideCollapsed(!toggle.checked));
 }
 
 export function renderAsideViewList() {
@@ -340,7 +408,7 @@ export function renderAsideViewList() {
   if (!listEl) return;
   listEl.innerHTML = '';
 
-  for (const v of SHELL_VIEWS) {
+  for (const v of SHELL_VIEWS.filter(view => !ASIDE_LIST_HIDDEN.has(view.id))) {
     const isOpen = openViewIds.includes(v.id);
     const isFocused = focusedViewId === v.id;
 
@@ -354,8 +422,8 @@ export function renderAsideViewList() {
       <span class="aside-item-badge">${isOpen ? 'Aberta' : 'Abrir'}</span>
     `;
 
-    item.addEventListener('click', (e) => {
-      openOrFocusView(v.id, { invertMode: e.shiftKey });
+    item.addEventListener('click', () => {
+      openOrFocusView(v.id);
     });
 
     listEl.appendChild(item);
@@ -397,7 +465,8 @@ export function syncNoteSectionDOM() {}
 export function buildNotePlaceholderSection() {}
 
 // ── Gestão de Views Abertas e Foco ────────────────────────────────────────────
-export function openOrFocusView(viewId, { invertMode = false } = {}) {
+export function openOrFocusView(viewId) {
+  const prevFocus = focusedViewId;
   let targetViewId = viewId;
   let targetNoteId = null;
 
@@ -417,21 +486,8 @@ export function openOrFocusView(viewId, { invertMode = false } = {}) {
 
   if (!SHELL_VIEWS.some(v => v.id === targetViewId)) return;
 
-  // Mosaico multi-view: por padrão ('add'), abrir uma view ACRESCENTA às já
-  // abertas; segurar Shift (invertMode) troca pra substituir só desta vez.
-  // Com o modo 'replace' escolhido em Configurações, a lógica se inverte:
-  // clique normal substitui, Shift acrescenta. Uma versão anterior sempre
-  // substituía no clique normal (só acrescentava com Shift) sem nenhuma
-  // forma de mudar isso — um atalho invisível que na prática deixava só uma
-  // view abrir por vez.
-  if (!openViewIds.includes(targetViewId)) {
-    const wantsAdd = invertMode ? openViewsMode === 'replace' : openViewsMode === 'add';
-    if (wantsAdd) {
-      openViewIds.push(targetViewId);
-    } else {
-      openViewIds = [targetViewId];
-    }
-  }
+  // Uma view por vez: abrir uma view substitui a anterior.
+  openViewIds = [targetViewId];
   try { localStorage.setItem('quickdock:spatial:open-views', JSON.stringify(openViewIds)); } catch {}
   focusedViewId = targetViewId;
 
@@ -453,11 +509,18 @@ export function openOrFocusView(viewId, { invertMode = false } = {}) {
     transitionToMobileCard(targetViewId, 'auto');
   }
 
+  syncNavHome();
+
   // Atualiza rodapé
   const footerLabel = document.getElementById('footer-active-view-name');
   if (footerLabel) {
     const viewMeta = SHELL_VIEWS.find(v => v.id === targetViewId);
     footerLabel.textContent = viewMeta ? viewMeta.title : targetViewId;
+  }
+
+  // Nota e quadro CRESCEM a partir do item clicado na view (animação do mockup)
+  if (prevFocus === 'bases' && (targetViewId === 'notes' || targetViewId === 'board') && !(window.innerWidth <= 768 || isMobileMode())) {
+    playExpandOpen(document.querySelector(targetViewId === 'notes' ? '#section-note' : '#board-view'));
   }
 }
 
@@ -488,6 +551,7 @@ export function closeView(viewId) {
   renderAsideViewList();
   setupSectionDividers();
   updateSectionMoveButtons();
+  syncNavHome();
 }
 
 function reorderMainSections() {
@@ -545,6 +609,8 @@ function bindSectionInteractions(sec) {
   // Arrastar o cabeçalho reordena as views no mosaico (o próprio HTML já
   // avisa "Arraste para reordenar esta view" — faltava a implementação).
   const headerEl = sec.querySelector(':scope > .section-header');
+  headerEl?.removeAttribute('draggable'); // uma view por vez: não há o que reordenar
+  headerEl?.removeAttribute('title');
   headerEl?.addEventListener('dragstart', (e) => {
     const id = sec.dataset.id;
     if (!id) return;

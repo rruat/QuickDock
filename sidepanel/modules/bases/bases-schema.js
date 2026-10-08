@@ -255,6 +255,14 @@ export function inferBaseSchema(notes = [], explicitProperties = {}) {
     isSystem: true,
   };
 
+  schema['kind'] = {
+    key: 'kind',
+    label: 'Tipo',
+    type: 'text',
+    width: 100,
+    isSystem: true,
+  };
+
   schema['hasCover'] = {
     key: 'hasCover',
     label: 'Tem capa',

@@ -79,7 +79,7 @@ export function initMobileInspector() {
     if (typeof window !== 'undefined' && typeof window.quickdockOpenView === 'function') {
       window.quickdockOpenView('graph');
     } else {
-      document.querySelector('.nav-item[data-nav-view="graph"]')?.click();
+      document.dispatchEvent(new CustomEvent('quickdock:open-view', { detail: { view: 'graph' } }));
     }
   });
 

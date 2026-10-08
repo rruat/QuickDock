@@ -64,6 +64,11 @@ export function getNotePropertyValue(note, propKey) {
     case 'hasCover':
       return !!(note.coverUrl || note.coverFileId);
 
+    // Tipo do item da Base do workspace: nota ou quadro (espaço infinito)
+    case 'kind':
+    case 'tipo':
+      return note.isBoard ? 'Quadro' : 'Nota';
+
     case 'tasks': {
       let total = 0, checked = 0;
       if (Array.isArray(note.blocks)) {

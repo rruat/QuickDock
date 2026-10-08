@@ -317,6 +317,16 @@ export async function updateNoteBlocksById(id, blocks, content) {
 }
 
 export async function updateNoteMetaById(id, patch) {
+  // Item-quadro da Base do workspace ("board-<id>"): só título e pasta existem no quadro
+  if (typeof id === 'string' && id.startsWith('board-')) {
+    const patchQuadro = {};
+    if (patch.title !== undefined) patchQuadro.title = patch.title;
+    if (patch.pasta !== undefined) patchQuadro.pasta = normalizarCaminhoPasta(patch.pasta);
+    if (db?.boards && Object.keys(patchQuadro).length) await db.boards.update(Number(id.slice(6)), { ...patchQuadro, updatedAt: Date.now() });
+    document.dispatchEvent(new CustomEvent('quickdock:board-changed', { detail: { id } }));
+    dispatchNotesChanged();
+    return 1;
+  }
   const dados = { ...patch, updatedAt: Date.now() };
   if (dados.pasta !== undefined) {
     dados.pasta = normalizarCaminhoPasta(dados.pasta);

@@ -1,155 +1,51 @@
 // ── bases-view.js ────────────────────────────────────────────────────────
-// Visão dedicada de Base: a MESMA Base que já existe embutida numa nota
-// (bases-view-container.js cuida de tudo isso), só que num painel próprio no
-// desktop ou em tela cheia/dividida no mobile e na extensão — igual
-// Grafo/Quadro/Calendário. Este módulo não reimplementa nenhuma lógica de
-// Base: só decide QUAL base mostrar (a da nota aberta agora, como o
-// Documentos) e onde montar/desmontar o componente já existente.
+// A tela principal do QuickDock: a Base ÚNICA do workspace (padrão do mockup MKP/CAL.HTML).
+// Todos os itens (notas e quadros) vivem nessa base de dados; o que muda é a VIEW
+// (calendário, tabela, galeria…), escolhida na aside esquerda. O componente de Base em si
+// (bases-view-container.js: motor, filtros, views, painel de configuração) é o mesmo de
+// sempre — este módulo só decide QUAL Base mostrar e onde guardar a configuração dela
+// (workspace-base.js).
 
 import { renderBaseComponent } from './bases/bases-view-container.js';
-import { getNoteById, updateNoteBlocksById } from './storage.js';
-import { getBaseBlocksFromNote, blocksToMarkdown } from './blocks.js';
-import { getCurrentNoteId, appendBaseBlockToCurrentNote, requestSaveFromExternalEdit } from './note.js';
-import { getCurrentView, goBack } from './views.js';
+import { requestBaseView } from './bases/engine/view-request.js';
+import { WORKSPACE_BASE_ID } from './workspace-base-model.js';
+import { loadWorkspaceYaml, saveWorkspaceYaml, getActiveViewId, setActiveViewId, loadWorkspaceDef } from './workspace-base.js';
+import { goBack } from './views.js';
 import { isDesktopMode } from './platform.js';
-import { isDesktopPanelOpen, toggleDesktopPanel } from './desktop-panels.js';
-
-// Igual isGrafoVisivel() em graph-view.js.
-function isBasesVisivel() {
-  return isDesktopMode() ? isDesktopPanelOpen('bases') : getCurrentView() === 'bases';
-}
+import { toggleDesktopPanel } from './desktop-panels.js';
 
 let bodyEl = null;
-// Guardam o que está montado agora, só pra o diff barato do listener de
-// quickdock:notes-changed (ver mais abaixo) saber se vale a pena remontar.
-let lastMountedNoteId = null;
-let lastMountedConfig = null;
-// Última nota cuja Base foi mostrada: ao abrir uma nota QUALQUER a partir da Base, o painel continua
-// mostrando essa Base (em vez de trocar por "esta nota não tem uma Base" e fazer a Base sumir).
-let ultimaBaseNoteId = null;
+// O que está montado agora: evita remontar (e piscar) a cada evento de atualização da tela.
+let mountedYaml = null;
 
 function limparMontagemAnterior() {
   if (typeof bodyEl?._cleanup === 'function') bodyEl._cleanup();
 }
 
-function renderEmptyState(mensagem, botao) {
-  limparMontagemAnterior();
-  lastMountedNoteId = null;
-  lastMountedConfig = null;
-  bodyEl.innerHTML = '';
-
-  const wrap = document.createElement('div');
-  wrap.className = 'bases-empty-state';
-
-  const icon = document.createElement('span');
-  icon.className = 'qd-icon material-symbols-rounded bases-empty-icon';
-  icon.setAttribute('aria-hidden', 'true');
-  icon.textContent = 'view_kanban';
-  wrap.appendChild(icon);
-
-  const p = document.createElement('p');
-  p.textContent = mensagem;
-  wrap.appendChild(p);
-
-  if (botao) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'bases-empty-action';
-    btn.textContent = botao.label;
-    btn.addEventListener('click', botao.onClick);
-    wrap.appendChild(btn);
-  }
-
-  bodyEl.appendChild(wrap);
-}
-
-// Painel (ou bloco inline na mesma nota) podem editar a base ao mesmo tempo —
-// grava sempre no dataset do bloco embutido e pede o autosave normal do
-// editor, pra nunca ter dois escritores diferentes gravando a mesma nota por
-// caminhos separados (o autosave sempre serializa o DOM vivo do editor; se
-// este painel gravasse direto no banco por fora, a próxima tecla digitada em
-// qualquer lugar da nota reescreveria o DOM antigo por cima).
-async function escreverConfigDeVolta(noteId, newYaml) {
-  const blocoInline = document.querySelector('#note-editor-blocks .block-base');
-  if (blocoInline && getCurrentNoteId() === noteId) {
-    blocoInline.dataset.config = newYaml;
-    requestSaveFromExternalEdit();
-    return;
-  }
-  // Caminho defensivo — não deveria acontecer, já que o painel só mostra a
-  // nota que também está aberta no editor.
-  console.warn('bases-view: bloco inline não encontrado na nota ativa, gravando direto no banco.');
-  const note = await getNoteById(noteId);
-  if (!note) return;
-  const blocks = [...(note.blocks || [])];
-  const idx = blocks.findIndex(b => b?.type === 'base');
-  if (idx === -1) return;
-  blocks[idx] = { ...blocks[idx], config: newYaml };
-  await updateNoteBlocksById(noteId, blocks, blocksToMarkdown(blocks));
-  document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
-}
-
-async function renderCurrentNoteBase() {
+async function montarWorkspace() {
   if (!bodyEl) return;
-  const noteId = getCurrentNoteId();
-
-  if (noteId == null) {
-    const lembrada = await baseLembrada(null);
-    if (lembrada) {
-      // já está na tela com a mesma config: não remonta (evita piscar a cada troca de nota)
-      if (lastMountedNoteId !== lembrada.id || lastMountedConfig !== lembrada.config) await montarBase(lembrada.id, lembrada.config);
-      return;
-    }
-    renderEmptyState('Abra ou crie uma nota para ver sua Base.');
-    return;
-  }
-
-  const note = await getNoteById(noteId);
-  const baseBlocks = getBaseBlocksFromNote(note);
-
-  if (baseBlocks.length === 0) {
-    const lembrada = await baseLembrada(noteId);
-    if (lembrada) {
-      // já está na tela com a mesma config: não remonta (evita piscar a cada troca de nota)
-      if (lastMountedNoteId !== lembrada.id || lastMountedConfig !== lembrada.config) await montarBase(lembrada.id, lembrada.config);
-      return;
-    }
-    renderEmptyState('Esta nota ainda não tem uma Base.', {
-      label: 'Criar Base nesta nota',
-      onClick: async () => {
-        await appendBaseBlockToCurrentNote();
-        await renderCurrentNoteBase();
-      },
-    });
-    return;
-  }
-
-  await montarBase(noteId, baseBlocks[0].config);
-}
-
-async function montarBase(noteId, config) {
   limparMontagemAnterior();
-  lastMountedNoteId = noteId;
-  lastMountedConfig = config;
-  ultimaBaseNoteId = noteId;
-  await renderBaseComponent(bodyEl, config, {
+  const yaml = loadWorkspaceYaml();
+  mountedYaml = yaml;
+  requestBaseView(WORKSPACE_BASE_ID, getActiveViewId());   // abre direto na view ativa
+  await renderBaseComponent(bodyEl, yaml, {
     embedded: true,
-    baseId: noteId,
-    onConfigChange: (newYaml) => {
-      lastMountedConfig = newYaml;
-      escreverConfigDeVolta(noteId, newYaml);
-    },
+    panel: true, // painel dedicado: atende pedidos da aside esquerda (abrir/criar view)
+    // as configurações da view moram na aside DIREITA do shell (shell-right-aside.js)
+    settingsHost: document.getElementById('rightAsideViewHost'),
+    settingsOpen: !!document.getElementById('app') && !document.getElementById('app').classList.contains('is-right-aside-collapsed'),
+    baseId: WORKSPACE_BASE_ID,
+    // mudanças feitas dentro do painel (abas, filtros, configurações) gravam em silêncio
+    onConfigChange: (novoYaml) => { mountedYaml = novoYaml; saveWorkspaceYaml(novoYaml, { silent: true }); },
+    onViewChange: (id) => { setActiveViewId(id); atualizarTituloDaTela(id); },
   });
 }
 
-/** Base lembrada (a última mostrada), se a nota dela ainda existe e ainda tem uma Base. */
-async function baseLembrada(exceto) {
-  if (ultimaBaseNoteId == null || ultimaBaseNoteId === exceto) return null;
-  const nota = await getNoteById(ultimaBaseNoteId);
-  const blocos = getBaseBlocksFromNote(nota);
-  if (blocos.length) return { id: ultimaBaseNoteId, config: blocos[0].config };
-  ultimaBaseNoteId = null;
-  return null;
+// O título da tela é o nome da view ativa (como no mockup)
+function atualizarTituloDaTela(viewId = getActiveViewId()) {
+  const titulo = document.querySelector('#bases-view > .section-header .section-title');
+  const view = loadWorkspaceDef().views.find(v => v.id === viewId);
+  if (titulo && view?.name) titulo.textContent = view.name;
 }
 
 export function initBasesView() {
@@ -163,32 +59,15 @@ export function initBasesView() {
     else goBack();
   });
 
-  document.addEventListener('quickdock:view-changed', e => {
-    if (e.detail?.view === 'bases') renderCurrentNoteBase();
-  });
+  // Mostrar a tela: só monta se ainda não está montada ou se a configuração mudou por fora
+  const garantirMontada = () => {
+    if (mountedYaml === null || mountedYaml !== loadWorkspaceYaml()) montarWorkspace();
+  };
+  document.addEventListener('quickdock:view-changed', e => { if (e.detail?.view === 'bases') garantirMontada(); });
+  document.addEventListener('quickdock:refresh-bases-view', garantirMontada);
 
-  document.addEventListener('quickdock:refresh-bases-view', () => {
-    renderCurrentNoteBase();
-  });
+  // A aside esquerda criou, duplicou, renomeou ou excluiu uma view: remonta com a Base nova
+  document.addEventListener('quickdock:workspace-base-changed', () => montarWorkspace());
 
-  document.addEventListener('quickdock:active-note-changed', () => {
-    if (isBasesVisivel()) renderCurrentNoteBase();
-  });
-
-  // Edição estrutural da base (adicionar view, editar YAML cru) só dispara
-  // quickdock:notes-changed (o autosave normal do editor), nunca
-  // quickdock:note-updated — só edição de célula/linha dispara esse. Sem
-  // isto, uma base aberta ao mesmo tempo inline E no painel ficaria
-  // dessincronizada até a pessoa trocar de nota e voltar. Compara com o que
-  // está montado agora e só remonta se realmente mudou, pra não recarregar a
-  // cada tecla digitada em QUALQUER lugar do app.
-  document.addEventListener('quickdock:notes-changed', async () => {
-    if (!isBasesVisivel() || lastMountedNoteId == null) return;
-    const note = await getNoteById(lastMountedNoteId);
-    const baseBlocks = getBaseBlocksFromNote(note);
-    const novaConfig = baseBlocks[0]?.config ?? null;
-    if (novaConfig !== lastMountedConfig) {
-      await renderCurrentNoteBase();
-    }
-  });
+  garantirMontada();
 }

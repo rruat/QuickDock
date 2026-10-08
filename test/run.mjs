@@ -4625,15 +4625,14 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   ok('bases-view.js · reaproveita renderBaseComponent, não reimplementa a Base',
     basesViewJsSource.includes("import { renderBaseComponent } from './bases/bases-view-container.js'") &&
     basesViewJsSource.includes('export function initBasesView'));
-  ok('bases-view.js · escuta os eventos certos (nota ativa, refresh do painel, troca de tela, notas mudaram)',
-    basesViewJsSource.includes("addEventListener('quickdock:active-note-changed'") &&
+  ok('bases-view.js · escuta os eventos certos (troca de tela, refresh do painel, Base do workspace alterada pela aside)',
     basesViewJsSource.includes("addEventListener('quickdock:refresh-bases-view'") &&
     basesViewJsSource.includes("addEventListener('quickdock:view-changed'") &&
-    basesViewJsSource.includes("addEventListener('quickdock:notes-changed'"));
-  ok('bases-view.js · escreve de volta pelo bloco inline (dataset.config + requestSaveFromExternalEdit), não direto no banco',
-    basesViewJsSource.includes("querySelector('#note-editor-blocks .block-base')") &&
-    basesViewJsSource.includes('requestSaveFromExternalEdit()'));
-
+    basesViewJsSource.includes("addEventListener('quickdock:workspace-base-changed'"));
+  ok('bases-view.js · grava a configuração da Base do workspace em silêncio (workspace-base.js), sem escrever em nota nenhuma',
+    basesViewJsSource.includes('saveWorkspaceYaml(novoYaml, { silent: true })') &&
+    basesViewJsSource.includes('onViewChange') &&
+    !basesViewJsSource.includes('requestSaveFromExternalEdit'));
   // 31.3: HTML da seção dedicada — presente e idêntico nos dois arquivos
   for (const [nome, fonte] of [['sidepanel/index.html', sidepanelHtml], ['index.html (raiz)', indexHtml]]) {
     // o cabeçalho próprio da Base ("Base" + botões) foi removido: já existe o cabeçalho de seção
@@ -4972,8 +4971,9 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const rawSpatial = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
   const spatialShellSource = rawSpatial.replace(/\r\n/g, '\n');
 
-  ok('spatial-shell.js · setupActivityBar garante setAsideMode("notes") ao clicar no Explorador de Notas',
-    spatialShellSource.includes("viewId === 'notes'") &&
+  ok('spatial-shell.js · setupActivityBar: Home garante setAsideMode("notes") e abre/recolhe a aside esquerda',
+    spatialShellSource.includes("viewId === 'home'") &&
+    spatialShellSource.includes('setAsideCollapsed(!asideCollapsed)') &&
     spatialShellSource.includes("setAsideMode('notes')"));
 
   ok('spatial-shell.js · openOrFocusView("notes") e foco de notas ativam setAsideMode("notes")',
@@ -4986,7 +4986,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     spatialShellSource.includes("setAsideMode('notes')"));
 }
 
-// ── 39. Spatial Shell: view "Configurações" controla acrescentar vs substituir ao abrir views ──
+// ── 39. Spatial Shell: uma view por vez + view "Configurações" controla o painel lateral esquerdo ──
 {
   const { readFile } = await import('node:fs/promises');
   const spatialShellSource = (await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
@@ -4995,27 +4995,33 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   const sidepanelHtmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
   const notFoundHtmlSource = await readFile(new URL('../404.html', import.meta.url), 'utf8');
 
-  ok('spatial-shell.js · SHELL_VIEWS inclui "settings" e openOrFocusView decide acrescentar/substituir via wantsAdd (não substitui incondicionalmente no clique normal)',
+  ok('spatial-shell.js · SHELL_VIEWS inclui "settings" e openOrFocusView sempre SUBSTITUI a view aberta (uma view por vez, sem mosaico)',
     spatialShellSource.includes("{ id: 'settings', title: 'Configurações'") &&
-    spatialShellSource.includes('openViewIds.push(targetViewId)') &&
-    spatialShellSource.includes('const wantsAdd ='));
+    spatialShellSource.includes('openViewIds = [targetViewId];') &&
+    !spatialShellSource.includes('openViewIds.push(targetViewId)') &&
+    !spatialShellSource.includes('invertMode'));
 
-  ok('spatial-shell.js · openOrFocusView aceita invertMode (Shift inverte acrescentar/substituir) e respeita openViewsMode configurável',
-    spatialShellSource.includes('{ invertMode = false } = {}') &&
-    spatialShellSource.includes("let openViewsMode = 'add'") &&
-    spatialShellSource.includes("openViewsMode === 'replace'") &&
-    spatialShellSource.includes("e.shiftKey"));
+  ok('spatial-shell.js · aside esquerda recolhível: estado salvo em localStorage, classe is-aside-collapsed no #app e Home como item ativo da nav',
+    spatialShellSource.includes("'quickdock:spatial:aside-collapsed'") &&
+    spatialShellSource.includes("classList.toggle('is-aside-collapsed'") &&
+    spatialShellSource.includes('function syncNavHome') &&
+    spatialShellSource.includes('export function setAsideCollapsed'));
 
-  ok('spatial-shell.js · setupSettingsView lê/salva o modo em localStorage e sincroniza o toggle da view Configurações',
+  ok('spatial-shell.js · setupSettingsView sincroniza o toggle "Mostrar o painel lateral esquerdo" da view Configurações',
     spatialShellSource.includes('function setupSettingsView') &&
-    spatialShellSource.includes("'quickdock:spatial:open-view-mode'") &&
-    spatialShellSource.includes('settings-open-mode-add'));
+    spatialShellSource.includes('settings-aside-open') &&
+    spatialShellSource.includes('setAsideCollapsed(!toggle.checked)'));
 
-  ok('html · index.html, sidepanel/index.html e 404.html têm o item "Configurações" no #mNav e a view #settings-view com o toggle de modo',
-    indexHtmlSource.includes('data-nav-view="settings"') && sidepanelHtmlSource.includes('data-nav-view="settings"') && notFoundHtmlSource.includes('data-nav-view="settings"') &&
+  ok('html · index.html, sidepanel/index.html e 404.html têm Home/Modelos/Configurações no #mNav e a view #settings-view com o toggle do painel lateral',
+    ['home', 'templates', 'settings'].every(v => indexHtmlSource.includes(`data-nav-view="${v}"`) && sidepanelHtmlSource.includes(`data-nav-view="${v}"`) && notFoundHtmlSource.includes(`data-nav-view="${v}"`)) &&
     indexHtmlSource.includes('id="settings-view"') && sidepanelHtmlSource.includes('id="settings-view"') && notFoundHtmlSource.includes('id="settings-view"') &&
-    indexHtmlSource.includes('id="settings-open-mode-add"') && indexHtmlSource.includes('type="checkbox" class="ios-toggle"'));
+    indexHtmlSource.includes('id="settings-aside-open"') && sidepanelHtmlSource.includes('id="settings-aside-open"') && notFoundHtmlSource.includes('id="settings-aside-open"') &&
+    indexHtmlSource.includes('type="checkbox" class="ios-toggle"'));
 
+  ok('style.css · 35-shell-v2.css define aside recolhida (nav como cartão), views da Home acima do explorador e cabeçalho sem controles de mosaico',
+    styleCssSource.includes('#app.is-aside-collapsed') &&
+    styleCssSource.includes('#mAside.mode-notes #asideSectionList') &&
+    styleCssSource.includes('.section-close'));
   ok('style.css · define o visual da view Configurações (.settings-body/.settings-option) e fixa "Configurações" no rodapé do #mNav',
     styleCssSource.includes('.settings-option') &&
     styleCssSource.includes('.settings-option-title') &&
@@ -6085,6 +6091,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { runMobileTests } = await import('./mobile-gesture-tests.mjs');
   await runMobileTests({ ok, igual });
+}
+
+{
+  const { runShellViewsListTests } = await import('./shell-views-list-tests.mjs');
+  await runShellViewsListTests({ ok, igual });
 }
 
 if (falhas.length) {

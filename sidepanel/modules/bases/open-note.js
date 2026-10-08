@@ -7,8 +7,14 @@
 import { isDesktopMode } from '../platform.js';
 import { switchView } from '../views.js';
 import { normalizeNoteId } from './engine/note-id.js';
+import { isBoardItemId, boardIdFromItemId } from '../workspace-items-model.js';
 
 export function openNoteFromBase(noteId, uid = null) {
+  // Quadro (espaço infinito): abre o quadro, não o editor de notas
+  if (isBoardItemId(noteId)) {
+    document.dispatchEvent(new CustomEvent('quickdock:open-board', { detail: { id: boardIdFromItemId(noteId) } }));
+    return;
+  }
   document.dispatchEvent(new CustomEvent('quickdock:activate-note', { detail: { id: normalizeNoteId(noteId), uid } }));
   if (!isDesktopMode()) switchView('editor');
 }

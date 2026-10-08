@@ -581,6 +581,40 @@ export async function switchBoard(idOrUid) {
   return true;
 }
 
+// ── Painel do quadro (aside direita do shell) ────────────────────────────────
+// Resumo do quadro aberto e ajustes que o painel faz sem tocar nos elementos do motor.
+export function getBoardSummary() {
+  if (!currentBoard) return null;
+  return {
+    id: currentBoard.id,
+    uid: currentBoard.uid,
+    title: currentBoard.title || '',
+    pasta: currentBoard.pasta || '',
+    bgMode: currentBoard.bgMode || 'stars',
+    zoom: currentBoard.viewport?.zoom ?? 1,
+    cards: currentBoard.cards?.length ?? 0,
+    arrows: currentBoard.arrows?.length ?? 0,
+  };
+}
+
+export function setBoardBgMode(mode) {
+  if (!currentBoard || !['stars', 'dots', 'none'].includes(mode)) return;
+  currentBoard.bgMode = mode;
+  applyViewport();
+  updateBgToggleButtons();
+  scheduleSave();
+}
+
+/** Leva o zoom para zoom (1 = 100%), em torno do centro da tela; o motor limita o intervalo. */
+export function setBoardZoomTo(zoom) {
+  if (!currentBoard?.viewport || !container) return;
+  zoomBy(zoom / currentBoard.viewport.zoom);
+}
+
+export function fitBoardView() {
+  if (currentBoard && container) resetZoomAndCenter();
+}
+
 // Edita título/pasta de um espaço pelo Explorador. Se for o espaço aberto, altera o
 // estado em memória (senão o próximo salvamento sobrescreveria a mudança).
 export async function updateBoardMeta(uid, patch) {
