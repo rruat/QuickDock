@@ -533,6 +533,9 @@ const itemSectionOf = viewId => document.querySelector(viewId === 'board' ? '#bo
 let keepVisibleIds = new Set();
 
 export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = false, overlayClose = null } = {}) {
+  // Animação de abrir em andamento: pedidos repetidos (a ativação da nota dispara outro openOrFocusView)
+  // não podem esconder a Base nem reordenar seções no meio — isso cancelaria a expansão da grade
+  if (monthExpanding && !skipTransition && !overlayOpen && !overlayClose) return;
   const prevFocus = focusedViewId;
   const isItem = viewId === 'notes' || viewId === 'board' || (typeof viewId === 'string' && viewId.startsWith('note-'));
   const desktop = !(window.innerWidth <= 768 || isMobileMode());

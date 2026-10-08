@@ -209,6 +209,9 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('abrir/fechar · a Base não é escondida nem reordenada durante a animação (display:none/mover nós cancelam as transições da grade)',
     ss.includes('if (!overlayOpen && !overlayClose) reorderMainSections()') && ss.includes('keepVisibleIds.has(id)'));
 
+  ok('abrir · pedidos repetidos durante a animação (a ativação da nota chama openOrFocusView de novo) são ignorados',
+    ss.includes('if (monthExpanding && !skipTransition && !overlayOpen && !overlayClose) return;'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[4].type, 'board');
