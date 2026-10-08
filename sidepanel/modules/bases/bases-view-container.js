@@ -28,7 +28,8 @@ import { absorbDataUrls } from '../note.js';
 import { openNoteFromBase } from './open-note.js';
 import { normalizeNoteId } from './engine/note-id.js';
 import { loadWorkspaceItems } from '../workspace-items.js';
-import { takePendingView, EVT_SELECT_VIEW, EVT_ADD_VIEW, EVT_SET_TYPE, EVT_SETTINGS_OPEN, EVT_SETTINGS_CLOSED } from './engine/view-request.js';
+import { takePendingView, EVT_SELECT_VIEW, EVT_ADD_VIEW, EVT_SET_TYPE, EVT_SETTINGS_OPEN, EVT_SETTINGS_CLOSED, EVT_GROUP_FILTER, announceGroups } from './engine/view-request.js';
+import { groupsFromItems } from '../shell/view-groups-model.js';
 
 /**
  * Renderiza um componente completo de Base num elemento contêiner.
@@ -435,6 +436,10 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const opcoesPipeline = () => ({ source: fonteEfetiva(), quickFilters, search: searchQuery });
     const sortedNotes = runViewPipeline(notasBase, currentView, schema, opcoesPipeline());
     ultimaVisao = { notes: sortedNotes, schema, view: currentView };
+    if (options.panel) { // legenda de grupos da aside esquerda
+      const f = quickFilters.find(c => c.property === 'folder' && (c.operator === 'equals' || c.operator === 'is_empty'));
+      announceGroups(groupsFromItems(sortedNotes), f ? (f.operator === 'is_empty' ? '' : String(f.value ?? '')) : null);
+    }
     bulk.sync(currentView, schema);
     renderQuickFilters(quickEl, { filters: quickFilters, schema, count: sortedNotes.length }, lista => {
       quickFilters = lista;
@@ -561,11 +566,25 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     baseDef.views[i] = { ...createView(type, { id: atual.id, name: atual.name }), ...atual, type };
     persistBase(); renderViewTabs(); updateViewport(); renderSettingsPanel();
   };
+  // clique num grupo da legenda: liga/desliga o filtro rápido "pasta é X" (X vazio = sem pasta)
+  const onGroupFilterRequest = e => {
+    const pasta = String(e.detail?.folder ?? '');
+    const igual = c => c.property === 'folder' && (pasta ? (c.operator === 'equals' && String(c.value ?? '') === pasta) : c.operator === 'is_empty');
+    const semPasta = c => c.property === 'folder';
+    const ligado = quickFilters.some(igual);
+    const base = quickFilters.filter(c => !semPasta(c));
+    quickFilters = ligado ? base : [...base, pasta
+      ? { property: 'folder', operator: 'equals', value: pasta }
+      : { property: 'folder', operator: 'is_empty' }];
+    saveQuickFilters(baseKey(), quickFiltersViewId, quickFilters);
+    updateViewport();
+  };
   const onSettingsRequest = e => { settingsOpen = !!e.detail?.open; renderSettingsPanel(); };
   if (options.panel) {
     document.addEventListener(EVT_SELECT_VIEW, onSelectViewRequest);
     document.addEventListener(EVT_ADD_VIEW, onAddViewRequest);
     document.addEventListener(EVT_SET_TYPE, onSetTypeRequest);
+    document.addEventListener(EVT_GROUP_FILTER, onGroupFilterRequest);
     document.addEventListener('quickdock:board-changed', onNoteEvent); // quadro criado/renomeado/excluído
     if (externalSettings) document.addEventListener(EVT_SETTINGS_OPEN, onSettingsRequest);
   }
@@ -574,6 +593,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     document.removeEventListener(EVT_SELECT_VIEW, onSelectViewRequest);
     document.removeEventListener(EVT_ADD_VIEW, onAddViewRequest);
     document.removeEventListener(EVT_SET_TYPE, onSetTypeRequest);
+    document.removeEventListener(EVT_GROUP_FILTER, onGroupFilterRequest);
     document.removeEventListener('quickdock:board-changed', onNoteEvent);
     document.removeEventListener(EVT_SETTINGS_OPEN, onSettingsRequest);
     if (externalSettings) { settingsHandle?.destroy(); settingsEl.replaceChildren(); settingsEl.hidden = true; }

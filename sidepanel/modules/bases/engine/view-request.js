@@ -7,6 +7,8 @@
 export const EVT_SELECT_VIEW = 'quickdock:bases-select-view';
 export const EVT_ADD_VIEW = 'quickdock:bases-add-view';
 export const EVT_SET_TYPE = 'quickdock:bases-set-view-type';
+export const EVT_GROUPS = 'quickdock:view-groups';             // painel → aside esquerda: grupos da view ativa
+export const EVT_GROUP_FILTER = 'quickdock:bases-group-filter'; // aside esquerda → painel: liga/desliga filtro por pasta
 export const EVT_SETTINGS_OPEN = 'quickdock:view-settings-open';
 export const EVT_SETTINGS_CLOSED = 'quickdock:view-settings-closed';
 
@@ -45,4 +47,13 @@ export function requestSetViewType(type) {
 /** Abre/fecha o painel de configurações da view (que mora na aside direita do shell). */
 export function requestViewSettings(open) {
   document.dispatchEvent(new CustomEvent(EVT_SETTINGS_OPEN, { detail: { open: !!open } }));
+}
+/** O painel informa os grupos (pastas) da view ativa e qual está filtrado. */
+export function announceGroups(groups, active = null) {
+  document.dispatchEvent(new CustomEvent(EVT_GROUPS, { detail: { groups, active } }));
+}
+
+/** Liga/desliga o filtro rápido por pasta (`''` = itens sem pasta). */
+export function requestGroupFilter(folderKey) {
+  document.dispatchEvent(new CustomEvent(EVT_GROUP_FILTER, { detail: { folder: folderKey } }));
 }

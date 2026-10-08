@@ -88,6 +88,17 @@ export async function runShellViewsListTests({ ok, igual }) {
   igual('miniatura · o item-quadro carrega a miniatura leve', (await import('../sidepanel/modules/workspace-items-model.js')).boardToItem({ id: 3, cards: [{ id: 'a', x: 1, y: 2, w: 3, h: 4 }], arrows: [] }).thumb.cards.length, 1);
   ok('miniatura · a galeria usa a miniatura quando o quadro não tem capa', (await readFile(new URL('../sidepanel/modules/bases/bases-gallery-view.js', import.meta.url), 'utf8')).includes('boardThumbSvg(note.thumb)'));
 
+  // P7 · legenda de grupos
+  const gm = await import('../sidepanel/modules/shell/view-groups-model.js');
+  const grupos = gm.groupsFromItems([{ pasta: 'Trabalho' }, { pasta: 'Trabalho' }, { pasta: '' }, {}, { pasta: 'Casa' }]);
+  igual('grupos · conta por pasta, maiores primeiro, sem pasta com rótulo próprio', grupos.map(g => [g.label, g.count]), [['Sem pasta', 2], ['Trabalho', 2], ['Casa', 1]]);
+  igual('grupos · sem pasta não tem matiz (cor neutra); com pasta tem', [grupos.find(g => g.key === '').hue, typeof grupos.find(g => g.key === 'Casa').hue], [null, 'number']);
+  const vc = await readFile(new URL('../sidepanel/modules/bases/bases-view-container.js', import.meta.url), 'utf8');
+  ok('grupos · o painel anuncia os grupos e atende o filtro rápido por pasta', vc.includes('announceGroups(groupsFromItems(sortedNotes)') && vc.includes('onGroupFilterRequest') && vc.includes('EVT_GROUP_FILTER'));
+  ok('grupos · host nos 3 HTMLs e módulos no pré-cache',
+    (await Promise.all(['../index.html', '../404.html', '../sidepanel/index.html'].map(p => readFile(new URL(p, import.meta.url), 'utf8')))).every(h => h.includes('id="asideGroups"')) &&
+    ['shell-view-groups', 'view-groups-model'].every(n => swP4.includes(`shell/${n}.js`)));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');

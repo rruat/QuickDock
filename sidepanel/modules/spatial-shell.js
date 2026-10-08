@@ -23,6 +23,7 @@ import { initRightAside } from './shell/shell-right-aside.js';
 import { initViewSwitcher } from './shell/shell-view-switcher.js';
 import { setAsidePanel, toggleAsidePanel, getAsidePanel, NAV_TO_PANEL } from './shell/shell-aside-panels.js';
 import { initModelsPanel } from './shell/shell-models-panel.js';
+import { initViewGroups } from './shell/shell-view-groups.js';
 import { initDraftBar } from './shell/shell-draft-bar.js';
 import { initFooterLabel } from './shell/shell-footer-label.js';
 import { initEscapeBack } from './shell/shell-escape-back.js';
@@ -150,6 +151,7 @@ export function initSpatialShell() {
   initViewSwitcher();
   initModelsPanel({ openView: (id) => openOrFocusView(id) });
   initSettingsPanelActions();
+  initViewGroups();
   initDraftBar();
   initFooterLabel();
   initEscapeBack();
