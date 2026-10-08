@@ -355,8 +355,8 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('animações · a chave de movimento do shell é própria (localStorage), ligada por padrão',
     motionSrc.includes("'quickdock:spatial:animations'") && motionSrc.includes("!== '0'") && !motionSrc.includes('matchMedia'));
   const exp = await readFile(new URL('../sidepanel/modules/shell/shell-expand-transition.js', import.meta.url), 'utf8');
-  ok('animações · abrir item usa a chave própria (não o prefers-reduced-motion) e revela o conteúdo depois',
-    exp.includes('motionEnabled') && !exp.includes('matchMedia') && exp.includes('delay: 160'));
+  ok('animações · abrir item usa a chave própria (não o prefers-reduced-motion) e revela o conteúdo desde o primeiro quadro (sem esperar terminar)',
+    exp.includes('motionEnabled') && !exp.includes('matchMedia') && !exp.includes('delay: 160') && exp.includes('export function playOverlayOpen') && exp.includes('export function playOverlayClose'));
   const rightSrc = await readFile(new URL('../sidepanel/modules/shell/shell-right-aside.js', import.meta.url), 'utf8');
   ok('animações · a aside direita abre deslizando e a esquerda também', rightSrc.includes('slideIn(aside, 28)') &&
     (await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8')).includes("slideIn(document.getElementById('mAside'), -28)"));
@@ -378,8 +378,9 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('mês · o voltar mede o tamanho natural da grade antes de recolher (a grade pode não ter sido redesenhada)',
     monthExp.includes('resetMonthExpansion();\n  void root.offsetHeight;\n  const natural = measure(root, cell);'));
   const shellSrc = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
-  ok('mês · o shell expande a célula ANTES de trocar de tela e não usa requestAnimationFrame para recolher',
-    shellSrc.includes('expandMonthCell(cell,') && shellSrc.includes("openOrFocusView(viewId, { skipTransition: true })") &&
+  ok('mês · a nota/quadro abre JUNTO com a expansão da célula (por cima da Base) e fecha do mesmo jeito, sem requestAnimationFrame para recolher',
+    shellSrc.includes('expandMonthCell(cell,') && shellSrc.includes("openOrFocusView(viewId, { skipTransition: true, overlayOpen: true })") &&
+    shellSrc.includes('overlayClose: document.querySelector(sel)') && shellSrc.includes('keepBasesVisible()') &&
     shellSrc.includes('collapseMonthCell();') && !shellSrc.includes('requestAnimationFrame(() => collapseMonthCell'));
   ok('mês · voltar à Base por outro caminho não deixa a grade expandida (resetMonthExpansion)',
     shellSrc.includes("viewId === 'bases') { resetMonthExpansion(); resetWeekExpansion(); }"));

@@ -56,11 +56,41 @@ export function playExpandOpen(sectionEl) {
   origin.opened = true; // lembra que esta abertura veio de um item: o "voltar" encolhe até ele
   const from = insetFor(origin.rect, sectionEl.getBoundingClientRect());
   sectionEl.animate([{ clipPath: from, opacity: 0.4 }, { clipPath: FULL, opacity: 1 }], { duration: DURATION, easing: EASING });
-  // o conteúdo (editor/quadro) aparece depois, enquanto a tela termina de crescer
-  for (const filho of sectionEl.children) {
-    if (filho.classList.contains('section-header') || !filho.animate) continue;
-    filho.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 160, easing: 'ease', fill: 'backwards' });
-  }
+  // o conteúdo (editor/quadro) já aparece desde o primeiro quadro: o recorte o vai revelando
+  // enquanto a tela cresce, sem esperar a abertura terminar
+}
+
+/**
+ * Abertura SOBRE a Base (célula do mês / coluna da semana): a nota ou o quadro já está montado
+ * e é revelado por um recorte que cresce do item clicado, ao mesmo tempo em que a grade da Base
+ * (por baixo) expande. `done` quando o recorte termina.
+ */
+export function playOverlayOpen(sectionEl, done = () => {}) {
+  if (!sectionEl?.animate || !origin) { done(); return; }
+  origin.opened = true;
+  sectionEl.classList.add('is-expand-overlay');
+  const from = insetFor(origin.rect, sectionEl.getBoundingClientRect());
+  const anim = sectionEl.animate([{ clipPath: from, opacity: 0.5 }, { clipPath: FULL, opacity: 1 }], { duration: DURATION, easing: EASING });
+  let acabou = false;
+  const end = () => { if (acabou) return; acabou = true; sectionEl.classList.remove('is-expand-overlay'); done(); };
+  anim.addEventListener('finish', end, { once: true });
+  anim.addEventListener('cancel', end, { once: true });
+}
+
+/**
+ * Fechamento SOBRE a Base: a nota/quadro continua visível e encolhe até o item de origem enquanto
+ * a grade da Base (por baixo) volta ao tamanho normal. `done` ao terminar (aí a seção é escondida).
+ */
+export function playOverlayClose(sectionEl, done = () => {}) {
+  if (!sectionEl?.animate || !origin) { done(); return; }
+  origin.opened = false;
+  sectionEl.classList.add('is-expand-overlay');
+  const to = insetFor(origin.rect, sectionEl.getBoundingClientRect());
+  const anim = sectionEl.animate([{ clipPath: FULL, opacity: 1 }, { clipPath: to, opacity: 0.5 }], { duration: DURATION, easing: EASING, fill: 'forwards' });
+  let acabou = false;
+  const end = () => { if (acabou) return; acabou = true; anim.cancel(); sectionEl.classList.remove('is-expand-overlay'); done(); };
+  anim.addEventListener('finish', end, { once: true });
+  anim.addEventListener('cancel', end, { once: true });
 }
 
 /** Voltar: a tela encolhe até o item de origem e então `done()` troca de tela. */

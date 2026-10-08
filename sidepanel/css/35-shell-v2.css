@@ -522,3 +522,6 @@ html[data-theme="dark"] .aside-group-dot { background: oklch(72% 0.13 var(--g-hu
 .bcal-time.is-col-expanding .bcal-gutter > * { opacity: 0; transition: opacity 160ms ease; }
 .bcal-time.is-col-expanding .bcal-col.is-expanded-col { background-color: var(--bg); background-image: none; z-index: 10; }
 .bcal-time.is-col-revealing .bcal-col.is-expanded-col > * { opacity: 0; transition: opacity 140ms ease; }
+
+/* Nota/quadro revelados POR CIMA da Base enquanto a célula/coluna expande (ou encolhe) */
+#mMain > .is-expand-overlay { position: absolute !important; inset: 0; z-index: 40; background: var(--bg); }

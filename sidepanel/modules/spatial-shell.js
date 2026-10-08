@@ -27,7 +27,7 @@ import { initViewGroups } from './shell/shell-view-groups.js';
 import { initDraftBar } from './shell/shell-draft-bar.js';
 import { initFooterLabel } from './shell/shell-footer-label.js';
 import { initEscapeBack } from './shell/shell-escape-back.js';
-import { trackExpandOrigin, playExpandOpen, playCollapseClose, getMonthOriginCell, getWeekOriginCol } from './shell/shell-expand-transition.js';
+import { trackExpandOrigin, playExpandOpen, playCollapseClose, getMonthOriginCell, getWeekOriginCol, playOverlayOpen, playOverlayClose } from './shell/shell-expand-transition.js';
 import { expandMonthCell, collapseMonthCell, resetMonthExpansion, canExpandMonthCell, monthExpansionActive } from './shell/shell-month-expand.js';
 import { expandWeekColumn, collapseWeekColumn, resetWeekExpansion, canExpandWeekColumn, weekExpansionActive } from './shell/shell-week-expand.js';
 import { fadeIn, slideIn, motionEnabled, setMotionEnabled } from './shell/shell-motion.js';
@@ -427,10 +427,10 @@ function setupBackToViews() {
     btn.addEventListener('click', () => {
       if (monthExpansionActive() && motionEnabled()) {
         // a célula do mês volta a ser célula: mostra a grade ainda expandida e a encolhe
-        openOrFocusView('bases', { skipTransition: true });
+        openOrFocusView('bases', { skipTransition: true, overlayClose: document.querySelector(sel) });
         collapseMonthCell(); // sem esperar quadro de animação: a função força o layout sozinha
       } else if (weekExpansionActive() && motionEnabled()) {
-        openOrFocusView('bases', { skipTransition: true });
+        openOrFocusView('bases', { skipTransition: true, overlayClose: document.querySelector(sel) });
         collapseWeekColumn(); // a coluna do dia volta a ser coluna
       } else {
         playCollapseClose(document.querySelector(sel), () => openOrFocusView('bases'));
@@ -525,7 +525,25 @@ function anticipateHeaderTitle(viewId) {
   if (titulo) titulo.textContent = viewId === 'board' ? 'Quadro' : 'Nota';
 }
 
-export function openOrFocusView(viewId, { skipTransition = false } = {}) {
+// Seção (#section-note / #board-view) de um destino de item
+const itemSectionOf = viewId => document.querySelector(viewId === 'board' ? '#board-view' : '#section-note');
+
+// Durante a animação sobre a Base, ela continua à vista por baixo da nota/quadro
+function keepBasesVisible() {
+  const bases = document.getElementById('bases-view');
+  if (!bases) return;
+  bases.hidden = false;
+  bases.style.setProperty('display', 'flex', 'important');
+}
+
+// Mostra de novo uma seção que o foco já escondeu (ela encolhe por cima da Base ao voltar)
+function keepSectionVisible(el) {
+  if (!el) return;
+  el.hidden = false;
+  el.style.setProperty('display', 'flex', 'important');
+}
+
+export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = false, overlayClose = null } = {}) {
   const prevFocus = focusedViewId;
   const isItem = viewId === 'notes' || viewId === 'board' || (typeof viewId === 'string' && viewId.startsWith('note-'));
   const desktop = !(window.innerWidth <= 768 || isMobileMode());
@@ -535,7 +553,9 @@ export function openOrFocusView(viewId, { skipTransition = false } = {}) {
       if (!monthExpanding) {
         monthExpanding = true;
         anticipateHeaderTitle(viewId);
-        expandMonthCell(cell, () => { monthExpanding = false; openOrFocusView(viewId, { skipTransition: true }); });
+        // a nota/quadro já abre agora, revelada pelo recorte, enquanto a célula expande por baixo
+        expandMonthCell(cell, () => { monthExpanding = false; applyViewVisibility(); });
+        openOrFocusView(viewId, { skipTransition: true, overlayOpen: true });
       }
       return;
     }
@@ -544,7 +564,8 @@ export function openOrFocusView(viewId, { skipTransition = false } = {}) {
       if (!monthExpanding) {
         monthExpanding = true;
         anticipateHeaderTitle(viewId);
-        expandWeekColumn(col, () => { monthExpanding = false; openOrFocusView(viewId, { skipTransition: true }); });
+        expandWeekColumn(col, () => { monthExpanding = false; applyViewVisibility(); });
+        openOrFocusView(viewId, { skipTransition: true, overlayOpen: true });
       }
       return;
     }
@@ -604,7 +625,15 @@ export function openOrFocusView(viewId, { skipTransition = false } = {}) {
   }
 
   // Nota e quadro CRESCEM a partir do item clicado na view (animação do mockup)
-  if (skipTransition) {
+  if (overlayOpen) {
+    // sobre a grade que expande: mostra o conteúdo já, revelado pelo recorte
+    keepBasesVisible();
+    playOverlayOpen(itemSectionOf(targetViewId));
+  } else if (overlayClose) {
+    // voltando: a nota/quadro encolhe até o item enquanto a grade por baixo volta ao normal
+    keepSectionVisible(overlayClose);
+    playOverlayClose(overlayClose, () => applyViewVisibility());
+  } else if (skipTransition) {
     // a célula do mês já fez a animação (ou a Base voltou animada): nada a mais
   } else if (prevFocus === 'bases' && (targetViewId === 'notes' || targetViewId === 'board') && !(window.innerWidth <= 768 || isMobileMode())) {
     playExpandOpen(document.querySelector(targetViewId === 'notes' ? '#section-note' : '#board-view'));
