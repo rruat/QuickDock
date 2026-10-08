@@ -177,12 +177,23 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   rightGroup.appendChild(addNoteBtn);
 
   headerEl.appendChild(rightGroup);
-  rootContainer.appendChild(headerEl);
+  // Painel do workspace: busca, exportar, Nova Nota, filtro rápido e a barra do calendário
+  // (mês, navegação, modo) moram na aside direita (options.toolsHost), como no mockup
+  const toolsHost = options.panel ? options.toolsHost : null;
+  let calBarEl = null;
+  if (toolsHost) {
+    toolsHost.replaceChildren();
+    calBarEl = document.createElement('div');
+    calBarEl.className = 'base-tools-calbar';
+    toolsHost.append(calBarEl, headerEl);
+  } else {
+    rootContainer.appendChild(headerEl);
+  }
 
   // Filtros rápidos (chips) — entre o cabeçalho e a view
   const quickEl = document.createElement('div');
   quickEl.className = 'base-quickfilters';
-  rootContainer.appendChild(quickEl);
+  if (toolsHost) toolsHost.appendChild(quickEl); else rootContainer.appendChild(quickEl);
   const baseKey = () => options.baseId || baseDef.name || 'base';
   let quickFilters = [];
   let quickFiltersViewId = null;
@@ -377,6 +388,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
   // Atualiza o viewport ativo
   function updateViewport() {
     viewportEl.innerHTML = '';
+    calBarEl?.replaceChildren(); // a barra do calendário só existe quando a view é um calendário
 
     // Se estiver no modo de edição do código YAML
     if (showRawConfig) {
@@ -437,6 +449,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     const montaCallbacks = view => {
     const regrasCor = normalizeColorRules(view);
     return {
+      toolbarHost: calBarEl, // barra do calendário na aside direita (null = no topo da visão)
       // colar de planilha: patches já validados (tudo ou nada) — grava e recarrega
       onPasteWrites: async patches => {
         for (const { id, patch } of patches) await updateNoteMetaById(id, patch);
@@ -557,6 +570,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     document.removeEventListener('quickdock:board-changed', onNoteEvent);
     document.removeEventListener(EVT_SETTINGS_OPEN, onSettingsRequest);
     if (externalSettings) { settingsHandle?.destroy(); settingsEl.replaceChildren(); settingsEl.hidden = true; }
+    toolsHost?.replaceChildren();
     peek.fechar();
     document.removeEventListener('quickdock:note-updated', onNoteEvent);
     document.removeEventListener('quickdock:note-created', onNoteEvent);

@@ -53,7 +53,7 @@ export function renderBaseCalendarView(container, notes, schema, viewConfig = {}
   const buckets = bucketEventsByDay(events, range.days);
 
   // ── Barra ────────────────────────────────────────────────────────────────────
-  container.appendChild(createCalendarToolbar({
+  const barra = createCalendarToolbar({
     title: range.title,
     mode,
     canGoToday: !range.days.includes(hoje),
@@ -64,8 +64,12 @@ export function renderBaseCalendarView(container, notes, schema, viewConfig = {}
       if (callbacks.onUpdateView) callbacks.onUpdateView({ mode: novo });
       else { container._calMode = novo; rerender(); }
     },
-    onSettings: callbacks.onOpenSettings,
-  }));
+    // com a barra na aside direita, o botão de configurar não faz sentido (as configurações já estão ao lado)
+    onSettings: callbacks.toolbarHost ? undefined : callbacks.onOpenSettings,
+  });
+  // Barra em outro lugar (aside direita do shell) ou no topo da própria visão
+  if (callbacks.toolbarHost) callbacks.toolbarHost.replaceChildren(barra);
+  else container.appendChild(barra);
 
   // Corpo (+ mini-calendário lateral opcional, ao lado da grade)
   const area = document.createElement('div');

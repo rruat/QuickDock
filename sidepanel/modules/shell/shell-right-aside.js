@@ -39,6 +39,7 @@ export function initRightAside() {
   const resizer = document.getElementById('rightAsideResizer');
   const hosts = {
     bases: document.getElementById('rightAsideViewHost'),
+    tools: document.getElementById('rightAsideViewTools'),
     notes: document.getElementById('rightAsideNoteHost'),
     board: document.getElementById('rightAsideBoardHost'),
   };
@@ -60,7 +61,8 @@ export function initRightAside() {
   document.getElementById('btnViewSettings')?.setAttribute('data-aside-toggle', '');
   const toggles = () => document.querySelectorAll('[data-aside-toggle]');
 
-  let wantOpen = readStore(KEY_OPEN) === '1';
+  // Padrão: aberta (a navegação do calendário, a busca e os filtros moram nela)
+  let wantOpen = readStore(KEY_OPEN) !== '0';
   let wasVisible = false;
 
   // A aside só aparece nas telas que têm painel; trocar de tela troca o conteúdo, não o estado
@@ -80,6 +82,7 @@ export function initRightAside() {
     // Cada tela mostra só o seu painel
     requestViewSettings(visible && focus === 'bases');
     if (focus !== 'bases') hosts.bases.hidden = true;
+    if (hosts.tools) hosts.tools.hidden = !(visible && focus === 'bases');
     hosts.notes.hidden = !(visible && focus === 'notes');
     hosts.board.hidden = !(visible && focus === 'board');
     if (visible && focus === 'notes') showNotePanel(hosts.notes); else hideNotePanel(hosts.notes);

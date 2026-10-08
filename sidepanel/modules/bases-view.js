@@ -35,6 +35,7 @@ async function montarWorkspace() {
     panel: true, // painel dedicado: atende pedidos da aside esquerda (abrir/criar view)
     // as configurações da view moram na aside DIREITA do shell (shell-right-aside.js)
     settingsHost: document.getElementById('rightAsideViewHost'),
+    toolsHost: document.getElementById('rightAsideViewTools'),
     settingsOpen: !!document.getElementById('app') && !document.getElementById('app').classList.contains('is-right-aside-collapsed'),
     baseId: WORKSPACE_BASE_ID,
     // mudanças feitas dentro do painel (abas, filtros, configurações) gravam em silêncio

@@ -164,7 +164,7 @@ export async function runShellViewsListTests({ ok, igual }) {
   for (const f of ['index.html', '404.html', 'sidepanel/index.html']) {
     const html = await readFile(new URL(`../${f}`, import.meta.url), 'utf8');
     ok(`shell · ${f} tem a aside direita, a alça de redimensionar, o botão de configurações e o seletor de tipo`,
-      ['id="mRightAside"', 'id="rightAsideResizer"', 'id="rightAsideViewHost"', 'id="rightAsideNoteHost"', 'id="rightAsideBoardHost"', 'id="btnViewSettings"', 'id="viewSwitcherList"', 'id="btnNewBoardAside"'].every(s => html.includes(s)));
+      ['id="mRightAside"', 'id="rightAsideResizer"', 'id="rightAsideViewHost"', 'id="rightAsideViewTools"', 'id="rightAsideNoteHost"', 'id="rightAsideBoardHost"', 'id="btnViewSettings"', 'id="viewSwitcherList"', 'id="btnNewBoardAside"'].every(s => html.includes(s)));
   }
 
   // ── Animações de abertura (liga/desliga próprio; não herda "reduzir movimento" do sistema) ──
@@ -207,4 +207,16 @@ export async function runShellViewsListTests({ ok, igual }) {
     cssMonth.includes('.bcal-month.is-cell-animating') && cssMonth.includes('.is-expanded-cell') && cssMonth.includes('is-cell-revealing') &&
     cssMonth.includes('grid-template-rows 340ms'));
   ok('mês · shell-month-expand.js está no pré-cache do PWA', (await readFile(new URL('../sw.js', import.meta.url), 'utf8')).includes('sidepanel/modules/shell/shell-month-expand.js'));
+
+  // ── Ferramentas da view (mês, busca, filtro, Nova Nota) na aside direita ──
+  const calView = await readFile(new URL('../sidepanel/modules/bases/bases-calendar-view.js', import.meta.url), 'utf8');
+  ok('ferramentas na aside · a barra do calendário vai para callbacks.toolbarHost quando existe (e some o botão de configurar)',
+    calView.includes('callbacks.toolbarHost.replaceChildren(barra)') && calView.includes('callbacks.toolbarHost ? undefined : callbacks.onOpenSettings'));
+  const cont3 = await readFile(new URL('../sidepanel/modules/bases/bases-view-container.js', import.meta.url), 'utf8');
+  ok('ferramentas na aside · busca/exportar/Nova Nota, filtro rápido e barra do calendário montam no toolsHost do painel',
+    cont3.includes('options.panel ? options.toolsHost : null') && cont3.includes('toolsHost.append(calBarEl, headerEl)') &&
+    cont3.includes('toolbarHost: calBarEl') && cont3.includes('calBarEl?.replaceChildren()'));
+  ok('ferramentas na aside · a aside direita abre por padrão e mostra a zona de ferramentas só junto da Base',
+    right.includes("readStore(KEY_OPEN) !== '0'") && right.includes("hosts.tools.hidden = !(visible && focus === 'bases')"));
+  ok('ferramentas na aside · CSS da zona de ferramentas', (await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8')).includes('.right-aside-view-tools .bcal-toolbar'));
 }
