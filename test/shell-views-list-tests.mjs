@@ -219,4 +219,11 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('ferramentas na aside · a aside direita abre por padrão e mostra a zona de ferramentas só junto da Base',
     right.includes("readStore(KEY_OPEN) !== '0'") && right.includes("hosts.tools.hidden = !(visible && focus === 'bases')"));
   ok('ferramentas na aside · CSS da zona de ferramentas', (await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8')).includes('.right-aside-view-tools .bcal-toolbar'));
+
+  // ── A célula expande até o cabeçalho da tela (ele não "pisca" na troca) ──
+  ok('mês · a célula também engole o cabeçalho da tela e o seletor de tipo (altura somada às trilhas)',
+    monthExp.includes("getElementById('basesSectionHeader')") && monthExp.includes('natural.weeksH + natural.weekdaysH + natural.headerH') &&
+    monthExp.includes("header.style.height = '0px'") && monthExp.includes("'is-month-expanding'"));
+  ok('mês · CSS: o cabeçalho da tela recolhe e some junto com a expansão',
+    cssMonth.includes('#bases-view.is-month-expanding > #basesSectionHeader') && cssMonth.includes('#bases-view.is-month-animating > #basesSectionHeader'));
 }

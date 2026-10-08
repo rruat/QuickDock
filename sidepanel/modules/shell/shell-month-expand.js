@@ -15,6 +15,17 @@ let savedRows = '';        // grid-template-rows original da grade (a do rendere
 
 const px = list => list.map(n => `${n}px`).join(' ');
 
+// O cabeçalho da tela (título + seletor de tipo) também é engolido pela célula: ela expande até ele.
+function headerParts() {
+  return {
+    section: document.getElementById('bases-view'),
+    header: document.getElementById('basesSectionHeader'),
+    switcher: document.getElementById('viewSwitcher'),
+  };
+}
+
+const setSection = (cls, on) => headerParts().section?.classList.toggle(cls, on);
+
 function parts(root) {
   const weekdays = root.querySelector('.bcal-month-weekdays');
   const weeksEl = root.querySelector('.bcal-month-weeks');
@@ -28,7 +39,8 @@ function applyExpandedTracks(root, cell, natural) {
   const row = cell.closest('.bcal-month-week');
   const r = rows.indexOf(row);
   const c = [...row.children].indexOf(cell);
-  const H = natural.weeksH + natural.weekdaysH;   // o cabeçalho dos dias também vira espaço da célula
+  // o cabeçalho dos dias e o cabeçalho da tela também viram espaço da célula
+  const H = natural.weeksH + natural.weekdaysH + natural.headerH;
   const W = natural.cols.reduce((a, b) => a + b, 0);
   const targetRows = natural.rows.map((_, i) => (i === r ? H : 0));
   const targetCols = natural.cols.map((_, i) => (i === c ? W : 0));
@@ -36,6 +48,8 @@ function applyExpandedTracks(root, cell, natural) {
   rows.forEach(rw => { rw.style.gridTemplateColumns = px(targetCols); });
   weekdays.style.gridTemplateColumns = px(targetCols);
   weekdays.style.height = '0px';
+  const { header } = headerParts();
+  if (header) header.style.height = '0px';
 }
 
 function measure(root, cell) {
@@ -46,6 +60,9 @@ function measure(root, cell) {
     cols: [...row.children].map(c => c.getBoundingClientRect().width),
     weeksH: weeksEl.getBoundingClientRect().height,
     weekdaysH: weekdays.getBoundingClientRect().height,
+    headerOnlyH: headerParts().header?.getBoundingClientRect().height ?? 0,
+    // cabeçalho + seletor de tipo (se estiver aberto): tudo o que recolhe junto
+    headerH: (headerParts().header?.getBoundingClientRect().height ?? 0) + (headerParts().switcher?.getBoundingClientRect().height ?? 0),
   };
 }
 
@@ -55,6 +72,8 @@ function setNaturalTracks(root, natural) {
   rows.forEach(rw => { rw.style.gridTemplateColumns = px(natural.cols); });
   weekdays.style.gridTemplateColumns = px(natural.cols);
   weekdays.style.height = `${natural.weekdaysH}px`;
+  const { header } = headerParts();
+  if (header) header.style.height = `${natural.headerOnlyH}px`;
 }
 
 /** Remove qualquer marca da animação e devolve a grade ao que o renderer desenhou. */
@@ -64,6 +83,9 @@ export function resetMonthExpansion() {
   if (!root) return;
   const { weekdays, weeksEl, rows } = parts(root);
   root.classList.remove('is-cell-expanding', 'is-cell-animating', 'is-cell-revealing');
+  ['is-month-expanding', 'is-month-animating'].forEach(c => setSection(c, false));
+  const { header } = headerParts();
+  if (header) header.style.height = '';
   root.querySelectorAll('.is-expanded-cell').forEach(c => c.classList.remove('is-expanded-cell'));
   if (savedRows) weeksEl.style.gridTemplateRows = savedRows;
   rows.forEach(rw => { rw.style.gridTemplateColumns = ''; });
@@ -86,9 +108,11 @@ export function expandMonthCell(cell, done) {
   const natural = measure(root, cell);
   setNaturalTracks(root, natural);              // trilhas em px: ponto de partida animável
   root.classList.add('is-cell-expanding');
+  setSection('is-month-expanding', true);
   cell.classList.add('is-expanded-cell');
   void root.offsetHeight;                        // fixa o ponto de partida antes de animar
   root.classList.add('is-cell-animating');
+  setSection('is-month-animating', true);
   applyExpandedTracks(root, cell, natural);
   // o conteúdo da célula some enquanto a tela real (nota/quadro) aparece por cima
   setTimeout(() => root.classList.add('is-cell-revealing'), 200);
@@ -111,13 +135,16 @@ export function collapseMonthCell(done = () => {}) {
   expandedYmd = ymd;
   // 1) estado expandido, sem transição
   root.classList.remove('is-cell-animating');
+  setSection('is-month-animating', false);
   root.classList.add('is-cell-expanding', 'is-cell-revealing');
+  setSection('is-month-expanding', true);
   cell.classList.add('is-expanded-cell');
   setNaturalTracks(root, natural);
   applyExpandedTracks(root, cell, natural);
   void root.offsetHeight;
   // 2) encolhe: o conteúdo volta e as trilhas retornam ao tamanho natural
   root.classList.add('is-cell-animating');
+  setSection('is-month-animating', true);
   root.classList.remove('is-cell-revealing');
   setNaturalTracks(root, natural);
   setTimeout(() => { resetMonthExpansion(); done(); }, MOTION_MS + 20);
