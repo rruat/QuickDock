@@ -16,7 +16,6 @@ import {
   getRightDrawerWidth
 } from './shell-mobile.js';
 import {
-  EDGE_ZONE_PX,
   AXIS_LOCK_PX,
   dragPositions,
   releaseVelocity,
@@ -24,6 +23,19 @@ import {
 } from './shell-mobile-gesture-math.js';
 
 const SCROLL_OWNERS = '.table-wrapper, .base-table-wrap, .json-tree, .board-canvas, .base-board, .base-timeline, .base-map, .code-block';
+const OPEN_LOCK_PX = 16; // arrasto de abrir a partir do meio da tela pede um pouco mais de intenção horizontal
+
+// Algo que rola na horizontal (tabela, semana do calendário, barra de ferramentas da nota…) fica com o gesto
+function insideHorizontalScroller(el) {
+  for (let n = el; n && n !== document.body; n = n.parentElement) {
+    if (n.scrollWidth > n.clientWidth + 2) {
+      const ox = getComputedStyle(n).overflowX;
+      if (ox === 'auto' || ox === 'scroll') return true;
+    }
+  }
+  return false;
+}
+
 const DRAG_VARS = ['--push-x', '--aside-x', '--right-x'];
 
 export function setupMobileTouchGestures() {
@@ -92,8 +104,6 @@ export function setupMobileTouchGestures() {
     if (target.closest('input, textarea, select, .property-input, .property-select')) return;
     const ae = document.activeElement;
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
-    // botões atrapalham só quem ABRE um drawer; para FECHAR vale começar em qualquer lugar (a lista é toda botão)
-    const onButton = !!target.closest('button');
 
     const x = e.touches[0].clientX;
     startX = x;
@@ -109,15 +119,14 @@ export function setupMobileTouchGestures() {
     } else if (isRightOpen()) {
       action = 'close-right';
     } else {
-      if (onButton) return;
-      if (target.closest(SCROLL_OWNERS)) return;
+      // Como no Obsidian: arrastar de QUALQUER ponto da tela abre o drawer (sem precisar puxar da borda,
+      // que o navegador usa para voltar no histórico). Para a direita → views; para a esquerda → configurações.
+      // A direção só é decidida no 1º movimento (ver touchmove).
+      if (document.documentElement.classList.contains('is-keyboard-open')) return; // editando: o toque é do texto
+      if (target.closest(SCROLL_OWNERS) || insideHorizontalScroller(target)) return;
       const sel = window.getSelection && window.getSelection();
       if (sel && sel.type === 'Range') return;
-      if (x <= EDGE_ZONE_PX || target.closest('#mHeader .header-left, #mHeader .header-center')) {
-        action = 'open-left';
-      } else if (x >= window.innerWidth - EDGE_ZONE_PX || target.closest('#mHeader .header-right')) {
-        action = 'open-right';
-      }
+      action = 'pending-open';
     }
   }, { passive: true });
 
@@ -129,7 +138,8 @@ export function setupMobileTouchGestures() {
 
     if (!dragging) {
       if (Math.abs(dy) > Math.abs(dx) + 6) { action = null; return; }
-      if (Math.abs(dx) <= AXIS_LOCK_PX) return;
+      if (Math.abs(dx) <= (action === 'pending-open' ? OPEN_LOCK_PX : AXIS_LOCK_PX)) return;
+      if (action === 'pending-open') action = dx > 0 ? 'open-left' : 'open-right';
       dragging = true;
       els = collectEls();
       document.body.classList.add('is-dragging-drawer');

@@ -227,8 +227,11 @@ export async function runShellViewsListTests({ ok, igual }) {
     raSrc.includes('export function setRightAsideOpen') && raSrc.includes('export const isRightAsideOpen') && raSrc.includes('let mobileOpen') && raSrc.includes("classList.toggle('is-open-mobile', visible)"));
   const smSrc = await readFile(new URL('../sidepanel/modules/shell/shell-mobile.js', import.meta.url), 'utf8');
   const sgSrc = await readFile(new URL('../sidepanel/modules/shell/shell-mobile-gestures.js', import.meta.url), 'utf8');
-  ok('mobile · o drawer direito e os gestos usam #mRightAside; para fechar vale começar o gesto em botão',
-    smSrc.includes('setRightAsideOpen(true)') && !smSrc.includes("getElementById('mobileRightDrawer')") && sgSrc.includes("getElementById('mRightAside')") && sgSrc.includes('const onButton'));
+  ok('mobile · o drawer direito e os gestos usam #mRightAside; arrastar de qualquer ponto abre (direção decidida no 1º movimento), sem exigir a borda',
+    smSrc.includes('setRightAsideOpen(true)') && !smSrc.includes("getElementById('mobileRightDrawer')") && sgSrc.includes("getElementById('mRightAside')") && sgSrc.includes("action = 'pending-open'") && sgSrc.includes("action = dx > 0 ? 'open-left' : 'open-right'") && !sgSrc.includes('EDGE_ZONE_PX'));
+  ok('mobile · drawers largos (sobra uma fatia), cabeçalho do app oculto e nav some com o teclado aberto',
+    mcss.includes('--m-drawer-w: min(calc(100vw - 56px), 460px)') && mcss.includes('html #mHeader { display: none !important; }') && mcss.includes('html.is-keyboard-open #app #mNav') &&
+    smSrc.includes('window.innerWidth - 56') && (await readFile(new URL('../sidepanel/modules/shell/shell-mobile-keyboard.js', import.meta.url), 'utf8')).includes("'is-keyboard-open'") && swP4.includes('shell-mobile-keyboard.js'));
   ok('mobile · a nav troca o painel do drawer; o voltar tem a Base como raiz; título da pílula acompanha a view',
     ss.includes('closeMobileLeftDrawer()') && (await readFile(new URL('../sidepanel/modules/shell/shell-mobile-back.js', import.meta.url), 'utf8')).includes("ROOT_VIEW = 'bases'") &&
     (await readFile(new URL('../sidepanel/modules/shell/shell-mobile-title.js', import.meta.url), 'utf8')).includes('closeMobileLeftDrawer') && swP4.includes('shell/shell-mobile-title.js') && swP4.includes('css/38-mobile-shell-v2.css'));

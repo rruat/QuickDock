@@ -154,14 +154,15 @@ export function transitionToMobileCard(targetId, preferredDirection = 'auto') {
   updateMobileCarouselPositions(false);
 }
 
+// Drawers largos, como no Obsidian: sobra só uma fatia (56px) do conteúdo. Mesma conta do CSS (--m-drawer-w).
+const drawerWidth = () => Math.min(window.innerWidth - 56, 460);
+
 export function getLeftDrawerWidth() {
-  const aside = document.getElementById('mAside');
-  return aside ? Math.min(window.innerWidth * 0.85, 320) : 300;
+  return document.getElementById('mAside') ? drawerWidth() : 300;
 }
 
 export function getRightDrawerWidth() {
-  const drawer = document.getElementById('mRightAside');
-  return drawer ? Math.min(window.innerWidth * 0.85, 340) : 320;
+  return document.getElementById('mRightAside') ? drawerWidth() : 320;
 }
 
 export function openMobileLeftDrawer() {

@@ -26,11 +26,19 @@
   html #app #mNav .nav-item .material-symbols-rounded { font-size: 26px; }
 
   /* os drawers ocupam só a área acima da nav (a nav fica parada); a aside direita também empurra o conteúdo */
-  :root { --m-nav-h: calc(56px + env(safe-area-inset-bottom, 0px)); }
-  html #app #mAside, html #app #mRightAside { bottom: var(--m-nav-h) !important; height: auto !important; max-height: none !important; }
+  /* drawers largos (como no Obsidian): sobra só uma fatia do conteúdo, sem precisar puxar do canto da tela */
+  :root { --m-nav-h: calc(56px + env(safe-area-inset-bottom, 0px)); --m-drawer-w: min(calc(100vw - 56px), 460px); }
+  /* teclado aberto (editando): some a nav, fica só a quickbar da nota */
+  html.is-keyboard-open { --m-nav-h: 0px; }
+  html.is-keyboard-open #app #mNav { display: none !important; }
+  /* o cabeçalho do app não aparece no mobile: mais tela para o conteúdo (voltar = gesto/Android; views = drawer) */
+  html[data-platform] #mHeader, html[data-platform] #app #mHeader, html #mHeader { display: none !important; }
+  html #app #mAside, html #app #mRightAside { bottom: var(--m-nav-h) !important; height: auto !important; max-height: none !important; width: var(--m-drawer-w) !important; max-width: none !important; }
+  html #app.has-left-drawer-open #mMain, html #app:has(#mAside.is-open-mobile) #mMain, body.has-left-drawer-open #mMain { --push-x: var(--m-drawer-w); }
+  html #app.has-right-drawer-open #mMain, body.has-right-drawer-open #mMain { --push-x: calc(-1 * var(--m-drawer-w)); }
+  html #app.has-left-drawer-open .mobile-drawer-scrim, html #app:has(#mAside.is-open-mobile) .mobile-drawer-scrim, body.has-left-drawer-open .mobile-drawer-scrim { left: var(--m-drawer-w) !important; right: 0 !important; width: auto !important; }
+  html #app.has-right-drawer-open .mobile-drawer-scrim, body.has-right-drawer-open .mobile-drawer-scrim { left: 0 !important; right: var(--m-drawer-w) !important; width: auto !important; }
   html #app .mobile-drawer-scrim { bottom: var(--m-nav-h) !important; }
-  #app.has-right-drawer-open #mHeader, #app.has-right-drawer-open #mMain,
-  body.has-right-drawer-open #mHeader, body.has-right-drawer-open #mMain { --push-x: calc(-1 * min(85vw, 340px)); }
   #mMain { flex: 1 1 auto !important; min-height: 0 !important; }
 
   /* ── Drawer esquerdo: só os painéis novos (some o explorador antigo e o menu de "visões") ── */
@@ -56,8 +64,6 @@
   html #app #mRightAside {
     position: fixed !important;
     top: 0; bottom: 0; right: 0; left: auto;
-    width: min(85vw, 340px) !important;
-    max-width: 85vw;
     height: 100dvh;
     z-index: 100;
     display: flex !important;

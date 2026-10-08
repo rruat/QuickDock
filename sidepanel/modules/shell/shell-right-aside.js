@@ -87,17 +87,17 @@ export function initRightAside() {
     hub.innerHTML = '<span class="material-symbols-rounded">hub</span>';
     tune.after(hub);
   }
-  // Mobile: os cabeçalhos das seções somem; as Constelações abrem por um botão `hub` no cabeçalho do app
-  const appHeaderRight = document.querySelector('#mHeader .header-right');
-  if (appHeaderRight && !appHeaderRight.querySelector('[data-aside-graph]')) {
+  // Mobile: os cabeçalhos (do app e das seções) somem; o `hub` (Constelações) fica no cabeçalho da própria aside
+  const asideActions = aside.querySelector(':scope > .aside-header .aside-actions');
+  if (asideActions && !asideActions.querySelector('[data-aside-graph]')) {
     const hub = document.createElement('button');
     hub.type = 'button';
-    hub.className = 'aside-btn mobile-header-btn mobile-only-btn';
+    hub.className = 'aside-btn mobile-only-btn';
     hub.dataset.asideGraph = '';
     hub.title = 'Constelações';
     hub.setAttribute('aria-label', 'Constelações');
     hub.innerHTML = '<span class="material-symbols-rounded">hub</span>';
-    appHeaderRight.insertBefore(hub, document.getElementById('btn-mobile-right-drawer'));
+    asideActions.prepend(hub);
   }
   const toggles = () => document.querySelectorAll('[data-aside-toggle]');
 

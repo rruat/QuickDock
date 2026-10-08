@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-121';
+const CACHE_NAME = 'quickdock-v3.0.0-122';
 
 const ASSET_PATHS = [
   '',
@@ -279,6 +279,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/shell/shell-draft-bar.js',
   'sidepanel/modules/shell/shell-footer-label.js',
   'sidepanel/modules/shell/shell-mobile-title.js',
+  'sidepanel/modules/shell/shell-mobile-keyboard.js',
   'sidepanel/modules/shell/shell-aside-panels.js',
   'sidepanel/modules/shell/shell-models-panel.js',
   'sidepanel/modules/shell/models-board-templates.js',
