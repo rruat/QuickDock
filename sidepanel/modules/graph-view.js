@@ -55,6 +55,10 @@ let nodeMap = new Map();
 let neighborMap = new Map();
 
 // Câmera (Pan & Zoom)
+// A câmera acompanha o grafo (centraliza ao iniciar, ao terminar a simulação e ao redimensionar)
+// enquanto a pessoa não a mexeu; depois de arrastar/zoom manual, o redimensionar só preserva o centro.
+let cameraTouched = false;
+let lastCanvasW = 0, lastCanvasH = 0;
 let panX = 0;
 let panY = 0;
 let zoom = 1;
@@ -129,7 +133,16 @@ export function initGraphView() {
   // Responsividade
   const resizeObserver = new ResizeObserver(() => {
     resizeCanvas();
-    render();
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width / dpr, h = canvas.height / dpr;
+    if (!cameraTouched) {
+      resetCamera(false); // ainda no enquadramento automático: reenquadra no novo tamanho
+    } else {
+      // câmera manual: mantém o ponto que estava no centro da tela no centro
+      if (lastCanvasW) { panX += (w - lastCanvasW) / 2; panY += (h - lastCanvasH) / 2; }
+      render();
+    }
+    lastCanvasW = w; lastCanvasH = h;
   });
   resizeObserver.observe(container);
 
@@ -541,6 +554,8 @@ function resetCamera(centralizarApenas = false) {
 
   panX = w / 2 - cx * zoom;
   panY = h / 2 - cy * zoom;
+  cameraTouched = false;
+  lastCanvasW = w; lastCanvasH = h;
   render();
 }
 
@@ -550,6 +565,7 @@ function zoomBy(factor, centerX = null, centerY = null) {
   const cx = centerX ?? (w / 2);
   const cy = centerY ?? (h / 2);
 
+  cameraTouched = true;
   const newZoom = Math.max(0.2, Math.min(3.5, zoom * factor));
   panX = cx - (cx - panX) * (newZoom / zoom);
   panY = cy - (cy - panY) * (newZoom / zoom);
@@ -597,6 +613,7 @@ function loopSimulation() {
   // Critério de parada: temperatura esgotada, energia residual nula ou passos máximos atingidos
   if (alpha < 0.002 || (stepEnergy < ENERGY_THRESHOLD && simulationSteps > 25) || simulationSteps > MAX_STEPS) {
     stopSimulation();
+    if (!cameraTouched) resetCamera(false); // o layout assentou: enquadra o resultado final
     return;
   }
 
@@ -950,6 +967,7 @@ function onPointerDown(e) {
       reheatSimulation(0.35);
     } else {
       isPanning = true;
+      cameraTouched = true;
       canvas.style.cursor = 'grabbing';
     }
   } else if (activePointers.size === 2) {
@@ -989,6 +1007,7 @@ function onPointerMove(e) {
       const worldX = (mouseX - panX) / zoom;
       const worldY = (mouseY - panY) / zoom;
 
+      cameraTouched = true;
       zoom = targetZoom;
       panX = mouseX - worldX * zoom;
       panY = mouseY - worldY * zoom;

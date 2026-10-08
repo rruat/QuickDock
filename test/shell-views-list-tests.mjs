@@ -181,6 +181,16 @@ export async function runShellViewsListTests({ ok, igual }) {
     vc.includes('onMoveToFolder') && (await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8')).includes('36-explorer-view.css') &&
     ['css/36-explorer-view.css', 'bases/explorer/explorer-tree.js', 'bases/explorer/explorer-view.js'].every(n => swP4.includes(n)));
 
+  // Constelações · quick bar e câmera
+  const gq = await readFile(new URL('../sidepanel/modules/shell/shell-graph-quickbar.js', import.meta.url), 'utf8');
+  ok('constelações · quick bar: zoom, centralizar, reorganizar e painéis que movem as seções de configuração',
+    ['#btn-graph-zoom-in', '#btn-graph-zoom-reset', '#btn-graph-reheat', 'Filtros e exibição', 'Física e forças'].every(x => gq.includes(x)) && gq.includes('current === null') && gq.includes('giveBackSections'));
+  const gvSrc = await readFile(new URL('../sidepanel/modules/graph-view.js', import.meta.url), 'utf8');
+  ok('constelações · a câmera recentraliza ao iniciar, ao assentar a simulação e ao redimensionar (se não foi mexida)',
+    gvSrc.includes('let cameraTouched') && gvSrc.includes('if (!cameraTouched) resetCamera(false); // o layout assentou') && gvSrc.includes('reenquadra no novo tamanho') && gvSrc.includes('panX += (w - lastCanvasW) / 2'));
+  ok('constelações · CSS e módulo da quick bar no pré-cache e no style.css',
+    (await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8')).includes('37-graph-quickbar.css') && ['css/37-graph-quickbar.css', 'shell/shell-graph-quickbar.js'].every(n => swP4.includes(n)));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[4].type, 'board');

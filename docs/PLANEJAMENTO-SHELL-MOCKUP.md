@@ -279,3 +279,11 @@ Referências no mockup: `MKP/cal/css/13-mobile.css`, `js/19-mobile.js`, `js/20-g
 - **§6.1** vale o que foi assumido em P2 (rascunho some ao recarregar; troca de view mantém o rascunho). **§6.6** segue com o recorte (hoje) em tabela/galeria.
 - **E5** (extensão/painel estreito) e **Mobile (§7)** não foram tocados.
 - Nós do grafo ainda são só notas (quadros fora).
+
+### Atualização (decisões do dono do produto)
+
+- **E1 — sync ✅:** a Base do workspace sincroniza como `configuracao/workspace.json` pelo mesmo adaptador (pasta local/Drive), regra de 3 vias; em conflito o remoto vence e o local fica em `quickdock:workspace-base-conflict`. `workspace-base-sync.js`, gancho em `sync-controller.js`.
+- **E3 — explorador ✅ como view:** novo tipo **Explorador** (árvore de pastas dos itens, arrastar para mover, estado de abertura por view). `bases/explorer/`. Está na Base inicial e em "+ nova view"; bases já salvas ganham pelo "+".
+- **Constelações:** quick bar inferior no desenho da do quadro (zoom, centralizar, reorganizar; Filtros e Física expandem para cima) e câmera que se centraliza ao iniciar, ao assentar a simulação e ao redimensionar (enquanto não foi mexida manualmente). `shell/shell-graph-quickbar.js`.
+- **Extensão e mobile:** adiados por decisão do dono.
+- **Em aberto (a decidir):** E2 (Documentos / JSON Studio / calendário legado), §6.6.
