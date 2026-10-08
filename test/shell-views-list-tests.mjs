@@ -172,6 +172,13 @@ export async function runShellViewsListTests({ ok, igual }) {
   igual('explorador · subpasta criada pelo caminho, itens ordenados por título', [arvore.folders[1].folders[0].path, arvore.folders[1].folders[0].items.map(i => i.title)], ['Trabalho/Projetos', ['b', 'q']]);
   igual('explorador · itens sem pasta ficam na raiz e a raiz conta tudo', [arvore.items.map(i => i.title), arvore.count], [['solta'], 5]);
   igual('explorador · todas as pastas, incluindo as aninhadas', et.allFolderPaths(arvore), ['Casa', 'Trabalho', 'Trabalho/Projetos']);
+  igual('explorador · entrar em uma pasta: folderAt / parentPath / breadcrumb', [et.folderAt(arvore, 'Trabalho/Projetos').items.length, et.folderAt(arvore, 'x/y'), et.parentPath('A/B/C'), et.parentPath('A'), et.breadcrumb('A/B').map(c => c.path)], [2, null, 'A/B', '', ['', 'A', 'A/B']]);
+  igual('explorador · pastas vazias criadas pela pessoa entram na árvore', et.buildFolderTree([], ['Nova/Sub']).folders[0].folders[0].path, 'Nova/Sub');
+  igual('explorador · pasta que sumiu volta para a mais próxima que existe', [et.nearestExistingFolder(arvore, 'Trabalho/Projetos/Velho'), et.nearestExistingFolder(arvore, 'Nada/Mais')], ['Trabalho/Projetos', '']);
+  igual('explorador · tipo e busca achatada', [et.kindLabel({ isBoard: true }), et.kindLabel({}), et.flattenItems(arvore).length], ['Quadro', 'Nota', 5]);
+  const exSrc = await readFile(new URL('../sidepanel/modules/bases/explorer/explorer-view.js', import.meta.url), 'utf8');
+  ok('explorador · estilo Windows: endereço, subir/voltar, duplo clique, Backspace, colunas, ícones, nova pasta',
+    ['bex-crumbs', "'Subir um nível (Backspace)'", "addEventListener('dblclick'", "e.key === 'Backspace'", 'Data de modificação', "' Ícones'", 'Nova pasta'].every(x => exSrc.includes(x)));
   igual('explorador · mover para a mesma pasta não faz nada; para outra, sim', [et.canMoveToFolder({ pasta: 'A/' }, 'A'), et.canMoveToFolder({ pasta: 'A' }, ''), et.canMoveToFolder({}, '')], [false, true, false]);
   const vmod = await import('../sidepanel/modules/bases/config/view-model.js');
   ok('explorador · é um tipo de view registrado, criável pela aside e desenhado pelo pipeline',
@@ -190,6 +197,11 @@ export async function runShellViewsListTests({ ok, igual }) {
     gvSrc.includes('let cameraTouched') && gvSrc.includes('if (!cameraTouched) resetCamera(false); // o layout assentou') && gvSrc.includes('reenquadra no novo tamanho') && gvSrc.includes('panX += (w - lastCanvasW) / 2'));
   ok('constelações · CSS e módulo da quick bar no pré-cache e no style.css',
     (await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8')).includes('37-graph-quickbar.css') && ['css/37-graph-quickbar.css', 'shell/shell-graph-quickbar.js'].every(n => swP4.includes(n)));
+
+  const np = await readFile(new URL('../sidepanel/modules/shell/shell-note-panel.js', import.meta.url), 'utf8');
+  ok('painel da nota · menu Ações com "Excluir nota" (usa deleteNoteById e some ao sair da nota)',
+    np.includes('data-note-delete') && np.includes('deleteNoteById') && np.includes("querySelector('[data-note-actions]')?.remove()") &&
+    (await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8')).includes('export async function deleteNoteById'));
 
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');

@@ -11,7 +11,7 @@ const cmp = (a, b) => String(a).localeCompare(String(b), 'pt-BR', { sensitivity:
  * @returns {{ path:'', name:'', folders:Array, items:Array, count:number }} raiz; cada pasta:
  *   { path, name, folders, items, count } — `count` = itens da pasta e de tudo abaixo dela.
  */
-export function buildFolderTree(items = []) {
+export function buildFolderTree(items = [], extraFolders = []) {
   const newNode = (path, name) => ({ path, name, folders: [], items: [], count: 0 });
   const root = newNode('', '');
   const byPath = new Map([['', root]]);
@@ -26,6 +26,7 @@ export function buildFolderTree(items = []) {
     return node;
   };
 
+  for (const p of extraFolders) { const np = normPath(p); if (np) ensure(np); } // pastas vazias criadas pela pessoa
   for (const it of items) {
     const node = ensure(normPath(it?.pasta));
     node.items.push(it);
@@ -54,3 +55,48 @@ export function canMoveToFolder(item, destino) {
 }
 
 export const folderOfItem = item => normPath(item?.pasta);
+
+/** Pasta (nó) em `path`, ou null. */
+export function folderAt(root, path) {
+  const p = normPath(path);
+  let node = root;
+  if (!p) return node;
+  for (const part of p.split('/')) {
+    node = node.folders.find(f => f.name === part);
+    if (!node) return null;
+  }
+  return node;
+}
+
+/** Caminho da pasta acima ('' = raiz). */
+export function parentPath(path) {
+  const p = normPath(path);
+  const cut = p.lastIndexOf('/');
+  return cut < 0 ? '' : p.slice(0, cut);
+}
+
+/** Barra de endereço: [{ name, path }] da raiz até `path`. */
+export function breadcrumb(path, rootLabel = 'Todos os itens') {
+  const p = normPath(path);
+  const out = [{ name: rootLabel, path: '' }];
+  let acc = '';
+  for (const part of p ? p.split('/') : []) { acc = acc ? `${acc}/${part}` : part; out.push({ name: part, path: acc }); }
+  return out;
+}
+
+/** Se a pasta sumiu (ficou sem itens), sobe até a mais próxima que ainda existe. */
+export function nearestExistingFolder(root, path) {
+  let p = normPath(path);
+  while (p && !folderAt(root, p)) p = parentPath(p);
+  return p;
+}
+
+/** Rótulo da coluna "Tipo" (como o Explorador do Windows). */
+export const kindLabel = item => (item?.isBoard ? 'Quadro' : 'Nota');
+
+/** Todos os itens da árvore, achatados (resultado de busca). */
+export function flattenItems(root) {
+  const out = [...root.items];
+  for (const f of root.folders) out.push(...flattenItems(f));
+  return out;
+}

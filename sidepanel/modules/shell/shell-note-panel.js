@@ -15,8 +15,31 @@ export function showNotePanel(host) {
     if (!origins.has(id)) origins.set(id, { parent: el.parentElement, next: el.nextSibling });
     host.appendChild(el);
   }
+  ensureActions(host);
   host.classList.add('has-note-panel');
   document.getElementById('section-note')?.classList.add('outline-in-aside'); // some o botão flutuante do sumário
+}
+
+// Menu de ações da nota (abaixo das propriedades e do sumário): hoje, excluir
+function ensureActions(host) {
+  let box = host.querySelector('[data-note-actions]');
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'aside-panel-group';
+    box.dataset.noteActions = '';
+    box.innerHTML = `<h4>Ações</h4>
+      <button type="button" class="aside-panel-btn is-danger" data-note-delete><span class="material-symbols-rounded">delete</span> Excluir nota</button>`;
+    box.addEventListener('click', async (e) => {
+      if (!e.target.closest('[data-note-delete]')) return;
+      const { deleteNoteById, getActiveId } = await import('../notes-tabs.js'); // só quando precisa (o módulo mexe no DOM ao carregar)
+      const id = getActiveId();
+      if (id != null && await deleteNoteById(id)) {
+        // a nota aberta sumiu: volta às views (ou segue na próxima aba, se houver)
+        if (getActiveId() == null) document.dispatchEvent(new CustomEvent('quickdock:open-view', { detail: { view: 'bases' } }));
+      }
+    });
+  }
+  host.appendChild(box); // sempre por último, depois de propriedades e sumário
 }
 
 /** Devolve cada painel ao lugar de origem dentro do editor. */
@@ -29,6 +52,7 @@ export function hideNotePanel(host) {
     else o.parent.appendChild(el);
     origins.delete(id);
   }
+  host?.querySelector('[data-note-actions]')?.remove();
   host?.classList.remove('has-note-panel');
   document.getElementById('section-note')?.classList.remove('outline-in-aside');
 }

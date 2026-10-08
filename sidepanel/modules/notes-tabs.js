@@ -508,23 +508,30 @@ function openTabMenu(meta, anchorEl) {
       if (meta.id === activeId) await clearCurrentNote();
       else await updateNoteBlocksById(meta.id, [], '');
     },
-    onDeleteNote: async () => {
-      if (notesMeta.length <= 1) { alert('Deve existir ao menos uma nota.'); return; }
-      if (!confirm(`Excluir a nota "${meta.title}"?`)) return;
-      await detachFilesFromNote(meta.id);
-      await deleteNoteRecordById(meta.id);
-      await gcInlineFiles();
-      notesMeta = notesMeta.filter(n => n.id !== meta.id);
-      openTabIds = openTabIds.filter(id => id !== meta.id);
-      saveOpenTabIds(openTabIds);
-      if (activeId === meta.id) {
-        const nextId = openTabIds[0] ?? notesMeta[0]?.id;
-        if (nextId) await activateNote(nextId);
-      }
-      await refreshDocuments();
-      renderTabs();
-    }
+    onDeleteNote: () => deleteNoteById(meta.id),
   });
+}
+
+/** Exclui a nota (com confirmação) e arruma abas/ativa. Devolve true se foi excluída. */
+export async function deleteNoteById(id) {
+  const meta = notesMeta.find(n => n.id === id);
+  if (!meta) return false;
+  if (notesMeta.length <= 1) { alert('Deve existir ao menos uma nota.'); return false; }
+  if (!confirm(`Excluir a nota "${meta.title}"?`)) return false;
+  await detachFilesFromNote(meta.id);
+  await deleteNoteRecordById(meta.id);
+  await gcInlineFiles();
+  notesMeta = notesMeta.filter(n => n.id !== meta.id);
+  openTabIds = openTabIds.filter(i => i !== meta.id);
+  saveOpenTabIds(openTabIds);
+  if (activeId === meta.id) {
+    const nextId = openTabIds[0] ?? notesMeta[0]?.id;
+    if (nextId) await activateNote(nextId);
+  }
+  await refreshDocuments();
+  renderTabs();
+  document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
+  return true;
 }
 
 document.addEventListener('mousedown', e => {
