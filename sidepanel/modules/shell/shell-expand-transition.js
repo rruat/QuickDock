@@ -89,7 +89,7 @@ function trackReveal(sectionEl, { reverse, done }) {
 
   const frame = (now) => {
     if (finished) return;
-    const t = Math.min(1, (now - start) / DURATION);
+    const t = Math.min(1, Math.max(0, (now - start) / DURATION));
     const p = reverse ? 1 - t : t;
     const target = document.querySelector(EXPANDED_SEL);
     if (target) lastRect = target.getBoundingClientRect();
@@ -107,7 +107,7 @@ function trackReveal(sectionEl, { reverse, done }) {
     });
     if (t < 1) requestAnimationFrame(frame); else finish();
   };
-  requestAnimationFrame(frame);
+  frame(start); // já no 1º quadro o recorte e o fade valem: sem isso a seção aparece inteira por um instante
   setTimeout(finish, DURATION + 80); // painel oculto não dispara quadros: nunca fica preso
 }
 

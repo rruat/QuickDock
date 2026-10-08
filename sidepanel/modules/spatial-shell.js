@@ -598,6 +598,10 @@ export function openOrFocusView(viewId, { skipTransition = false, overlayOpen = 
 
   // reordenar move os nós no DOM e CANCELA as transições da grade que está expandindo por baixo
   if (!overlayOpen && !overlayClose) reorderMainSections();
+  // a seção já nasce sobreposta (tamanho cheio) ANTES do foco mudar: os motores (quadro/editor) medem
+  // o contêiner no evento de foco, e em fluxo normal ela dividiria o espaço com a Base (tamanho errado → salto)
+  if (overlayOpen) itemSectionOf(targetViewId)?.classList.add('is-expand-overlay');
+  if (overlayClose) overlayClose.classList.add('is-expand-overlay');
   keepVisibleIds = overlayOpen ? new Set(['bases']) : (overlayClose ? new Set([overlayClose.dataset.id]) : new Set());
   applyViewVisibility();
   renderAsideViewList();

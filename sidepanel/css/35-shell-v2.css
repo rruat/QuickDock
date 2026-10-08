@@ -524,4 +524,9 @@ html[data-theme="dark"] .aside-group-dot { background: oklch(72% 0.13 var(--g-hu
 .bcal-time.is-col-revealing .bcal-col.is-expanded-col > * { opacity: 0; transition: opacity 140ms ease; }
 
 /* Nota/quadro revelados POR CIMA da Base enquanto a célula/coluna expande (ou encolhe) */
-#mMain > .is-expand-overlay { position: absolute !important; inset: 0; z-index: 40; background: var(--bg); }
+/* tamanho explícito: um height/width inline antigo (ex.: 70%) faria a seção abrir num tamanho e saltar para o certo */
+#mMain > .is-expand-overlay {
+  position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;
+  max-width: none !important; max-height: none !important; margin: 0 !important; transform: none !important;
+  z-index: 40; background: var(--bg);
+}

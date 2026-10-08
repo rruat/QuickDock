@@ -212,6 +212,10 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('abrir · pedidos repetidos durante a animação (a ativação da nota chama openOrFocusView de novo) são ignorados',
     ss.includes('if (monthExpanding && !skipTransition && !overlayOpen && !overlayClose) return;'));
 
+  ok('abrir · sem piscar: seção sobreposta antes do foco mudar, tamanho explícito e recorte/fade já no 1º quadro',
+    ss.indexOf("classList.add('is-expand-overlay')") < ss.indexOf('keepVisibleIds = overlayOpen') &&
+    trans.includes('frame(start);') && (await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8')).includes('height: 100% !important;'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[4].type, 'board');
