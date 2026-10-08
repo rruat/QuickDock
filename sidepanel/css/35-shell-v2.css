@@ -500,3 +500,25 @@ html[data-theme="dark"] .aside-group-dot { background: oklch(72% 0.13 var(--g-hu
 .aside-group-dot.is-neutral { background: oklch(60% 0 0); }
 .aside-group-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aside-group-count { font-size: 11px; color: var(--text-muted); }
+
+/* ══ Expandir a coluna do dia (semana/dia): as colunas correm até as bordas, como no mês ══ */
+.bcal-time.is-col-animating .bcal-time-head,
+.bcal-time.is-col-animating .bcal-allday,
+.bcal-time.is-col-animating .bcal-time-inner {
+  transition: grid-template-columns 340ms cubic-bezier(0.25, 0.1, 0.25, 1),
+              height 340ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 200ms ease;
+}
+.bcal-time.is-col-expanding .bcal-time-head,
+.bcal-time.is-col-expanding .bcal-allday { overflow: hidden; border-bottom-color: transparent; }
+.bcal-time.is-col-expanding .bcal-time-head > *,
+.bcal-time.is-col-expanding .bcal-allday > * { opacity: 0; transition: opacity 160ms ease; }
+.bcal-time.is-col-expanding .bcal-time-scroll { min-width: 0; overflow-x: hidden; }
+.bcal-time.is-col-expanding .bcal-time-inner { min-width: 0; }
+.bcal-time.is-col-expanding .bcal-gutter,
+.bcal-time.is-col-expanding .bcal-col { min-width: 0; overflow: hidden; }
+.bcal-time.is-col-expanding .bcal-col:not(.is-expanded-col),
+.bcal-time.is-col-expanding .bcal-gutter { border-left-color: transparent; pointer-events: none; }
+.bcal-time.is-col-expanding .bcal-col:not(.is-expanded-col) > *,
+.bcal-time.is-col-expanding .bcal-gutter > * { opacity: 0; transition: opacity 160ms ease; }
+.bcal-time.is-col-expanding .bcal-col.is-expanded-col { background-color: var(--bg); background-image: none; z-index: 10; }
+.bcal-time.is-col-revealing .bcal-col.is-expanded-col > * { opacity: 0; transition: opacity 140ms ease; }

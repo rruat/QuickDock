@@ -19,7 +19,8 @@ export function trackExpandOrigin(root) {
   root?.addEventListener('pointerdown', (e) => {
     const el = e.target.closest?.(ORIGIN_SELECTOR) || e.target;
     if (el?.getBoundingClientRect) {
-      origin = { rect: el.getBoundingClientRect(), at: performance.now(), cell: e.target.closest?.('.bcal-month-cell[data-ymd]') || null };
+      origin = { rect: el.getBoundingClientRect(), at: performance.now(), cell: e.target.closest?.('.bcal-month-cell[data-ymd]') || null,
+        weekCol: e.target.closest?.('.bcal-col[data-ymd]') || null };
     }
   }, true);
 }
@@ -38,6 +39,11 @@ const FULL = 'inset(0px 0px 0px 0px round 0px)';
 /** Célula do mês de onde veio o clique (se for recente e a visão mês estiver na tela). */
 export function getMonthOriginCell() {
   return hasFreshOrigin() && origin.cell?.isConnected ? origin.cell : null;
+}
+
+/** Coluna da semana/dia de onde veio o clique (se for recente e a visão estiver na tela). */
+export function getWeekOriginCol() {
+  return hasFreshOrigin() && origin.weekCol?.isConnected ? origin.weekCol : null;
 }
 
 export function hasFreshOrigin() {

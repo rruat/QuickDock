@@ -99,6 +99,18 @@ export async function runShellViewsListTests({ ok, igual }) {
     (await Promise.all(['../index.html', '../404.html', '../sidepanel/index.html'].map(p => readFile(new URL(p, import.meta.url), 'utf8')))).every(h => h.includes('id="asideGroups"')) &&
     ['shell-view-groups', 'view-groups-model'].every(n => swP4.includes(`shell/${n}.js`)));
 
+  // P3 · expansão da coluna na semana/dia
+  const weekExp = await readFile(new URL('../sidepanel/modules/shell/shell-week-expand.js', import.meta.url), 'utf8');
+  ok('semana · mesma API do mês (expand/collapse/reset/active/can)',
+    ['expandWeekColumn', 'collapseWeekColumn', 'resetWeekExpansion', 'canExpandWeekColumn', 'weekExpansionActive'].every(n => weekExp.includes(`export function ${n}`) || weekExp.includes(`export const ${n}`)));
+  ok('semana · anima as trilhas de colunas do cabeçalho, da faixa "dia inteiro" e do corpo, sem requestAnimationFrame',
+    weekExp.includes('.bcal-time-head') && weekExp.includes('.bcal-allday') && weekExp.includes('.bcal-time-inner') && weekExp.includes('gridTemplateColumns') && !weekExp.includes('requestAnimationFrame'));
+  ok('semana · o reset devolve as colunas originais do renderer e limpa classes', weekExp.includes('saved.get(inner)') && weekExp.includes("'is-col-expanding', 'is-col-animating', 'is-col-revealing'"));
+  ok('semana · o clique guarda a coluna de origem e o shell escolhe mês ou semana',
+    (await readFile(new URL('../sidepanel/modules/shell/shell-expand-transition.js', import.meta.url), 'utf8')).includes("weekCol: e.target.closest?.('.bcal-col[data-ymd]')") &&
+    ss.includes('expandWeekColumn(col,') && ss.includes('collapseWeekColumn()'));
+  ok('semana · CSS das colunas e módulos no pré-cache', (await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8')).includes('.bcal-time.is-col-animating') && ['shell-week-expand', 'shell-expand-shared'].every(n => swP4.includes(`shell/${n}.js`)));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');
@@ -278,7 +290,7 @@ export async function runShellViewsListTests({ ok, igual }) {
     shellSrc.includes('expandMonthCell(cell,') && shellSrc.includes("openOrFocusView(viewId, { skipTransition: true })") &&
     shellSrc.includes('collapseMonthCell();') && !shellSrc.includes('requestAnimationFrame(() => collapseMonthCell'));
   ok('mês · voltar à Base por outro caminho não deixa a grade expandida (resetMonthExpansion)',
-    shellSrc.includes("viewId === 'bases') resetMonthExpansion()"));
+    shellSrc.includes("viewId === 'bases') { resetMonthExpansion(); resetWeekExpansion(); }"));
   const origin2 = await readFile(new URL('../sidepanel/modules/shell/shell-expand-transition.js', import.meta.url), 'utf8');
   ok('mês · o clique de origem guarda a célula do mês (getMonthOriginCell)', origin2.includes('.bcal-month-cell[data-ymd]') && origin2.includes('export function getMonthOriginCell'));
   const cssMonth = await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8');
@@ -312,7 +324,7 @@ export async function runShellViewsListTests({ ok, igual }) {
 
   // ── A célula expande até o cabeçalho da tela (ele não "pisca" na troca) ──
   ok('mês · a célula também engole o cabeçalho da tela e o seletor de tipo (altura somada às trilhas)',
-    monthExp.includes("getElementById('basesSectionHeader')") && monthExp.includes('natural.weeksH + natural.weekdaysH + natural.headerH') &&
+    (await readFile(new URL('../sidepanel/modules/shell/shell-expand-shared.js', import.meta.url), 'utf8')).includes("getElementById('basesSectionHeader')") && monthExp.includes('natural.weeksH + natural.weekdaysH + natural.headerH') &&
     monthExp.includes("header.style.height = '0px'") && monthExp.includes("'is-month-expanding'"));
   ok('mês · CSS: o cabeçalho da tela recolhe e some junto com a expansão',
     cssMonth.includes('#bases-view.is-month-expanding > #basesSectionHeader') && cssMonth.includes('#bases-view.is-month-animating > #basesSectionHeader'));

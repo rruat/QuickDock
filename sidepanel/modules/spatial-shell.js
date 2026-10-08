@@ -27,8 +27,9 @@ import { initViewGroups } from './shell/shell-view-groups.js';
 import { initDraftBar } from './shell/shell-draft-bar.js';
 import { initFooterLabel } from './shell/shell-footer-label.js';
 import { initEscapeBack } from './shell/shell-escape-back.js';
-import { trackExpandOrigin, playExpandOpen, playCollapseClose, getMonthOriginCell } from './shell/shell-expand-transition.js';
+import { trackExpandOrigin, playExpandOpen, playCollapseClose, getMonthOriginCell, getWeekOriginCol } from './shell/shell-expand-transition.js';
 import { expandMonthCell, collapseMonthCell, resetMonthExpansion, canExpandMonthCell, monthExpansionActive } from './shell/shell-month-expand.js';
+import { expandWeekColumn, collapseWeekColumn, resetWeekExpansion, canExpandWeekColumn, weekExpansionActive } from './shell/shell-week-expand.js';
 import { fadeIn, slideIn, motionEnabled, setMotionEnabled } from './shell/shell-motion.js';
 import {
   reorderMainSections as _reorderMainSections,
@@ -428,6 +429,9 @@ function setupBackToViews() {
         // a célula do mês volta a ser célula: mostra a grade ainda expandida e a encolhe
         openOrFocusView('bases', { skipTransition: true });
         collapseMonthCell(); // sem esperar quadro de animação: a função força o layout sozinha
+      } else if (weekExpansionActive() && motionEnabled()) {
+        openOrFocusView('bases', { skipTransition: true });
+        collapseWeekColumn(); // a coluna do dia volta a ser coluna
       } else {
         playCollapseClose(document.querySelector(sel), () => openOrFocusView('bases'));
       }
@@ -535,9 +539,18 @@ export function openOrFocusView(viewId, { skipTransition = false } = {}) {
       }
       return;
     }
+    const col = getWeekOriginCol();
+    if (col && canExpandWeekColumn(col)) {
+      if (!monthExpanding) {
+        monthExpanding = true;
+        anticipateHeaderTitle(viewId);
+        expandWeekColumn(col, () => { monthExpanding = false; openOrFocusView(viewId, { skipTransition: true }); });
+      }
+      return;
+    }
   }
   // voltar à Base por outro caminho (lista de views, Home…): a grade não pode ficar expandida
-  if (!skipTransition && viewId === 'bases') resetMonthExpansion();
+  if (!skipTransition && viewId === 'bases') { resetMonthExpansion(); resetWeekExpansion(); }
   if (viewId === 'bases') document.dispatchEvent(new CustomEvent('quickdock:workspace-title-refresh'));
   let targetViewId = viewId;
   let targetNoteId = null;

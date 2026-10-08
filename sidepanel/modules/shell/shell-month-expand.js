@@ -8,23 +8,11 @@
 // trilhas do grid (grid-template-rows/columns, em px) e liga classes; nenhuma view é alterada.
 
 import { MOTION_MS, MOTION_EASING } from './shell-motion.js';
+import { px, headerParts, setSection } from './shell-expand-shared.js';
 
 const SEL_ROOT = '#bases-body .bcal-month';
 let expandedYmd = null;   // dia que está "virando a tela" (para o voltar achar a célula)
 let savedRows = '';        // grid-template-rows original da grade (a do renderer)
-
-const px = list => list.map(n => `${n}px`).join(' ');
-
-// O cabeçalho da tela (título + seletor de tipo) também é engolido pela célula: ela expande até ele.
-function headerParts() {
-  return {
-    section: document.getElementById('bases-view'),
-    header: document.getElementById('basesSectionHeader'),
-    switcher: document.getElementById('viewSwitcher'),
-  };
-}
-
-const setSection = (cls, on) => headerParts().section?.classList.toggle(cls, on);
 
 function parts(root) {
   const weekdays = root.querySelector('.bcal-month-weekdays');
