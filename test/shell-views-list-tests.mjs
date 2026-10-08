@@ -111,6 +111,17 @@ export async function runShellViewsListTests({ ok, igual }) {
     ss.includes('expandWeekColumn(col,') && ss.includes('collapseWeekColumn()'));
   ok('semana · CSS das colunas e módulos no pré-cache', (await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8')).includes('.bcal-time.is-col-animating') && ['shell-week-expand', 'shell-expand-shared'].every(n => swP4.includes(`shell/${n}.js`)));
 
+  // E4/E6/E7 · lote com quadros, leitura fundida, teclado
+  const bulk = await import('../sidepanel/modules/bases/engine/bulk-actions.js');
+  const quadro = { id: 'board-1', isBoard: true, pasta: 'A', properties: {} };
+  igual('lote · propriedade e tag não se aplicam a quadros', [bulk.buildBulkPatch(quadro, { kind: 'addTag', tag: 'x' }), bulk.buildBulkPatch(quadro, { kind: 'setProperty', key: 'k', value: 1 })], [null, null]);
+  igual('lote · mover quadro de pasta vale', bulk.buildBulkPatch(quadro, { kind: 'moveFolder', pasta: 'B' }), { pasta: 'B' });
+  igual('lote · nota continua recebendo tag', bulk.buildBulkPatch({ id: 1, properties: {} }, { kind: 'addTag', tag: 'x' }).properties.tags, ['x']);
+  ok('lote · excluir em lote exclui quadros pelo motor (removeBoard)', (await readFile(new URL('../sidepanel/modules/bases/bases-bulk-controller.js', import.meta.url), 'utf8')).includes('removeBoard(n.uid)'));
+  const wi = await readFile(new URL('../sidepanel/modules/workspace-items.js', import.meta.url), 'utf8');
+  ok('desempenho · leituras simultâneas dos itens se fundem (uma em andamento + uma seguinte)', wi.includes('let followUp') && wi.includes('inflight.catch(() => {}).then(') && wi.includes('export function loadWorkspaceItems'));
+  ok('teclado · setas percorrem a lista de views', (await readFile(new URL('../sidepanel/modules/shell/shell-views-list.js', import.meta.url), 'utf8')).includes("e.key !== 'ArrowDown' && e.key !== 'ArrowUp'"));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');

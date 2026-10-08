@@ -15,6 +15,8 @@ function tagsDaPropriedade(props) {
 
 /** @returns {Object|null} patch p/ updateNoteMetaById, ou null se a ação não muda nada */
 export function buildBulkPatch(note, action) {
+  // Quadros (itens da Base do workspace) só têm título e pasta: propriedades e tags não se aplicam
+  if (note?.isBoard && action.kind !== 'moveFolder') return null;
   const props = { ...(note.properties || {}) };
   const tipos = { ...(note.propertyTypes || {}) };
   switch (action.kind) {

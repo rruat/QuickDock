@@ -1,6 +1,6 @@
 # Planejamento — QuickDock com o design do mockup (Base única do workspace)
 
-> Atualizado em 2026-10-08. Branch de trabalho: `feat/shell-workspace-mockup` (cópia de segurança: `feat/shell-workspace-mockup-copia`).
+> Atualizado em 2026-10-08 (P1–P8 implementados; ver §12). Branch de trabalho: `feat/shell-workspace-mockup` (cópia de segurança: `feat/shell-workspace-mockup-copia`).
 > Referências: mockup vivo `MKP/CAL.HTML` + `MKP/cal/{css,js}`; cópia congelada `MKP/ref-2026-10-08/`.
 
 ## 1. Princípio
@@ -40,7 +40,7 @@ Não existem mais "telas" separadas para Calendário, Bases, Constelações, Doc
 | Animação de abrir nas demais views (recorte a partir do item), asides deslizando, fades de troca de tela; chave própria "Animações de abertura" | ✅ | `shell-expand-transition.js`, `shell-motion.js` |
 | Explorador de arquivos antigo oculto no desktop (regra reversível) | ✅ | `35-shell-v2.css` |
 
-Testes: `node test/run.mjs` — 1850 verificações; os testes novos estão em `test/shell-views-list-tests.mjs`.
+Testes: `node test/run.mjs` — 1905 verificações; os testes novos estão em `test/shell-views-list-tests.mjs`.
 
 ## 3. Mapa de módulos (para quem for continuar)
 
@@ -254,3 +254,28 @@ Referências no mockup: `MKP/cal/css/13-mobile.css`, `js/19-mobile.js`, `js/20-g
 3. Roteiro manual (desktop): criar view por tipo → trocar tipo no header → abrir nota pelo calendário (mês) e voltar → abrir quadro → painel da nota/quadro na aside direita → recolher/abrir asides → redimensionar a aside direita → recarregar (estado lembrado).
 4. Conferir tema escuro, `Animações de abertura` ligado e desligado, e a extensão (`sidepanel/index.html`).
 5. Comparar lado a lado com `MKP/ref-2026-10-08/CAL.HTML` (mesma viewport).
+
+## 12. Estado da implementação (2026-10-08)
+
+| Item | Estado | Onde |
+|---|---|---|
+| **P1** Constelações na aside direita | ✅ botão `hub` nos 3 cabeçalhos; o contêiner do canvas é *movido* para a aside (como o painel da nota); lembra o último modo; o "X" das configurações não fecha o grafo. Nós = **notas** (quadros ainda não entram no grafo) | `shell/shell-graph-panel.js`, `shell-right-aside.js` |
+| **P2** Fluxo "modificada" | ✅ rascunho **em memória** (recarregar descarta); barra Salvar / Salvar como nova / Descartar no cabeçalho; ponto na lista; criar/duplicar/renomear/excluir view pede para salvar o rascunho antes. Renomear não suja. Fora do escopo: ações "Salvar/Descartar/Excluir" dentro do painel de configurações da view | `workspace-base.js`, `workspace-base-model.js` (`isWorkspaceModified`, `modifiedViewIds`, `saveDraftAsNewView`), `shell/shell-draft-bar.js` |
+| **P3** Coluna da semana/dia | ✅ mesma API do mês; cabeçalho de dias, faixa "dia inteiro" e cabeçalho da tela recolhem | `shell/shell-week-expand.js`, `shell/shell-expand-shared.js` |
+| **P4** Modelos e Configurações na aside esquerda | ✅ 3 painéis (Home \| Modelos \| Configurações); clicar no aberto recolhe; Modelos = notas modelo reais + 3 quadros modelo; "Gerenciar modelos" abre a galeria completa. `#settings-view` ficou só como aviso (Omnibar ainda abre) | `shell/shell-aside-panels.js`, `shell-models-panel.js`, `models-board-templates.js` |
+| **P5** Aparência dos itens | ✅ `data-kind="quadro"` (tracejado + ícone no calendário); calendário sem "colorir por" usa a **pasta**; views novas do workspace trazem a coluna **Tipo** | `calendar-event-el.js`, `workspace-base-model.js`, `35-shell-v2.css` |
+| **P6** Miniatura do quadro | ✅ SVG puro com cartões e conexões, atualiza com `board-changed` | `shell/board-thumb.js` |
+| **P7** Escala + grupos | ✅ **Decisão:** a escala fica só na aside direita. Legenda "Grupos" (contagem por pasta) na Home, clicável (filtro rápido por pasta) | `shell/view-groups-model.js`, `shell-view-groups.js` |
+| **P8** Fidelidade | ✅ rodapé "Calendário (Mês)", Esc volta às views, título vira Nota/Quadro no início da expansão, "Nenhum item nesta view". Pendente (cosmético): alinhar o cabeçalho da nota/quadro ao da Base | `shell-footer-label.js`, `shell-escape-back.js` |
+| **E4** Lote com quadros | ✅ excluir em lote exclui quadros pelo motor; propriedades/tags ignoram quadros | `bulk-actions.js`, `bases-bulk-controller.js` |
+| **E6** Desempenho | ✅ leituras simultâneas dos itens se fundem (no máx. uma em curso + uma seguinte). Cache por `updatedAt` continua em aberto | `workspace-items.js` |
+| **E7** Teclado | ✅ setas na lista de views. Testes ponta a ponta continuam manuais (roteiro §11) | `shell-views-list.js` |
+
+### Ainda depende de decisão do dono do produto (não implementado de propósito)
+
+- **E1 — onde guardar a Base do workspace.** Hoje é `localStorage`, sem sincronizar. A opção recomendada (nota especial `.md`) toca todos os consumidores de `loadAllNotesMeta` (explorador, grafo, omnibar, Bases) e a lógica de sincronização; precisa de aprovação antes de mexer.
+- **E2 — Documentos e JSON Studio** (viram o quê?) e remoção do calendário legado.
+- **E3 — explorador de árvore de pastas**: o filtro/legenda por pasta (P7) cobre parte; falta decidir o arrastar-para-pasta.
+- **§6.1** vale o que foi assumido em P2 (rascunho some ao recarregar; troca de view mantém o rascunho). **§6.6** segue com o recorte (hoje) em tabela/galeria.
+- **E5** (extensão/painel estreito) e **Mobile (§7)** não foram tocados.
+- Nós do grafo ainda são só notas (quadros fora).

@@ -27,7 +27,11 @@ export function createBulkController(host, { getNotes, onChanged }) {
     if (!window.confirm(aviso)) return;
     try {
       for (const n of alvos) {
-        if (acao.kind === 'delete') { await deleteNoteRecordById(n.id); continue; }
+        if (acao.kind === 'delete') {
+          if (n.isBoard) { const { removeBoard } = await import('../board-engine.js'); await removeBoard(n.uid); } // quadro: pelo motor, que limpa o estado em memória
+          else await deleteNoteRecordById(n.id);
+          continue;
+        }
         const patch = buildBulkPatch(n, acao);
         if (patch) await updateNoteMetaById(n.id, patch);
       }

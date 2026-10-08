@@ -91,6 +91,19 @@ export function initAsideViewsList({ openView }) {
 
   searchEl?.addEventListener('input', render);
 
+  // Teclado: setas ↑/↓ percorrem as views (a busca desce para a primeira)
+  const mains = () => [...listEl.querySelectorAll('.aside-view-main')];
+  listEl.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const lista = mains(), i = lista.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    lista[Math.min(lista.length - 1, Math.max(0, i + (e.key === 'ArrowDown' ? 1 : -1)))]?.focus();
+  });
+  searchEl?.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); mains()[0]?.focus(); }
+  });
+
   // "+": escolhe o TIPO da nova view (calendário, tabela, galeria…)
   typesEl.innerHTML = NEW_VIEW_TYPES.map(t =>
     `<button type="button" class="aside-new-view-type" data-type="${t}"><span class="material-symbols-rounded">${VIEW_TYPES[t].icon}</span>${VIEW_TYPES[t].label}</button>`).join('');
