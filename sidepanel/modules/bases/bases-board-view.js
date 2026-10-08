@@ -218,6 +218,7 @@ export function createBaseBoardView({ notes = [], baseDef = {}, activeView = {},
     card.className = 'base-board-card';
     card.draggable = true;
     card.dataset.noteId = note.id;
+    if (note.isBoard) card.dataset.kind = 'quadro';
     const tom = rowTone?.(note);
     if (tom) card.classList.add(`tone-${tom}`);
 

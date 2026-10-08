@@ -469,3 +469,15 @@ html[data-theme="dark"] .draft-bar-btn.is-primary { color: oklch(18% 0.02 250); 
 .aside-settings .settings-section { margin-bottom: 14px; }
 .aside-settings .settings-option { width: 100%; text-align: left; font: inherit; color: inherit; }
 .aside-settings-action { cursor: pointer; background: transparent; }
+
+/* Quadros nas views: contorno tracejado (os cartões já mostram o ícone de quadro do item);
+   no calendário, que não tem ícone, o título ganha o ícone (mockup: .cal-note-chip[data-kind="quadro"]) */
+.bcal-ev[data-kind="quadro"],
+.base-gallery-card[data-kind="quadro"],
+.base-board-card[data-kind="quadro"],
+.base-list-row[data-kind="quadro"] { border-style: dashed; }
+tr[data-kind="quadro"] { outline: 1px dashed var(--border); outline-offset: -2px; }
+.bcal-ev[data-kind="quadro"] .bcal-ev-title::before {
+  content: "space_dashboard"; font-family: "Material Symbols Rounded"; font-size: 1.1em; line-height: 1;
+  vertical-align: -0.15em; margin-right: 4px; opacity: 0.75; font-feature-settings: "liga";
+}

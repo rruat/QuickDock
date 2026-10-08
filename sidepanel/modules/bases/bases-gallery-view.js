@@ -147,6 +147,7 @@ export function renderBaseGalleryView(container, notes, schema, viewConfig = {},
     const card = document.createElement('div');
     card.className = 'base-gallery-card';
     card.dataset.noteId = note.id;
+    if (note.isBoard) card.dataset.kind = 'quadro';
     const tom = callbacks.rowTone?.(note);
     if (tom) card.classList.add(`tone-${tom}`);
     card.tabIndex = 0;

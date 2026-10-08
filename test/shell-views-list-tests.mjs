@@ -67,6 +67,14 @@ export async function runShellViewsListTests({ ok, igual }) {
   const swP4 = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   ok('aside esquerda · módulos novos no pré-cache', ['shell-aside-panels', 'shell-models-panel', 'models-board-templates'].every(n => swP4.includes(`shell/${n}.js`)));
 
+  // P5 · aparência dos itens
+  for (const [arq, marca] of [['calendar/calendar-event-el.js', "dataset.kind = 'quadro'"], ['bases-gallery-view.js', "dataset.kind = 'quadro'"], ['bases-board-view.js', "dataset.kind = 'quadro'"],
+    ['bases-list-view.js', "dataset.kind = 'quadro'"], ['bases-table-view.js', "dataset.kind = 'quadro'"]]) {
+    ok(`quadros · ${arq} marca o item-quadro com data-kind`, (await readFile(new URL(`../sidepanel/modules/bases/${arq}`, import.meta.url), 'utf8')).includes(marca));
+  }
+  ok('quadros · calendário sem "colorir por" usa a pasta como cor', (await readFile(new URL('../sidepanel/modules/bases/calendar/calendar-event-el.js', import.meta.url), 'utf8')).includes('hueForValue(ev.note?.pasta)'));
+  ok('quadros · views novas do workspace incluem a coluna Tipo', m.defaultWorkspaceDef().views.find(v => v.type === 'table').props.includes('kind') && m.addWorkspaceView(def, 'gallery').def.views[3].props.includes('kind') && !m.addWorkspaceView(def, 'calendar').def.views[3].props);
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');

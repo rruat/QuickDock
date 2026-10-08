@@ -331,6 +331,7 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
       const tr = document.createElement('tr');
       tr.className = 'base-tr';
       tr.dataset.noteId = note.id;
+      if (note.isBoard) tr.dataset.kind = 'quadro';
       const tomLinha = rowTone?.(note);
       if (tomLinha) tr.classList.add(`tone-${tomLinha}`);
       if (layout.selectable && selection) {

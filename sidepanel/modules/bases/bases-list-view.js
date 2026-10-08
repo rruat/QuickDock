@@ -31,6 +31,7 @@ export function renderBaseListView(container, notes, schema, viewConfig = {}, ca
     const row = document.createElement('div');
     row.className = 'base-list-row';
     row.dataset.noteId = note.id;
+    if (note.isBoard) row.dataset.kind = 'quadro';
     const tom = callbacks.rowTone?.(note);
     if (tom) row.classList.add(`tone-${tom}`);
 

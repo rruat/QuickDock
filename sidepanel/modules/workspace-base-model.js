@@ -11,6 +11,9 @@ import { duplicateViewAt, deleteViewById, renameViewById } from './bases/config/
 
 export const WORKSPACE_BASE_ID = 'workspace';
 
+/** Colunas das views novas do workspace: inclui o Tipo (nota ou quadro). */
+const WORKSPACE_PROPS = ['title', 'kind', 'tags', 'updatedAt'];
+
 /** Views que o usuário pode criar pela aside (ordem do seletor "Nova view"). */
 export const NEW_VIEW_TYPES = ['calendar', 'table', 'gallery', 'board', 'list', 'timeline'];
 
@@ -18,8 +21,8 @@ export const NEW_VIEW_TYPES = ['calendar', 'table', 'gallery', 'board', 'list', 
 export function defaultWorkspaceDef() {
   const views = [
     createView('calendar', { id: 'v_calendario', name: 'Calendário' }),
-    createView('table', { id: 'v_tabela', name: 'Tabela' }),
-    createView('gallery', { id: 'v_galeria', name: 'Galeria' }),
+    createView('table', { id: 'v_tabela', name: 'Tabela', extra: { props: WORKSPACE_PROPS } }),
+    createView('gallery', { id: 'v_galeria', name: 'Galeria', extra: { props: WORKSPACE_PROPS } }),
   ];
   return normalizeViews({ name: 'Workspace', source: { all: true }, views, defaultViewId: 'v_calendario' });
 }
@@ -47,7 +50,8 @@ export function resolveActiveViewId(def, savedId) {
 export function addWorkspaceView(def, type = 'table') {
   const t = type in VIEW_TYPES ? type : 'table';
   const id = newViewId(def.views.map(v => v.id));
-  const view = createView(t, { id, name: nomeLivre(def, VIEW_TYPES[t].label) });
+  const comColunas = ['table', 'gallery', 'list', 'board'].includes(t);
+  const view = createView(t, { id, name: nomeLivre(def, VIEW_TYPES[t].label), extra: comColunas ? { props: WORKSPACE_PROPS } : {} });
   return { def: { ...def, views: [...def.views, view] }, id };
 }
 

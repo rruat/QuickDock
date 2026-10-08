@@ -40,7 +40,9 @@ export function createEventEl(ev, cfg, schema, { className = '', seg = null, sho
   el.tabIndex = 0;
   el.setAttribute('role', 'button');
 
-  const hue = cfg.card.colorBy ? hueForValue(getNotePropertyValue(ev.note, cfg.card.colorBy)) : null;
+  // sem "colorir por": a cor vem da PASTA do item (como os grupos do mockup)
+  const hue = cfg.card.colorBy ? hueForValue(getNotePropertyValue(ev.note, cfg.card.colorBy)) : hueForValue(ev.note?.pasta);
+  if (ev.note?.isBoard) el.dataset.kind = 'quadro'; // card tracejado com ícone (35-shell-v2.css)
   if (hue !== null) { el.style.setProperty('--ev-hue', String(hue)); el.classList.add('has-hue'); }
   if (ev.fromFallback) el.classList.add('is-fallback-date');
 
