@@ -18,7 +18,9 @@ const reduceMotion = () => !motionEnabled(); // ligado/desligado em Configuraç�
 export function trackExpandOrigin(root) {
   root?.addEventListener('pointerdown', (e) => {
     const el = e.target.closest?.(ORIGIN_SELECTOR) || e.target;
-    if (el?.getBoundingClientRect) origin = { rect: el.getBoundingClientRect(), at: performance.now() };
+    if (el?.getBoundingClientRect) {
+      origin = { rect: el.getBoundingClientRect(), at: performance.now(), cell: e.target.closest?.('.bcal-month-cell[data-ymd]') || null };
+    }
   }, true);
 }
 
@@ -32,6 +34,11 @@ export function insetFor(rect, box) {
 }
 
 const FULL = 'inset(0px 0px 0px 0px round 0px)';
+
+/** Célula do mês de onde veio o clique (se for recente e a visão mês estiver na tela). */
+export function getMonthOriginCell() {
+  return hasFreshOrigin() && origin.cell?.isConnected ? origin.cell : null;
+}
 
 export function hasFreshOrigin() {
   return !!origin && performance.now() - origin.at < FRESH_MS;

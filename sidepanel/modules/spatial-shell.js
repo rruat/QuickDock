@@ -21,7 +21,8 @@ import { setupMobileBack } from './shell/shell-mobile-back.js';
 import { initAsideViewsList } from './shell/shell-views-list.js';
 import { initRightAside } from './shell/shell-right-aside.js';
 import { initViewSwitcher } from './shell/shell-view-switcher.js';
-import { trackExpandOrigin, playExpandOpen, playCollapseClose } from './shell/shell-expand-transition.js';
+import { trackExpandOrigin, playExpandOpen, playCollapseClose, getMonthOriginCell } from './shell/shell-expand-transition.js';
+import { expandMonthCell, collapseMonthCell, resetMonthExpansion, canExpandMonthCell, monthExpansionActive } from './shell/shell-month-expand.js';
 import { fadeIn, slideIn, motionEnabled, setMotionEnabled } from './shell/shell-motion.js';
 import {
   reorderMainSections as _reorderMainSections,
@@ -392,7 +393,15 @@ function setupBackToViews() {
     btn.setAttribute('aria-label', 'Voltar às views');
     btn.innerHTML = '<span class="material-symbols-rounded">arrow_back</span>';
     // volta encolhendo até o item de onde a nota/quadro saiu
-    btn.addEventListener('click', () => playCollapseClose(document.querySelector(sel), () => openOrFocusView('bases')));
+    btn.addEventListener('click', () => {
+      if (monthExpansionActive() && motionEnabled()) {
+        // a célula do mês volta a ser célula: mostra a grade ainda expandida e a encolhe
+        openOrFocusView('bases', { skipTransition: true });
+        collapseMonthCell(); // sem esperar quadro de animação: a função força o layout sozinha
+      } else {
+        playCollapseClose(document.querySelector(sel), () => openOrFocusView('bases'));
+      }
+    });
     left.prepend(btn);
   }
 }
@@ -473,8 +482,25 @@ export function syncNoteSectionDOM() {}
 export function buildNotePlaceholderSection() {}
 
 // ── Gestão de Views Abertas e Foco ────────────────────────────────────────────
-export function openOrFocusView(viewId) {
+// Abrir um item a partir da célula do mês: a célula EXPANDE primeiro e só então a tela troca.
+let monthExpanding = false;
+
+export function openOrFocusView(viewId, { skipTransition = false } = {}) {
   const prevFocus = focusedViewId;
+  const isItem = viewId === 'notes' || viewId === 'board' || (typeof viewId === 'string' && viewId.startsWith('note-'));
+  const desktop = !(window.innerWidth <= 768 || isMobileMode());
+  if (!skipTransition && desktop && prevFocus === 'bases' && isItem && motionEnabled()) {
+    const cell = getMonthOriginCell();
+    if (cell && canExpandMonthCell(cell)) {
+      if (!monthExpanding) {
+        monthExpanding = true;
+        expandMonthCell(cell, () => { monthExpanding = false; openOrFocusView(viewId, { skipTransition: true }); });
+      }
+      return;
+    }
+  }
+  // voltar à Base por outro caminho (lista de views, Home…): a grade não pode ficar expandida
+  if (!skipTransition && viewId === 'bases') resetMonthExpansion();
   let targetViewId = viewId;
   let targetNoteId = null;
 
@@ -527,7 +553,9 @@ export function openOrFocusView(viewId) {
   }
 
   // Nota e quadro CRESCEM a partir do item clicado na view (animação do mockup)
-  if (prevFocus === 'bases' && (targetViewId === 'notes' || targetViewId === 'board') && !(window.innerWidth <= 768 || isMobileMode())) {
+  if (skipTransition) {
+    // a célula do mês já fez a animação (ou a Base voltou animada): nada a mais
+  } else if (prevFocus === 'bases' && (targetViewId === 'notes' || targetViewId === 'board') && !(window.innerWidth <= 768 || isMobileMode())) {
     playExpandOpen(document.querySelector(targetViewId === 'notes' ? '#section-note' : '#board-view'));
   } else if (prevFocus !== targetViewId && !(window.innerWidth <= 768 || isMobileMode())) {
     // demais trocas de tela (Base, Modelos, Configurações…): aparece suavemente

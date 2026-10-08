@@ -185,4 +185,26 @@ export async function runShellViewsListTests({ ok, igual }) {
     ok(`animações · ${f} tem o toggle "Animações de abertura" em Configurações`, html.includes('id="settings-animations"'));
   }
   ok('animações · shell-motion.js está no pré-cache do PWA', (await readFile(new URL('../sw.js', import.meta.url), 'utf8')).includes('sidepanel/modules/shell/shell-motion.js'));
+
+  // ── Expandir a célula do mês (listras da grade correndo até as bordas, como no mockup) ──
+  const monthExp = await readFile(new URL('../sidepanel/modules/shell/shell-month-expand.js', import.meta.url), 'utf8');
+  ok('mês · a célula expande animando as trilhas da grade (linhas, colunas e cabeçalho dos dias) e o voltar as devolve',
+    monthExp.includes('gridTemplateRows') && monthExp.includes('gridTemplateColumns') && monthExp.includes("'is-cell-expanding'") &&
+    monthExp.includes('export function expandMonthCell') && monthExp.includes('export function collapseMonthCell') &&
+    monthExp.includes('export function resetMonthExpansion') && monthExp.includes('weekdays.style.height'));
+  ok('mês · o voltar mede o tamanho natural da grade antes de recolher (a grade pode não ter sido redesenhada)',
+    monthExp.includes('resetMonthExpansion();\n  void root.offsetHeight;\n  const natural = measure(root, cell);'));
+  const shellSrc = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
+  ok('mês · o shell expande a célula ANTES de trocar de tela e não usa requestAnimationFrame para recolher',
+    shellSrc.includes('expandMonthCell(cell,') && shellSrc.includes("openOrFocusView(viewId, { skipTransition: true })") &&
+    shellSrc.includes('collapseMonthCell();') && !shellSrc.includes('requestAnimationFrame(() => collapseMonthCell'));
+  ok('mês · voltar à Base por outro caminho não deixa a grade expandida (resetMonthExpansion)',
+    shellSrc.includes("viewId === 'bases') resetMonthExpansion()"));
+  const origin2 = await readFile(new URL('../sidepanel/modules/shell/shell-expand-transition.js', import.meta.url), 'utf8');
+  ok('mês · o clique de origem guarda a célula do mês (getMonthOriginCell)', origin2.includes('.bcal-month-cell[data-ymd]') && origin2.includes('export function getMonthOriginCell'));
+  const cssMonth = await readFile(new URL('../sidepanel/css/35-shell-v2.css', import.meta.url), 'utf8');
+  ok('mês · CSS: transições das trilhas, células recolhidas sem conteúdo e célula expandida como nova tela',
+    cssMonth.includes('.bcal-month.is-cell-animating') && cssMonth.includes('.is-expanded-cell') && cssMonth.includes('is-cell-revealing') &&
+    cssMonth.includes('grid-template-rows 340ms'));
+  ok('mês · shell-month-expand.js está no pré-cache do PWA', (await readFile(new URL('../sw.js', import.meta.url), 'utf8')).includes('sidepanel/modules/shell/shell-month-expand.js'));
 }
