@@ -484,6 +484,12 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
         await updateNoteMetaById(note.id, { properties, propertyTypes });
         document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id } }));
       },
+      isSearching: () => !!searchQuery,
+      // Explorador: arrastar um item para uma pasta grava a pasta (nota ou quadro)
+      onMoveToFolder: async (note, pasta) => {
+        await updateNoteMetaById(note.id, { pasta });
+        document.dispatchEvent(new CustomEvent('quickdock:note-updated', { detail: { id: note.id, move: true } }));
+      },
       onOpenSettings: () => { settingsOpen = !settingsOpen; renderSettingsPanel(); },
       // clicar numa barra/fatia do gráfico vira filtro rápido
       onQuickFilter: cond => {

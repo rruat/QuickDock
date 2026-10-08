@@ -8,15 +8,15 @@ export async function runShellViewsListTests({ ok, igual }) {
 
   // Base inicial
   const def = m.defaultWorkspaceDef();
-  igual('workspace · a Base inicial tem calendário, tabela e galeria', def.views.map(v => v.type), ['calendar', 'table', 'gallery']);
+  igual('workspace · a Base inicial tem calendário, tabela, galeria e explorador', def.views.map(v => v.type), ['calendar', 'table', 'gallery', 'explorer']);
   igual('workspace · abre no calendário (como o mockup)', def.defaultViewId, 'v_calendario');
   igual('workspace · origem = todos os itens', def.source, { all: true });
 
   // Leitura do YAML guardado
-  igual('workspace · YAML vazio volta para a Base inicial', m.parseWorkspaceDef('').views.length, 3);
-  igual('workspace · YAML sem views volta para a Base inicial', m.parseWorkspaceDef('name: X\n').views.length, 3);
+  igual('workspace · YAML vazio volta para a Base inicial', m.parseWorkspaceDef('').views.length, 4);
+  igual('workspace · YAML sem views volta para a Base inicial', m.parseWorkspaceDef('name: X\n').views.length, 4);
   const yaml = m.workspaceDefToYaml(def);
-  igual('workspace · YAML gravado e relido mantém as views', m.parseWorkspaceDef(yaml).views.map(v => v.name), ['Calendário', 'Tabela', 'Galeria']);
+  igual('workspace · YAML gravado e relido mantém as views', m.parseWorkspaceDef(yaml).views.map(v => v.name), ['Calendário', 'Tabela', 'Galeria', 'Explorador']);
   igual('workspace · view ativa que não existe mais cai na padrão', m.resolveActiveViewId(def, 'sumiu'), 'v_calendario');
   igual('workspace · view ativa guardada é respeitada', m.resolveActiveViewId(def, 'v_galeria'), 'v_galeria');
 
@@ -28,7 +28,7 @@ export async function runShellViewsListTests({ ok, igual }) {
   const renomeado = JSON.parse(JSON.stringify(def)); renomeado.views[0].name = 'Outro'; renomeado.name = 'X';
   igual('rascunho · renomear não suja', m.isWorkspaceModified(def, renomeado), false);
   const nova = m.saveDraftAsNewView(def, mudado, 'v_tabela');
-  igual('rascunho · salvar como nova põe a cópia no fim, com o conteúdo do rascunho', [nova.def.views.length, nova.def.views[3].sort, nova.def.views[3].id === nova.id], [4, mudado.views[1].sort, true]);
+  igual('rascunho · salvar como nova põe a cópia no fim, com o conteúdo do rascunho', [nova.def.views.length, nova.def.views[4].sort, nova.def.views[4].id === nova.id], [5, mudado.views[1].sort, true]);
   igual('rascunho · salvar como nova não altera a original salva', nova.def.views[1].sort, def.views[1].sort);
   const bv = await readFile(new URL('../sidepanel/modules/bases-view.js', import.meta.url), 'utf8');
   const wb = await readFile(new URL('../sidepanel/modules/workspace-base.js', import.meta.url), 'utf8');
@@ -73,7 +73,7 @@ export async function runShellViewsListTests({ ok, igual }) {
     ok(`quadros · ${arq} marca o item-quadro com data-kind`, (await readFile(new URL(`../sidepanel/modules/bases/${arq}`, import.meta.url), 'utf8')).includes(marca));
   }
   ok('quadros · calendário sem "colorir por" usa a pasta como cor', (await readFile(new URL('../sidepanel/modules/bases/calendar/calendar-event-el.js', import.meta.url), 'utf8')).includes('hueForValue(ev.note?.pasta)'));
-  ok('quadros · views novas do workspace incluem a coluna Tipo', m.defaultWorkspaceDef().views.find(v => v.type === 'table').props.includes('kind') && m.addWorkspaceView(def, 'gallery').def.views[3].props.includes('kind') && !m.addWorkspaceView(def, 'calendar').def.views[3].props);
+  ok('quadros · views novas do workspace incluem a coluna Tipo', m.defaultWorkspaceDef().views.find(v => v.type === 'table').props.includes('kind') && m.addWorkspaceView(def, 'gallery').def.views[4].props.includes('kind') && !m.addWorkspaceView(def, 'calendar').def.views[4].props);
 
   // P6 · miniatura do quadro
   const th = await import('../sidepanel/modules/shell/board-thumb.js');
@@ -163,23 +163,41 @@ export async function runShellViewsListTests({ ok, igual }) {
     (await readFile(new URL('../sidepanel/app.js', import.meta.url), 'utf8')).includes("'quickdock:workspace-base-saved'") &&
     swP4.includes('workspace-base-sync.js'));
 
+  // Explorador como view
+  const et = await import('../sidepanel/modules/bases/explorer/explorer-tree.js');
+  const arvore = et.buildFolderTree([
+    { id: 1, title: 'b', pasta: 'Trabalho/Projetos' }, { id: 2, title: 'a', pasta: 'Trabalho' }, { id: 3, title: 'solta' },
+    { id: 4, title: 'c', pasta: '/Casa/' }, { id: 5, title: 'q', pasta: 'Trabalho/Projetos' }]);
+  igual('explorador · pastas em ordem, com contagem recursiva', arvore.folders.map(f => [f.path, f.count]), [['Casa', 1], ['Trabalho', 3]]);
+  igual('explorador · subpasta criada pelo caminho, itens ordenados por título', [arvore.folders[1].folders[0].path, arvore.folders[1].folders[0].items.map(i => i.title)], ['Trabalho/Projetos', ['b', 'q']]);
+  igual('explorador · itens sem pasta ficam na raiz e a raiz conta tudo', [arvore.items.map(i => i.title), arvore.count], [['solta'], 5]);
+  igual('explorador · todas as pastas, incluindo as aninhadas', et.allFolderPaths(arvore), ['Casa', 'Trabalho', 'Trabalho/Projetos']);
+  igual('explorador · mover para a mesma pasta não faz nada; para outra, sim', [et.canMoveToFolder({ pasta: 'A/' }, 'A'), et.canMoveToFolder({ pasta: 'A' }, ''), et.canMoveToFolder({}, '')], [false, true, false]);
+  const vmod = await import('../sidepanel/modules/bases/config/view-model.js');
+  ok('explorador · é um tipo de view registrado, criável pela aside e desenhado pelo pipeline',
+    'explorer' in vmod.VIEW_TYPES && m.NEW_VIEW_TYPES.includes('explorer') &&
+    (await readFile(new URL('../sidepanel/modules/bases/bases-view-pipeline.js', import.meta.url), 'utf8')).includes('explorer: renderBaseExplorerView'));
+  ok('explorador · arrastar para pasta grava a pasta; CSS e módulos no pré-cache',
+    vc.includes('onMoveToFolder') && (await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8')).includes('36-explorer-view.css') &&
+    ['css/36-explorer-view.css', 'bases/explorer/explorer-tree.js', 'bases/explorer/explorer-view.js'].every(n => swP4.includes(n)));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
-  igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[3].type, 'board');
-  igual('workspace · devolve o id da nova view', a.def.views[3].id, a.id);
-  igual('workspace · tipo desconhecido vira tabela', m.addWorkspaceView(def, 'xyz').def.views[3].type, 'table');
-  igual('workspace · nome repetido ganha número', m.addWorkspaceView(def, 'calendar').def.views[3].name, 'Calendário 2');
+  igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[4].type, 'board');
+  igual('workspace · devolve o id da nova view', a.def.views[4].id, a.id);
+  igual('workspace · tipo desconhecido vira tabela', m.addWorkspaceView(def, 'xyz').def.views[4].type, 'table');
+  igual('workspace · nome repetido ganha número', m.addWorkspaceView(def, 'calendar').def.views[4].name, 'Calendário 2');
   const d = m.duplicateWorkspaceView(def, 'v_tabela');
   igual('workspace · duplicar põe a cópia logo depois da original', d.baseDef.views[2].name, 'Tabela (cópia)');
   igual('workspace · renomear', m.renameWorkspaceView(def, 'v_tabela', 'Notas').views[1].name, 'Notas');
   const del = m.deleteWorkspaceView(def, 'v_tabela', 'v_tabela');
-  igual('workspace · excluir remove a view', del.def.views.length, 2);
+  igual('workspace · excluir remove a view', del.def.views.length, 3);
   igual('workspace · excluir a ativa passa para a vizinha', del.activeId, 'v_galeria');
   const so = { ...def, views: [def.views[0]] };
   igual('workspace · a última view nunca é excluída', m.deleteWorkspaceView(so, so.views[0].id, so.views[0].id).def.views.length, 1);
 
   // Busca
-  igual('workspace · busca vazia devolve tudo', m.filterWorkspaceViews(def.views, '').length, 3);
+  igual('workspace · busca vazia devolve tudo', m.filterWorkspaceViews(def.views, '').length, 4);
   igual('workspace · busca por nome, sem acento', m.filterWorkspaceViews(def.views, 'calendario').map(v => v.id), ['v_calendario']);
   igual('workspace · busca por tipo', m.filterWorkspaceViews(def.views, 'galeria').map(v => v.id), ['v_galeria']);
   igual('workspace · busca sem resultado', m.filterWorkspaceViews(def.views, 'zzz').length, 0);

@@ -11,6 +11,7 @@ export const VIEW_TYPES = {
   table:    { label: 'Tabela',           icon: 'table_chart' },
   board:    { label: 'Quadro (Kanban)',  icon: 'view_kanban' },
   gallery:  { label: 'Galeria',          icon: 'grid_view' },
+  explorer: { label: 'Explorador',       icon: 'folder_open' },
   list:     { label: 'Lista',            icon: 'format_list_bulleted' },
   calendar: { label: 'Calendário',       icon: 'calendar_today' },
   timeline: { label: 'Linha do tempo',   icon: 'timeline' },

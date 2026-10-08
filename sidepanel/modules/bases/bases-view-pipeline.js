@@ -7,6 +7,7 @@ import { queryBaseNotes, sortBaseNotes } from './bases-engine.js';
 import { renderBaseTableView } from './bases-table-view.js';
 import { renderBaseBoardView } from './bases-board-view.js';
 import { renderBaseGalleryView } from './bases-gallery-view.js';
+import { renderBaseExplorerView } from './explorer/explorer-view.js';
 import { renderBaseListView } from './bases-list-view.js';
 import { renderBaseCalendarView } from './bases-calendar-view.js';
 import { renderBaseChartView } from './bases-chart-view.js';
@@ -32,6 +33,7 @@ const RENDERIZADORES = {
   board: renderBaseBoardView,
   gallery: renderBaseGalleryView,
   list: renderBaseListView,
+  explorer: renderBaseExplorerView,
   feed: renderBaseFeedView,
   timeline: renderBaseTimelineView,
   chart: renderBaseChartView,

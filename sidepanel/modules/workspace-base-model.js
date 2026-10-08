@@ -15,7 +15,7 @@ export const WORKSPACE_BASE_ID = 'workspace';
 const WORKSPACE_PROPS = ['title', 'kind', 'tags', 'updatedAt'];
 
 /** Views que o usuário pode criar pela aside (ordem do seletor "Nova view"). */
-export const NEW_VIEW_TYPES = ['calendar', 'table', 'gallery', 'board', 'list', 'timeline'];
+export const NEW_VIEW_TYPES = ['calendar', 'table', 'gallery', 'explorer', 'board', 'list', 'timeline'];
 
 /** Base inicial: origem = tudo; abre no calendário, como no mockup. */
 export function defaultWorkspaceDef() {
@@ -23,6 +23,7 @@ export function defaultWorkspaceDef() {
     createView('calendar', { id: 'v_calendario', name: 'Calendário' }),
     createView('table', { id: 'v_tabela', name: 'Tabela', extra: { props: WORKSPACE_PROPS } }),
     createView('gallery', { id: 'v_galeria', name: 'Galeria', extra: { props: WORKSPACE_PROPS } }),
+    createView('explorer', { id: 'v_explorador', name: 'Explorador' }),
   ];
   return normalizeViews({ name: 'Workspace', source: { all: true }, views, defaultViewId: 'v_calendario' });
 }
