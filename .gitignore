@@ -23,3 +23,6 @@ brand/quickdock-logo.html
 # alguns nomes â€” cada nova rodada de planejamento vem com um nome diferente
 # (HANDOFF-N, PLANEJAMENTO-X, PLANO-Y...) e ficar listando padrÃ£o por padrÃ£o
 # Ã© perder a corrida. Se um dia precisar de doc pÃºblico aqui, ela sai daqui.
+
+# cache e temporarios do wrangler
+.wrangler/

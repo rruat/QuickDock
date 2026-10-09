@@ -21,3 +21,6 @@ wrangler.jsonc
 
 # a configuração do Cloudflare não é conteúdo do site
 worker
+
+# cache e temporarios do proprio wrangler (tem o ID da conta)
+.wrangler
