@@ -2,7 +2,10 @@
 .floating-aside-group { display: none; }
 
 @media (max-width: 768px) {
-  html #section-note, html #board-view { position: relative; }
+  html #section-note, html #board-view { position: relative; } /* #bases-view já é absolute */
+
+  /* views da Base: uma faixa no topo reserva o lugar dos botões (sem ela cobririam a linha dos dias) */
+  html #bases-view > #bases-body { box-sizing: border-box; padding-top: 52px; }
 
   html .floating-aside-group {
     position: absolute;

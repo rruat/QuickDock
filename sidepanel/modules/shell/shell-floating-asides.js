@@ -1,5 +1,5 @@
 // ── shell-floating-asides.js ────────────────────────────────────────────────
-// Botões flutuantes nos cantos de cima da nota e do quadro (como o Obsidian mobile). Só mobile:
+// Botões flutuantes nos cantos de cima da nota, do quadro e das views da Base (como o Obsidian mobile). Só mobile:
 // lá o cabeçalho da view fica oculto; no desktop as asides têm os botões do cabeçalho e a nav.
 //   esquerda: [voltar] [abrir/fechar drawer esquerdo]
 //   direita:  [configurações da view] [constelações]
@@ -9,7 +9,7 @@
 import { openMobileLeftDrawer, closeMobileLeftDrawer } from './shell-mobile.js';
 import { isRightAsideOpen, getRightAsideMode } from './shell-right-aside.js';
 
-const HOSTS = ['#section-note', '#board-view'];
+const HOSTS = ['#section-note', '#board-view', '#bases-view'];
 const ROOT_VIEW = 'bases';
 
 const isLeftOpen = () => !!document.getElementById('mAside')?.classList.contains('is-open-mobile');
@@ -62,9 +62,10 @@ export function initFloatingAsides() {
   for (const sel of HOSTS) {
     const host = document.querySelector(sel);
     if (!host || host.querySelector(':scope > .floating-aside-group')) continue;
+    const isRoot = host.id === 'bases-view'; // a Base é a raiz: não há pra onde voltar
     host.append(
       makeGroup('left', [
-        makeButton('arrow_back', 'Voltar', { 'data-floating-back': '' }),
+        ...(isRoot ? [] : [makeButton('arrow_back', 'Voltar', { 'data-floating-back': '' })]),
         makeButton('left_panel_open', 'Abrir painel esquerdo', { 'data-floating-aside': 'left' }),
       ]),
       makeGroup('right', [
