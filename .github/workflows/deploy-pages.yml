@@ -1,0 +1,52 @@
+# Deploy automático do QuickDock no Cloudflare Pages a cada push na main.
+# Precisa de dois "secrets" no GitHub (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   token com a permissão "Cloudflare Pages: Edit"
+#   CLOUDFLARE_ACCOUNT_ID  ID da conta Cloudflare
+# Sem eles o fluxo só avisa e não falha.
+name: Deploy no Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Testes
+        run: node test/run.mjs
+
+      - name: Verifica credenciais do Cloudflare
+        id: creds
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID não configurados: deploy ignorado."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Monta a pasta do site
+        if: steps.creds.outputs.ready == 'true'
+        run: node scripts/build-pages.mjs dist-pages
+
+      - name: Publica no Pages
+        if: steps.creds.outputs.ready == 'true'
+        run: npx --yes wrangler@4 pages deploy dist-pages --project-name quickdock --branch main --commit-dirty=true

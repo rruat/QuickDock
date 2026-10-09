@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node test/run.mjs",
     "start": "node server.mjs",
-    "serve": "node server.mjs"
+    "serve": "node server.mjs",
+    "build:pages": "node scripts/build-pages.mjs"
   }
 }

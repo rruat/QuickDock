@@ -26,3 +26,6 @@ brand/quickdock-logo.html
 
 # cache e temporarios do wrangler
 .wrangler/
+
+# saida do scripts/build-pages.mjs (so o que vai para o Cloudflare Pages)
+dist-pages/
