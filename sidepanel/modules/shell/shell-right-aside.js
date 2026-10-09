@@ -11,6 +11,7 @@ import { requestViewSettings, EVT_SETTINGS_CLOSED } from '../bases/engine/view-r
 import { showNotePanel, hideNotePanel } from './shell-note-panel.js';
 import { renderBoardPanel } from './shell-board-panel.js';
 import { showGraphPanel, hideGraphPanel } from './shell-graph-panel.js';
+import { showModelsAside, hideModelsAside } from './shell-models-aside.js';
 import { slideIn } from './shell-motion.js';
 import { isMobileMode } from '../platform.js';
 
@@ -31,6 +32,7 @@ export const ASIDE_MODES = {
 const TOGGLE_SECTIONS = { notes: '#section-note', board: '#board-view' };
 
 const GRAPH_TITLE = 'CONSTELAÇÕES';
+const MODELS_TITLE = 'MODELOS';
 
 const clampWidth = w => Math.min(RIGHT_ASIDE_MAX, Math.max(RIGHT_ASIDE_MIN, Math.round(w)));
 const readStore = k => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -57,6 +59,7 @@ export function initRightAside() {
     notes: document.getElementById('rightAsideNoteHost'),
     board: document.getElementById('rightAsideBoardHost'),
     graph: document.getElementById('rightAsideGraphHost'),
+    models: document.getElementById('rightAsideModelsHost'),
   };
   const shellFocus = () => document.documentElement.dataset.shellFocus;
 
@@ -87,17 +90,21 @@ export function initRightAside() {
     hub.innerHTML = '<span class="material-symbols-rounded">hub</span>';
     tune.after(hub);
   }
-  // Mobile: os cabeçalhos (do app e das seções) somem; o `hub` (Constelações) fica no cabeçalho da própria aside
+  // Mobile: os cabeçalhos (do app e das seções) somem; os modos da aside ficam no cabeçalho dela:
+  // configurações (tune), Constelações (hub) e Modelos (notas, quadros e blocos)
   const asideActions = aside.querySelector(':scope > .aside-header .aside-actions');
-  if (asideActions && !asideActions.querySelector('[data-aside-graph]')) {
-    const hub = document.createElement('button');
-    hub.type = 'button';
-    hub.className = 'aside-btn mobile-only-btn';
-    hub.dataset.asideGraph = '';
-    hub.title = 'Constelações';
-    hub.setAttribute('aria-label', 'Constelações');
-    hub.innerHTML = '<span class="material-symbols-rounded">hub</span>';
-    asideActions.prepend(hub);
+  if (asideActions && !asideActions.querySelector('[data-aside-config]')) {
+    const mk = (attr, icon, title) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aside-btn mobile-only-btn';
+      b.setAttribute(attr, '');
+      b.title = title;
+      b.setAttribute('aria-label', title);
+      b.innerHTML = `<span class="material-symbols-rounded">${icon}</span>`;
+      return b;
+    };
+    asideActions.prepend(mk('data-aside-config', 'tune', 'Configurações'), mk('data-aside-graph', 'hub', 'Constelações'), mk('data-aside-models', 'auto_stories', 'Modelos'));
   }
   const toggles = () => document.querySelectorAll('[data-aside-toggle]');
 
@@ -127,8 +134,9 @@ export function initRightAside() {
     }
     wasVisible = visible;
     const graph = visible && asideMode === 'graph';
-    const cfg = visible && !graph;
-    if (mode && titleEl) titleEl.textContent = graph ? GRAPH_TITLE : mode;
+    const models = visible && asideMode === 'models';
+    const cfg = visible && !graph && !models;
+    if (mode && titleEl) titleEl.textContent = graph ? GRAPH_TITLE : models ? MODELS_TITLE : mode;
     toggles().forEach(b => {
       b.classList.toggle('is-active', cfg);
       b.setAttribute('aria-pressed', String(cfg));
@@ -137,16 +145,19 @@ export function initRightAside() {
       b.classList.toggle('is-active', graph);
       b.setAttribute('aria-pressed', String(graph));
     });
+    document.querySelectorAll('[data-aside-models]').forEach(b => b.classList.toggle('is-active', models));
+    document.querySelectorAll('[data-aside-config]').forEach(b => b.classList.toggle('is-active', cfg));
 
     // Cada tela mostra só o seu painel (o modo Constelações cobre todos)
     requestViewSettings(cfg && focus === 'bases');
-    if (focus !== 'bases' || graph) hosts.bases.hidden = true;
+    if (focus !== 'bases' || graph || models) hosts.bases.hidden = true;
     if (hosts.tools) hosts.tools.hidden = !(cfg && focus === 'bases');
     hosts.notes.hidden = !(cfg && focus === 'notes');
     hosts.board.hidden = !(cfg && focus === 'board');
     if (cfg && focus === 'notes') showNotePanel(hosts.notes); else hideNotePanel(hosts.notes);
     if (cfg && focus === 'board') renderBoardPanel(hosts.board);
     if (graph) showGraphPanel(hosts.graph); else hideGraphPanel(hosts.graph);
+    if (models) showModelsAside(hosts.models); else hideModelsAside(hosts.models);
 
     window.dispatchEvent(new CustomEvent('resize')); // motores canvas reencaixam na nova largura
   }
@@ -163,10 +174,14 @@ export function initRightAside() {
   api = { setOpen, isOpen: () => (mobile() ? mobileOpen : wantOpen) };
   function setMode(m) {
     asideMode = m;
-    writeStore(KEY_MODE, m);
+    if (m !== 'models') writeStore(KEY_MODE, m); // Modelos é um modo passageiro do mobile: não vira o padrão
   }
 
   document.addEventListener('click', (e) => {
+    const cfgBtn = e.target.closest?.('[data-aside-config]'); // cabeçalho da aside (mobile): volta às configurações
+    if (cfgBtn) { e.stopPropagation(); setMode('config'); setOpen(true); return; }
+    const modelsBtn = e.target.closest?.('[data-aside-models]'); // Modelos: notas, quadros e blocos
+    if (modelsBtn) { e.stopPropagation(); setMode(asideMode === 'models' && api.isOpen() ? 'config' : 'models'); setOpen(true); return; }
     const hub = e.target.closest?.('[data-aside-graph]');
     if (hub) { // hub: abre no grafo; se já está no grafo, recolhe
       e.stopPropagation();
@@ -178,14 +193,14 @@ export function initRightAside() {
     const btn = e.target.closest?.('[data-aside-toggle]');
     if (btn) { // tune: volta às configurações; se já está nelas, recolhe
       e.stopPropagation();
-      if (api.isOpen() && asideMode === 'graph') { setMode('config'); apply(); return; }
+      if (api.isOpen() && asideMode !== 'config') { setMode('config'); apply(); return; }
       setOpen(!api.isOpen());
     }
   });
   closeBtn?.addEventListener('click', () => setOpen(false));
   // o "X" do painel de configurações da view também recolhe a aside
   document.addEventListener(EVT_SETTINGS_CLOSED, () => {
-    if (asideMode === 'graph') return; // o "X" das configurações não deve fechar o grafo
+    if (asideMode !== 'config') return; // o "X" das configurações não deve fechar o grafo nem os modelos
     setOpen(false);
   });
   document.addEventListener('quickdock:shell-focus', apply);

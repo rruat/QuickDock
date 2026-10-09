@@ -2,32 +2,21 @@
    Nav vira barra inferior (Home, Modelos, Configurações); as asides viram DRAWERS que empurram o
    conteúdo: a esquerda (painéis Home | Modelos | Configurações) e a direita (configurações da view,
    painel da nota/quadro, constelações). Carrega depois de 23-mobile-spatial.css e o sobrepõe. */
-@media (max-width: 768px) {
-  /* ── Barra de navegação inferior ── */
-  html #app #mNav {
-    order: 3 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    width: 100% !important;
-    height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
-    flex-shrink: 0 !important;
-    padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
-    margin: 0 !important;
-    border: 0 !important;
-    border-top: 1px solid var(--border) !important;
-    border-radius: 0 !important;
-    background: var(--bg) !important;
-    overflow: hidden !important;
-    position: relative; z-index: 110; /* fica à frente dos drawers: dá para trocar de painel com um aberto */
-  }
-  html #app #mNav ul { flex-direction: row !important; justify-content: space-around !important; align-items: center !important; flex: 1 !important; gap: 0 !important; margin: 0 !important; padding: 0 !important; }
-  html #app #mNav .nav-item { width: 72px; height: 44px; margin: 0 !important; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
-  html #app #mNav .nav-item .material-symbols-rounded { font-size: 26px; }
+/* elementos só do mobile ficam ocultos no desktop (as regras que os mostram estão na media query) */
+.md-top, .md-results, .md-bottom, .md-lupa, .md-settings-screen { display: none; }
+.right-aside-models-host { display: none; }
+.right-aside-models-host:not([hidden]) { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; background: var(--bg); }
+.right-aside-models-host > #asideModels { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; padding: 8px 12px 16px; }
 
-  /* os drawers ocupam só a área acima da nav (a nav fica parada); a aside direita também empurra o conteúdo */
+@media (max-width: 768px) {
+  /* ── Sem barra de navegação no mobile: views/pesquisa/configurações moram no drawer esquerdo,
+     modelos na aside direita ── */
+  html #app #mNav, html[data-platform] #app #mNav { display: none !important; }
+  #mMain { flex: 1 1 auto !important; min-height: 0 !important; }
+
+  /* os drawers ocupam a altura toda; os dois empurram o conteúdo */
   /* drawers largos (como no Obsidian): sobra só uma fatia do conteúdo, sem precisar puxar do canto da tela */
-  :root { --m-nav-h: calc(56px + env(safe-area-inset-bottom, 0px)); --m-drawer-w: min(calc(100vw - 56px), 460px); }
+  :root { --m-nav-h: 0px; --m-drawer-w: min(calc(100vw - 56px), 460px); }
   /* teclado aberto (editando): some a nav, fica só a quickbar da nota */
   html.is-keyboard-open { --m-nav-h: 0px; }
   html.is-keyboard-open #app #mNav { display: none !important; }
@@ -46,6 +35,8 @@
   html[data-platform] #app #mAside.mode-notes #asideSectionList,
   html #mAside .notes-aside-drawer,
   html #mAside #asideSectionList,
+  html #mAside > .aside-header,
+  html #mAside #asideViewsSearch, html #mAside .aside-views-search,
   html #mAside .aside-actions #btnToggleLayout,
   html #mAside .aside-actions .aside-add-wrapper { display: none !important; }
   html #mAside .aside-actions #btnCloseAsideMobile { display: inline-flex !important; }
@@ -58,6 +49,61 @@
   html #mAside:not([data-aside-panel="settings"]) #asideSettings { display: none !important; }
   /* sem hover no toque: ações das views sempre visíveis */
   html #mAside .aside-view-actions { display: inline-flex; }
+
+  /* ── Drawer esquerdo estilo Obsidian (traço outline): busca no topo, escopo + configurações embaixo,
+     lupa flutuante acima deles ── */
+  html #app #mAside { display: flex !important; flex-direction: column; padding-bottom: env(safe-area-inset-bottom, 0px) !important; }
+  /* a busca vem primeiro e o rodapé por último, qualquer que seja a ordem no DOM */
+  html #app #mAside > * { order: 5; }
+  html #app #mAside > .md-top { order: 0; }
+  html #app #mAside > .md-bottom { order: 20; }
+  .md-top { display: block; flex: none; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 8px; }
+  .md-search { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 14px; background: transparent; color: var(--text-muted); }
+  .md-search:focus-within { border-color: var(--accent); color: var(--text); }
+  .md-search .material-symbols-rounded { font-size: 20px; }
+  .md-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 15px; -webkit-appearance: none; appearance: none; }
+  .md-search input::-webkit-search-cancel-button { display: none; }
+  .md-clear { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); }
+  .md-clear[hidden] { display: none; }
+
+  .md-results { display: none; flex: 1 1 auto; min-height: 0; overflow-y: auto; flex-direction: column; gap: 4px; padding: 4px 12px 12px; }
+  html #app #mAside.is-searching .md-results { display: flex; }
+  html #app #mAside.is-searching #asideViews, html #app #mAside.is-searching #asideModels, html #app #mAside.is-searching #asideSettings { display: none !important; }
+
+  .md-bottom { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; padding: 10px 12px; border-top: 1px solid var(--border); }
+  .md-scope, .md-gear {
+    display: inline-flex; align-items: center; gap: 8px; height: 44px; border: 1px solid var(--border); border-radius: 14px;
+    background: transparent; color: var(--text); font: inherit; font-size: 14px;
+  }
+  .md-scope { flex: 1; min-width: 0; padding: 0 12px; justify-content: flex-start; }
+  .md-scope .material-symbols-rounded { font-size: 20px; color: var(--text-muted); flex: none; }
+  .md-scope .md-scope-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .md-gear { width: 44px; justify-content: center; flex: none; }
+  .md-scope[aria-expanded="true"], .md-gear:active { border-color: var(--accent); }
+  /* menu do seletor: abre PARA CIMA, também em outline */
+  .md-scope-menu { position: absolute; left: 12px; right: 66px; bottom: calc(100% - 4px); display: flex; flex-direction: column; padding: 6px; gap: 2px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); box-shadow: 0 -6px 24px oklch(0% 0 0 / 0.14); z-index: 5; }
+  .md-scope-menu[hidden] { display: none; }
+  .md-scope-opt { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: 14px; text-align: left; }
+  .md-scope-opt .material-symbols-rounded { font-size: 20px; color: var(--text-muted); }
+  .md-scope-opt span:not(.material-symbols-rounded) { flex: 1; }
+  .md-scope-opt.is-active { border-color: var(--accent); }
+  /* lupa flutuante acima do rodapé (alcance do polegar): foca a barra de busca lá em cima */
+  .md-lupa { display: inline-flex; position: absolute; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); align-items: center; justify-content: center; width: 48px; height: 48px; border: 1px solid var(--border); border-radius: 50%; background: var(--bg); color: var(--text); box-shadow: 0 4px 14px oklch(0% 0 0 / 0.14); z-index: 4; }
+  .md-lupa:active { border-color: var(--accent); }
+  html #app #mAside.is-searching .md-lupa { display: none; }
+
+  /* tela cheia de Configurações (aberta pela engrenagem do drawer) */
+  .md-settings-screen { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 200; background: var(--bg); transform: translate3d(100%, 0, 0); visibility: hidden; transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s linear 260ms; }
+  .md-settings-screen.is-open { transform: translate3d(0, 0, 0); visibility: visible; transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s; }
+  .md-settings-head { display: flex; align-items: center; gap: 8px; flex: none; padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 8px; border-bottom: 1px solid var(--border); }
+  .md-settings-back { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); }
+  .md-settings-title { font-size: 16px; font-weight: 600; }
+  .md-settings-screen > #asideSettings { display: flex !important; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 12px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .md-settings-screen > #asideSettings .aside-views-head { display: none; }
+  /* design outline também nas opções ligadas: contorno, sem preenchimento escuro */
+  .md-settings-screen .settings-option, .md-settings-screen .settings-option:has(input:checked) { background: transparent; }
+  .md-settings-screen .settings-option:has(input:checked) { border-color: var(--accent); }
+  .right-aside-models-host .aside-views-title { display: none; }
 
   /* ── Drawer direito = #mRightAside ── */
   html #app #mobileRightDrawer { display: none !important; }
@@ -112,6 +158,11 @@
   /* Quick bar das Constelações cabe na largura */
   .gq-bar { max-width: calc(100% - 12px); bottom: 8px; }
   .gq-panel-content { min-width: 0; width: calc(100vw - 24px); max-width: 100%; }
+
+  /* Modelos na aside direita (modo do cabeçalho) */
+  .right-aside-models-host { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg); }
+  .right-aside-models-host[hidden] { display: none; }
+  .right-aside-models-host > #asideModels { display: flex !important; flex-direction: column; flex: 1 1 auto; min-height: 0; padding: 8px 12px 16px; }
 
   /* o painel lateral esquerdo é o drawer: o interruptor "mostrar painel" não faz sentido; o link do mockup também não */
   html #asideSettings label.settings-option:has(#settings-aside-open), #btn-header-mockup { display: none !important; }

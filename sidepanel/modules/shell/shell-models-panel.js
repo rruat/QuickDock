@@ -6,12 +6,14 @@
 import { loadAllTemplates } from '../storage.js';
 import { BOARD_TEMPLATES, buildBoardFromTemplate } from './models-board-templates.js';
 import { escapeHtml } from './shell-views.js';
+import { setRightAsideOpen } from './shell-right-aside.js';
 
 export function initModelsPanel({ openView }) {
   const body = document.getElementById('asideModelsBody');
   if (!body) return;
 
   let notes = [];
+  let blocks = [];
 
   const row = (kind, id, icon, name, desc) => `
     <div class="aside-view-item" data-kind="${kind}" data-id="${escapeHtml(String(id))}">
@@ -23,19 +25,35 @@ export function initModelsPanel({ openView }) {
     </div>`;
 
   async function render() {
-    try { notes = (await loadAllTemplates()).filter(t => t.kind === 'note'); } catch { notes = []; }
+    try {
+      const todos = await loadAllTemplates();
+      notes = todos.filter(t => t.kind === 'note');
+      blocks = todos.filter(t => t.kind === 'block');
+    } catch { notes = []; blocks = []; }
+    const emNota = document.documentElement.dataset.shellFocus === 'notes'; // bloco só entra numa nota aberta
     body.innerHTML = `
       <div class="aside-model-group">Notas modelo</div>
       ${notes.length
         ? notes.map(t => row('note', t.id, 'description', t.name || 'Sem nome', 'Nota')).join('')
         : '<div class="aside-views-empty">Nenhum modelo de nota ainda.<br>Crie um em <strong>Gerenciar modelos</strong>.</div>'}
       <div class="aside-model-group">Quadros modelo</div>
-      ${BOARD_TEMPLATES.map(t => row('board', t.id, 'space_dashboard', t.name, t.desc)).join('')}`;
+      ${BOARD_TEMPLATES.map(t => row('board', t.id, 'space_dashboard', t.name, t.desc)).join('')}
+      <div class="aside-model-group">Blocos modelo</div>
+      ${blocks.length
+        ? blocks.map(t => row('block', t.id, 'view_agenda', t.name, emNota ? 'Inserir na nota aberta' : 'Abra uma nota para inserir')).join('')
+        : '<div class="aside-views-empty">Nenhum bloco modelo ainda.<br>Salve um pelo menu de blocos da nota.</div>'}`;
   }
 
   body.addEventListener('click', async (e) => {
     const item = e.target.closest('.aside-view-item');
     if (!item) return;
+    if (item.dataset.kind === 'block') {
+      const tpl = blocks.find(t => String(t.id) === item.dataset.id);
+      if (!tpl || document.documentElement.dataset.shellFocus !== 'notes') return;
+      document.dispatchEvent(new CustomEvent('quickdock:insert-template-blocks', { detail: { content: tpl.content } }));
+      setRightAsideOpen(false); // no mobile devolve a tela à nota
+      return;
+    }
     if (item.dataset.kind === 'note') {
       const tpl = notes.find(t => String(t.id) === item.dataset.id);
       if (tpl) {
@@ -60,4 +78,5 @@ export function initModelsPanel({ openView }) {
   // atualiza ao abrir o painel e quando a biblioteca de modelos muda
   document.addEventListener('quickdock:aside-panel-changed', e => { if (e.detail?.panel === 'models') render(); });
   document.addEventListener('quickdock:templates-changed', () => render());
+  document.addEventListener('quickdock:shell-focus', () => { if (document.getElementById('asideModels')?.offsetParent) render(); }); // a dica dos blocos acompanha a tela
 }

@@ -219,7 +219,7 @@ export async function runShellViewsListTests({ ok, igual }) {
   // Mobile · nav inferior + drawers (esquerdo: painéis; direito: #mRightAside) + gestos
   const mcss = await readFile(new URL('../sidepanel/css/38-mobile-shell-v2.css', import.meta.url), 'utf8');
   ok('mobile · CSS: nav inferior, só os painéis novos no drawer esquerdo, #mRightAside como drawer, views enxutas',
-    ['#mNav {', 'html #mAside #asideModels', '#mRightAside {', '--right-x', '.bcal-month-cell .bcal-ev', '.bex-cell-date'].every(x => mcss.includes(x)) &&
+    ['#mNav', 'html #mAside #asideModels', '#mRightAside {', '--right-x', '.bcal-month-cell .bcal-ev', '.bex-cell-date'].every(x => mcss.includes(x)) &&
     (await readFile(new URL('../sidepanel/style.css', import.meta.url), 'utf8')).includes('38-mobile-shell-v2.css'));
   ok('mobile · nenhuma cor literal (hex/rgb) no CSS novo', !/#[0-9a-fA-F]{3,8}\b(?![\w-])(?=[;\s,)])/.test(mcss.replace(/#m\w+|#app|#asid\w+|#board\w*|#bases\w*|#section\w*|#btn[\w-]*|#rightAsideResizer|#settings[\w-]*/g, '')) && !/rgba?\(/.test(mcss));
   const raSrc = await readFile(new URL('../sidepanel/modules/shell/shell-right-aside.js', import.meta.url), 'utf8');
@@ -236,6 +236,27 @@ export async function runShellViewsListTests({ ok, igual }) {
     ss.includes('closeMobileLeftDrawer()') && (await readFile(new URL('../sidepanel/modules/shell/shell-mobile-back.js', import.meta.url), 'utf8')).includes("ROOT_VIEW = 'bases'") &&
     (await readFile(new URL('../sidepanel/modules/shell/shell-mobile-title.js', import.meta.url), 'utf8')).includes('closeMobileLeftDrawer') && swP4.includes('shell/shell-mobile-title.js') && swP4.includes('css/38-mobile-shell-v2.css'));
   ok('mobile · usar nota modelo abre a tela de notas; Explorador abre com um toque', (await readFile(new URL('../sidepanel/modules/shell/shell-models-panel.js', import.meta.url), 'utf8')).includes("openView('notes')") && exSrc.includes('touchOpen'));
+
+  // Mobile · drawer esquerdo estilo Obsidian, sem nav, modelos na aside direita
+  const sch = await import('../sidepanel/modules/shell/mobile-drawer-search.js');
+  const itensEx = [
+    { id: 1, title: 'Reunião de planejamento', pasta: 'Trabalho/Projetos', content: 'discutir orçamento' },
+    { id: 2, title: 'Receitas', pasta: 'Casa', content: 'bolo de cenoura' },
+    { id: 'board-3', title: 'Mapa do planejamento', pasta: '', isBoard: true, content: '' },
+    { id: 4, title: 'Diário', pasta: 'Trabalho', content: 'planejamento da semana' }];
+  igual('mobile busca · título primeiro, depois pasta e conteúdo; sem acento e sem diferenciar maiúsculas', sch.searchItems(itensEx, 'PLANEJAMENTO').map(i => i.id), ['board-3', 1, 4]);
+  igual('mobile busca · achou pela pasta e pelo conteúdo da nota (quadro não tem conteúdo)', [sch.searchItems(itensEx, 'casa').map(i => i.id), sch.searchItems(itensEx, 'cenoura').map(i => i.id), sch.searchItems(itensEx, '').length], [[2], [2], 0]);
+  igual('mobile busca · pastas com as ancestrais e contagem recursiva', sch.searchFolders(itensEx, '').map(f => [f.path, f.count]), [['Casa', 1], ['Trabalho', 2], ['Trabalho/Projetos', 1]]);
+  igual('mobile busca · filtra pastas pelo caminho', sch.searchFolders(itensEx, 'proj').map(f => f.path), ['Trabalho/Projetos']);
+  igual('mobile busca · escopos', sch.SEARCH_SCOPES.map(s => s.id), ['views', 'items', 'folders']);
+  const mdSrc = await readFile(new URL('../sidepanel/modules/shell/shell-mobile-drawer.js', import.meta.url), 'utf8');
+  ok('mobile drawer · busca no topo, escopo (menu para cima) e engrenagem embaixo, lupa flutuante e tela cheia de configurações',
+    ['md-top', 'md-bottom', 'md-scope-menu', 'md-lupa', 'md-gear', 'md-settings-screen', "lupa.addEventListener('click', () => input.focus())"].every(x => mdSrc.includes(x)) &&
+    mcss.includes('bottom: calc(100% - 4px)') && mcss.includes('html #app #mNav, html[data-platform] #app #mNav { display: none !important; }'));
+  ok('mobile · modelos na aside direita (modo próprio, botão no cabeçalho dela) com blocos modelo; módulos no pré-cache',
+    raSrc.includes("'data-aside-models'") && raSrc.includes('showModelsAside') && (await readFile(new URL('../sidepanel/modules/shell/shell-models-panel.js', import.meta.url), 'utf8')).includes('Blocos modelo') &&
+    ['shell-mobile-drawer', 'mobile-drawer-search', 'shell-models-aside'].every(n => swP4.includes(`shell/${n}.js`)) &&
+    (await Promise.all(['../index.html', '../404.html', '../sidepanel/index.html'].map(p => readFile(new URL(p, import.meta.url), 'utf8')))).every(h => h.includes('id="rightAsideModelsHost"')));
 
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
