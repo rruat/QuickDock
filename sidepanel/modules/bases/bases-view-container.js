@@ -7,7 +7,7 @@ import { parseYamlOrJson, stringifyBaseToYaml } from './bases-yaml.js';
 import { inferBaseSchema, normalizeBaseDefinition } from './bases-schema.js';
 import { runViewPipeline, renderViewByType } from './bases-view-pipeline.js';
 import { loadAllNotesMeta, createNoteRecord, updateNoteMetaById, loadAllTemplates, updateNoteBlocksById, getNoteById } from '../storage.js';
-import { parseMarkdownToBlocks, blocksToMarkdown } from '../blocks.js';
+import { parseMarkdownToBlocks, blocksToMarkdown, blocksOfNote } from '../blocks.js';
 import { normalizeViews, getViewProps, VIEW_TYPES, createView, newViewId, applyViewPatch } from './config/view-model.js';
 import { mountViewSettingsPanel } from './ui/view-settings-panel.js';
 import { renderViewTabs as desenhaAbas, abreMenu } from './ui/view-tabs.js';
@@ -74,7 +74,7 @@ export async function renderBaseComponent(rootContainer, initialConfig, options 
     if (!meta) return;
     try {
       const nota = await getNoteById(meta.id);
-      const blocos = nota?.blocks?.length ? nota.blocks : parseMarkdownToBlocks(nota?.content ?? '');
+      const blocos = blocksOfNote(nota);
       linked = readLinkedDefinition(blocos);
     } catch (err) { console.warn('Base vinculada: não foi possível ler a origem', err); }
   }

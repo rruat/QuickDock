@@ -1,7 +1,7 @@
 import { initNotesTabs, createTutorialNote, downloadAllNotes, refreshNotesList, getActiveNoteUid } from './modules/notes-tabs.js';
 import { positionPopover } from './modules/popover.js';
 import { initDocuments, toggleDocsCollapsed } from './modules/documents.js';
-import { loadTheme, saveTheme, loadAllNotesMeta, garantirIndiceDeLinks } from './modules/storage.js';
+import { loadTheme, saveTheme, loadAllNotesMeta } from './modules/storage.js';
 import { initResizer, toggleDocsExtension } from './modules/resizer.js';
 import { SyncController, SYNC_STATE } from './modules/sync-controller.js';
 import { canSafelyReloadCurrentNote, switchToNote, flushSave, isEditingTemplate, setImageResolver } from './modules/note.js';
@@ -228,8 +228,6 @@ async function init() {
   try {
     await initTheme();
     await initNotesTabs();
-    // Links (internos e externos) das notas antigas entram no Grafo/backlinks sem precisar reeditar cada nota
-    garantirIndiceDeLinks(2).catch(err => console.warn('Falha ao indexar links:', err));
     await abrirNotaDaUrlOuStorageSeHouver();
     await initDocuments();
     await initResizer();

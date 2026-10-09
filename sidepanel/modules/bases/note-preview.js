@@ -4,7 +4,6 @@
 
 import { renderNoteBlocks } from '../board/board-note-render.js';
 import { urlDoArquivo } from '../board/board-media.js';
-import { parseMarkdownToBlocks } from '../blocks.js';
 import { getNoteById, loadFileBlob } from '../storage.js';
 
 const vazioTexto = (el, cls, txt) => { const p = document.createElement('p'); p.className = cls; p.textContent = txt; el.replaceChildren(p); };
@@ -13,9 +12,7 @@ const vazioTexto = (el, cls, txt) => { const p = document.createElement('p'); p.
 export async function hydrateNoteContent(corpo, noteId, onRendered) {
   try {
     const nota = await getNoteById(noteId);
-    // blocos salvos; se vierem vazios (nota criada só com `content`, ex.: importação), usa o texto
-    const vazios = !nota?.blocks?.length || nota.blocks.every(b => b?.type === 'paragraph' && !String(b.html ?? '').trim());
-    const blocos = vazios && nota?.content?.trim() ? parseMarkdownToBlocks(nota.content) : (nota?.blocks ?? []);
+    const blocos = nota?.blocks ?? [];
     if (!corpo.isConnected) return;
     if (!blocos.length) { vazioTexto(corpo, 'bfeed-empty', 'Nota sem conteúdo.'); return; }
     renderNoteBlocks(corpo, blocos, { urlDoArquivo: id => urlDoArquivo(id, loadFileBlob) });

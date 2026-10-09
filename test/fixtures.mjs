@@ -25,7 +25,7 @@ export const BLOCOS_V18 = [
       { id: 'b9',  type: 'number',    html: 'Primeiro contato' },
       { id: 'b10', type: 'number',    html: 'Retorno em 5 dias' },
       { id: 'b11', type: 'divider' },
-      { id: 'b12', type: 'quote',     html: 'Cliente pediu retorno por e-mail.' },
+      { id: 'b12', type: 'paragraph', html: 'Cliente pediu retorno por e-mail.', quoted: true },
     ],
   },
   {

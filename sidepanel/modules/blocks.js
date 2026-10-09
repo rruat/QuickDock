@@ -1,6 +1,6 @@
 // ── blocks.js ──────────────────────────────────────────────────────────────
-// Modelo de blocos do editor de notas e conversão a partir do
-// markdown de texto puro que as versões anteriores salvavam (migração).
+// Modelo de blocos do editor de notas e conversão de/para markdown (importação, colagem,
+// sincronização e exportação).
 
 import { evaluateSheet } from './calc.js';
 
@@ -66,7 +66,7 @@ export function headingSlugs(textos) {
   });
 }
 
-// ── Markdown inline → HTML real (usado só na migração de notas antigas) ──────
+// ── Markdown inline → HTML real (colagem, importação e sincronização) ──────
 // Mesma regra do itálico de antes: sem espaço colado no asterisco, pra não
 // colidir com "*" de multiplicação.
 // `code` vem primeiro pra que uma marcação dentro de crase continue literal.
@@ -341,12 +341,11 @@ export const CALLOUT_LABELS = {
   caution:   'Cuidado',
 };
 
-// O tipo antigo `quote` continua sendo lido: na leitura vira parágrafo
-// decorado, e é a forma nova que volta a ser gravada quando a pessoa editar.
-// Nota antiga abre igual, sem migração varrendo o banco.
-export function normalizeBlock(b) {
-  if (b?.type !== 'quote') return b;
-  return { ...b, type: 'paragraph', quoted: true };
+/** Blocos da nota para abrir/mostrar; nota sem blocos (recém-criada) tem um parágrafo vazio. */
+export function blocksOfNote(note) {
+  return Array.isArray(note?.blocks) && note.blocks.length
+    ? note.blocks
+    : [{ id: uid(), type: 'paragraph', html: '' }];
 }
 
 // Uma nota pode ter mais de um bloco de base — a visão dedicada (bases-view.js)
@@ -658,9 +657,7 @@ export function blocksToMarkdown(blocks, opts = {}) {
     const pad = indentOf(b);
     // O ">" vem depois da indentação e antes do marcador do tipo: é assim que
     // "  > - item" volta a ser lido como item de lista dentro de uma citação.
-    // O tipo antigo `quote` também entra aqui, pra que um registro que nunca
-    // passou pelo editor continue saindo como citação.
-    const q = (b.quoted || b.callout || b.type === 'quote') ? '> ' : '';
+    const q = (b.quoted || b.callout) ? '> ' : '';
     const marcador = abreCallout(b, lista[i - 1])
       ? `${pad}> [!${b.callout.toUpperCase()}]\n`
       : '';
@@ -736,7 +733,6 @@ ${pad}${q}---` : `${pad}${q}## ${text}`;
         // Parágrafo vazio sai vazio de verdade: uma linha só com espaços
         // reapareceria como indentação na leitura de volta. Vazio E citado sai
         // só como ">", que é a linha em branco de dentro da citação.
-        case 'quote':    return `${pad}> ${text}`;
         default:
           if (text !== '') return `${pad}${q}${text}`;
           return q ? `${pad}>` : '';
@@ -800,7 +796,7 @@ export function blocksToPlainText(blocks) {
 
     // No texto simples a citação vira uma barra — aspas por linha ficariam
     // abrindo e fechando a cada linha da mesma citação.
-    const q = (b.quoted || b.callout || b.type === 'quote') ? '| ' : '';
+    const q = (b.quoted || b.callout) ? '| ' : '';
 
     // O rótulo do destaque vai numa linha só dele, como no markdown. Aqui em
     // português: quem lê um texto copiado não precisa saber a palavra-chave.
@@ -833,7 +829,6 @@ export function blocksToPlainText(blocks) {
         case 'bullet':    return `${pad}${q}${BULLET_GLYPHS[depth % BULLET_GLYPHS.length]} ${text}`;
         case 'number':    return `${pad}${q}${num}. ${text}`;
         case 'checklist': return `${pad}${q}${b.checked ? '☑' : '☐'} ${text}`;
-        case 'quote':     return `${pad}| ${text}`;
         default:          return text === '' ? (q ? `${pad}|` : '') : `${pad}${q}${text}`;
       }
     };

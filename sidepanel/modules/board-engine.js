@@ -17,7 +17,7 @@ import {
   saveBoardRecord, getBoardById, getBoardByUid, loadAllBoards, deleteBoardRecord,
   saveFile, loadFileBlob, deleteFile, loadAllNotesMeta, createNoteRecord, getNoteById, updateNoteMetaById,
 } from './storage.js';
-import { escHtml, parseMarkdownToBlocks } from './blocks.js';
+import { escHtml, blocksOfNote } from './blocks.js';
 import { renderNoteBlocks } from './board/board-note-render.js';
 import { positionPopover } from './popover.js';
 
@@ -1860,7 +1860,7 @@ async function hidratarCartaoNota(cardEl, nota) {
   if (!alvo || !nota || cardEl.classList.contains('is-live-note')) return;
   try {
     const completa = await getNoteById(nota.id);
-    const blocos = completa?.blocks?.length ? completa.blocks : parseMarkdownToBlocks(completa?.content ?? '');
+    const blocos = blocksOfNote(completa);
     if (!alvo.isConnected) return;
     renderNoteBlocks(alvo, blocos, { urlDoArquivo: id => urlDoArquivo(id, loadFileBlob) });
   } catch (err) {

@@ -11,7 +11,7 @@ import { openModal } from './modal.js';
 import { evaluateSheet } from './calc.js';
 import {
   uid, escHtml, safeHref, parseMarkdownToBlocks, blocksToMarkdown, blocksToPlainText,
-  MAX_DEPTH, BULLET_GLYPHS, normalizeBlock, blocksToMarkdownForExport,
+  MAX_DEPTH, BULLET_GLYPHS, blocksOfNote, blocksToMarkdownForExport,
   CALLOUT_TYPES, CALLOUT_LABELS, headingSlug, headingSlugs, parseInlineMarkdown,
 } from './blocks.js';
 import { blockTemplates, openSaveBlockTemplate } from './templates.js';
@@ -196,15 +196,6 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
     innerHTML = tmp.innerHTML;
   }
 
-  // "quote" deixou de ser um tipo e virou decoração. Um registro antigo que
-  // escape da normalização ainda chega aqui — vira parágrafo citado, que é a
-  // forma nova do mesmo conteúdo.
-  if (type === 'quote') {
-    const p = createBlockEl('paragraph', innerHTML);
-    setBlockQuoted(p, true);
-    return p;
-  }
-
   if (type === 'image') {
     el = document.createElement('div');
     el.className = 'block block-image';
@@ -374,8 +365,7 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
 // createBlockEl tem parâmetros posicionais e é fácil esquecer o último — foi
 // exatamente assim que uma tabela colada virava uma tabela vazia. Campo novo
 // no modelo entra aqui e todas as chamadas passam a respeitá-lo de uma vez.
-function createBlockElFrom(bruto) {
-  const b  = normalizeBlock(bruto);
+function createBlockElFrom(b) {
   const el = createBlockEl(b.type, b.html ?? '', b.checked ?? false, b.rows ?? null, b.config ?? '');
   if (b.id) el.dataset.id = b.id;
   if (b.marker) el.dataset.marker = b.marker;
@@ -1076,7 +1066,7 @@ export async function lendEditorTo(noteId, { moveIn, moveBack }) {
   const previousId = currentNoteId;
   editorLoan = { previousId, moveBack };
   currentNoteId = noteId;
-  renderBlocks(note.blocks?.length ? note.blocks : parseMarkdownToBlocks(note.content ?? ''));
+  renderBlocks(blocksOfNote(note));
   moveIn();
   return true;
 }
@@ -1130,7 +1120,7 @@ export function canSafelyReloadCurrentNote() {
 export async function clearCurrentNote() {
   await returnLentEditor();
   clearTimeout(saveTimer);
-  renderBlocks(parseMarkdownToBlocks(''));
+  renderBlocks(blocksOfNote(null));
   await flushSave();
 }
 
@@ -1189,7 +1179,7 @@ export async function switchToNote(id, { descartarDom = false } = {}) {
     return;
   }
   const note = await getNoteById(id);
-  const blocks = (note?.blocks?.length) ? note.blocks : parseMarkdownToBlocks(note?.content ?? '');
+  const blocks = blocksOfNote(note);
   renderBlocks(blocks);
   updateMobileToolbarState();
   renderNoteHeader(note);

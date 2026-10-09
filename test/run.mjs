@@ -8,7 +8,7 @@
 import { installDomShim } from './dom-shim.mjs';
 installDomShim();
 
-const { parseMarkdownToBlocks, blocksToMarkdown, blocksToPlainText, normalizeBlock } =
+const { parseMarkdownToBlocks, blocksToMarkdown, blocksToPlainText } =
   await import('../sidepanel/modules/blocks.js');
 
 import { BLOCOS_V18, BLOCOS_NOVOS, MARKDOWN, HOSTIS, INDENTACOES, CITACAO_COM_FILHOS } from './fixtures.mjs';
@@ -65,7 +65,7 @@ function forma(blocks) {
 const TODAS_AS_FIXTURES = [...BLOCOS_V18, ...BLOCOS_NOVOS];
 
 for (const { nome, blocks } of TODAS_AS_FIXTURES) {
-  const bNorm = blocks.map(normalizeBlock);
+  const bNorm = blocks;
   const md    = blocksToMarkdown(bNorm);
   const volta = parseMarkdownToBlocks(md);
 
@@ -92,7 +92,7 @@ for (const { nome, blocks } of TODAS_AS_FIXTURES) {
   igual('v1.8 · tipos preservados na volta',
     tipos,
     ['heading1', 'paragraph', 'paragraph', 'paragraph', 'heading2',
-     'checklist', 'checklist', 'bullet', 'number', 'number', 'divider', 'quote']
+     'checklist', 'checklist', 'bullet', 'number', 'number', 'divider', 'paragraph']
       .map((t, i) => tipos[i] === t ? t : tipos[i]));
   ok('v1.8 · checklist mantém o marcado/desmarcado',
      volta[5].checked === true && volta[6].checked === false);
@@ -179,16 +179,6 @@ for (const { nome, blocks } of BLOCOS_V18) {
 
   const volta = parseMarkdownToBlocks(blocksToMarkdown(blocks));
   igual('citação · sobrevive à ida e volta', forma(volta), forma(blocks));
-}
-
-// O tipo `quote` antigo continua abrindo — e sai gravado na forma nova.
-{
-  const antigo = [{ id: 'q1', type: 'quote', html: 'Cliente pediu retorno.' }];
-  igual('citação · bloco `quote` antigo ainda vira markdown de citação',
-    blocksToMarkdown(antigo), '> Cliente pediu retorno.');
-  const volta = parseMarkdownToBlocks(blocksToMarkdown(antigo))[0];
-  igual('citação · e volta já na forma nova',
-    [volta.type, volta.quoted], ['paragraph', true]);
 }
 
 // ── 3c2. Destaque (callout) ──────────────────────────────────────────────────
@@ -625,7 +615,7 @@ for (const { nome, blocks } of BLOCOS_V18) {
 
 // ── 4c. Dexie v6: uid, migração e ordem fracionária (storage.js) ────────────
 {
-  const { ordemEntre, ordemDeIndice, migrarRegistroV5ParaV6 } =
+  const { ordemEntre, ordemDeIndice } =
     await import('../sidepanel/modules/storage.js');
 
   // Teste de propriedade de ordemEntre: para quaisquer a < b, vale a < ordemEntre(a, b) < b
@@ -757,51 +747,6 @@ for (const { nome, blocks } of BLOCOS_V18) {
   igual('ordemDeIndice · 1 vira a1', ordemDeIndice(1), 'a1');
   igual('ordemDeIndice · preserva ordenação de índices crescentes',
     ordemDeIndice(0) < ordemDeIndice(1) && ordemDeIndice(1) < ordemDeIndice(2), true);
-
-  // Teste do caminho de migração: registro v5 entra, sai com uid e ordem válidos, sem perder nenhum outro campo
-  {
-    const registroV5 = {
-      id: 7,
-      title: 'Atendimento Especial',
-      content: 'Conteúdo derivado de teste',
-      blocks: [{ id: 'b1', type: 'paragraph', html: 'Linha de texto' }],
-      color: 'verde',
-      icon: 'star',
-      iconFilled: true,
-      titleHidden: false,
-      order: 3,
-      createdAt: 1773306840000,
-      updatedAt: 1773306850000,
-    };
-
-    const registroV6 = migrarRegistroV5ParaV6(registroV5);
-
-    // Campos novos exigidos
-    ok('migração v5→v6 · uid gerado e preenchido',
-       typeof registroV6.uid === 'string' && registroV6.uid.length > 8,
-       registroV6.uid);
-    igual('migração v5→v6 · ordem fracionária calculada a partir de order',
-      registroV6.ordem, 'a3');
-
-    // NENHUM campo existente foi perdido ou alterado
-    igual('migração v5→v6 · id preservado', registroV6.id, 7);
-    igual('migração v5→v6 · title preservado', registroV6.title, 'Atendimento Especial');
-    igual('migração v5→v6 · content preservado', registroV6.content, 'Conteúdo derivado de teste');
-    igual('migração v5→v6 · blocks preservado', registroV6.blocks, registroV5.blocks);
-    igual('migração v5→v6 · color preservado', registroV6.color, 'verde');
-    igual('migração v5→v6 · icon preservado', registroV6.icon, 'star');
-    igual('migração v5→v6 · iconFilled preservado', registroV6.iconFilled, true);
-    igual('migração v5→v6 · titleHidden preservado', registroV6.titleHidden, false);
-    igual('migração v5→v6 · order original mantido', registroV6.order, 3);
-    igual('migração v5→v6 · createdAt preservado', registroV6.createdAt, 1773306840000);
-    igual('migração v5→v6 · updatedAt preservado', registroV6.updatedAt, 1773306850000);
-
-    // Registro que já tinha uid ou ordem não é sobrescrito
-    const jaComUid = { id: 8, uid: 'meu-uuid-fixo', ordem: 'a0V', order: 1 };
-    const mantido = migrarRegistroV5ParaV6(jaComUid);
-    igual('migração v5→v6 · uid existente não é sobrescrito', mantido.uid, 'meu-uuid-fixo');
-    igual('migração v5→v6 · ordem existente não é sobrescrita', mantido.ordem, 'a0V');
-  }
 }
 
 // ── 4d. Adaptador de sincronização em memória (sync-adapter.js) ──────────────
@@ -4391,7 +4336,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 
   ok('zero-abas · updateMobileToolbarState oculta a barra móvel/inteligente quando !currentNoteId',
     noteMobileToolbarSourceZeroAbas.includes('if (!getCurrentNoteId())') &&
-    noteMobileToolbarSourceZeroAbas.includes('mobileNotionToolbar.style.display = \'none\''));
+    noteMobileToolbarSourceZeroAbas.includes('mobileQuickbar.style.display = \'none\''));
 
   // 30.7: Seletor de visão auxiliar e migração do menu More para o Aside Drawer
   const htmlSource = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');

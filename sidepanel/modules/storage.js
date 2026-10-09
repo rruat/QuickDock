@@ -24,7 +24,7 @@ export function criarBancoDeProvas(nome = 'quickdock-provas') {
   return definirEsquema(new Dexie(nome));
 }
 
-// ── Ordem fracionária e migração v6 ──────────────────────────────────────────
+// ── Ordem fracionária ──────────────────────────────────────────
 // O índice fracionário (a0, a0V, a1...) permite inserir e reordenar notas
 // calculando uma chave intermediária pura, sem precisar reescrever nem tocar
 // nas outras notas. Isso elimina a necessidade de um arquivo de índice centralizado,
@@ -143,23 +143,6 @@ export function ordemEntre(a, b) {
   return a + MID;
 }
 
-/**
- * Função pura de migração de um registro individual de nota ou template do formato v5 para o v6.
- * Preenche `uid` e `ordem` preservando integralmente todos os campos já existentes.
- */
-export function migrarRegistroV5ParaV6(registro, indice = 0) {
-  const r = { ...registro };
-  if (!r.uid) {
-    r.uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-  }
-  if (!r.ordem) {
-    r.ordem = ordemDeIndice(r.order ?? indice);
-  }
-  return r;
-}
-
 function definirEsquema(db) {
   db.version(1).stores({
     files: '++id, name, type, createdAt'
@@ -195,20 +178,12 @@ function definirEsquema(db) {
     notes: '++id, order, updatedAt',
     templates: '++id, order, name'
   });
-  // v6: identidade que viaja no arquivo (uid) ao lado do id inteiro (local).
+  // v6: identidade que viaja no arquivo (uid) ao lado do id inteiro (local) e ordem fracionária.
   // Nunca tocamos na chave primária `++id`, evitando retrabalho em referências locais.
-  // Acrescenta ordem fracionária e migra registros existentes.
   db.version(6).stores({
     files: '++id, name, type, noteId, inline, createdAt',
     notes: '++id, uid, ordem, order, updatedAt',
     templates: '++id, uid, ordem, order, name'
-  }).upgrade(async tx => {
-    await tx.table('notes').toCollection().modify((note, i) => {
-      Object.assign(note, migrarRegistroV5ParaV6(note, note.order ?? i));
-    });
-    await tx.table('templates').toCollection().modify((tpl, i) => {
-      Object.assign(tpl, migrarRegistroV5ParaV6(tpl, tpl.order ?? i));
-    });
   });
   // v7: estado de sincronização — local, por aparelho, nunca sobe. É ele que
   // distingue "arquivo apagado lá" de "arquivo que nunca chegou aqui".
@@ -228,12 +203,6 @@ function definirEsquema(db) {
   db.version(9).stores({
     notes: "++id, uid, pasta, [pasta+ordem], ordem, order, updatedAt",
     folders: "++id, &caminho, ordem, criadoEm"
-  }).upgrade(async tx => {
-    await tx.table('notes').toCollection().modify(note => {
-      if (note.pasta === undefined || note.pasta === null) {
-        note.pasta = '';
-      }
-    });
   });
   // v10: Tabela de links entre notas para busca reversa de backlinks e visualização em grafo
   db.version(10).stores({
@@ -372,30 +341,6 @@ export async function salvarLinksDaNota(uidOrigem, links = []) {
   });
 }
 
-// Reconstrói a tabela `links` de TODAS as notas a partir do conteúdo. Serve pra quando
-// o jeito de reconhecer links muda (ex.: passou a valer link externo ?abrirNota=) —
-// notas antigas só seriam reindexadas na próxima vez que fossem editadas.
-// `versao` evita refazer: roda uma vez por versão do formato de links neste aparelho.
-export async function garantirIndiceDeLinks(versao) {
-  if (!db || !db.links || !db.notes) return false;
-  const chave = 'quickdock:links-index-version';
-  try { if (localStorage.getItem(chave) === String(versao)) return false; } catch {}
-  const notas = await db.notes.toArray();
-  const registros = [];
-  for (const nota of notas) {
-    if (!nota.uid) continue;
-    const refs = extrairLinksDeBlocos(nota.blocks ?? []);
-    for (const l of resolverLinks(refs, nota.uid, notas)) {
-      registros.push({ uidOrigem: nota.uid, uidDestino: l.uidDestino || null, tituloAlvo: (l.tituloAlvo || '').trim() });
-    }
-  }
-  await db.transaction('rw', db.links, async () => {
-    await db.links.clear();
-    if (registros.length) await db.links.bulkAdd(registros);
-  });
-  try { localStorage.setItem(chave, String(versao)); } catch {}
-  return true;
-}
 export async function obterBacklinks(uidDestino, tituloAlvo) {
   if (!db || !db.links) return [];
   const encontrados = [];
@@ -643,22 +588,6 @@ export async function moverNotaParaPasta(notaId, novaPasta) {
     }));
   }
   return true;
-}
-
-// Migra a nota única antiga (armazenamento legado) para a primeira nota do Dexie.
-// Executa apenas uma vez: se já existir alguma nota no Dexie, não faz nada.
-// Se não houver conteúdo legado nenhum (instalação nova de verdade), não cria
-// nota nenhuma — um primeiro acesso sem notas mostra o dashboard vazio
-// (renderEmptyDashboardContent), que já tem um card "Ver Tutorial" pra quem quiser.
-export async function migrateLegacyNoteIfNeeded() {
-  const count = await db.notes.count();
-  if (count > 0) return;
-
-  const legacy = (await platformStorage.get('note_content')) || '';
-  if (!legacy) return;
-
-  await createNoteRecord({ title: 'Nota 1', content: legacy });
-  await platformStorage.remove('note_content');
 }
 
 // --- MODELOS DE NOTA ---

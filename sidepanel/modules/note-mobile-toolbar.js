@@ -33,7 +33,6 @@ export function getLastFocusedBlock() { return lastFocusedBlock; }
 const mobileQuickbar = document.createElement('div');
 mobileQuickbar.className = 'mobile-quickbar mobile-notion-toolbar';
 mobileQuickbar.id = 'mobile-quickbar';
-const mobileNotionToolbar = mobileQuickbar; // alias de compatibilidade interna
 
 // Estado 1: Formatação de Texto (quando texto estiver selecionado)
 const mobileFormatBar = document.createElement('div');
@@ -930,22 +929,22 @@ export function updateMobileToolbarState() {
                              docEl.classList.contains('view-bases')) && !docEl.classList.contains('view-split'));
 
   if (!getCurrentNoteId()) {
-    if (mobileNotionToolbar) {
-      mobileNotionToolbar.hidden = true;
-      mobileNotionToolbar.style.display = 'none';
+    if (mobileQuickbar) {
+      mobileQuickbar.hidden = true;
+      mobileQuickbar.style.display = 'none';
     }
     return;
   }
   if (isFullscreenView) {
-    if (mobileNotionToolbar) {
-      mobileNotionToolbar.hidden = true;
-      mobileNotionToolbar.style.display = 'none';
+    if (mobileQuickbar) {
+      mobileQuickbar.hidden = true;
+      mobileQuickbar.style.display = 'none';
     }
     return;
   }
-  if (mobileNotionToolbar) {
-    mobileNotionToolbar.hidden = false;
-    mobileNotionToolbar.style.display = '';
+  if (mobileQuickbar) {
+    mobileQuickbar.hidden = false;
+    mobileQuickbar.style.display = '';
   }
 
   if (getSelectedBlockIds().size > 0 || getIsBlockSelectActive()) {
@@ -1013,7 +1012,7 @@ root.addEventListener('scroll', () => {
 }, { passive: true });
 
 // Monta os elementos no DOM
-mobileNotionToolbar.append(
+mobileQuickbar.append(
   mobileAddPopover,
   mobileColorPopover,
   mobileTextFormatSheet,
@@ -1026,7 +1025,7 @@ mobileNotionToolbar.append(
 const desktopEditor = document.documentElement.dataset.platform === 'desktop'
   ? noteSection.querySelector('.note-editor')
   : null;
-(desktopEditor || noteSection).appendChild(mobileNotionToolbar);
+(desktopEditor || noteSection).appendChild(mobileQuickbar);
 document.body.appendChild(mobileTypeSheet);
 document.body.appendChild(mobileTemplateSheet);
 // Adiado: este módulo é importado cedo no carregamento de note.js (antes da
@@ -1061,7 +1060,7 @@ syncVisualViewport();
 // Usado pelo listener de "clique fora limpa a seleção" (ainda em note.js) pra
 // não fechar a seleção quando o clique foi na própria toolbar mobile.
 export function isEventInsideMobileToolbar(target) {
-  return mobileNotionToolbar.contains(target)
+  return mobileQuickbar.contains(target)
     || mobileTemplateSheet.contains(target)
     || mobileTypeSheet.contains(target);
 }

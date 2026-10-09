@@ -6,7 +6,7 @@
 // visual dos blocos que você vê editando. Nada do editor real é reaproveitado: ele só
 // roda numa instância por vez, e um cartão não pode roubar o foco/estado da nota aberta.
 
-import { normalizeBlock, safeHref } from '../blocks.js';
+import { safeHref } from '../blocks.js';
 
 const MAX_BLOCOS = 400;       // nota enorme não pode travar o quadro
 const TAGS_PROIBIDAS = 'script, style, iframe, object, embed, link, meta, base, form, input, button, textarea, select';
@@ -82,7 +82,7 @@ export function renderNoteBlocks(raiz, blocos, { urlDoArquivo } = {}) {
   raiz.classList.add('note-editor-blocks', 'board-note-render');
   raiz.replaceChildren();
 
-  const lista = (Array.isArray(blocos) ? blocos : []).slice(0, MAX_BLOCOS).map(b => normalizeBlock(b));
+  const lista = (Array.isArray(blocos) ? blocos : []).slice(0, MAX_BLOCOS);
   const contadores = [];   // numeração por profundidade, reinicia quando a sequência quebra
 
   for (const b of lista) {

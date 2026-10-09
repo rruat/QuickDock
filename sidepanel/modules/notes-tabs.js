@@ -1,6 +1,6 @@
 import {
   loadAllNotesMeta, createNoteRecord, updateNoteMetaById, deleteNoteRecordById,
-  reorderNoteRecords, moveNoteRecord, migrateLegacyNoteIfNeeded, loadActiveNoteId, saveActiveNoteId,
+  reorderNoteRecords, moveNoteRecord, loadActiveNoteId, saveActiveNoteId,
   getNoteById, detachFilesFromNote, updateNoteBlocksById,
   gcInlineFiles,
   listarPastas, criarPasta, renomearPasta, excluirPasta, moverNotaParaPasta, normalizarCaminhoPasta,
@@ -15,7 +15,7 @@ import {
   switchToNote, flushSave, getCurrentBlocks, clearCurrentNote,
   blocksToExportMarkdown, absorbDataUrls,
 } from './note.js';
-import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks } from './blocks.js';
+import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks, blocksOfNote } from './blocks.js';
 import { buildBackup, parseBackup } from './backup.js';
 import { iconSvg, createIcon } from './icons.js';
 import { hasIconImage, buildIconImageNode } from './note-icon-image.js';
@@ -403,7 +403,7 @@ export async function getBlocksForNote(meta) {
     return getCurrentBlocks();
   }
   const note = await getNoteById(meta.id);
-  return (note?.blocks?.length) ? note.blocks : parseMarkdownToBlocks(note?.content ?? '');
+  return blocksOfNote(note);
 }
 
 // Cria uma nota a partir de markdown de fora (.md importado, backup).
@@ -883,7 +883,6 @@ function openFolderMenu(caminho, nivel, totalNotas, anchorEl, onRefresh) {
 // ── Lista de notas / Painel Lateral Aside ("☰") ──────────────────────────────
 let notesAsideDrawer = null;
 let notesAsideBackdrop = null;
-let notesListPopover = null; // Mantido para compatibilidade reversa
 
 function isDesktopMode() {
   return document.documentElement.dataset.platform === 'desktop'
@@ -911,7 +910,6 @@ export function closeNotesAsideDrawer() {
       drawerEl?.remove();
     }, 240);
     notesAsideDrawer = null;
-    notesListPopover = null;
   }
   if (notesAsideBackdrop) {
     notesAsideBackdrop.classList.remove('open');
@@ -1210,7 +1208,6 @@ export function openNotesAsideDrawer() {
   renderNotesListRows(scrollArea, '', countEl, clearBtn);
   document.body.appendChild(drawer);
   notesAsideDrawer = drawer;
-  notesListPopover = drawer;
 
   requestAnimationFrame(() => drawer.classList.add('open'));
   setTimeout(() => input.focus(), 80);
@@ -1503,7 +1500,6 @@ function initDesktopNotesAsideDrawer() {
   }
 
   notesAsideDrawer = drawer;
-  notesListPopover = drawer;
 
   // #notes-tabs (a tira horizontal de abas abertas) NÃO é movida pra dentro
   // de .note-section no desktop — cada nota aberta já é sua própria view no
@@ -1875,7 +1871,6 @@ document.addEventListener('quickdock:activate-note', async e => {
 });
 
 export async function initNotesTabs() {
-  await migrateLegacyNoteIfNeeded();
   // Faxina de imagem órfã. Roda na abertura de propósito: é o único momento em
   // que não existe histórico de desfazer que pudesse trazer de volta um bloco
   // cujo arquivo acabou de ser apagado.
