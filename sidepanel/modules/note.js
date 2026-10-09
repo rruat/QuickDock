@@ -390,7 +390,15 @@ function isBlockQuoted(el) {
 
 function setBlockQuoted(el, on) {
   if (on) el.dataset.quoted = 'true';
-  else { delete el.dataset.quoted; delete el.dataset.callout; }
+  else {
+    delete el.dataset.quoted;
+    delete el.dataset.callout;
+    // O "> " / "> [!TIP]" revelado pelo Live Preview é decoração da citação: se
+    // ficasse no DOM depois de tirar a citação (Backspace/Enter numa linha
+    // vazia), virava um ">" solto na frente do bloco.
+    getContentEl(el)?.querySelectorAll(':scope > .md-syntax-prefix[data-syntax-type="quote"], :scope > .md-syntax-prefix[data-syntax-type="callout"]')
+      .forEach(p => p.remove());
+  }
 }
 
 // Destaque (callout) é uma segunda camada em cima da citação: a caixa colorida
