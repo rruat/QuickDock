@@ -22,7 +22,6 @@ import {
   shouldComplete
 } from './shell-mobile-gesture-math.js';
 
-const SCROLL_OWNERS = '.table-wrapper, .base-table-wrap, .json-tree, .board-canvas, .base-board, .base-timeline, .base-map, .code-block';
 const OPEN_LOCK_PX = 16; // arrasto de abrir a partir do meio da tela pede um pouco mais de intenção horizontal
 
 // Algo que rola na horizontal (tabela, semana do calendário, barra de ferramentas da nota…) fica com o gesto
@@ -39,6 +38,23 @@ function insideHorizontalScroller(el) {
 // Áreas com gesto próprio (rolagem/arrasto): nunca iniciam abrir nem fechar drawer — quickbar das
 // Constelações, o grafo (pan), a barra de ferramentas da nota e o menu de seleção do rodapé
 const GESTURE_OWNERS = '.gq-bar, .graph-canvas-container, .mobile-notion-toolbar, .md-scope-menu';
+
+// Telas que arrastam em qualquer direção (pan): o gesto é delas, a não ser que comece na borda
+const PAN_OWNERS = '.board-canvas, .base-map, .code-block';
+const EDGE_PX = 28; // faixa junto à borda da tela em que o arrasto SEMPRE abre o drawer
+
+// Quem rola na horizontal só segura o gesto enquanto ainda tem pra onde rolar naquele sentido:
+// tabela/kanban/semana no início do scroll deixam o arrasto pra direita abrir o drawer esquerdo
+// (e no fim, o arrasto pra esquerda abrir o direito). `dx > 0` = dedo indo pra direita.
+function scrollerConsumes(el, dx) {
+  for (let n = el; n && n !== document.body; n = n.parentElement) {
+    if (n.scrollWidth <= n.clientWidth + 2) continue;
+    const ox = getComputedStyle(n).overflowX;
+    if (ox !== 'auto' && ox !== 'scroll') continue;
+    if (dx > 0 ? n.scrollLeft > 1 : n.scrollLeft + n.clientWidth < n.scrollWidth - 1) return true;
+  }
+  return false;
+}
 
 const DRAG_VARS = ['--push-x', '--aside-x', '--right-x'];
 
@@ -57,6 +73,7 @@ export function setupMobileTouchGestures() {
   let leftW = 0;
   let rightW = 0;
   let els = null;
+  let scrollOwner = null;
 
   const isLeftOpen = () => document.getElementById('mAside')?.classList.contains('is-open-mobile') || document.body.classList.contains('has-left-drawer-open');
   const isRightOpen = () => isRightAsideOpen();
@@ -100,6 +117,7 @@ export function setupMobileTouchGestures() {
     action = null;
     dragging = false;
     samples = [];
+    scrollOwner = null;
     document.body.classList.remove('is-dragging-drawer');
   }
 
@@ -122,20 +140,27 @@ export function setupMobileTouchGestures() {
     leftW = getLeftDrawerWidth();
     rightW = getRightDrawerWidth();
 
-    if (target.closest(GESTURE_OWNERS) || insideHorizontalScroller(target)) return; // vale também para fechar
+    const nearEdge = x < EDGE_PX || x > window.innerWidth - EDGE_PX;
+    if (target.closest(GESTURE_OWNERS) && !nearEdge) return; // vale também para fechar
     if (isLeftOpen()) {
+      if (insideHorizontalScroller(target)) return;
       action = 'close-left';
     } else if (isRightOpen()) {
+      if (insideHorizontalScroller(target)) return;
       action = 'close-right';
     } else {
       // Como no Obsidian: arrastar de QUALQUER ponto da tela abre o drawer (sem precisar puxar da borda,
       // que o navegador usa para voltar no histórico). Para a direita → views; para a esquerda → configurações.
       // A direção só é decidida no 1º movimento (ver touchmove).
       if (document.documentElement.classList.contains('is-keyboard-open')) return; // editando: o toque é do texto
-      if (target.closest(SCROLL_OWNERS) || insideHorizontalScroller(target)) return;
+      if (!nearEdge && target.closest(PAN_OWNERS)) return;
+      // Texto selecionado só segura o gesto se for de um campo/nota em edição; a seleção solta de uma
+      // célula de tabela ou de um cartão não deve impedir o arrasto.
       const sel = window.getSelection && window.getSelection();
-      if (sel && sel.type === 'Range') return;
+      if (sel && sel.type === 'Range' && sel.anchorNode?.parentElement?.closest('[contenteditable="true"], input, textarea')) return;
       action = 'pending-open';
+      // quem rola na horizontal decide no 1º movimento, quando o sentido do dedo já é conhecido
+      scrollOwner = nearEdge ? null : target;
     }
   }, { passive: true });
 
@@ -148,8 +173,15 @@ export function setupMobileTouchGestures() {
     if (!dragging) {
       if (Math.abs(dy) > Math.abs(dx) + 6) { action = null; return; }
       if (Math.abs(dx) <= (action === 'pending-open' ? OPEN_LOCK_PX : AXIS_LOCK_PX)) return;
-      if (action === 'pending-open') action = dx > 0 ? 'open-left' : 'open-right';
+      if (action === 'pending-open') {
+        if (scrollOwner && scrollerConsumes(scrollOwner, dx)) { action = null; return; }
+        action = dx > 0 ? 'open-left' : 'open-right';
+      }
       dragging = true;
+      // o arrasto assume: tira o foco de célula/botão e qualquer seleção solta, para não competirem
+      const ae = document.activeElement;
+      if (ae && ae !== document.body && !ae.closest?.('input, textarea, [contenteditable="true"]')) ae.blur?.();
+      window.getSelection?.()?.removeAllRanges?.();
       els = collectEls();
       document.body.classList.add('is-dragging-drawer');
     }

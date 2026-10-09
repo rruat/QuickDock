@@ -373,7 +373,14 @@ export function createBaseTableView({ notes = [], baseDef = {}, activeView = {},
         // Clique simples ativa edição para checkbox; duplo clique ou clique para outros campos
         td.tabIndex = -1;
         td.setAttribute('role', 'gridcell');
-        td.addEventListener('pointerdown', () => { celulaAtiva = { noteId: note.id, key: colKey }; container.querySelectorAll('.is-active-cell').forEach(x => x.classList.remove('is-active-cell')); td.classList.add('is-active-cell'); td.focus({ preventScroll: true }); });
+        // No toque o foco real da célula fica de fora: ele compete com o gesto de arrastar (abrir os
+        // drawers / rolar a tabela). A célula ativa continua marcada; o foco é para teclado e mouse.
+        td.addEventListener('pointerdown', (e) => {
+          celulaAtiva = { noteId: note.id, key: colKey };
+          container.querySelectorAll('.is-active-cell').forEach(x => x.classList.remove('is-active-cell'));
+          td.classList.add('is-active-cell');
+          if (e.pointerType !== 'touch') td.focus({ preventScroll: true });
+        });
         td.addEventListener('click', e => {
           if (propDef.isDerived || propDef.isUniqueId || SO_LEITURA.has(colKey)) return;
           if (propDef.type === 'checkbox' || propDef.type === 'select' || propDef.type === 'folder') {
