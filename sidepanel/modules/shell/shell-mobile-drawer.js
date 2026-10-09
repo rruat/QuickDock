@@ -37,7 +37,7 @@ export function initMobileDrawer() {
   // ── rodapé: escopo + configurações ──
   const bottom = el('div', 'md-bottom');
   const scopeBtn = el('button', 'md-scope'); scopeBtn.type = 'button'; scopeBtn.setAttribute('aria-haspopup', 'listbox'); scopeBtn.setAttribute('aria-expanded', 'false');
-  const menu = el('div', 'md-scope-menu'); menu.hidden = true; menu.setAttribute('role', 'listbox');
+  const menu = el('div', 'md-scope-menu'); menu.setAttribute('role', 'listbox');
   const gear = el('button', 'md-gear', icon('settings')); gear.type = 'button'; gear.title = 'Configurações'; gear.setAttribute('aria-label', 'Configurações');
   bottom.append(scopeBtn, gear, menu);
 
@@ -51,7 +51,7 @@ export function initMobileDrawer() {
     input.placeholder = scope.placeholder;
     menu.innerHTML = SEARCH_SCOPES.map(s => `<button type="button" role="option" class="md-scope-opt${s.id === scope.id ? ' is-active' : ''}" data-scope="${s.id}">${icon(s.icon)}<span>${s.label}</span>${s.id === scope.id ? icon('check') : ''}</button>`).join('');
   };
-  const closeMenu = () => { menu.hidden = true; scopeBtn.setAttribute('aria-expanded', 'false'); };
+  const closeMenu = () => { menu.classList.remove('is-open'); aside.classList.remove('is-menu-open'); scopeBtn.setAttribute('aria-expanded', 'false'); };
 
   // ── busca ──
   async function run() {
@@ -108,7 +108,7 @@ export function initMobileDrawer() {
   });
 
   // ── escopo (menu para cima) ──
-  scopeBtn.addEventListener('click', (e) => { e.stopPropagation(); const open = menu.hidden; menu.hidden = !open; scopeBtn.setAttribute('aria-expanded', String(open)); });
+  scopeBtn.addEventListener('click', (e) => { e.stopPropagation(); const open = !menu.classList.contains('is-open'); menu.classList.toggle('is-open', open); aside.classList.toggle('is-menu-open', open); scopeBtn.setAttribute('aria-expanded', String(open)); });
   menu.addEventListener('click', (e) => {
     const opt = e.target.closest('[data-scope]');
     if (!opt) return;
@@ -117,7 +117,7 @@ export function initMobileDrawer() {
     wr(KEY_SCOPE, scope.id);
     paintScope(); closeMenu(); run(); input.focus();
   });
-  document.addEventListener('click', (e) => { if (!menu.hidden && !bottom.contains(e.target)) closeMenu(); });
+  document.addEventListener('click', (e) => { if (menu.classList.contains('is-open') && !bottom.contains(e.target)) closeMenu(); });
 
   // ── lupa ──
   lupa.addEventListener('click', () => input.focus());

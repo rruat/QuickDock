@@ -26,23 +26,25 @@
   /* o cabeçalho do app não aparece no mobile: mais tela para o conteúdo (voltar = gesto/Android; views = drawer) */
   html[data-platform] #mHeader, html[data-platform] #app #mHeader, html #mHeader { display: none !important; }
   html #app #mAside, html #app #mRightAside { bottom: var(--m-nav-h) !important; height: auto !important; max-height: none !important; width: var(--m-drawer-w) !important; max-width: none !important; }
-  /* Os drawers NÃO empurram mais o conteúdo: ele fica parado, com um scrim por cima que só faz fade
-     (nunca desliza). O drawer em si desliza da sua borda. */
-  html #app #mMain, html #app #mHeader, html #mMain, html #mHeader { transform: none !important; transition: none !important; }
-  html body #mobileDrawerScrim {
-    display: block !important; position: fixed !important; inset: 0 !important; left: 0 !important; right: 0 !important; width: auto !important;
-    z-index: 99 !important; cursor: pointer;
-    background: oklch(0% 0 0 / 0.38) !important;
-    opacity: 0 !important; pointer-events: none !important;
-    transition: opacity 220ms ease !important;
+  /* Como no Obsidian: o conteúdo é EMPURRADO para o lado (esquerdo abre para a direita; direito, para a esquerda).
+     O scrim é o ::after da própria área principal (#mMain): acompanha o conteúdo empurrado, cobre ela toda e só
+     faz fade — por isso fechar não deixa nenhuma faixa sem escurecer. */
+  html #app #mMain { transform: translate3d(var(--push-x, 0px), 0, 0); transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1); }
+  html #app.has-left-drawer-open #mMain, html #app:has(#mAside.is-open-mobile) #mMain, body.has-left-drawer-open #mMain { --push-x: var(--m-drawer-w); }
+  html #app.has-right-drawer-open #mMain, body.has-right-drawer-open #mMain { --push-x: calc(-1 * var(--m-drawer-w)); }
+  html body.is-dragging-drawer #mMain { transition: none; will-change: transform; }
+  html #app #mMain::after {
+    content: ''; position: absolute; inset: 0; z-index: 90;
+    background: oklch(0% 0 0 / 0.38);
+    opacity: 0; pointer-events: none; transition: opacity 260ms ease;
   }
-  html[data-theme="dark"] body #mobileDrawerScrim { background: oklch(0% 0 0 / 0.55) !important; }
-  html body.has-left-drawer-open #mobileDrawerScrim, html body.has-right-drawer-open #mobileDrawerScrim,
-  html body #app:has(#mAside.is-open-mobile) ~ #mobileDrawerScrim, html body:has(#mAside.is-open-mobile) #mobileDrawerScrim {
-    opacity: 1 !important; pointer-events: auto !important;
-  }
+  html[data-theme="dark"] #app #mMain::after { background: oklch(0% 0 0 / 0.55); }
+  html #app.has-left-drawer-open #mMain::after, html #app:has(#mAside.is-open-mobile) #mMain::after, body.has-left-drawer-open #mMain::after,
+  html #app.has-right-drawer-open #mMain::after, body.has-right-drawer-open #mMain::after { opacity: 1; pointer-events: auto; }
   /* durante o arrasto o dedo manda: a opacidade acompanha o quanto o drawer já abriu (--scrim-o) */
-  html body.is-dragging-drawer #mobileDrawerScrim { transition: none !important; opacity: var(--scrim-o, 0) !important; pointer-events: none !important; }
+  html body.is-dragging-drawer #mMain::after { transition: none; opacity: var(--scrim-o, 0); pointer-events: none; }
+  /* o scrim antigo (elemento fixo) não é mais usado */
+  html body #mobileDrawerScrim { display: none !important; }
 
   /* ── Drawer esquerdo: só os painéis novos (some o explorador antigo e o menu de "visões") ── */
   html[data-platform] #app #mAside.mode-notes .notes-aside-drawer,
@@ -94,9 +96,10 @@
   .md-scope .md-scope-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .md-gear { width: 44px; justify-content: center; flex: none; }
   .md-scope[aria-expanded="true"], .md-gear:active { border-color: var(--accent); }
-  /* menu do seletor: abre PARA CIMA, também em outline */
-  .md-scope-menu { position: absolute; left: 12px; right: 66px; bottom: calc(100% - 4px); display: flex; flex-direction: column; padding: 6px; gap: 2px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); box-shadow: 0 -6px 24px oklch(0% 0 0 / 0.14); z-index: 5; }
-  .md-scope-menu[hidden] { display: none; }
+  /* menu do seletor: NÃO é popup. Cresce para cima DENTRO do rodapé e empurra o conteúdo para cima */
+  .md-bottom { flex-wrap: wrap; }
+  .md-scope-menu { order: -1; flex: 0 0 100%; display: flex; flex-direction: column; gap: 2px; padding: 0 6px; border: 1px solid transparent; border-radius: 14px; background: transparent; max-height: 0; opacity: 0; overflow: hidden; pointer-events: none; transition: max-height 220ms ease, opacity 160ms ease, padding 220ms ease, border-color 220ms ease; }
+  .md-scope-menu.is-open { max-height: 320px; opacity: 1; padding: 6px; border-color: var(--border); pointer-events: auto; }
   .md-scope-opt { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: 14px; text-align: left; }
   .md-scope-opt .material-symbols-rounded { font-size: 20px; color: var(--text-muted); }
   .md-scope-opt span:not(.material-symbols-rounded) { flex: 1; }
@@ -104,7 +107,7 @@
   /* lupa flutuante acima do rodapé (alcance do polegar): foca a barra de busca lá em cima */
   .md-lupa { display: inline-flex; position: absolute; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); align-items: center; justify-content: center; width: 48px; height: 48px; border: 1px solid var(--border); border-radius: 50%; background: var(--bg); color: var(--text); box-shadow: 0 4px 14px oklch(0% 0 0 / 0.14); z-index: 4; }
   .md-lupa:active { border-color: var(--accent); }
-  html #app #mAside.is-searching .md-lupa { display: none; }
+  html #app #mAside.is-searching .md-lupa, html #app #mAside.is-menu-open .md-lupa { display: none; }
 
   /* tela cheia de Configurações (aberta pela engrenagem do drawer) */
   .md-settings-screen { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 200; background: var(--bg); transform: translate3d(100%, 0, 0); visibility: hidden; transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1), visibility 0s linear 260ms; }

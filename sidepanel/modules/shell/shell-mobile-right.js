@@ -31,7 +31,7 @@ export function initMobileRightMenu() {
 
   const bar = el('div', 'md-bottom');
   const btn = el('button', 'md-scope'); btn.type = 'button'; btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
-  const menu = el('div', 'md-scope-menu mr-menu'); menu.hidden = true; menu.setAttribute('role', 'listbox');
+  const menu = el('div', 'md-scope-menu mr-menu'); menu.setAttribute('role', 'listbox');
   bar.append(btn, menu);
   aside.appendChild(bar);
 
@@ -52,9 +52,9 @@ export function initMobileRightMenu() {
     btn.innerHTML = `${icon(cur.icon)}<span class="md-scope-label">${cur.label}</span>${icon('expand_less')}`;
     menu.innerHTML = opts.map(o => `<button type="button" role="option" class="md-scope-opt${o.id === cur.id ? ' is-active' : ''}" data-id="${o.id}">${icon(o.icon)}<span>${o.label}</span>${o.id === cur.id ? icon('check') : ''}</button>`).join('');
   };
-  const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+  const close = () => { menu.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); };
 
-  btn.addEventListener('click', (e) => { e.stopPropagation(); paint(); const open = menu.hidden; menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); });
+  btn.addEventListener('click', (e) => { e.stopPropagation(); paint(); const open = !menu.classList.contains('is-open'); menu.classList.toggle('is-open', open); btn.setAttribute('aria-expanded', String(open)); });
   menu.addEventListener('click', (e) => {
     const opt = e.target.closest('[data-id]');
     if (!opt) return;
@@ -66,7 +66,7 @@ export function initMobileRightMenu() {
     if (o.tab) setTimeout(() => document.getElementById(o.tab)?.click(), 0); // as abas internas do painel da nota
     close(); paint();
   });
-  document.addEventListener('click', (e) => { if (!menu.hidden && !bar.contains(e.target)) close(); });
+  document.addEventListener('click', (e) => { if (menu.classList.contains('is-open') && !bar.contains(e.target)) close(); });
   ['quickdock:right-aside-mode', 'quickdock:shell-focus'].forEach(ev => document.addEventListener(ev, () => { if (isMobileMode()) paint(); }));
   paint();
 }

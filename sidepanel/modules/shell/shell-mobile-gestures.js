@@ -36,6 +36,10 @@ function insideHorizontalScroller(el) {
   return false;
 }
 
+// Áreas com gesto próprio (rolagem/arrasto): nunca iniciam abrir nem fechar drawer — quickbar das
+// Constelações, o grafo (pan), a barra de ferramentas da nota e o menu de seleção do rodapé
+const GESTURE_OWNERS = '.gq-bar, .graph-canvas-container, .mobile-notion-toolbar, .md-scope-menu';
+
 const DRAG_VARS = ['--push-x', '--aside-x', '--right-x'];
 
 export function setupMobileTouchGestures() {
@@ -118,6 +122,7 @@ export function setupMobileTouchGestures() {
     leftW = getLeftDrawerWidth();
     rightW = getRightDrawerWidth();
 
+    if (target.closest(GESTURE_OWNERS) || insideHorizontalScroller(target)) return; // vale também para fechar
     if (isLeftOpen()) {
       action = 'close-left';
     } else if (isRightOpen()) {

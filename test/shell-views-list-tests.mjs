@@ -252,7 +252,7 @@ export async function runShellViewsListTests({ ok, igual }) {
   const mdSrc = await readFile(new URL('../sidepanel/modules/shell/shell-mobile-drawer.js', import.meta.url), 'utf8');
   ok('mobile drawer · busca no topo, escopo (menu para cima) e engrenagem embaixo, lupa flutuante e tela cheia de configurações',
     ['md-top', 'md-bottom', 'md-scope-menu', 'md-lupa', 'md-gear', 'md-settings-screen', "lupa.addEventListener('click', () => input.focus())"].every(x => mdSrc.includes(x)) &&
-    mcss.includes('bottom: calc(100% - 4px)') && mcss.includes('html #app #mNav, html[data-platform] #app #mNav { display: none !important; }'));
+    mcss.includes('max-height: 0; opacity: 0; overflow: hidden') && !mcss.includes('bottom: calc(100% - 4px)') && mcss.includes('html #app #mNav, html[data-platform] #app #mNav { display: none !important; }'));
   ok('mobile · modelos na aside direita (modo próprio, escolhido no menu do rodapé dela) com blocos modelo; módulos no pré-cache',
     raSrc.includes('export function setRightAsideMode') && raSrc.includes('showModelsAside') && (await readFile(new URL('../sidepanel/modules/shell/shell-models-panel.js', import.meta.url), 'utf8')).includes('Blocos modelo') &&
     ['shell-mobile-drawer', 'mobile-drawer-search', 'shell-models-aside'].every(n => swP4.includes(`shell/${n}.js`)) &&
@@ -264,8 +264,10 @@ export async function runShellViewsListTests({ ok, igual }) {
   const mr = await import('../sidepanel/modules/shell/shell-mobile-right.js');
   igual('mobile direita · numa nota: sumário, backlinks, constelações, modelos e configurações', mr.rightMenuOptions('notes').map(o => o.id), ['outline', 'backlinks', 'graph', 'models', 'config']);
   igual('mobile direita · fora da nota não há sumário/backlinks, e o rótulo de configurações acompanha a tela', [mr.rightMenuOptions('bases').map(o => o.id), mr.rightMenuOptions('bases').at(-1).label, mr.rightMenuOptions('board').at(-1).label], [['graph', 'models', 'config'], 'Configurações da view', 'Painel do quadro']);
-  ok('mobile · o conteúdo não é empurrado: scrim só com fade (opacity), acompanhando o arrasto (--scrim-o)',
-    mcss.includes('transform: none !important; transition: none !important;') && mcss.includes('#mobileDrawerScrim') && mcss.includes('transition: opacity 220ms ease') && !/translate3d\(var\(--push-x/.test(mcss) && sgSrc.includes("'--scrim-o'"));
+  ok('mobile · o conteúdo é EMPURRADO como no Obsidian e o scrim é o ::after da área principal (só fade, acompanha o arrasto via --scrim-o)',
+    mcss.includes('html #app #mMain::after') && mcss.includes('transform: translate3d(var(--push-x, 0px), 0, 0)') && mcss.includes('--push-x: var(--m-drawer-w)') && mcss.includes('opacity: var(--scrim-o, 0)') && sgSrc.includes("'--scrim-o'"));
+  ok('mobile · o menu do rodapé (esquerda e direita) é inline: empurra o conteúdo para cima, sem popup/hidden', !mdSrc.includes('menu.hidden') && !(await readFile(new URL('../sidepanel/modules/shell/shell-mobile-right.js', import.meta.url), 'utf8')).includes('menu.hidden'));
+  ok('mobile · quickbar/grafo/barra da nota têm gesto próprio: não abrem nem fecham drawers', sgSrc.includes("GESTURE_OWNERS = '.gq-bar, .graph-canvas-container") && sgSrc.indexOf('GESTURE_OWNERS) || insideHorizontalScroller') < sgSrc.indexOf("action = 'close-left'"));
 
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
