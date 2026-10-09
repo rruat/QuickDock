@@ -152,17 +152,21 @@
 
   /* ── Views no mobile (mockup): calendário em barras, tabela enxuta, galeria de cartões menores ── */
   .bcal-month-cell .bcal-day-add, .bcal-month-more { display: none !important; }
+  /* Cada item aparece com o TÍTULO legível (até 2 linhas) — só a barra colorida não diz o que é.
+     Tocar na célula abre a folha do dia com a lista completa. */
+  .bcal-month-cell { padding: 2px 2px; gap: 1px; }
   .bcal-month-cell .bcal-ev {
-    font-size: 0; height: 5px; padding: 0; border: 0; border-radius: 3px; margin-top: 2px;
-    background: var(--bcal-ev-edge);
+    display: block; padding: 1px 3px; border-radius: 3px; margin-top: 1px;
+    border-left-width: 2px; font-size: 10px; line-height: 1.15;
   }
-  .bcal-month-cell .bcal-ev > * { display: none; }
-  .bcal-month-cell .bcal-ev[data-kind="quadro"] {
-    height: 8px; border-radius: 2px;
-    background: color-mix(in oklch, var(--bcal-ev-edge) 35%, var(--bg));
-    box-shadow: inset 0 0 0 1.5px var(--bcal-ev-edge);
+  .bcal-month-cell .bcal-ev .bcal-ev-time, .bcal-month-cell .bcal-ev .bcal-ev-props { display: none; }
+  .bcal-month-cell .bcal-ev .bcal-ev-title {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    white-space: normal; overflow: hidden; word-break: break-word; font-weight: 600;
   }
-  .bcal-month-cell .bcal-ev[data-kind="quadro"] .bcal-ev-title::before { display: none; }
+  .bcal-month-cell .bcal-ev[data-kind="quadro"] { border-style: dashed; border-left-style: solid; }
+  .bcal-month-cell .bcal-ev[data-kind="quadro"] .bcal-ev-title::before { font-size: 1em; margin-right: 2px; }
+  .bcal-month-cell .bcal-more { font-size: 10px; padding: 0 2px; font-weight: 600; }
   .base-table th:nth-child(n+4), .base-table td:nth-child(n+4) { display: none; }
   .base-gallery-grid, .base-gallery-container .base-gallery-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 8px !important; }
 

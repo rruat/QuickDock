@@ -7,6 +7,8 @@ import { createEventEl } from './calendar-event-el.js';
 import { beginPointerGesture } from './calendar-drag.js';
 import { DIAS_ABREV } from './calendar-nav.js';
 import { isEditableDateProp } from './calendar-actions.js';
+import { openDaySheet, createBoardOnDay } from './calendar-day-sheet.js';
+import { isMobileMode } from '../../platform.js';
 
 const el = (tag, className, text) => {
   const e = document.createElement(tag);
@@ -64,7 +66,8 @@ export function renderMonthGrid(body, ctx) {
       add.title = `Nova nota em ${ymd.split('-').reverse().join('/')}`;
       add.setAttribute('aria-label', add.title);
       add.innerHTML = '<span class="qd-icon material-symbols-rounded" aria-hidden="true">add</span>';
-      add.addEventListener('click', e => { e.stopPropagation(); callbacks.onCreate({ ymd, minutes: null }, null); });
+      // mobile: o toque na célula (inclusive no "+") abre a folha do dia, com os botões de criar
+      add.addEventListener('click', e => { if (isMobileMode()) return; e.stopPropagation(); callbacks.onCreate({ ymd, minutes: null }, null); });
       topo.appendChild(add);
       cel.appendChild(topo);
 
@@ -91,6 +94,7 @@ export function renderMonthGrid(body, ctx) {
         const mais = el('button', 'bcal-more', `+${doDia.length - limite} mais`);
         mais.type = 'button';
         mais.addEventListener('click', e => {
+          if (isMobileMode()) return; // a folha do dia já lista tudo
           e.stopPropagation();
           const aberto = cel.classList.toggle('is-expanded');
           mais.textContent = aberto ? 'mostrar menos' : `+${doDia.length - limite} mais`;
@@ -98,6 +102,16 @@ export function renderMonthGrid(body, ctx) {
         cel.appendChild(mais);
       }
 
+      cel.addEventListener('click', () => {
+        if (!isMobileMode()) return;
+        openDaySheet(body, cel, {
+          ymd,
+          items: doDia,
+          onOpen: id => callbacks.onOpen(id),
+          onCreateNote: () => callbacks.onCreate({ ymd, minutes: null }, null),
+          onCreateBoard: createBoardOnDay,
+        });
+      });
       cel.addEventListener('dblclick', e => {
         if (e.target.closest('.bcal-ev') || e.target.closest('.bcal-day-add')) return;
         callbacks.onCreate({ ymd, minutes: null }, null);
@@ -110,6 +124,7 @@ export function renderMonthGrid(body, ctx) {
   // ── Gestos: clique abre; arrastar muda o dia (mantém horário e duração) ─────
   raiz.addEventListener('pointerdown', down => {
     if (down.button !== 0) return;
+    if (isMobileMode()) return; // no mobile o toque no chip abre a folha do dia (clique da célula)
     const chip = down.target.closest('.bcal-chip');
     if (!chip) return;
     const ev = porId.get(chip.dataset.eventId);
@@ -154,7 +169,7 @@ export function renderMonthGrid(body, ctx) {
 
   raiz.addEventListener('keydown', e => {
     const chip = e.target.closest?.('.bcal-chip');
-    if (chip && (e.key === 'Enter' || e.key === ' ')) {
+    if (chip && !isMobileMode() && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       const ev = porId.get(chip.dataset.eventId);
       if (ev) callbacks.onOpen(ev.note.id);
