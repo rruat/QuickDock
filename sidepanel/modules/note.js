@@ -12,7 +12,7 @@ import { evaluateSheet } from './calc.js';
 import {
   uid, escHtml, safeHref, parseMarkdownToBlocks, blocksToMarkdown, blocksToPlainText,
   MAX_DEPTH, BULLET_GLYPHS, normalizeBlock, blocksToMarkdownForExport,
-  CALLOUT_TYPES, CALLOUT_LABELS, headingSlug, headingSlugs,
+  CALLOUT_TYPES, CALLOUT_LABELS, headingSlug, headingSlugs, parseInlineMarkdown,
 } from './blocks.js';
 import { blockTemplates, openSaveBlockTemplate } from './templates.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from './snapshot.js';
@@ -62,6 +62,7 @@ import {
   selectBlockRange, targetBlocksFor, getSelectedBlockElements, printBlocks, transformBlocks,
   hideBlockControls, positionBlockControls, findBlockById, orderedBlocks,
   deleteBlocksOrOne, closeBlockMenu, isGestureActive, isSelecaoEspelhada, setSelecaoEspelhada,
+  handleHandleClick, blockNearestToY,
 } from './note/note-drag-drop.js';
 import {
   getInlineDelimiters,
@@ -112,7 +113,7 @@ import { renderPropertiesBar, iniciarNovaPropriedade } from './note-properties.j
 export { renderPropertiesBar };
 import {
   showFeedback, showCopyMenu, closeCopyMenu, positionMenu, showMathMenu,
-  applyDetectionMarks, unwrapMarks, mathCache,
+  applyDetectionMarks, unwrapMarks, mathCache, isCopyMenuOpen,
 } from './note-detection.js';
 export { showFeedback };
 import {
@@ -146,7 +147,7 @@ export function setTouchSelectionMode(active) {
   if (active) {
     showFeedback('Modo seleção ativo · toque para selecionar');
   } else {
-    if (!activeMenu) indicator.classList.remove('visible');
+    if (!isCopyMenuOpen()) indicator.classList.remove('visible');
   }
 }
 
@@ -513,8 +514,8 @@ export function indentBlocks(blocks, delta) {
 // Blocos que o Tab deve mover: a seleção múltipla quando existe, senão o
 // bloco do cursor.
 function blocksForIndent() {
-  if (selectedBlockIds.size > 0) {
-    return orderedBlocks().filter(b => selectedBlockIds.has(b.dataset.id));
+  if (getSelectedBlockIds().size > 0) {
+    return orderedBlocks().filter(b => getSelectedBlockIds().has(b.dataset.id));
   }
   const block = currentBlock();
   return block ? [block] : [];
@@ -1266,13 +1267,13 @@ root.addEventListener('click', e => {
       if (block && root.contains(block)) {
         e.preventDefault();
         e.stopPropagation();
-        if (selectedBlockIds.has(block.dataset.id)) {
-          selectedBlockIds.delete(block.dataset.id);
-          setBlockSelection([...selectedBlockIds]);
+        if (getSelectedBlockIds().has(block.dataset.id)) {
+          getSelectedBlockIds().delete(block.dataset.id);
+          setBlockSelection([...getSelectedBlockIds()]);
         } else {
-          selectedBlockIds.add(block.dataset.id);
-          setBlockSelection([...selectedBlockIds]);
-          lastHandleClickedId = block.dataset.id;
+          getSelectedBlockIds().add(block.dataset.id);
+          setBlockSelection([...getSelectedBlockIds()]);
+          setLastHandleClickedId(block.dataset.id);
         }
         return;
       }
@@ -2169,7 +2170,8 @@ function checkBlockShortcut(block, profundidade = 0) {
   // O prefixo "> " vive num <span> à parte e não entra na leitura do texto.
   const quoted = isBlockQuoted(block);
   const ehLista = block.dataset.type === 'bullet' || block.dataset.type === 'number';
-  const prefixoSpan = quoted ? content.querySelector(':scope > .md-syntax-prefix') : null;
+  // (item de lista também: o Live Preview mostra o "- " do marcador num <span> de prefixo, que não é texto digitado)
+  const prefixoSpan = (quoted || ehLista) ? content.querySelector(':scope > .md-syntax-prefix') : null;
   // Âncoras invisíveis logo depois do prefixo não contam: a regex é ancorada no início.
   const prefixoLen = prefixoSpan ? prefixoSpan.textContent.length : 0;
   const resto = content.textContent.slice(prefixoLen);
@@ -3060,7 +3062,13 @@ root.addEventListener('input', () => {
         firstNode.tagName === 'MARK' &&
         !firstNode.classList.contains('md-highlight') &&
         firstNode.getAttribute('data-syntax') !== '==') {
+      // Desembrulhar troca os nós de texto e o navegador joga o cursor para o INÍCIO do bloco (era o bug de
+      // "digitar número + símbolo e o cursor voltar pro começo": o rescan marcava "1+2" como conta e a tecla
+      // seguinte desembrulhava a marca). O cursor volta para onde estava.
+      const sel = document.getSelection();
+      const caret = sel && contentEl.contains(sel.anchorNode) ? getCaretOffset(contentEl) : null;
       unwrapMarks(contentEl);
+      if (caret !== null) setCaretOffset(contentEl, caret);
     }
     if (checkDividerShortcut(block)) { scheduleSave(); return; }
     if (checkBlockShortcut(block))   { scheduleSave(); return; }
@@ -3119,8 +3127,8 @@ root.addEventListener('keydown', e => {
   // andando bloco a bloco a partir dele, e não a partir de onde o cursor de
   // texto de verdade ficou esquecido.
   if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
-    && selectedBlockIds.size === 1) {
-    const atual = findBlockById([...selectedBlockIds][0]);
+    && getSelectedBlockIds().size === 1) {
+    const atual = findBlockById([...getSelectedBlockIds()][0]);
     if (atual) {
       e.preventDefault();
       const direcao = e.key === 'ArrowDown' ? 1 : -1;
@@ -3496,13 +3504,13 @@ root.addEventListener('keydown', e => {
   // do meio de uma linha até o meio da seguinte e apagar as duas por inteiro
   // seria perder o que ninguém mandou apagar.
   if ((e.key === 'Backspace' || e.key === 'Delete')
-      && selectedBlockIds.size > 0 && !selecaoEspelhada) {
+      && getSelectedBlockIds().size > 0 && !isSelecaoEspelhada()) {
     e.preventDefault();
-    const first = findBlockById([...selectedBlockIds][0]);
+    const first = findBlockById([...getSelectedBlockIds()][0]);
     if (first) deleteBlocksOrOne(first);
     return;
   }
-  if (e.key === 'Escape' && selectedBlockIds.size > 0) {
+  if (e.key === 'Escape' && getSelectedBlockIds().size > 0) {
     e.preventDefault();
     clearBlockSelection();
     return;

@@ -236,8 +236,7 @@ function onTouchMove(e) {
     );
     const factor = currentDist / initialPinchDist;
     scale = clamp(initialScale * factor, MIN_SCALE, MAX_SCALE);
-    updateZoomLabel();
-    applyTransform(false);
+    applyTransform(false); // (o rótulo do zoom é atualizado dentro de applyTransform)
     e.preventDefault();
   }
 }

@@ -88,7 +88,7 @@ const INLINE_MD = [
   { re: /(?:^|(?<=[\s,.:;!?'"([{<]))#([a-zA-Z\u00C0-\u017F0-9_\-]+(?:\/[a-zA-Z\u00C0-\u017F0-9_\-]+)*)(?=$|[\s,.:;!?'")\]}>])/g, tag: 'tag' },
 ];
 
-function parseInlineMarkdown(text) {
+export function parseInlineMarkdown(text) {
   const matches = [];
   for (const item of INLINE_MD) {
     const { re, tag, syntax } = item;

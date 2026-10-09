@@ -61,6 +61,7 @@ export function createMapPicker(containerEl, options = {}) {
   let marker = null;
   let circle = null;
   let isDestroyed = false;
+  let renderizarElementosRef = null; // a função mora dentro de initMap; panToLocation (fora dele) chama por aqui
 
   // Se Leaflet não estiver pronto imediatamente, tenta carregar dinamicamente
   if (typeof window === 'undefined' || !window.L) {
@@ -76,7 +77,7 @@ export function createMapPicker(containerEl, options = {}) {
         currentLng = newLng;
         if (map) {
           map.setView([newLat, newLng], 16, { animate: true });
-          renderizarElementos(newLat, newLng);
+          renderizarElementosRef?.(newLat, newLng);
         }
       },
       updateRadius: (r) => {
@@ -133,6 +134,7 @@ export function createMapPicker(containerEl, options = {}) {
         iconAnchor: [18, 40]
       });
 
+      renderizarElementosRef = renderizarElementos;
       function renderizarElementos(targetLat, targetLng) {
         if (targetLat == null || targetLng == null || !map) return;
 

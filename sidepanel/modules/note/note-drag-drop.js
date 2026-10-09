@@ -178,7 +178,7 @@ export function positionBlockControls(block) {
 }
 
 
-function blockNearestToY(y, exclude = []) {
+export function blockNearestToY(y, exclude = []) {
   let closest = null, closestDist = Infinity;
   for (const b of orderedBlocks()) {
     if (exclude.includes(b)) continue;
@@ -438,7 +438,7 @@ export function deleteBlocksOrOne(block) {
   _callbacks.scheduleSave();
 }
 
-function handleHandleClick(block, ctrl) {
+export function handleHandleClick(block, ctrl) {
   if (ctrl) {
     if (lastHandleClickedId) {
       const anchor = findBlockById(lastHandleClickedId);

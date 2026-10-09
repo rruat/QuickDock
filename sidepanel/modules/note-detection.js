@@ -405,6 +405,9 @@ export function positionMenu(menu, anchorRect) {
 }
 
 // ── Menu de cópia ─────────────────────────────────────────────────────────────
+/** O menu de cópia rápida (CPF, telefone…) está aberto? */
+export const isCopyMenuOpen = () => !!activeMenu;
+
 export function closeCopyMenu() {
   activeMenu?.remove();
   activeMenu = null;
