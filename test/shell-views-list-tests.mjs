@@ -258,6 +258,8 @@ export async function runShellViewsListTests({ ok, igual }) {
     ['shell-mobile-drawer', 'mobile-drawer-search', 'shell-models-aside'].every(n => swP4.includes(`shell/${n}.js`)) &&
     (await Promise.all(['../index.html', '../404.html', '../sidepanel/index.html'].map(p => readFile(new URL(p, import.meta.url), 'utf8')))).every(h => h.includes('id="rightAsideModelsHost"')));
 
+  ok('mobile · as telas ocupam a altura toda (sem os 38px reservados da barra de documentos antiga)', mcss.includes('html #app #mMain > .main-section, html #app #mMain > .note-section.docs-collapsed { height: 100% !important;'));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[4].type, 'board');

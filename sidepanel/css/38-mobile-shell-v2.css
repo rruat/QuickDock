@@ -13,6 +13,9 @@
      modelos na aside direita ── */
   html #app #mNav, html[data-platform] #app #mNav { display: none !important; }
   #mMain { flex: 1 1 auto !important; min-height: 0 !important; }
+  /* cada tela ocupa a altura toda: a regra antiga da nota reservava 38px para a barra de documentos
+     recolhida (height: calc(100vh - 38px)), o que deixava um vazio no rodapé onde antes ficava a nav */
+  html #app #mMain > .main-section, html #app #mMain > .note-section.docs-collapsed { height: 100% !important; max-height: none !important; }
 
   /* os drawers ocupam a altura toda; os dois empurram o conteúdo */
   /* drawers largos (como no Obsidian): sobra só uma fatia do conteúdo, sem precisar puxar do canto da tela */
