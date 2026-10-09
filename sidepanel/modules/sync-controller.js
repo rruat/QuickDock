@@ -289,6 +289,9 @@ export class SyncController {
       }
     }
 
+    await this._reiniciarSeMudouDeDestino({ tipo: 'pasta', nome: handle.name });
+    this.destino = 'pasta';
+    await this._salvarMeta('syncDestino', 'pasta');
     this.rootHandle = handle;
     this.folderName = handle.name;
 
@@ -302,6 +305,22 @@ export class SyncController {
 
     // Dispara a primeira sincronização imediatamente após escolher a pasta
     await this.sincronizarAgora();
+  }
+
+  /**
+   * Trocar de destino (pasta → Drive, Drive → pasta, ou outra pasta) zera o histórico de
+   * sincronização — o que cada nota "já enviou" e o cursor. Esse histórico é do destino ANTIGO; se
+   * ficasse, o motor acharia as notas já sincronizadas e não enviaria nenhuma ao destino novo. As
+   * notas locais e os arquivos do destino antigo não são tocados.
+   * @returns {Promise<boolean>} true se o destino mudou e o histórico foi zerado
+   */
+  async _reiniciarSeMudouDeDestino(novo) {
+    const antes = { tipo: this.destino === 'drive' ? 'drive' : 'pasta', nome: this.folderName };
+    const mudou = novo.tipo !== antes.tipo || (novo.tipo === 'pasta' && novo.nome !== antes.nome);
+    if (!mudou) return false;
+    const store = this.customStore || (db ? new DexieSyncStore(db) : null);
+    await store?.reiniciarEstadoSync?.();
+    return true;
   }
 
   /**
@@ -346,6 +365,9 @@ export class SyncController {
   }
 
   async conectarDrive() {
+    // ANTES de tudo, inclusive do redirecionamento ao Google: a página sai e volta, e o motor
+    // tem que subir já com o histórico limpo para enviar as notas locais ao Drive.
+    await this._reiniciarSeMudouDeDestino({ tipo: 'drive' });
     const provedor = this._criarProvedorDeToken();
     if (provedor.redireciona) {
       // A página sai para o Google: grava o destino ANTES, para a volta já subir conectada.

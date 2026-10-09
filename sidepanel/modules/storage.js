@@ -916,6 +916,18 @@ export class DexieSyncStore {
     await this.db.syncMeta.put({ chave: 'cursor', valor });
   }
 
+  /**
+   * Esquece o vínculo de sincronização (o que cada nota "já enviou" e onde parou), SEM tocar nas
+   * notas. Necessário ao trocar de destino (pasta → Drive): o histórico é do destino antigo e, se
+   * ficasse, o motor acharia as notas já sincronizadas e não enviaria nenhuma ao destino novo — e o
+   * cursor da pasta seria lido como cursor do Drive.
+   */
+  async reiniciarEstadoSync() {
+    await this.db.syncState.clear();
+    await this.db.syncMeta.delete('cursor');
+    await this.db.syncMeta.delete('workspaceBaseSyncedHash');   // META_HASH_WORKSPACE (workspace-base-sync.js)
+  }
+
   async obterMeta(chave) {
     return (await this.db.syncMeta.get(chave))?.valor ?? null;
   }

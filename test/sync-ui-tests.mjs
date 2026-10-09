@@ -88,6 +88,60 @@ export async function runSyncUiTests({ ok, igual }) {
   c4.state = 'disconnected';
   igual('controlador · desconectado não sincroniza e avisa', (await c4.sincronizarParaAbrir()).ok, false);
 
+  // ── Trocar de destino (pasta → Drive): as notas locais têm que SUBIR para o destino novo ──
+  const notasDe = adaptador => [...adaptador.arquivos.keys()].filter(c => c.startsWith('notas/') && !adaptador.arquivos.get(c).apagado);
+  const novaNota = (uid, titulo) => ({ uid, title: titulo, blocks: [{ id: `b-${uid}`, type: 'paragraph', html: `texto ${titulo}` }], ordem: `o-${uid}` });
+
+  {
+    const store = new InMemoryStore();
+    const pastaA = new MemorySyncAdapter();
+    const ctl = new SyncController({ store, adapter: pastaA });
+    await ctl._montarEngineComAdapter(pastaA);
+    ctl.state = 'idle'; ctl.destino = 'pasta'; ctl.folderName = 'Pasta A';
+    await store.salvarNotaLocal(novaNota('u_mig_1', 'Primeira'));
+    await store.salvarNotaLocal(novaNota('u_mig_2', 'Segunda'));
+    await ctl.sincronizarAgora();
+    igual('migrar · as notas foram para a pasta de origem', notasDe(pastaA).length, 2);
+
+    igual('migrar · reconectar a MESMA pasta não zera o histórico', await ctl._reiniciarSeMudouDeDestino({ tipo: 'pasta', nome: 'Pasta A' }), false);
+    igual('migrar · o histórico continua lá', (await store.listarTodosEstadosSync()).length, 2);
+
+    // Troca para o Drive (destino novo, vazio)
+    igual('migrar · ir para o Drive zera o histórico de sincronização', await ctl._reiniciarSeMudouDeDestino({ tipo: 'drive' }), true);
+    igual('migrar · zerar não apaga as notas locais', (await store.listarNotasLocais()).length, 2);
+    ok('migrar · zerar limpa o cursor e o histórico', (await store.listarTodosEstadosSync()).length === 0 && (await store.obterCursorSync()) === null);
+
+    const drive = new MemorySyncAdapter();
+    ctl.destino = 'drive';
+    await ctl._montarEngineComAdapter(drive);
+    ctl.state = 'idle';
+    await ctl.sincronizarAgora();
+    igual('migrar · todas as notas locais sobem para o Drive', notasDe(drive).length, 2);
+    igual('migrar · as notas locais continuam 2 (nada duplicou nem sumiu)', (await store.listarNotasLocais()).length, 2);
+    igual('migrar · a pasta antiga não foi mexida', notasDe(pastaA).length, 2);
+
+    await ctl.sincronizarAgora();
+    igual('migrar · a rodada seguinte não reenvia nem duplica', [notasDe(drive).length, (await store.listarNotasLocais()).length], [2, 2]);
+
+    igual('migrar · reautorizar o Drive (já está no Drive) não zera', await ctl._reiniciarSeMudouDeDestino({ tipo: 'drive' }), false);
+    igual('migrar · voltar para uma pasta zera de novo', await ctl._reiniciarSeMudouDeDestino({ tipo: 'pasta', nome: 'Pasta B' }), true);
+  }
+
+  {
+    // Drive que JÁ tem as mesmas notas (ex.: reconectar depois de perder o histórico): nada duplica
+    const store = new InMemoryStore();
+    const drive = new MemorySyncAdapter();
+    const ctl = new SyncController({ store, adapter: drive });
+    await ctl._montarEngineComAdapter(drive);
+    ctl.state = 'idle'; ctl.destino = 'drive';
+    await store.salvarNotaLocal(novaNota('u_dup_1', 'Mesma nota'));
+    await ctl.sincronizarAgora();
+    await store.reiniciarEstadoSync();                 // simula histórico perdido, Drive com a nota
+    await ctl.sincronizarAgora();
+    igual('migrar · Drive que já tem a nota: sem duplicar no Drive', notasDe(drive).length, 1);
+    igual('migrar · Drive que já tem a nota: sem duplicar no aparelho', (await store.listarNotasLocais()).length, 1);
+  }
+
   // ── Ligações no código ──
   const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   ok('sync-ui · módulos e CSS no pré-cache', ['sync-ui-model.js', 'sync-gate.js', 'sync-indicator.js', 'css/41-sync-ui.css'].every(f => sw.includes(f)));

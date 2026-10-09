@@ -109,6 +109,11 @@ export class InMemoryStore {
   async salvarCursorSync(c) {
     this.cursor = c;
   }
+  async reiniciarEstadoSync() {
+    this.estados.clear();
+    this.cursor = null;
+    this.meta?.delete('workspaceBaseSyncedHash');
+  }
   async obterMeta(chave) {
     return this.meta?.get(chave) ?? null;
   }
