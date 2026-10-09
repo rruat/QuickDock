@@ -318,6 +318,9 @@ export function setupMobileObsidianUI() {
   const mainEl = document.getElementById('mMain');
   if (mainEl) {
     mainEl.addEventListener('click', (e) => {
+      // só toque de verdade fecha o drawer: os botões da quickbar das Constelações e outros atalhos aciono
+      // os botões originais (que moram dentro da área principal) com .click() — isso não é "tocar no conteúdo"
+      if (!e.isTrusted) return;
       const isLeftOpen = document.body.classList.contains('has-left-drawer-open') || document.getElementById('mAside')?.classList.contains('is-open-mobile');
       const isRightOpen = isRightAsideOpen();
       if (isLeftOpen || isRightOpen) {

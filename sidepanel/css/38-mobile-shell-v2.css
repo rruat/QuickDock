@@ -44,7 +44,7 @@
   /* durante o arrasto o dedo manda: a opacidade acompanha o quanto o drawer já abriu (--scrim-o) */
   html body.is-dragging-drawer #mMain::after { transition: none; opacity: var(--scrim-o, 0); pointer-events: none; }
   /* o scrim antigo (elemento fixo) não é mais usado */
-  html body #mobileDrawerScrim { display: none !important; }
+  html body #mobileDrawerScrim.mobile-drawer-scrim:not(#x):not(#y):not(#z) { display: none !important; visibility: hidden !important; width: 0 !important; left: auto !important; right: auto !important; pointer-events: none !important; }
 
   /* ── Drawer esquerdo: só os painéis novos (some o explorador antigo e o menu de "visões") ── */
   html[data-platform] #app #mAside.mode-notes .notes-aside-drawer,
