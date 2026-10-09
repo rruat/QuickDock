@@ -51,7 +51,13 @@ export function initMobileDrawer() {
     input.placeholder = scope.placeholder;
     menu.innerHTML = SEARCH_SCOPES.map(s => `<button type="button" role="option" class="md-scope-opt${s.id === scope.id ? ' is-active' : ''}" data-scope="${s.id}">${icon(s.icon)}<span>${s.label}</span>${s.id === scope.id ? icon('check') : ''}</button>`).join('');
   };
-  const closeMenu = () => { menu.classList.remove('is-open'); aside.classList.remove('is-menu-open'); scopeBtn.setAttribute('aria-expanded', 'false'); };
+  const closeMenu = () => {
+    // só mexe no DOM se algo muda: remover uma classe que não existe ainda gera um registro no MutationObserver
+    // que observa a classe do próprio aside (abaixo) e viraria um laço infinito
+    if (menu.classList.contains('is-open')) menu.classList.remove('is-open');
+    if (aside.classList.contains('is-menu-open')) aside.classList.remove('is-menu-open');
+    if (scopeBtn.getAttribute('aria-expanded') !== 'false') scopeBtn.setAttribute('aria-expanded', 'false');
+  };
 
   // ── busca ──
   async function run() {
@@ -159,7 +165,7 @@ export function initMobileDrawer() {
   window.addEventListener('popstate', () => { if (screen?.classList.contains('is-open')) closeSettings(); });
 
   // fechou o drawer: some o menu e a busca de itens volta ao normal
-  new MutationObserver(() => { if (!aside.classList.contains('is-open-mobile')) closeMenu(); }).observe(aside, { attributes: true, attributeFilter: ['class'] });
+  new MutationObserver(() => { if (!aside.classList.contains('is-open-mobile') && menu.classList.contains('is-open')) closeMenu(); }).observe(aside, { attributes: true, attributeFilter: ['class'] });
 
   paintScope();
 }

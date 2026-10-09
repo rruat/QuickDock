@@ -269,6 +269,9 @@ export async function runShellViewsListTests({ ok, igual }) {
   ok('mobile · o menu do rodapé (esquerda e direita) é inline: empurra o conteúdo para cima, sem popup/hidden', !mdSrc.includes('menu.hidden') && !(await readFile(new URL('../sidepanel/modules/shell/shell-mobile-right.js', import.meta.url), 'utf8')).includes('menu.hidden'));
   ok('mobile · quickbar/grafo/barra da nota têm gesto próprio: não abrem nem fecham drawers', sgSrc.includes("GESTURE_OWNERS = '.gq-bar, .graph-canvas-container") && sgSrc.indexOf('GESTURE_OWNERS) || insideHorizontalScroller') < sgSrc.indexOf("action = 'close-left'"));
 
+  ok('mobile · sem laço infinito: o observador da classe do aside só age se há menu aberto e closeMenu não reescreve classes inexistentes',
+    mdSrc.includes("!aside.classList.contains('is-open-mobile') && menu.classList.contains('is-open')") && mdSrc.includes("if (aside.classList.contains('is-menu-open')) aside.classList.remove('is-menu-open')"));
+
   // Criar / duplicar / renomear / excluir
   const a = m.addWorkspaceView(def, 'board');
   igual('workspace · nova view entra no fim com o tipo pedido', a.def.views[4].type, 'board');
