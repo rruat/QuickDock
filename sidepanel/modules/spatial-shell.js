@@ -26,6 +26,7 @@ import { initViewSwitcher } from './shell/shell-view-switcher.js';
 import { setAsidePanel, toggleAsidePanel, getAsidePanel, NAV_TO_PANEL } from './shell/shell-aside-panels.js';
 import { initModelsPanel } from './shell/shell-models-panel.js';
 import { initViewGroups } from './shell/shell-view-groups.js';
+import { initMobileRightMenu } from './shell/shell-mobile-right.js';
 import { initMobileDrawer } from './shell/shell-mobile-drawer.js';
 import { initMobileKeyboard } from './shell/shell-mobile-keyboard.js';
 import { initMobileTitle } from './shell/shell-mobile-title.js';
@@ -161,6 +162,7 @@ export function initSpatialShell() {
   initMobileTitle();
   initMobileKeyboard();
   initMobileDrawer();
+  initMobileRightMenu();
   initDraftBar();
   initFooterLabel();
   initEscapeBack();

@@ -26,12 +26,23 @@
   /* o cabeçalho do app não aparece no mobile: mais tela para o conteúdo (voltar = gesto/Android; views = drawer) */
   html[data-platform] #mHeader, html[data-platform] #app #mHeader, html #mHeader { display: none !important; }
   html #app #mAside, html #app #mRightAside { bottom: var(--m-nav-h) !important; height: auto !important; max-height: none !important; width: var(--m-drawer-w) !important; max-width: none !important; }
-  html #app.has-left-drawer-open #mMain, html #app:has(#mAside.is-open-mobile) #mMain, body.has-left-drawer-open #mMain { --push-x: var(--m-drawer-w); }
-  html #app.has-right-drawer-open #mMain, body.has-right-drawer-open #mMain { --push-x: calc(-1 * var(--m-drawer-w)); }
-  html #app.has-left-drawer-open .mobile-drawer-scrim, html #app:has(#mAside.is-open-mobile) .mobile-drawer-scrim, body.has-left-drawer-open .mobile-drawer-scrim { left: var(--m-drawer-w) !important; right: 0 !important; width: auto !important; }
-  html #app.has-right-drawer-open .mobile-drawer-scrim, body.has-right-drawer-open .mobile-drawer-scrim { left: 0 !important; right: var(--m-drawer-w) !important; width: auto !important; }
-  html #app .mobile-drawer-scrim { bottom: var(--m-nav-h) !important; }
-  #mMain { flex: 1 1 auto !important; min-height: 0 !important; }
+  /* Os drawers NÃO empurram mais o conteúdo: ele fica parado, com um scrim por cima que só faz fade
+     (nunca desliza). O drawer em si desliza da sua borda. */
+  html #app #mMain, html #app #mHeader, html #mMain, html #mHeader { transform: none !important; transition: none !important; }
+  html body #mobileDrawerScrim {
+    display: block !important; position: fixed !important; inset: 0 !important; left: 0 !important; right: 0 !important; width: auto !important;
+    z-index: 99 !important; cursor: pointer;
+    background: oklch(0% 0 0 / 0.38) !important;
+    opacity: 0 !important; pointer-events: none !important;
+    transition: opacity 220ms ease !important;
+  }
+  html[data-theme="dark"] body #mobileDrawerScrim { background: oklch(0% 0 0 / 0.55) !important; }
+  html body.has-left-drawer-open #mobileDrawerScrim, html body.has-right-drawer-open #mobileDrawerScrim,
+  html body #app:has(#mAside.is-open-mobile) ~ #mobileDrawerScrim, html body:has(#mAside.is-open-mobile) #mobileDrawerScrim {
+    opacity: 1 !important; pointer-events: auto !important;
+  }
+  /* durante o arrasto o dedo manda: a opacidade acompanha o quanto o drawer já abriu (--scrim-o) */
+  html body.is-dragging-drawer #mobileDrawerScrim { transition: none !important; opacity: var(--scrim-o, 0) !important; pointer-events: none !important; }
 
   /* ── Drawer esquerdo: só os painéis novos (some o explorador antigo e o menu de "visões") ── */
   html[data-platform] #app #mAside.mode-notes .notes-aside-drawer,
@@ -166,6 +177,12 @@
   .right-aside-models-host { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg); }
   .right-aside-models-host[hidden] { display: none; }
   .right-aside-models-host > #asideModels { display: flex !important; flex-direction: column; flex: 1 1 auto; min-height: 0; padding: 8px 12px 16px; }
+
+  /* aside direita no mobile: o menu do rodapé troca entre sumário, backlinks, constelações, modelos e configurações,
+     então as abas internas do painel da nota não são necessárias */
+  html #mRightAside .note-outline-header { display: none !important; }
+  html #mRightAside > .aside-header .aside-actions .mobile-only-btn { display: none !important; }
+  html #mRightAside > .md-bottom { order: 20; }
 
   /* o painel lateral esquerdo é o drawer: o interruptor "mostrar painel" não faz sentido; o link do mockup também não */
   html #asideSettings label.settings-option:has(#settings-aside-open), #btn-header-mockup { display: none !important; }

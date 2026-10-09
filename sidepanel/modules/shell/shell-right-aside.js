@@ -43,6 +43,9 @@ const writeStore = (k, v) => { try { localStorage.setItem(k, v); } catch { /* se
 let mobileOpen = false;
 let api = null;
 export const isRightAsideOpen = () => !!api && api.isOpen();
+/** Modo atual da aside direita: 'config' | 'graph' | 'models' (no mobile quem troca é o menu do rodapé). */
+export const getRightAsideMode = () => (api ? api.mode() : 'config');
+export function setRightAsideMode(mode, { open = true } = {}) { api?.setMode(mode, open); }
 /** Abre/fecha a aside direita (no mobile, o drawer). */
 export function setRightAsideOpen(open) { api?.setOpen(!!open); }
 
@@ -90,22 +93,6 @@ export function initRightAside() {
     hub.innerHTML = '<span class="material-symbols-rounded">hub</span>';
     tune.after(hub);
   }
-  // Mobile: os cabeçalhos (do app e das seções) somem; os modos da aside ficam no cabeçalho dela:
-  // configurações (tune), Constelações (hub) e Modelos (notas, quadros e blocos)
-  const asideActions = aside.querySelector(':scope > .aside-header .aside-actions');
-  if (asideActions && !asideActions.querySelector('[data-aside-config]')) {
-    const mk = (attr, icon, title) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'aside-btn mobile-only-btn';
-      b.setAttribute(attr, '');
-      b.title = title;
-      b.setAttribute('aria-label', title);
-      b.innerHTML = `<span class="material-symbols-rounded">${icon}</span>`;
-      return b;
-    };
-    asideActions.prepend(mk('data-aside-config', 'tune', 'Configurações'), mk('data-aside-graph', 'hub', 'Constelações'), mk('data-aside-models', 'auto_stories', 'Modelos'));
-  }
   const toggles = () => document.querySelectorAll('[data-aside-toggle]');
 
   // Padrão: aberta (a navegação do calendário, a busca e os filtros moram nela)
@@ -133,6 +120,7 @@ export function initRightAside() {
       if (visible && !wasVisible) slideIn(aside, 28); // abre deslizando da direita
     }
     wasVisible = visible;
+    document.dispatchEvent(new CustomEvent('quickdock:right-aside-mode', { detail: { mode: asideMode, visible } }));
     const graph = visible && asideMode === 'graph';
     const models = visible && asideMode === 'models';
     const cfg = visible && !graph && !models;
@@ -171,7 +159,12 @@ export function initRightAside() {
     }
     apply();
   }
-  api = { setOpen, isOpen: () => (mobile() ? mobileOpen : wantOpen) };
+  api = {
+    setOpen,
+    isOpen: () => (mobile() ? mobileOpen : wantOpen),
+    mode: () => asideMode,
+    setMode: (m, open) => { setMode(m); if (open) setOpen(true); else apply(); },
+  };
   function setMode(m) {
     asideMode = m;
     if (m !== 'models') writeStore(KEY_MODE, m); // Modelos é um modo passageiro do mobile: não vira o padrão

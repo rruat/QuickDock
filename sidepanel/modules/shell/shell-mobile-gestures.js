@@ -74,11 +74,15 @@ export function setupMobileTouchGestures() {
     const px = (v) => `${v}px`;
     els.header?.style.setProperty('--push-x', px(pos.push));
     els.main?.style.setProperty('--push-x', px(pos.push));
+    // scrim: fade proporcional ao quanto o drawer já abriu (o conteúdo não se mexe)
+    const w = Math.max(1, action.endsWith('left') ? leftW : rightW);
+    document.body.style.setProperty('--scrim-o', String(Math.min(1, Math.abs(pos.push) / w)));
     if (pos.aside !== null) els.aside?.style.setProperty('--aside-x', px(pos.aside));
     if (pos.right !== null) els.right?.style.setProperty('--right-x', px(pos.right));
   }
 
   function clearVars() {
+    document.body.style.removeProperty('--scrim-o');
     if (!els) return;
     for (const el of [els.aside, els.right, els.header, els.main]) {
       if (!el) continue;
