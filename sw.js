@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-131';
+const CACHE_NAME = 'quickdock-v3.0.0-132';
 
 const ASSET_PATHS = [
   '',

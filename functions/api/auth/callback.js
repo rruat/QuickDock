@@ -8,8 +8,10 @@ import { criarSessao, limparSessoesVencidas } from '../../_lib/session.js';
 const agora = () => Math.floor(Date.now() / 1000);
 
 // Volta ao app com um motivo na URL; a interface mostra o aviso e limpa o parâmetro.
-const voltarComErro = (motivo, volta = '/') =>
-  redirect(`${volta}${volta.includes('?') ? '&' : '?'}login_erro=${motivo}`, { 'Set-Cookie': apagarCookie(COOKIE_OAUTH) });
+// `detalhe` é o código de erro do Google (ex.: invalid_client), nunca um valor secreto.
+const voltarComErro = (motivo, volta = '/', detalhe = '') =>
+  redirect(`${volta}${volta.includes('?') ? '&' : '?'}login_erro=${motivo}${/^[a-z_]{1,40}$/.test(detalhe) ? `&detalhe=${detalhe}` : ''}`,
+    { 'Set-Cookie': apagarCookie(COOKIE_OAUTH) });
 
 export async function onRequestGet({ request, env }) {
   const falha = exigirConfig(env);
@@ -30,7 +32,7 @@ export async function onRequestGet({ request, env }) {
     clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET,
     redirect: redirectUri(request.url), code, verifier: guardado.verifier,
   });
-  if (!r.ok) return voltarComErro('troca_falhou', volta);
+  if (!r.ok) return voltarComErro('troca_falhou', volta, r.corpo?.error);
 
   const { refresh_token: refresh, id_token: idToken, scope } = r.corpo;
   // A pessoa pode desmarcar a permissão do Drive na tela do Google: sem ela não há o que sincronizar

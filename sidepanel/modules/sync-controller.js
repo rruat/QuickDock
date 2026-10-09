@@ -322,13 +322,20 @@ export class SyncController {
     const params = new URLSearchParams(location.search);
     const motivo = params.get('login_erro');
     if (!motivo) return null;
+    const detalhe = params.get('detalhe');
     params.delete('login_erro');
+    params.delete('detalhe');
     try { history.replaceState(null, '', location.pathname + (params.size ? `?${params}` : '') + location.hash); } catch { /* sem history */ }
     const textos = {
       negado: 'O login foi cancelado.',
       sem_drive: 'É preciso liberar o acesso ao Google Drive para sincronizar. Entre de novo e marque a permissão.',
       sem_refresh: 'O Google não liberou o acesso contínuo. Revogue o QuickDock em myaccount.google.com/permissions e entre de novo.',
       sessao_expirada: 'O login demorou demais. Tente de novo.',
+      estado_invalido: 'O login não pôde ser confirmado (cookie bloqueado ou aba diferente). Tente de novo na mesma aba.',
+      token_invalido: 'O Google devolveu uma identidade inválida. Tente de novo.',
+      // invalid_client = segredo errado; redirect_uri_mismatch/invalid_grant = configuração ou código já usado
+      troca_falhou: `O Google recusou a troca do login${detalhe ? ` (${detalhe})` : ''}. ${
+        detalhe === 'invalid_client' ? 'O segredo do cliente no servidor não confere com o do Google.' : 'Tente de novo; se repetir, avise o suporte.'}`,
     };
     return textos[motivo] || 'Não foi possível entrar com o Google. Tente de novo.';
   }
@@ -583,6 +590,7 @@ export class SyncController {
         statusBox.innerHTML = `
           <div class="sync-folder-label">Pasta: <strong>${this.folderName || 'Selecionada'}</strong></div>
           <div class="sync-badge sync-badge-warn">Acesso precisa ser reautorizado</div>
+          ${this.lastSyncError ? `<div class="sync-error-msg">${this.lastSyncError}</div>` : ''}
           <button class="copy-opt sync-action-btn sync-btn-primary" id="sync-btn-reautorizar">
             🔑 Reautorizar acesso
           </button>

@@ -134,6 +134,12 @@ export async function runCloudTests({ ok, igual }) {
     const semDrive = await chamar(rotas.callback, `/api/auth/callback?code=c&state=${state}`, { cookie: cookieOauth });
     ok('nuvem · quem desmarca o Drive na tela do Google volta com aviso e sem sessão', semDrive.headers.get('Location').includes('login_erro=sem_drive') && !cookiesDe(semDrive).some(c => c.startsWith('__Host-qd_session=') && c.length > 20));
 
+    // Segredo errado no servidor: o motivo exato volta na URL (para o painel explicar), sem vazar valores
+    google_resposta = () => ({ error: 'invalid_client' });
+    const segredoErrado = await chamar(rotas.callback, `/api/auth/callback?code=c&state=${state}`, { cookie: cookieOauth });
+    const locErro = segredoErrado.headers.get('Location');
+    ok('nuvem · troca recusada pelo Google volta com o código do erro (invalid_client)', locErro.includes('login_erro=troca_falhou') && locErro.includes('detalhe=invalid_client') && !locErro.includes('csecret'));
+
     // Callback certo
     google_resposta = () => ({ access_token: 'at', refresh_token: 'rt-1', id_token: fakeIdToken(), scope: 'openid email profile https://www.googleapis.com/auth/drive.file' });
     const certo = await chamar(rotas.callback, `/api/auth/callback?code=c&state=${state}`, { cookie: cookieOauth });
