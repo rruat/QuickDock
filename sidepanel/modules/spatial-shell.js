@@ -22,6 +22,7 @@ import {
 import { setupMobileBack } from './shell/shell-mobile-back.js';
 import { initAsideViewsList } from './shell/shell-views-list.js';
 import { initRightAside } from './shell/shell-right-aside.js';
+import { initFloatingAsides } from './shell/shell-floating-asides.js';
 import { initViewSwitcher } from './shell/shell-view-switcher.js';
 import { setAsidePanel, toggleAsidePanel, getAsidePanel, NAV_TO_PANEL } from './shell/shell-aside-panels.js';
 import { initModelsPanel } from './shell/shell-models-panel.js';
@@ -155,6 +156,7 @@ export function initSpatialShell() {
   setupAside();
   initAsideViewsList({ openView: (id) => openOrFocusView(id) });
   initRightAside();
+  initFloatingAsides();
   initViewSwitcher();
   initModelsPanel({ openView: (id) => openOrFocusView(id) });
   initSettingsPanelActions();
@@ -216,7 +218,7 @@ export function initSpatialShell() {
   document.addEventListener('click', (e) => {
     const asideEl = document.getElementById('mAside');
     if (!asideEl || !asideEl.classList.contains('is-open-mobile')) return;
-    if (asideEl.contains(e.target) || e.target.closest('#mNav') || e.target.closest('#navItemExplorer')) return;
+    if (asideEl.contains(e.target) || e.target.closest('#mNav') || e.target.closest('#navItemExplorer') || e.target.closest('[data-floating-aside]')) return;
     asideEl.classList.remove('is-open-mobile');
   });
   syncNoteViews(typeof getOpenTabsSnapshot === 'function' ? getOpenTabsSnapshot() : {});

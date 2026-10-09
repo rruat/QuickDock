@@ -1,0 +1,35 @@
+/* Botões flutuantes que abrem/fecham os drawers esquerdo e direito (nota e quadro) — só mobile */
+.floating-aside-group { display: none; }
+
+@media (max-width: 768px) {
+  html #section-note, html #board-view { position: relative; }
+
+  html .floating-aside-group {
+    position: absolute;
+    top: 10px;
+    z-index: 30;
+    display: flex;
+    gap: 6px;
+  }
+  html .floating-aside-group-left { left: 10px; }
+  html .floating-aside-group-right { right: 10px; }
+
+  html .floating-aside-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in oklch, var(--bg) 88%, transparent);
+    color: var(--text-muted);
+    opacity: 0.7;
+    backdrop-filter: blur(6px);
+    -webkit-tap-highlight-color: transparent;
+  }
+  html .floating-aside-btn .material-symbols-rounded { font-size: 22px; }
+  html .floating-aside-btn:active,
+  html .floating-aside-btn.is-active { opacity: 1; color: var(--text); }
+}
