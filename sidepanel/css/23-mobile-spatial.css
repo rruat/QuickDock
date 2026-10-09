@@ -505,13 +505,26 @@
   }
 
   /* Seção de capa da nota no mobile:
-     ocupa a largura interna, gaveta fechada por padrão (0fr), expandindo suavemente apenas com .is-open */
+     ocupa a largura inteira da tela, sem margem no topo e sem cantos arredondados (a imagem vai de
+     borda a borda). Gaveta fechada por padrão (0fr), expandindo suavemente apenas com .is-open */
   .note-cover-section,
   html[data-platform="mobile"] .note-cover-section {
     width: 100% !important;
     max-width: 100% !important;
-    margin: 8px 0 4px 0 !important;
+    margin: 0 0 4px 0 !important;
+    border-radius: 0 !important;
     box-sizing: border-box !important;
+  }
+
+  /* com capa, sem a borda de 1px que recuava a imagem das laterais; o aro só aparece com o painel aberto */
+  .note-cover-section.has-cover:not(.is-open),
+  html[data-platform="mobile"] .note-cover-section.has-cover:not(.is-open) {
+    border-width: 0 !important;
+  }
+
+  .note-cover-section .capa-image-wrap,
+  html[data-platform="mobile"] .note-cover-section .capa-image-wrap {
+    border-radius: 0 !important;
   }
 
   .note-cover-section .section-body,
