@@ -7,6 +7,10 @@
 // PÚBLICOS: não conseguem guardar segredo nenhum, e é exatamente para esse
 // caso que o PKCE existe. Se algum dia aparecer um `client_secret` neste
 // arquivo, é erro.
+//
+// Na versão hospedada (Cloudflare Pages), o segredo do cliente "Aplicativo da Web" vive no
+// SERVIDOR (functions/, segredo GOOGLE_CLIENT_SECRET) — nunca neste código que vai para o navegador.
+// O servidor guarda o refresh token e entrega ao app só tokens curtos (cloud-session.js).
 
 export const GOOGLE_CLIENT_ID_WEB =
   '324044251913-omlvbssk3av45rafji6evt6kmlev22pf.apps.googleusercontent.com';

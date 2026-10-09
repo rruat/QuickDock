@@ -48,11 +48,11 @@
 <body>
 
 <h1>Política de Privacidade</h1>
-<div class="data">QuickDock · atualizada em 17 de setembro de 2026</div>
+<div class="data">QuickDock · atualizada em 9 de outubro de 2026</div>
 
 <div class="destaque">
-  <p><strong>O QuickDock não tem servidor.</strong> Não existe banco de dados nosso, não há conta para criar aqui, e ninguém do outro lado consegue ler o que você escreve — porque não há outro lado.</p>
-  <p>Suas notas ficam no seu navegador. Se você ligar a sincronização, elas passam a ficar também numa pasta que <strong>você</strong> escolhe: no seu computador ou no seu próprio Google Drive.</p>
+  <p><strong>Suas notas nunca passam por um servidor nosso.</strong> Elas ficam no seu navegador e, se você ligar a sincronização, numa pasta que <strong>você</strong> escolhe: no seu computador ou no seu próprio Google Drive.</p>
+  <p>Na versão web hospedada (<code>quickdock.pages.dev</code>) existe um servidor pequeno, <strong>só para o login</strong>: ele guarda quem você é e o acesso renovável ao seu Drive, para você não ter que entrar de novo a toda hora. Ele não guarda notas, imagens nem nada do que você escreve. Os detalhes estão na seção “O servidor de login” abaixo.</p>
 </div>
 
 <h2>O que fica guardado, e onde</h2>
@@ -82,7 +82,23 @@
   <li>Não é possível listar, abrir nem apagar nada que o QuickDock não tenha criado.</li>
 </ul>
 
-<p>O acesso acontece direto entre o seu navegador e o Google. Nenhum servidor nosso participa, porque não existe nenhum.</p>
+<p>Suas notas viajam direto entre o seu navegador e o Google. Na extensão e na versão local, nenhum servidor nosso participa. Na versão web hospedada, o servidor de login só entrega ao seu navegador um token de acesso curto (cerca de 1 hora); quem lê e grava os arquivos no Drive é o seu navegador.</p>
+
+<h2>O servidor de login (versão web hospedada)</h2>
+
+<p>A versão em <code>quickdock.pages.dev</code> roda na infraestrutura da Cloudflare (hospedagem e banco de dados D1). O banco guarda <strong>apenas</strong>:</p>
+
+<ul>
+  <li><strong>Sua identidade Google:</strong> o identificador da conta, seu e-mail, seu nome e o endereço da sua foto de perfil, como o Google informa no login.</li>
+  <li><strong>Suas sessões:</strong> uma por aparelho, guardadas só como um código embaralhado (hash). Duram até 180 dias e se renovam enquanto você usa o app. No navegador, vive um cookie de sessão — necessário para o login funcionar, e usado para mais nada.</li>
+  <li><strong>O acesso renovável ao seu Drive (refresh token):</strong> guardado <strong>cifrado</strong> (AES-256), com uma chave que não fica no banco.</li>
+</ul>
+
+<p>Isso <strong>não inclui</strong> notas, quadros, imagens, anexos nem qualquer conteúdo seu.</p>
+
+<p>Um ponto honesto: quem guarda esse acesso renovável poderia, em tese, usá-lo para chegar aos arquivos que o QuickDock criou no seu Drive (e só a eles, pela permissão <code>drive.file</code>). O servidor não faz isso — só entrega tokens ao seu navegador quando você está logado — e o código inteiro é público no repositório para você conferir. Se isso não for aceitável para você, use a extensão ou a pasta local, que não passam por servidor nenhum.</p>
+
+<p>Para apagar tudo isso, use <strong>Desconectar</strong> dentro do aplicativo: ele remove seu registro, suas sessões e o acesso ao Drive do servidor e revoga a permissão no Google. Suas notas continuam na sua pasta do Drive.</p>
 
 <p>Você pode revogar a permissão quando quiser, pelo botão Desconectar dentro do aplicativo ou em <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>. Revogar não apaga nada: seus arquivos continuam na sua pasta do Drive.</p>
 
@@ -91,8 +107,8 @@
 <ul>
   <li>Não coletamos dados de uso, estatísticas nem telemetria.</li>
   <li>Não usamos rastreadores, cookies de análise ou publicidade.</li>
-  <li>Não enviamos nada para terceiros — não há terceiros.</li>
-  <li>Não temos como ler suas notas, mesmo que quiséssemos.</li>
+  <li>Não enviamos suas notas para ninguém. Além do Google (se você ligar a sincronização com o Drive), o único terceiro é a Cloudflare, que hospeda a versão web.</li>
+  <li>Não guardamos o conteúdo das suas notas em lugar nenhum nosso.</li>
 </ul>
 
 <h2>Sobre dados sensíveis</h2>
@@ -105,7 +121,7 @@
 
 <p>Para remover seus dados: apague as notas dentro do aplicativo, ou limpe os dados do site/extensão no seu navegador. Se você usava sincronização, apague também a pasta <code>QuickDock</code> no seu computador ou no seu Drive.</p>
 
-<p>Como não temos servidor, não existe nada nosso para pedir que seja apagado.</p>
+<p>Se você usou a versão web hospedada, clique em <strong>Desconectar</strong> no aplicativo para apagar também o seu registro de login no servidor (veja “O servidor de login”). Fora isso, não há nada nosso a apagar: as notas só existem no seu navegador e na sua pasta.</p>
 
 <h2>Mudanças</h2>
 

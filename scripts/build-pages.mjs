@@ -12,7 +12,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.resolve(root, process.argv[2] || 'dist-pages');
 
 // Fora do site: controle de versão, desenvolvimento, documentação, configuração de deploy
-const SKIP_DIRS = new Set(['.git', '.github', '.claude', '.wrangler', 'node_modules', 'test', 'docs', 'scripts', 'worker', 'dist-pages']);
+// (`functions/` e `migrations/` não são do site: o Pages lê `functions/` da raiz do projeto no deploy)
+const SKIP_DIRS = new Set(['.git', '.github', '.claude', '.wrangler', 'node_modules', 'test', 'docs', 'scripts', 'worker', 'functions', 'migrations', 'dist-pages']);
 const SKIP_FILES = new Set([
   'CLAUDE.md', 'Dockerfile', 'package.json', 'package-lock.json', 'server.mjs', 'wrangler.jsonc',
   '.assetsignore', '.gitignore', '.gitattributes', '.dockerignore', '.nojekyll',

@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-130';
+const CACHE_NAME = 'quickdock-v3.0.0-131';
 
 const ASSET_PATHS = [
   '',
@@ -71,6 +71,7 @@ const ASSET_PATHS = [
   'sidepanel/modules/google-config.js',
   'sidepanel/modules/google-auth.js',
   'sidepanel/modules/google-auth-web.js',
+  'sidepanel/modules/cloud-session.js',
   'sidepanel/modules/google-drive-adapter.js',
   'sidepanel/modules/storage.js',
   'sidepanel/modules/notes-tabs.js',
@@ -347,6 +348,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  // A API de login (sessão, quem está logado) nunca passa pelo cache do Service Worker
+  if (new URL(req.url).pathname.startsWith('/api/')) return;
 
   // Network-First: tenta a rede primeiro para garantir que a versão mais nova
   // do código seja sempre servida. Em caso de falha (offline), usa o cache.

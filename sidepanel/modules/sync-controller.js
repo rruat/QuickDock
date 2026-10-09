@@ -20,6 +20,7 @@ import { LocalFolderAdapter } from './local-folder-adapter.js';
 import { GoogleDriveAdapter } from './google-drive-adapter.js';
 import { criarProvedorDeToken } from './google-auth.js';
 import { criarProvedorDeTokenWeb } from './google-auth-web.js';
+import { consultarNuvem, criarProvedorDeTokenNuvem } from './cloud-session.js';
 import { isExtension } from './platform.js';
 import { DexieSyncStore, getSyncMeta, setSyncMeta, deleteSyncMeta, db } from './storage.js';
 import { positionPopover } from './popover.js';
@@ -155,6 +156,12 @@ export class SyncController {
       this.avisosVersao = (await this._obterMeta('syncVersionWarnings')) || [];
 
       this.destino = (await this._obterMeta('syncDestino')) ?? 'pasta';
+
+      // QuickDock hospedado (Cloudflare): o servidor guarda o refresh token e mantém a sessão, então
+      // o login do Drive não expira de hora em hora. Fora dele (localhost, extensão) segue o caminho antigo.
+      this.usarNuvem = !isExtension && !!(await consultarNuvem());
+      const erroLogin = this._lerErroDeLoginDaUrl();
+      if (erroLogin) this.lastSyncError = erroLogin;
 
       // Drive: reconecta sozinho, mas SEM abrir tela de permissão. O Chrome
       // guarda a autorização, então um token silencioso costuma bastar. Se não
@@ -304,12 +311,37 @@ export class SyncController {
   // Extensão e PWA obtêm token por caminhos que não têm nada em comum, e é aqui
   // que essa diferença para de importar para o resto do código.
   _criarProvedorDeToken() {
-    return isExtension ? criarProvedorDeToken() : criarProvedorDeTokenWeb();
+    if (isExtension) return criarProvedorDeToken();
+    return this.usarNuvem ? criarProvedorDeTokenNuvem() : criarProvedorDeTokenWeb();
+  }
+
+  // O login hospedado é um redirecionamento: a página sai e volta. O Google devolve para
+  // `?login_erro=<motivo>` quando algo dá errado; lê, mostra no painel e limpa a URL.
+  _lerErroDeLoginDaUrl() {
+    if (typeof location === 'undefined') return null;
+    const params = new URLSearchParams(location.search);
+    const motivo = params.get('login_erro');
+    if (!motivo) return null;
+    params.delete('login_erro');
+    try { history.replaceState(null, '', location.pathname + (params.size ? `?${params}` : '') + location.hash); } catch { /* sem history */ }
+    const textos = {
+      negado: 'O login foi cancelado.',
+      sem_drive: 'É preciso liberar o acesso ao Google Drive para sincronizar. Entre de novo e marque a permissão.',
+      sem_refresh: 'O Google não liberou o acesso contínuo. Revogue o QuickDock em myaccount.google.com/permissions e entre de novo.',
+      sessao_expirada: 'O login demorou demais. Tente de novo.',
+    };
+    return textos[motivo] || 'Não foi possível entrar com o Google. Tente de novo.';
   }
 
   async conectarDrive() {
     const provedor = this._criarProvedorDeToken();
-    await provedor.conectar();              // abre a tela de permissão do Google
+    if (provedor.redireciona) {
+      // A página sai para o Google: grava o destino ANTES, para a volta já subir conectada.
+      await this._salvarMeta('syncDestino', 'drive');
+      await this._salvarMeta('folderName', 'Google Drive');
+      await this._excluirMeta?.('folderHandle');
+    }
+    await provedor.conectar();              // abre a tela de permissão do Google (ou redireciona)
 
     const adapter = new GoogleDriveAdapter({
       obterToken: () => provedor.obterToken(),
@@ -535,6 +567,7 @@ export class SyncController {
         // uma opção que não funciona é pior que não mostrar.
         const temPastaLocal = typeof window !== 'undefined' && !!window.showDirectoryPicker;
         statusBox.innerHTML = `
+          ${this.lastSyncError ? `<div class="sync-error-msg">${this.lastSyncError}</div>` : ''}
           <div class="sync-desc">Sincronize suas notas como arquivos <code>.md</code> — no seu Google Drive, ou numa pasta sua.</div>
           ${temPastaLocal ? `
             <button class="copy-opt sync-action-btn sync-btn-primary" id="sync-btn-escolher">

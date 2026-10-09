@@ -1,16 +1,21 @@
 {
-  // QuickDock no Cloudflare (Workers + arquivos estáticos). Projeto separado do "nexus".
-  // O app é todo client-side: a raiz do repositório É o site (o que não deve ir está em .assetsignore).
+  // QuickDock no Cloudflare Pages (quickdock.pages.dev). Projeto separado do "nexus".
+  // O site é a pasta `dist-pages/` (montada por `npm run build:pages`); a API de login fica em
+  // `functions/` e conversa com o D1. O D1 guarda só sessões e o refresh token do Google, cifrado:
+  // as notas ficam no Drive de cada pessoa.
   "name": "quickdock",
   "compatibility_date": "2026-10-01",
-  "assets": {
-    "directory": ".",
-    // rota desconhecida cai no 404.html da raiz (em vez do index.html)
-    "not_found_handling": "404-page"
-  }
+  "pages_build_output_dir": "./dist-pages",
 
-  // Próxima etapa (sincronização / login com D1): um Worker de API na frente dos arquivos
-  // "main": "worker/index.js",
-  // "assets": { "directory": ".", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
-  // "d1_databases": [{ "binding": "DB", "database_name": "quickdock", "database_id": "<id do D1>" }]
+  "vars": {
+    // id do cliente OAuth "Aplicativo da Web" (público; o segredo é GOOGLE_CLIENT_SECRET)
+    "GOOGLE_CLIENT_ID": "324044251913-omlvbssk3av45rafji6evt6kmlev22pf.apps.googleusercontent.com"
+  },
+
+  "d1_databases": [
+    { "binding": "DB", "database_name": "quickdock", "database_id": "413752e0-e4ff-4244-9767-1809bae7886f", "migrations_dir": "migrations" }
+  ]
+
+  // Segredos (nunca neste arquivo): wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name quickdock
+  //                                  wrangler pages secret put TOKEN_ENC_KEY        --project-name quickdock
 }

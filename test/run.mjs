@@ -6043,6 +6043,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   await runShellViewsListTests({ ok, igual });
 }
 
+{
+  const { runCloudTests } = await import('./cloud-tests.mjs');
+  await runCloudTests({ ok, igual });
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);
