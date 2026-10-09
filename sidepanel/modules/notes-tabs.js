@@ -1840,6 +1840,13 @@ document.addEventListener('quickdock:activate-note', async e => {
     }
   }
 
+  // Nota recém-criada fora daqui (ex.: "Nova nota" da Base): ainda não está em
+  // notesMeta. Sem recarregar a lista, nada abria e seguia a nota aberta antes.
+  if (!target && (id != null || uid)) {
+    await refreshNotesList();
+    target = id != null ? notesMeta.find(n => n.id === id) : notesMeta.find(n => n.uid === uid);
+  }
+
   if (target) {
     await activateNote(target.id);
     renderTabs();
