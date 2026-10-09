@@ -1,0 +1,75 @@
+/* Sincronização: indicador sempre visível e a trava ao abrir uma nota */
+
+/* ── Cores do estado (texto e ícone sobre o fundo do app; L ≥ 45 no claro e ≥ 75 no escuro) ── */
+:root {
+  --sync-ok: oklch(45% 0.13 150);
+  --sync-aviso: oklch(48% 0.13 70);
+  --sync-erro: oklch(48% 0.19 27);
+}
+[data-theme="dark"] {
+  --sync-ok: oklch(78% 0.14 150);
+  --sync-aviso: oklch(80% 0.14 80);
+  --sync-erro: oklch(76% 0.15 27);
+}
+
+/* ── Indicador ── */
+.sync-indicador { color: var(--text-muted); }
+.sync-indicador[data-tipo="ok"] { color: var(--sync-ok); }
+.sync-indicador[data-tipo="sincronizando"] { color: var(--accent); }
+.sync-indicador[data-tipo="conflito"], .sync-indicador[data-tipo="offline"], .sync-indicador[data-tipo="reautorizar"] { color: var(--sync-aviso); }
+.sync-indicador[data-tipo="erro"] { color: var(--sync-erro); }
+.sync-indicador[data-tipo="sincronizando"] .material-symbols-rounded { animation: sync-girar 1s linear infinite; }
+@keyframes sync-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .sync-indicador[data-tipo="sincronizando"] .material-symbols-rounded, .sync-gate.is-girando .sync-gate-icone { animation-duration: 3s; }
+}
+.sync-indicador.tem-conflito::after {
+  content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--sync-aviso); flex: none;
+}
+
+/* Desktop: o botão do cabeçalho vira ícone + selo de texto (o selo some em janela estreita) */
+#btn-header-sync.sync-indicador { width: auto; padding: 0 10px; gap: 6px; display: inline-flex; align-items: center; }
+#btn-header-sync .sync-selo { font-size: 12px; font-weight: 600; white-space: nowrap; }
+@media (max-width: 1100px) { #btn-header-sync .sync-selo { display: none; } }
+
+/* Mobile: selo no topo, no meio, entre os botões flutuantes das asides */
+.sync-indicador-flutuante { display: none; }
+@media (max-width: 768px) {
+  html .sync-indicador-flutuante {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 30;
+    display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px;
+    max-width: calc(100% - 204px);
+    border: 1px solid var(--border); border-radius: 18px;
+    background: color-mix(in oklch, var(--bg) 88%, transparent); backdrop-filter: blur(6px);
+    font: inherit; -webkit-tap-highlight-color: transparent;
+  }
+  html .sync-indicador-flutuante .sync-icone { font-size: 20px; flex: none; }
+  html .sync-indicador-flutuante .sync-selo { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* ── Trava ao abrir nota ── */
+.sync-gate[hidden] { display: none; }
+.sync-gate {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: color-mix(in oklch, var(--bg) 60%, transparent); backdrop-filter: blur(4px);
+}
+.sync-gate-card {
+  width: min(360px, 100%); padding: 22px 20px 18px; text-align: center;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: 0 12px 40px color-mix(in oklch, var(--text) 18%, transparent);
+}
+.sync-gate-icone { font-size: 34px; color: var(--accent); }
+.sync-gate.is-girando .sync-gate-icone { animation: sync-girar 1s linear infinite; }
+.sync-gate.is-falha .sync-gate-icone { color: var(--sync-aviso); }
+.sync-gate-titulo { margin-top: 6px; font-size: 17px; font-weight: 700; }
+.sync-gate-texto { margin-top: 6px; font-size: 14px; line-height: 1.4; color: var(--text-muted); }
+.sync-gate-acoes { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.sync-gate-acoes[hidden] { display: none; }
+.sync-gate-btn {
+  min-height: 44px; padding: 10px 14px; font: inherit; font-weight: 600; cursor: pointer;
+  color: var(--text); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
+}
+.sync-gate-btn.is-primario { background: var(--accent); color: var(--accent-fg, var(--bg)); border-color: transparent; }
+.sync-gate-btn.is-discreto { background: transparent; border-color: transparent; color: var(--text-muted); font-weight: 500; }

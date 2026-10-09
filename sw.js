@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensão (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-134';
+const CACHE_NAME = 'quickdock-v3.0.0-135';
 
 const ASSET_PATHS = [
   '',
@@ -49,6 +49,7 @@ const ASSET_PATHS = [
   'sidepanel/css/38-mobile-shell-v2.css',
   'sidepanel/css/39-floating-asides.css',
   'sidepanel/css/40-calendar-day-sheet.css',
+  'sidepanel/css/41-sync-ui.css',
   'sidepanel/css/20-json-studio.css',
   'sidepanel/css/21-dashboard-zero-tabs.css',
   'sidepanel/css/22-spatial-shell.css',
@@ -72,6 +73,9 @@ const ASSET_PATHS = [
   'sidepanel/modules/google-auth.js',
   'sidepanel/modules/google-auth-web.js',
   'sidepanel/modules/cloud-session.js',
+  'sidepanel/modules/sync-ui-model.js',
+  'sidepanel/modules/sync-gate.js',
+  'sidepanel/modules/sync-indicator.js',
   'sidepanel/modules/google-drive-adapter.js',
   'sidepanel/modules/storage.js',
   'sidepanel/modules/notes-tabs.js',

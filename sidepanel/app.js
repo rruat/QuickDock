@@ -1,4 +1,6 @@
-import { initNotesTabs, createTutorialNote, downloadAllNotes, refreshNotesList, getActiveNoteUid } from './modules/notes-tabs.js';
+import { initNotesTabs, createTutorialNote, downloadAllNotes, refreshNotesList, getActiveNoteUid, getActiveId, getNotesMeta } from './modules/notes-tabs.js';
+import { iniciarIndicadorDeSincronizacao } from './modules/sync-indicator.js';
+import { iniciarTravaDeAbertura } from './modules/sync-gate.js';
 import { positionPopover } from './modules/popover.js';
 import { initDocuments, toggleDocsCollapsed } from './modules/documents.js';
 import { loadTheme, saveTheme, loadAllNotesMeta } from './modules/storage.js';
@@ -286,6 +288,13 @@ async function init() {
       emModoModelo: isEditingTemplate,
     });
     await syncController.inicializar();
+    // Indicador sempre visível e trava ao abrir nota (esperar sincronizar antes de editar)
+    iniciarIndicadorDeSincronizacao(syncController);
+    iniciarTravaDeAbertura({
+      obterControlador: () => syncController,
+      obterIdAtivo: getActiveId,
+      obterCriacao: id => getNotesMeta().find(n => n.id === id)?.createdAt ?? null,
+    });
     setImageResolver((caminho, noteId) => syncController?.resolverImagem(caminho, noteId));
     // Imagens/vídeos/áudios de cartões do Espaço vindos de outro aparelho: baixa de imagens/ sob demanda
     setBoardFileResolver(caminho => syncController?.resolverImagem(caminho, null));

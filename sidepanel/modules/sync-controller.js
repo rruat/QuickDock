@@ -491,6 +491,8 @@ export class SyncController {
     }
 
     this.isSyncing = true;
+    // Quem precisa ESPERAR esta rodada terminar (a trava de abrir nota) aguarda esta promessa
+    this._rodada = new Promise(resolver => { this._fimRodada = resolver; });
     const estadoAnterior = this.state;
     this.state = SYNC_STATE.SYNCING;
     this._notificar();
@@ -544,6 +546,7 @@ export class SyncController {
     } finally {
       this.isSyncing = false;
       this._notificar();
+      this._fimRodada?.();
 
       if (this.syncPending) {
         this.syncPending = false;
@@ -551,6 +554,25 @@ export class SyncController {
         setTimeout(() => this.sincronizarAgora(), 50);
       }
     }
+  }
+
+  /**
+   * Para a trava de abrir nota: garante uma rodada COMPLETA e bem-sucedida e diz se deu certo.
+   * Se já há uma rodada andando, espera ela terminar e roda mais uma — a que estava em andamento
+   * pode ter começado antes de o outro aparelho gravar a versão nova.
+   * @returns {Promise<{ok: boolean, erro?: string}>}
+   */
+  async sincronizarParaAbrir() {
+    if (!this.engine || this.state === SYNC_STATE.DISCONNECTED || this.state === SYNC_STATE.NEEDS_REAUTH) {
+      return { ok: false, erro: 'A sincronização não está ativa.' };
+    }
+    if (this.emModoModelo?.()) return { ok: true };   // editando modelo: a rodada é adiada de propósito
+    if (this.isSyncing && this._rodada) await this._rodada;
+
+    const inicio = Date.now();
+    await this.sincronizarAgora({ manual: false });
+    const deuCerto = this.state === SYNC_STATE.IDLE && !this.lastSyncError && (this.lastSyncAt ?? 0) >= inicio;
+    return deuCerto ? { ok: true } : { ok: false, erro: this.lastSyncError || 'Não foi possível sincronizar agora.' };
   }
 
   // ── Renderização do Popover da Seção de Sincronização ─────────────────────────
