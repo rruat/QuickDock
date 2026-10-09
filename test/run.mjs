@@ -6059,6 +6059,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   await runCoverSyncTests({ ok, igual });
 }
 
+{
+  const { runDeleteSyncTests } = await import('./delete-sync-tests.mjs');
+  await runDeleteSyncTests({ ok, igual });
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

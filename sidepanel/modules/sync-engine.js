@@ -1062,6 +1062,19 @@ export class SyncEngine {
       const notaLocal = await this.store.obterNotaPorUid(uid);
       const estadoPorUid = await this.store.obterEstadoSync(uid);
 
+      if (!notaLocal && estadoPorUid && !estadoPorUid.caminho?.startsWith('modelos/')
+        && (estadoPorUid.hash === hashRemoto || estadoPorUid.rev === revRemota)) {
+        // A nota JÁ foi sincronizada por aqui, o arquivo remoto é exatamente o que registramos, e
+        // ela não existe mais localmente: foi APAGADA aqui e a exclusão ainda não subiu (o passo 4
+        // cuida disso). Não é uma nota nova: baixá-la de volta ressuscitaria o que a pessoa acabou
+        // de apagar — era o que acontecia quando a exclusão vinha logo depois do envio, porque a
+        // rodada seguinte recebe de volta o "eco" do próprio envio.
+        // (Se o arquivo remoto MUDOU depois, cai no caminho abaixo: editada lá ≠ apagada aqui, e
+        // preservar o texto vence.)
+        if (!tevePulo && Number(revRemota) > Number(maiorCursor || 0)) maiorCursor = revRemota;
+        continue;
+      }
+
       if (!notaLocal) {
         // Nota não existe localmente: baixa como nota nova
         const blocks = parseMarkdownToBlocks(mdCorpo);

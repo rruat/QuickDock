@@ -218,12 +218,20 @@ export class GoogleDriveAdapter {
 
     const mudancas = [];
     for (const c of r?.changes ?? []) {
-      const caminho = this._caminhoConhecidoDe(c.fileId);
+      let caminho = this._caminhoConhecidoDe(c.fileId);
       const sumiu = c.removed || c.file?.trashed;
 
       if (sumiu) {
-        // Só sabemos o caminho de quem já passou por aqui. Arquivo apagado que
-        // nunca foi visto não interessa: não há estado local apontando pra ele.
+        // O mapa de ids vive só em memória: depois de reabrir o app, ele está vazio e NENHUM arquivo
+        // é "conhecido" — e a exclusão feita no outro aparelho era ignorada para sempre. Mas quando
+        // o arquivo vai para a lixeira o Drive entrega o nome e a pasta-mãe, o que basta para
+        // reconstruir o caminho. (Exclusão definitiva não traz nada: aí só resta o que já se viu.)
+        if (!caminho && c.file?.name && c.file.parents?.[0]) {
+          const pasta = await this._caminhoDaPasta(c.file.parents[0]);
+          if (pasta) caminho = `${pasta}/${c.file.name}`;
+        }
+        // Arquivo apagado que não é nosso (fora das nossas pastas) não interessa: não há estado
+        // local apontando pra ele.
         if (caminho) {
           this.idsPorCaminho.delete(caminho);
           mudancas.push({ caminho, rev: `del-${c.fileId}`, apagado: true });

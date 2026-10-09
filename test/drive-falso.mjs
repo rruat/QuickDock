@@ -160,7 +160,9 @@ export function criarDriveFalso() {
       if (!a) return json({}, 404);
       const patch = JSON.parse(await corpoParaTexto(opcoes.body));
       Object.assign(a, patch);
-      registrarMudanca(id, !!patch.trashed);
+      // Como no Drive real: ir para a lixeira NÃO é "removed" — o arquivo continua na lista de mudanças,
+      // com `trashed: true` e com nome e pasta-mãe. `removed` é para exclusão definitiva / perda de acesso.
+      registrarMudanca(id, false);
       return json({ id });
     }
 
