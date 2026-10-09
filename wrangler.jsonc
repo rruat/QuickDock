@@ -1,0 +1,16 @@
+{
+  // QuickDock no Cloudflare (Workers + arquivos estáticos). Projeto separado do "nexus".
+  // O app é todo client-side: a raiz do repositório É o site (o que não deve ir está em .assetsignore).
+  "name": "quickdock",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": ".",
+    // rota desconhecida cai no 404.html da raiz (em vez do index.html)
+    "not_found_handling": "404-page"
+  }
+
+  // Próxima etapa (sincronização / login com D1): um Worker de API na frente dos arquivos
+  // "main": "worker/index.js",
+  // "assets": { "directory": ".", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  // "d1_databases": [{ "binding": "DB", "database_name": "quickdock", "database_id": "<id do D1>" }]
+}

@@ -1,0 +1,23 @@
+# O que NÃO é publicado no Cloudflare (o resto da raiz do repositório vira o site)
+.git
+.claude
+.github
+.gitignore
+.gitattributes
+.dockerignore
+.nojekyll
+.assetsignore
+node_modules
+
+# desenvolvimento e documentação
+test
+docs
+CLAUDE.md
+Dockerfile
+package.json
+package-lock.json
+server.mjs
+wrangler.jsonc
+
+# a configuração do Cloudflare não é conteúdo do site
+worker
