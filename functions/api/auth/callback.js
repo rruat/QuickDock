@@ -9,9 +9,11 @@ const agora = () => Math.floor(Date.now() / 1000);
 
 // Volta ao app com um motivo na URL; a interface mostra o aviso e limpa o parâmetro.
 // `detalhe` é o código de erro do Google (ex.: invalid_client), nunca um valor secreto.
-const voltarComErro = (motivo, volta = '/', detalhe = '') =>
-  redirect(`${volta}${volta.includes('?') ? '&' : '?'}login_erro=${motivo}${/^[a-z_]{1,40}$/.test(detalhe) ? `&detalhe=${detalhe}` : ''}`,
+const voltarComErro = (motivo, volta = '/', detalhe = '') => {
+  console.log(`login_erro motivo=${motivo} detalhe=${detalhe || '-'}`);   // só o código; aparece em `pages deployment tail`
+  return redirect(`${volta}${volta.includes('?') ? '&' : '?'}login_erro=${motivo}${/^[a-z_]{1,40}$/.test(detalhe) ? `&detalhe=${detalhe}` : ''}`,
     { 'Set-Cookie': apagarCookie(COOKIE_OAUTH) });
+};
 
 export async function onRequestGet({ request, env }) {
   const falha = exigirConfig(env);

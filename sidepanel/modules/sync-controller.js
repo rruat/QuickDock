@@ -161,7 +161,11 @@ export class SyncController {
       // o login do Drive não expira de hora em hora. Fora dele (localhost, extensão) segue o caminho antigo.
       this.usarNuvem = !isExtension && !!(await consultarNuvem());
       const erroLogin = this._lerErroDeLoginDaUrl();
-      if (erroLogin) this.lastSyncError = erroLogin;
+      if (erroLogin) {
+        this.lastSyncError = erroLogin;
+        // A volta do Google recarrega a página inteira: o aviso precisa aparecer sem a pessoa procurar
+        if (typeof alert === 'function') setTimeout(() => alert(`Não foi possível conectar:\n\n${erroLogin}`), 400);
+      }
 
       // Drive: reconecta sozinho, mas SEM abrir tela de permissão. O Chrome
       // guarda a autorização, então um token silencioso costuma bastar. Se não
