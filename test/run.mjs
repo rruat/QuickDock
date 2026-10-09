@@ -839,7 +839,8 @@ for (const { nome, blocks } of BLOCOS_V18) {
     ok('sync · nota nova aqui sobe · estado local registrado', estado !== null && estado.rev === arquivoRemoto?.rev);
   }
 
-  // 1b. Capa por endereço viaja no frontmatter (`capa:`); a enviada (arquivo) não
+  // 1b. Capa por endereço viaja no frontmatter (`capa:`). A enviada (arquivo) viaja como `capaImagem:`
+  //     (ver test/cover-sync-tests.mjs); aqui o arquivo local não existe, então nada dela sobe.
   {
     const adapter = new MemorySyncAdapter();
     const storeA = new InMemoryStore();
@@ -862,7 +863,7 @@ for (const { nome, blocks } of BLOCOS_V18) {
     const comUrl = await adapter.ler('notas/com-capa.md');
     ok('sync · capa por endereço sobe como "capa:" no frontmatter', comUrl?.texto.includes('capa: "https://exemplo.com/capa.jpg"'), comUrl?.texto);
     const enviada = await adapter.ler('notas/capa-enviada.md');
-    ok('sync · capa enviada (arquivo) não vai pro arquivo remoto', enviada && !/capa:/.test(enviada.texto), enviada?.texto);
+    ok('sync · capa enviada sem o arquivo local disponível não vai pro arquivo remoto', enviada && !/capa:/.test(enviada.texto), enviada?.texto);
 
     await engineB.sincronizar();
     const baixada = await storeB.obterNotaPorUid('u_capa_1');
@@ -6051,6 +6052,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { runSyncUiTests } = await import('./sync-ui-tests.mjs');
   await runSyncUiTests({ ok, igual });
+}
+
+{
+  const { runCoverSyncTests } = await import('./cover-sync-tests.mjs');
+  await runCoverSyncTests({ ok, igual });
 }
 
 if (falhas.length) {

@@ -452,8 +452,20 @@ export class SyncEngine {
   /**
    * Serializa uma nota local para o formato final do arquivo .md (frontmatter + blocos).
    */
+  /**
+   * Caminho (em imagens/) da capa ENVIADA do computador, se ela viaja com a nota. Vale só quando a
+   * capa não é um link e o caminho gravado corresponde ao arquivo local atual (ou a uma capa que
+   * ainda está sendo baixada: não pode sumir do arquivo remoto por não ter chegado ainda).
+   */
+  _capaDeArquivo(nota) {
+    if (nota.coverUrl || !nota.coverRemote) return null;
+    return (nota.coverRemoteId ?? null) === (nota.coverFileId ?? null) ? nota.coverRemote : null;
+  }
+
   serializarNota(nota, mapaImagens = null) {
     const md = blocksToMarkdown(nota.blocks ?? [], { sync: true, mapaImagens });
+    const capaArquivo = this._capaDeArquivo(nota);
+    const temCapa = !!(nota.coverUrl || capaArquivo);
     const meta = {
       quickdock: 1,
       id: nota.uid,
@@ -462,11 +474,12 @@ export class SyncEngine {
       icone: nota.icon ?? null,
       iconePreenchido: !!nota.iconFilled,
       tituloOculto: !!nota.titleHidden,
-      // Só a capa por endereço viaja: a enviada é um arquivo local (como as imagens
-      // não sincronizadas) e não tem como chegar ao outro aparelho.
+      // Capa por endereço (`capa`) ou enviada do computador (`capaImagem`: imagens/<hash>.<ext>, o
+      // mesmo esquema e a mesma pasta das imagens das notas). Posição e altura valem para as duas.
       capa: nota.coverUrl || undefined,
-      capaPosicao: (nota.coverUrl && typeof nota.coverPosition === 'number') ? nota.coverPosition : undefined,
-      capaAltura: (nota.coverUrl && (typeof nota.coverHeight === 'number' || typeof nota.coverHeight === 'string')) ? nota.coverHeight : undefined,
+      capaImagem: capaArquivo || undefined,
+      capaPosicao: (temCapa && typeof nota.coverPosition === 'number') ? nota.coverPosition : undefined,
+      capaAltura: (temCapa && (typeof nota.coverHeight === 'number' || typeof nota.coverHeight === 'string')) ? nota.coverHeight : undefined,
       // Ícone com imagem: só o endereço e o corte viajam (arquivo enviado é local).
       iconeImagem: nota.iconImage?.url || undefined,
       iconeCorte: nota.iconImage?.url
@@ -512,11 +525,88 @@ export class SyncEngine {
     return local?.iconImage?.fileId != null ? local.iconImage : null;
   }
 
+  /**
+   * Antes de subir: se a capa é uma imagem enviada do computador, manda o arquivo para imagens/ (uma
+   * vez; deduplicado por conteúdo) e grava na nota o caminho remoto. Esse caminho precisa ficar na
+   * nota (e não só na memória) porque o texto da nota é recalculado em outros pontos da rodada para
+   * comparar com o que foi sincronizado — sem ele, a nota pareceria editada e viraria conflito.
+   * Devolve a nota (atualizada, se foi o caso).
+   */
+  async _prepararCapa(nota) {
+    if (nota.coverUrl || nota.coverFileId == null) {
+      // Sem capa de arquivo: um caminho remoto guardado deixou de valer (a capa foi removida ou
+      // trocada por link) — a não ser que seja uma capa PENDENTE de download, que tem que ficar.
+      const pendente = !!nota.coverRemote && nota.coverRemoteId == null && nota.coverFileId == null && !nota.coverUrl;
+      if (nota.coverRemote !== undefined && !pendente) {
+        const limpa = { ...nota, coverRemote: undefined, coverRemoteId: undefined };   // undefined remove o campo no Dexie
+        await this.store.salvarNotaLocal(limpa);
+        return limpa;
+      }
+      return nota;
+    }
+    if (nota.coverRemote && nota.coverRemoteId === nota.coverFileId) return nota;   // já enviada
+
+    try {
+      const blob = this.store.obterBlobArquivo
+        ? await this.store.obterBlobArquivo(nota.coverFileId)
+        : (this.store.obterArquivo ? (await this.store.obterArquivo(nota.coverFileId))?.blob : null);
+      if (!blob) return nota;
+      const hash = await calcularHashImagem(blob);
+      const caminhoRemoto = `imagens/${hash}.${extensaoDeMimeOuNome(blob.type, blob.name)}`;
+      if (!(await this.adapter.ler(caminhoRemoto))) await this.adapter.escrever(caminhoRemoto, blob, null);
+      const atualizada = { ...nota, coverRemote: caminhoRemoto, coverRemoteId: nota.coverFileId };
+      await this.store.salvarNotaLocal(atualizada);
+      return atualizada;
+    } catch {
+      return nota;   // falhou o envio da capa: a nota sobe sem ela e a próxima rodada tenta de novo
+    }
+  }
+
+  /**
+   * Ao baixar: o que fazer com a capa que veio no arquivo remoto. Devolve os campos da nota.
+   *  - `capaImagem` presente → baixa a imagem (se falhar, guarda o caminho como pendente e mantém
+   *    a capa atual; NUNCA deixa o caminho sumir, ou a próxima subida apagaria a capa do arquivo);
+   *  - `capa` (link) → vale o link;
+   *  - nenhuma das duas → se esta capa já tinha sido sincronizada, alguém a removeu: remove aqui
+   *    também; se nunca foi sincronizada (arquivo escrito por versão antiga), mantém a local.
+   */
+  async _capaDoArquivoRemoto(metaNota, notaLocal = null) {
+    const atual = {
+      coverFileId: notaLocal?.coverFileId ?? null,
+      coverRemote: notaLocal?.coverRemote,
+      coverRemoteId: notaLocal?.coverRemoteId,
+    };
+    const caminho = typeof metaNota?.capaImagem === 'string' && metaNota.capaImagem.startsWith('imagens/') ? metaNota.capaImagem : null;
+
+    if (caminho) {
+      let res = null;
+      try { res = await this.resolverImagem(caminho, null); } catch { res = null; }
+      if (res?.fileId != null) return { coverUrl: null, coverFileId: res.fileId, coverRemote: caminho, coverRemoteId: res.fileId };
+      // pendente: sem arquivo ainda, mas o caminho fica gravado
+      return { coverUrl: null, coverFileId: null, coverRemote: caminho, coverRemoteId: null };
+    }
+    if (metaNota?.capa) return { ...atual, coverUrl: metaNota.capa, coverRemote: undefined, coverRemoteId: undefined };
+    if (atual.coverRemote) return { coverUrl: null, coverFileId: null, coverRemote: undefined, coverRemoteId: undefined };
+    return { ...atual, coverUrl: null };
+  }
+
+  /** Capas que ficaram pendentes (sem rede ou arquivo ainda não gravado): tenta baixar de novo. */
+  async _completarCapasPendentes() {
+    for (const nota of await this.store.listarNotasLocais()) {
+      if (!nota.coverRemote || nota.coverRemoteId != null || nota.coverFileId != null || nota.coverUrl) continue;
+      let res = null;
+      try { res = await this.resolverImagem(nota.coverRemote, null); } catch { res = null; }
+      if (res?.fileId != null) {
+        await this.store.salvarNotaLocal({ ...nota, coverFileId: res.fileId, coverRemoteId: res.fileId });
+      }
+    }
+  }
+
   _extrairPropriedadesDeMeta(meta) {
     const tratadas = new Set([
       'quickdock', 'id', 'uid', 'titulo', 'title', 'cor', 'color',
       'icone', 'icon', 'iconePreenchido', 'iconFilled', 'tituloOculto',
-      'capa', 'iconeImagem', 'iconeCorte', 'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
+      'capa', 'capaImagem', 'capaPosicao', 'capaAltura', 'iconeImagem', 'iconeCorte', 'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
       'atualizadoEm', 'updatedAt', 'content', 'blocks', 'properties',
     ]);
     const props = { ...(meta?.properties || {}) };
@@ -976,6 +1066,7 @@ export class SyncEngine {
         // Nota não existe localmente: baixa como nota nova
         const blocks = parseMarkdownToBlocks(mdCorpo);
         const pasta = metaNota.pasta !== undefined ? metaNota.pasta : extrairPastaDoCaminho(caminho);
+        const capaNova = await this._capaDoArquivoRemoto(metaNota, null);
         await this.store.salvarNotaLocal({
           uid,
           title: metaNota.titulo || 'Sem título',
@@ -984,8 +1075,8 @@ export class SyncEngine {
           color: metaNota.cor ?? null,
           icon: metaNota.icone ?? null,
           iconFilled: !!metaNota.iconePreenchido,
-          coverUrl: metaNota.capa ?? null,
-          coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (metaNota.capa ? 50 : undefined),
+          ...capaNova,
+          coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : ((metaNota.capa || metaNota.capaImagem) ? 50 : undefined),
           coverHeight: metaNota.capaAltura ?? null,
           iconImage: this._iconImageDeMeta(metaNota, null),
           titleHidden: !!metaNota.tituloOculto,
@@ -1058,6 +1149,7 @@ export class SyncEngine {
           const blocks = parseMarkdownToBlocks(mdCorpo);
           this._preservarImagensLocais(notaLocal.blocks, blocks);
           const pasta = metaNota.pasta !== undefined ? metaNota.pasta : extrairPastaDoCaminho(caminho);
+          const capaNova = await this._capaDoArquivoRemoto(metaNota, notaLocal);
           await this.store.salvarNotaLocal({
             ...notaLocal,
             uid,
@@ -1067,8 +1159,8 @@ export class SyncEngine {
             color: metaNota.cor !== undefined ? metaNota.cor : notaLocal.color,
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
-            coverUrl: metaNota.capa ?? null,
-            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (metaNota.capa ? (notaLocal.coverPosition ?? 50) : undefined),
+            ...capaNova,
+            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : ((metaNota.capa || metaNota.capaImagem) ? (notaLocal.coverPosition ?? 50) : undefined),
             coverHeight: metaNota.capaAltura !== undefined ? metaNota.capaAltura : (notaLocal.coverHeight ?? null),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
@@ -1121,6 +1213,7 @@ export class SyncEngine {
           const blocks = parseMarkdownToBlocks(mdCorpo);
           this._preservarImagensLocais(notaLocal.blocks, blocks);
           const pastaRemota = metaNota.pasta !== undefined ? metaNota.pasta : extrairPastaDoCaminho(caminho);
+          const capaNovaConflito = await this._capaDoArquivoRemoto(metaNota, notaLocal);
           await this.store.salvarNotaLocal({
             ...notaLocal,
             uid,
@@ -1130,8 +1223,8 @@ export class SyncEngine {
             color: metaNota.cor !== undefined ? metaNota.cor : notaLocal.color,
             icon: metaNota.icone !== undefined ? metaNota.icone : notaLocal.icon,
             iconFilled: metaNota.iconePreenchido !== undefined ? metaNota.iconePreenchido : notaLocal.iconFilled,
-            coverUrl: metaNota.capa ?? null,
-            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : (metaNota.capa ? (notaLocal.coverPosition ?? 50) : undefined),
+            ...capaNovaConflito,
+            coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : ((metaNota.capa || metaNota.capaImagem) ? (notaLocal.coverPosition ?? 50) : undefined),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
             ordem: metaNota.ordem || notaLocal.ordem,
@@ -1179,7 +1272,10 @@ export class SyncEngine {
 
     const notasLocais = await this.store.listarNotasLocais();
 
-    for (const nota of notasLocais) {
+    // Capas que chegaram como pendentes (sem rede ou arquivo ainda não gravado) tentam de novo
+    await this._completarCapasPendentes();
+
+    for (let nota of notasLocais) {
       // SUBIR a nota aberta é sempre seguro: enviar só grava um arquivo e não
       // encosta no editor. Quem arrisca atropelar o que está sendo digitado é
       // BAIXAR, e essa parte continua adiando.
@@ -1226,6 +1322,9 @@ export class SyncEngine {
           }
         }
       }
+
+      // Capa enviada do computador: sobe para imagens/ e o caminho entra na nota ANTES de serializar
+      nota = await this._prepararCapa(nota);
 
       const texto = this.serializarNota(nota, mapaImagens);
       const hashAtual = hashDaNota(texto);
