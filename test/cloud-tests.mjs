@@ -43,6 +43,8 @@ export async function runCloudTests({ ok, igual }) {
   ok('nuvem · outro usuário (contexto) não decifra o token copiado', await falha(() => cripto.decrypt(cifrado, chave, 'user:2')));
   ok('nuvem · chave errada não decifra', await falha(() => cripto.decrypt(cifrado, cripto.randomToken(32), 'user:1')));
   ok('nuvem · pacote adulterado é recusado', await falha(() => cripto.decrypt(cifrado.slice(0, -4) + 'AAAA', chave, 'user:1')));
+  const chaveComQuebra = `${chave}\r\n`;   // como um terminal do Windows grava o segredo
+  igual('nuvem · chave gravada com quebra de linha no fim ainda funciona', await cripto.decrypt(await cripto.encrypt('x', chaveComQuebra, 'u'), chave, 'u'), 'x');
   ok('nuvem · chave de tamanho errado é recusada', await falha(() => cripto.encrypt('x', cripto.randomToken(16))));
   igual('nuvem · PKCE confere com o vetor do RFC 7636', await cripto.pkceChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'), 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
   igual('nuvem · SHA-256 conhecido', await cripto.sha256Hex('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
@@ -155,6 +157,11 @@ export async function runCloudTests({ ok, igual }) {
     const linhaSessao = env.DB._db.prepare('SELECT id_hash FROM sessions').get();
     ok('nuvem · a sessão é guardada só como hash (o token do cookie não está no banco)', linhaSessao.id_hash.length === 64 && !cookieSessao.includes(linhaSessao.id_hash));
     igual('nuvem · um usuário criado a partir do id_token', env.DB._db.prepare('SELECT email, name FROM users').get(), { email: 'a@b.com', name: 'Ana' });
+
+    // Chave de criptografia inválida no servidor: não pode virar "Error 1101" — volta ao app com o motivo
+    const envRuim = { ...env, TOKEN_ENC_KEY: 'curta' };
+    const quebrou = await chamar(rotas.callback, `/api/auth/callback?code=c&state=${state}`, { cookie: cookieOauth, e: envRuim });
+    ok('nuvem · exceção no callback volta ao app com erro_interno (sem tela 1101 nem vazar valores)', quebrou.status === 302 && quebrou.headers.get('Location').includes('login_erro=erro_interno') && !quebrou.headers.get('Location').includes('curta'));
 
     // Usar a sessão
     const meLogado = await (await chamar(rotas.me, '/api/auth/me', { cookie: cookieSessao })).json();

@@ -335,6 +335,7 @@ export class SyncController {
       sem_drive: 'É preciso liberar o acesso ao Google Drive para sincronizar. Entre de novo e marque a permissão.',
       sem_refresh: 'O Google não liberou o acesso contínuo. Revogue o QuickDock em myaccount.google.com/permissions e entre de novo.',
       sessao_expirada: 'O login demorou demais. Tente de novo.',
+      erro_interno: `Erro no servidor do QuickDock${detalhe ? ` (${detalhe})` : ''}. Tente de novo; se repetir, avise o suporte.`,
       estado_invalido: 'O login não pôde ser confirmado (cookie bloqueado ou aba diferente). Tente de novo na mesma aba.',
       token_invalido: 'O Google devolveu uma identidade inválida. Tente de novo.',
       // invalid_client = segredo errado; redirect_uri_mismatch/invalid_grant = configuração ou código já usado

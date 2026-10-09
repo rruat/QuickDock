@@ -12,6 +12,7 @@ export function b64uEncode(bytes) {
 }
 
 export function b64uDecode(str) {
+  str = String(str).trim();   // segredo gravado por um terminal costuma vir com quebra de linha no fim
   const pad = '='.repeat((4 - (str.length % 4)) % 4);
   const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/') + pad);
   return Uint8Array.from(bin, c => c.charCodeAt(0));

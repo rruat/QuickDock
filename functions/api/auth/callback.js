@@ -15,7 +15,19 @@ const voltarComErro = (motivo, volta = '/', detalhe = '') => {
     { 'Set-Cookie': apagarCookie(COOKIE_OAUTH) });
 };
 
-export async function onRequestGet({ request, env }) {
+// Qualquer exceção vira um redirecionamento com o NOME do erro (nunca valores), em vez da tela
+// "Error 1101" da Cloudflare, que não diz nada à pessoa.
+export async function onRequestGet(ctx) {
+  try {
+    return await processar(ctx);
+  } catch (e) {
+    const nome = String(e?.name || 'erro').toLowerCase().replace(/[^a-z]+/g, '_').slice(0, 40);
+    console.log(`login_excecao nome=${nome} mensagem=${String(e?.message || '').slice(0, 120)}`);
+    return voltarComErro('erro_interno', '/', nome);
+  }
+}
+
+async function processar({ request, env }) {
   const falha = exigirConfig(env);
   if (falha) return falha;
 
