@@ -142,6 +142,58 @@ export async function runSyncUiTests({ ok, igual }) {
     igual('migrar · Drive que já tem a nota: sem duplicar no aparelho', (await store.listarNotasLocais()).length, 1);
   }
 
+  // ── Sincronizar na hora de sair (fechar/trocar de nota, mudar de tela, esconder o app) ──
+  {
+    const esperar = ms => new Promise(r => setTimeout(r, ms));
+    const comContador = async () => {
+      const c = await montar();
+      c.rodadas = 0;
+      const original = c.engine.sincronizar.bind(c.engine);
+      c.engine.sincronizar = async () => { c.rodadas++; return original(); };
+      return c;
+    };
+
+    const limpo = await comContador();
+    limpo.sincronizarAoSair({ imediato: true });
+    await esperar(30);
+    igual('saída · sem alteração, abrir e fechar nota não sincroniza', limpo.rodadas, 0);
+
+    const sujo = await comContador();
+    sujo.notificarAtividadeEditor();
+    ok('saída · escrever marca que há algo a enviar', sujo._alteracoesNaoEnviadas === true);
+    sujo.sincronizarAoSair({ imediato: true });
+    await esperar(60);
+    igual('saída · com alteração, sincroniza na hora (sem esperar os 20 s)', sujo.rodadas, 1);
+    ok('saída · a rodada de saída substitui a espera de 20 s', sujo._alteracoesNaoEnviadas === false);
+    clearTimeout(sujo.debounceTimer);
+
+    const juntos = await comContador();
+    juntos.notificarAtividadeEditor();
+    juntos.sincronizarAoSair();          // trocar de nota
+    juntos.sincronizarAoSair();          // mudar de tela, na mesma saída
+    await esperar(80);
+    igual('saída · antes dos 500 ms nada roda', juntos.rodadas, 0);
+    await esperar(600);
+    igual('saída · eventos seguidos da mesma saída viram uma rodada só', juntos.rodadas, 1);
+    clearTimeout(juntos.debounceTimer);
+
+    const desligado = await comContador();
+    desligado.notificarAtividadeEditor();
+    desligado.state = 'disconnected';
+    desligado.sincronizarAoSair({ imediato: true });
+    await esperar(30);
+    igual('saída · desconectado não sincroniza', desligado.rodadas, 0);
+    clearTimeout(desligado.debounceTimer);
+
+    const falha = await comContador();
+    falha.engine.sincronizar = async () => { throw new Error('Drive respondeu 500'); };
+    falha.notificarAtividadeEditor();
+    falha.sincronizarAoSair({ imediato: true });
+    await esperar(60);
+    ok('saída · se a rodada falha, o que estava pendente continua pendente', falha._alteracoesNaoEnviadas === true && falha.state === 'error');
+    clearTimeout(falha.debounceTimer);
+  }
+
   // ── Ligações no código ──
   const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   ok('sync-ui · módulos e CSS no pré-cache', ['sync-ui-model.js', 'sync-gate.js', 'sync-indicator.js', 'css/41-sync-ui.css'].every(f => sw.includes(f)));
@@ -149,5 +201,6 @@ export async function runSyncUiTests({ ok, igual }) {
   ok('sync-ui · o app liga o indicador e a trava depois de iniciar a sincronização', app.includes('iniciarIndicadorDeSincronizacao(syncController)') && app.includes('iniciarTravaDeAbertura('));
   const gate = await readFile(new URL('../sidepanel/modules/sync-gate.js', import.meta.url), 'utf8');
   ok('sync-ui · a trava escuta na fase de captura da janela (antes dos outros ouvintes)', /window\.addEventListener\(EVENTO[\s\S]*\}, true\)/.test(gate));
+  ok('saída · o app liga o envio ao trocar de nota, mudar de tela e esconder o app', ['quickdock:active-note-changed', 'quickdock:shell-focus', 'visibilitychange', 'pagehide'].every(ev => app.includes(`'${ev}'`) && app.includes('sincronizarAoSair')));
   ok('sync-ui · a decisão de travar é síncrona (sem await antes do stopImmediatePropagation)', !/addEventListener\(EVENTO, async/.test(gate));
 }

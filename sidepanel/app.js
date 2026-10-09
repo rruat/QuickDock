@@ -335,6 +335,13 @@ async function init() {
     document.addEventListener('quickdock:board-changed', () => {
       syncController?.notificarAtividadeEditor();
     });
+
+    // Ao SAIR (fechar/trocar de nota, mudar de tela, esconder o app) envia na hora o que foi escrito,
+    // sem esperar os 20 s de pausa: quando a pessoa abre a nota no outro aparelho ela já está lá.
+    document.addEventListener('quickdock:active-note-changed', () => syncController?.sincronizarAoSair());
+    document.addEventListener('quickdock:shell-focus', () => syncController?.sincronizarAoSair());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) syncController?.sincronizarAoSair({ imediato: true }); });
+    window.addEventListener('pagehide', () => syncController?.sincronizarAoSair({ imediato: true }));
     // Views da Base do workspace salvas (Salvar no rascunho ou ação da aside): sobem na próxima rodada
     document.addEventListener('quickdock:workspace-base-saved', () => {
       syncController?.notificarAtividadeEditor();

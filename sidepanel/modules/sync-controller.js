@@ -263,11 +263,32 @@ export class SyncController {
   // Notifica digitação no editor: agenda sincronização com debounce de 20 segundos
   notificarAtividadeEditor() {
     if (this.state !== SYNC_STATE.IDLE && this.state !== SYNC_STATE.SYNCING) return;
+    this._alteracoesNaoEnviadas = true;   // quem sai da nota/tela sabe se há algo para enviar já
     clearTimeout(this.debounceTimer);
     // 20 segundos de pausa: sincronização que roda a cada tecla trava o editor
     this.debounceTimer = setTimeout(() => {
       this.sincronizarAgora();
     }, 20000);
+  }
+
+  /**
+   * Sincroniza na hora de SAIR (fechar ou trocar de nota, mudar de tela, esconder o app), sem
+   * esperar os 20 segundos de pausa — assim o que foi escrito já está no destino quando a pessoa
+   * abre a nota no outro aparelho. Só age se houve alteração desde a última rodada, então abrir
+   * e fechar notas só para ler não custa nada. Eventos seguidos da mesma saída (trocar de nota e
+   * de tela juntos) viram uma rodada só.
+   * @param {{ imediato?: boolean }} opcoes `imediato` não espera os 500 ms (a página está sendo escondida)
+   */
+  sincronizarAoSair({ imediato = false } = {}) {
+    if (!this._alteracoesNaoEnviadas) return;
+    if (this.state !== SYNC_STATE.IDLE && this.state !== SYNC_STATE.ERROR && this.state !== SYNC_STATE.SYNCING) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+    clearTimeout(this.debounceTimer);       // a rodada de saída substitui a espera de 20 s
+    clearTimeout(this._timerSaida);
+    const rodar = () => { this._timerSaida = null; this.sincronizarAgora(); };
+    if (imediato) rodar();
+    else this._timerSaida = setTimeout(rodar, 500);
   }
 
   async escolherPasta() {
@@ -513,6 +534,8 @@ export class SyncController {
     }
 
     this.isSyncing = true;
+    // O que foi escrito até aqui entra nesta rodada; o que for escrito durante ela marca de novo
+    this._alteracoesNaoEnviadas = false;
     // Quem precisa ESPERAR esta rodada terminar (a trava de abrir nota) aguarda esta promessa
     this._rodada = new Promise(resolver => { this._fimRodada = resolver; });
     const estadoAnterior = this.state;
@@ -562,6 +585,7 @@ export class SyncController {
       }
     } catch (err) {
       // Estado de erro explícito: falha calada faz a pessoa achar que está segura
+      this._alteracoesNaoEnviadas = true;   // a rodada falhou: o que estava pendente continua pendente
       this.state = SYNC_STATE.ERROR;
       this.lastSyncError = err?.message || String(err);
       await this._salvarMeta('lastSyncError', this.lastSyncError);
