@@ -554,3 +554,5 @@ body.is-print-mode .floating-aside-btn {
 .note-print-more { flex-basis: 100%; }
 .note-print-more > summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-secondary); padding: 4px 0; }
 .note-print-more .aside-panel-group { padding: 8px 0; }
+/* Imprimindo: a aside mostra só o painel de impressão (nada de propriedades, sumário ou ações da nota) */
+body.is-print-mode .right-aside-note-host > :not(#note-print-toolbar) { display: none !important; }

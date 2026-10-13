@@ -247,6 +247,8 @@ export function enterPrintMode() {
     toolbarEl = buildPrintPanel({ orientation, margins, text: textSettings, onMargins, onText });
     asideHost.hidden = false;
     asideHost.prepend(toolbarEl);
+    const titulo = document.getElementById('rightAsideTitle');   // a aside mostra só a impressão: um painel ou outro
+    if (titulo) titulo.textContent = 'IMPRESSÃO';
   } else {
     toolbarEl = document.createElement('div');
     toolbarEl.id = 'note-print-toolbar';
@@ -339,7 +341,8 @@ export function enterPrintMode() {
   // 4. Propriedades (cada uma com seleção independente)
   const propSections = Array.from(document.querySelectorAll('#note-properties-list .note-property-section'));
   propSections.forEach(propSec => {
-    if (!propSec.isConnected || propSec.hidden) return;
+    // com as propriedades na aside (não saem no papel), não há o que marcar aqui
+    if (!propSec.isConnected || propSec.hidden || !editorContainer.contains(propSec)) return;
     const propKey = propSec.dataset.propKey || propSec.querySelector('.property-name')?.textContent?.trim() || 'Propriedade';
     const handle = createHandle(propKey);
     gutterEl.appendChild(handle);
@@ -418,6 +421,9 @@ export function exitPrintMode() {
     if (el.isConnected) el.setAttribute('contenteditable', 'true');
   });
   savedEditables = [];
+
+  const tituloAside = document.getElementById('rightAsideTitle');
+  if (tituloAside?.textContent === 'IMPRESSÃO') tituloAside.textContent = 'PAINEL DA NOTA';
 
   // Remove toolbar e calha de checkboxes
   if (toolbarEl) {
