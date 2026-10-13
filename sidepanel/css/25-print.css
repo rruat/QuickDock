@@ -536,3 +536,32 @@ body.is-print-mode .floating-aside-btn {
     visibility: hidden !important;
   }
 }
+
+/* Configurações de impressão dentro da aside direita (desktop): empilhadas, sem barra fixa no topo */
+.note-print-toolbar.is-in-aside {
+  position: static;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 14px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent, oklch(58.5% 0.204 277.1));
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  animation: none;
+}
+.note-print-toolbar.is-in-aside .note-print-toolbar-center { flex-direction: column; align-items: stretch; gap: 12px; }
+.note-print-toolbar.is-in-aside .note-print-toolbar-right { flex-direction: row-reverse; justify-content: space-between; }
+.note-print-toolbar.is-in-aside .btn-print-confirm { flex: 1; justify-content: center; }
+.note-print-toolbar.is-in-aside .note-print-orientation-tabs { width: 100%; }
+.note-print-toolbar.is-in-aside .note-print-orientation-tabs .note-sidebar-tab { flex: 1; }
+.note-print-toolbar.is-in-aside .btn-print-select-toggle { justify-content: center; }
+.note-print-toolbar.is-in-aside .note-print-margins { flex-direction: column; align-items: stretch; gap: 6px; }
+.note-print-toolbar.is-in-aside .note-print-margins-label { justify-content: space-between; }
+.note-print-toolbar.is-in-aside .note-print-margins-select { flex: 1; max-width: 70%; }
+
+@media print {
+  #mRightAside, #rightAsideNoteHost, .right-aside { display: none !important; }
+}

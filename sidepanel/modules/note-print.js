@@ -4,6 +4,8 @@
 // o que não quer imprimir. Os checkboxes somem ao sair do modo de impressão.
 
 import { loadMargins, pageMarginValue, buildMarginControls } from './note-print-margins.js';
+import { setRightAsideMode } from './shell/shell-right-aside.js';
+import { isMobileMode } from './platform.js';
 
 const STORAGE_KEY = 'quickdock:note-print-orientation';
 
@@ -268,7 +270,21 @@ export function enterPrintMode() {
   `;
 
   toolbarEl.querySelector('.note-print-toolbar-center').appendChild(buildMarginControls(margins, (novo) => { margins = novo; applyPageStyle(); }));
-  editorContainer.insertBefore(toolbarEl, editorContainer.firstChild);
+
+  // No desktop as configurações de impressão moram na aside direita (organizado, sem cobrir a nota);
+  // no celular a aside é um drawer que taparia a seleção, então a barra continua no topo da nota.
+  let asideHost = null;
+  if (!isMobileMode()) {
+    setRightAsideMode('config', { open: true });
+    asideHost = document.getElementById('rightAsideNoteHost');
+  }
+  if (asideHost) {
+    toolbarEl.classList.add('is-in-aside');
+    asideHost.hidden = false;
+    asideHost.prepend(toolbarEl);
+  } else {
+    editorContainer.insertBefore(toolbarEl, editorContainer.firstChild);
+  }
 
   // Cria a calha independente de checkboxes (estilo WhatsApp)
   // Ela é filha direta de .note-editor e NUNCA fica dentro dos blocos, garantindo 0 mutações no texto da nota
@@ -379,7 +395,7 @@ export function enterPrintMode() {
     }
   });
 
-  toolbarEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (!toolbarEl.classList.contains('is-in-aside')) toolbarEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 export function exitPrintMode() {
