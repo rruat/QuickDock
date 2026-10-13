@@ -13,7 +13,17 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   igual('margens · padrão continua 14 mm (1,4 cm)', m.pageMarginValue({ preset: 'padrao' }), '1.4cm 1.4cm 1.4cm 1.4cm');
   igual('margens · personalizada usa os 4 lados', m.pageMarginValue({ preset: 'custom', custom: { top: 3, right: 1.5, bottom: 2, left: 4 } }), '3cm 1.5cm 2cm 4cm');
   igual('margens · valor absurdo é limitado a 0–10 cm', [m.clampCm(99), m.clampCm(-4), m.clampCm('2,5'), m.clampCm('abc', 3)], [10, 0, 2.5, 3]);
-  igual('margens · lixo salvo volta ao padrão', m.normalizeMargins({ preset: 'xyz', abntText: 'sim' }), { preset: 'padrao', custom: { top: 2.5, right: 2.5, bottom: 2.5, left: 2.5 }, abntText: false });
+  igual('margens · lixo salvo volta ao padrão', m.normalizeMargins({ preset: 'xyz' }), { preset: 'padrao', custom: { top: 2.5, right: 2.5, bottom: 2.5, left: 2.5 } });
+
+  // ── Texto da página impressa (tamanho dos títulos, parágrafo, entrelinha) ──
+  const x = await import('../sidepanel/modules/note-print-text.js');
+  igual('texto · ABNT: 12 pt em tudo, 1,5, justificado, recuo', x.ABNT_TEXT, { p: 12, h1: 12, h2: 12, h3: 12, h4: 12, line: 1.5, justify: true, indent: true });
+  igual('texto · sem nada definido não gera CSS', x.textCss(null), '');
+  const css = x.textCss({ p: 11, h1: 18.5, line: 1.5, justify: true });
+  ok('texto · tamanhos viram regras só do modo de impressão', css.includes('body.is-print-mode #note-editor-blocks .block[data-type="paragraph"] { font-size: 11pt') && css.includes('h1.block { font-size: 18.5pt') && !css.includes('h2.block'), css);
+  ok('texto · entrelinha e justificado entram', css.includes('line-height: 1.5') && css.includes('text-align: justify') && !css.includes('text-indent'));
+  igual('texto · valores absurdos são limitados e vazio volta ao padrão', [x.clampPt(500), x.clampPt(1), x.clampPt(''), x.clampLine(9), x.clampLine('1,5')], [72, 6, null, 3, 1.5]);
+  igual('texto · reconhece a predefinição ABNT', [x.isAbnt(x.ABNT_TEXT), x.isAbnt(null), x.isDefaultText(null)], [true, false, true]);
 
   const { readFile } = await import('node:fs/promises');
   const tabs = await readFile(new URL('../sidepanel/modules/notes-tabs.js', import.meta.url), 'utf8');
@@ -27,5 +37,7 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   ok('fonte · a lista de notas devolve a fonte salva', storage.includes('font: font ?? null'));
   ok('fonte · vai no arquivo da nota (fonte:) e volta ao ler, sem virar propriedade',
      sync.includes('{ fonte: nota.font }') && (sync.match(/font: metaNota\.fonte \?\? null/g) || []).length === 3 && sync.includes("'fonte', 'font',"));
+  ok('impressão · o texto escolhido entra no estilo da página', print.includes('textCss(textSettings)'));
+  ok('impressão · desktop: painel na aside; celular: barra no topo', print.includes('buildPrintPanel(') && print.includes('buildPageAndTextGroups('));
   ok('impressão · o @page usa as margens escolhidas', print.includes('pageMarginValue(margins)') && !print.includes('margin: 14mm'));
 }

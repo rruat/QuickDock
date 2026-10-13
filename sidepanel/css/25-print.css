@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    25-print.css - Botão/popover de impressão da nota e o layout de papel (A4)
    O tamanho e a orientação da página vêm de um @page escrito por
    modules/note-print.js (Retrato por padrão, Paisagem opcional).
@@ -497,33 +497,6 @@ body.is-print-mode .print-selectable-item.print-excluded.print-hover {
   }
 }
 
-/* ── Margens e texto ABNT (note-print-margins.js) ───────────────────────── */
-.note-print-margins { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); }
-.note-print-margins-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
-.note-print-margins-select, .note-print-margins-custom input {
-  background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 3px 6px; font: inherit;
-}
-.note-print-margins-hint { color: var(--text-muted); font-size: 11.5px; }
-.note-print-margins-custom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.note-print-margins-custom[hidden] { display: none; }
-.note-print-margins-custom label { display: inline-flex; align-items: center; gap: 4px; }
-.note-print-margins-custom input { width: 52px; }
-.note-print-margins-abnt { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-
-@media print {
-  /* Texto ABNT: 12 pt, entrelinha 1,5, justificado (a fonte é a escolhida na nota) */
-  body.print-abnt-text #note-editor-blocks,
-  body.print-abnt-text #note-editor-blocks .block {
-    font-size: 12pt !important;
-    line-height: 1.5 !important;
-  }
-  body.print-abnt-text #note-editor-blocks .block[data-type="paragraph"] {
-    text-align: justify;
-    text-indent: 1.25cm;
-  }
-}
-
 /* Botões flutuantes (voltar, painéis laterais) não fazem parte da nota: nunca na impressão nem no modo de seleção */
 body.is-print-mode .floating-aside-group,
 body.is-print-mode .floating-aside-btn {
@@ -537,31 +510,47 @@ body.is-print-mode .floating-aside-btn {
   }
 }
 
-/* Configurações de impressão dentro da aside direita (desktop): empilhadas, sem barra fixa no topo */
-.note-print-toolbar.is-in-aside {
-  position: static;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 14px;
-  margin: 0 0 12px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-top: 2px solid var(--accent, oklch(58.5% 0.204 277.1));
-  border-radius: var(--radius-sm);
-  box-shadow: none;
-  animation: none;
-}
-.note-print-toolbar.is-in-aside .note-print-toolbar-center { flex-direction: column; align-items: stretch; gap: 12px; }
-.note-print-toolbar.is-in-aside .note-print-toolbar-right { flex-direction: row-reverse; justify-content: space-between; }
-.note-print-toolbar.is-in-aside .btn-print-confirm { flex: 1; justify-content: center; }
-.note-print-toolbar.is-in-aside .note-print-orientation-tabs { width: 100%; }
-.note-print-toolbar.is-in-aside .note-print-orientation-tabs .note-sidebar-tab { flex: 1; }
-.note-print-toolbar.is-in-aside .btn-print-select-toggle { justify-content: center; }
-.note-print-toolbar.is-in-aside .note-print-margins { flex-direction: column; align-items: stretch; gap: 6px; }
-.note-print-toolbar.is-in-aside .note-print-margins-label { justify-content: space-between; }
-.note-print-toolbar.is-in-aside .note-print-margins-select { flex: 1; max-width: 70%; }
-
 @media print {
   #mRightAside, #rightAsideNoteHost, .right-aside { display: none !important; }
 }
+
+/* ── Painel de impressão na aside direita (note-print-panel.js) ───────────── */
+/* Usa os grupos da própria aside (.aside-panel-group), então herda a cor e as bordas dela. */
+.note-print-panel { display: flex; flex-direction: column; background: transparent; }
+.note-print-panel .print-group:last-child { border-bottom: none; }
+.print-head-row { display: flex; align-items: center; gap: 10px; }
+.print-head-icon { font-size: 22px; color: var(--accent); }
+.print-head-info { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.3; }
+.print-head-info strong { font-size: 13.5px; color: var(--text); }
+.print-head-info span { font-size: 11.5px; color: var(--text-muted); }
+.aside-panel-segmented.print-orientation { grid-template-columns: repeat(2, 1fr); }
+.print-orientation button, .print-margins-presets button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.print-orientation .material-symbols-rounded { font-size: 16px; }
+.aside-panel-segmented.print-margins-presets { grid-template-columns: repeat(2, 1fr); }
+.print-margins-controls, .print-text-controls { display: flex; flex-direction: column; gap: 10px; }
+.print-margins-hint { font-size: 11.5px; color: var(--text-muted); }
+.print-margins-hint[hidden], .print-margins-custom[hidden], .print-text-reset[hidden] { display: none; }
+.aside-panel-btn.is-primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.aside-panel-btn.is-primary:hover { background: var(--accent); filter: brightness(1.08); }
+.print-abnt-btn.is-active { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); font-weight: 600; }
+
+/* Campos numéricos em grade de duas colunas: rótulo em cima, valor e unidade embaixo */
+.print-size-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.print-size-field { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 4px; font-size: 12px; color: var(--text-secondary); }
+.print-size-name { grid-column: 1 / -1; display: inline-flex; align-items: baseline; gap: 6px; }
+.print-size-name b { font-family: var(--font-mono, monospace); font-size: 11px; color: var(--text-muted); font-weight: 600; min-width: 2.2em; }
+.print-size-field input {
+  width: 100%; min-width: 0; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 12.5px; outline: none;
+}
+.print-size-field input:focus { border-color: var(--accent); }
+.print-size-unit { font-size: 11px; color: var(--text-muted); min-width: 1.4em; }
+.print-text-options { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.print-text-options label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.print-text-reset { align-self: flex-start; background: none; border: none; padding: 0; font: inherit; font-size: 11.5px; color: var(--text-muted); text-decoration: underline; cursor: pointer; }
+.print-text-reset:hover { color: var(--text); }
+
+/* Celular: a barra do topo guarda margens e texto numa seção recolhida */
+.note-print-more { flex-basis: 100%; }
+.note-print-more > summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-secondary); padding: 4px 0; }
+.note-print-more .aside-panel-group { padding: 8px 0; }

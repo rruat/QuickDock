@@ -1,7 +1,6 @@
-// ── note-print-margins.js ───────────────────────────────────────────────────
+﻿// ── note-print-margins.js ───────────────────────────────────────────────────
 // Margens da página impressa (modo de impressão). Predefinições, entre elas a ABNT (NBR 14724):
-// superior 3 cm, inferior 2 cm, esquerda 3 cm, direita 2 cm — mais, opcional, o texto ABNT
-// (12 pt, entrelinha 1,5, justificado). Valores em cm; a escolha fica neste aparelho.
+// superior 3 cm, inferior 2 cm, esquerda 3 cm, direita 2 cm. Valores em cm; a escolha fica neste aparelho.
 
 const STORAGE_KEY = 'quickdock:note-print-margins';
 const MIN_CM = 0;
@@ -14,7 +13,7 @@ export const MARGIN_PRESETS = {
   custom:  { label: 'Personalizada', hint: 'Você define cada lado', cm: null },
 };
 
-export const DEFAULT_MARGINS = { preset: 'padrao', custom: { top: 2.5, right: 2.5, bottom: 2.5, left: 2.5 }, abntText: false };
+export const DEFAULT_MARGINS = { preset: 'padrao', custom: { top: 2.5, right: 2.5, bottom: 2.5, left: 2.5 } };
 
 /** Número em cm entre 0 e 10, com uma casa; inválido vira o valor de reserva. */
 export function clampCm(valor, reserva = 2.5) {
@@ -34,7 +33,6 @@ export function normalizeMargins(raw) {
       top: clampCm(c.top, base.custom.top), right: clampCm(c.right, base.custom.right),
       bottom: clampCm(c.bottom, base.custom.bottom), left: clampCm(c.left, base.custom.left),
     },
-    abntText: raw?.abntText === true,
   };
 }
 
@@ -60,66 +58,56 @@ export function saveMargins(state) {
 
 const LADOS = [['top', 'Superior'], ['right', 'Direita'], ['bottom', 'Inferior'], ['left', 'Esquerda']];
 
-/** Controles para a barra do modo de impressão. `onChange(state)` roda a cada alteração. */
+/** Controles de margem para o painel de impressão. `onChange(state)` roda a cada alteração. */
 export function buildMarginControls(state, onChange) {
   const wrap = document.createElement('div');
-  wrap.className = 'note-print-margins';
+  wrap.className = 'print-margins-controls';
 
-  const rotulo = document.createElement('label');
-  rotulo.className = 'note-print-margins-label';
-  rotulo.textContent = 'Margens';
-  const select = document.createElement('select');
-  select.className = 'note-print-margins-select';
-  select.setAttribute('aria-label', 'Margens da página');
+  const seg = document.createElement('div');
+  seg.className = 'aside-panel-segmented print-margins-presets';
+  const botoes = {};
   for (const [id, p] of Object.entries(MARGIN_PRESETS)) {
-    const o = document.createElement('option');
-    o.value = id; o.textContent = p.label; o.title = p.hint;
-    select.appendChild(o);
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = p.label; b.title = p.hint;
+    b.addEventListener('click', () => {
+      // ao ir para "Personalizada", parte das margens que valiam até então
+      if (id === 'custom' && state.preset !== 'custom') state = { ...state, custom: { ...effectiveCm(state) } };
+      state = { ...state, preset: id };
+      mudou();
+    });
+    botoes[id] = b;
+    seg.appendChild(b);
   }
-  select.value = state.preset;
-  rotulo.appendChild(select);
 
-  const resumo = document.createElement('span');
-  resumo.className = 'note-print-margins-hint';
+  const resumo = document.createElement('div');
+  resumo.className = 'print-margins-hint';
 
   const custom = document.createElement('div');
-  custom.className = 'note-print-margins-custom';
+  custom.className = 'print-size-grid print-margins-custom';
   const inputs = {};
   for (const [lado, nome] of LADOS) {
     const l = document.createElement('label');
-    l.textContent = nome;
+    l.className = 'print-size-field';
+    const n = document.createElement('span'); n.className = 'print-size-name'; n.textContent = nome;
     const i = document.createElement('input');
     i.type = 'number'; i.min = String(MIN_CM); i.max = String(MAX_CM); i.step = '0.1';
     i.setAttribute('aria-label', `Margem ${nome.toLowerCase()} em cm`);
+    const u = document.createElement('span'); u.className = 'print-size-unit'; u.textContent = 'cm';
+    l.append(n, i, u);
     inputs[lado] = i;
-    l.appendChild(i);
     custom.appendChild(l);
   }
-  const cm = document.createElement('span'); cm.textContent = 'cm'; custom.appendChild(cm);
-
-  const abnt = document.createElement('label');
-  abnt.className = 'note-print-margins-abnt';
-  const chk = document.createElement('input');
-  chk.type = 'checkbox';
-  abnt.append(chk, document.createTextNode(' Texto ABNT (12 pt, espaço 1,5)'));
-  abnt.title = 'Fonte 12 pt, entrelinha 1,5 e texto justificado — troque a fonte da nota para Arimo ou Tinos (parecidas com Arial e Times New Roman)';
 
   function pintar() {
     const s = normalizeMargins(state);
-    select.value = s.preset;
+    for (const [id, b] of Object.entries(botoes)) b.classList.toggle('is-active', id === s.preset);
     custom.hidden = s.preset !== 'custom';
-    resumo.textContent = s.preset === 'custom' ? '' : MARGIN_PRESETS[s.preset].hint;
-    chk.checked = s.abntText;
+    resumo.hidden = s.preset === 'custom';
+    resumo.textContent = MARGIN_PRESETS[s.preset].hint;
     for (const [lado] of LADOS) if (document.activeElement !== inputs[lado]) inputs[lado].value = String(s.custom[lado]);
   }
   function mudou() { state = normalizeMargins(state); saveMargins(state); pintar(); onChange(state); }
 
-  select.addEventListener('change', () => {
-    // ao ir para "Personalizada", parte das margens que valiam até então
-    if (select.value === 'custom' && state.preset !== 'custom') state = { ...state, custom: { ...effectiveCm(state) } };
-    state = { ...state, preset: select.value };
-    mudou();
-  });
   for (const [lado] of LADOS) {
     inputs[lado].addEventListener('input', () => {
       state = { ...state, custom: { ...state.custom, [lado]: clampCm(inputs[lado].value, state.custom[lado]) } };
@@ -127,9 +115,8 @@ export function buildMarginControls(state, onChange) {
     });
     inputs[lado].addEventListener('change', () => { inputs[lado].value = String(clampCm(inputs[lado].value, state.custom[lado])); mudou(); });
   }
-  chk.addEventListener('change', () => { state = { ...state, abntText: chk.checked }; mudou(); });
 
-  wrap.append(rotulo, resumo, custom, abnt);
+  wrap.append(seg, resumo, custom);
   pintar();
   return wrap;
 }

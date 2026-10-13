@@ -3,7 +3,9 @@
 // Por padrão, todos os blocos começam selecionados. O usuário apenas desmarca
 // o que não quer imprimir. Os checkboxes somem ao sair do modo de impressão.
 
-import { loadMargins, pageMarginValue, buildMarginControls } from './note-print-margins.js';
+import { loadMargins, pageMarginValue } from './note-print-margins.js';
+import { loadText, textCss } from './note-print-text.js';
+import { buildPrintPanel, buildPageAndTextGroups } from './note-print-panel.js';
 import { setRightAsideMode } from './shell/shell-right-aside.js';
 import { isMobileMode } from './platform.js';
 
@@ -21,10 +23,11 @@ pageStyleEl.id = 'note-print-page-style';
 document.head.appendChild(pageStyleEl);
 
 let margins = loadMargins();
+let textSettings = loadText();
 
 function applyPageStyle() {
-  pageStyleEl.textContent = `@page { size: A4 ${orientation}; margin: ${pageMarginValue(margins)}; }`;
-  document.body.classList.toggle('print-abnt-text', margins.abntText);
+  pageStyleEl.textContent = `@page { size: A4 ${orientation}; margin: ${pageMarginValue(margins)}; }
+${textCss(textSettings)}`;
 }
 
 let isPrintMode = false;
@@ -46,6 +49,7 @@ function setOrientation(value) {
     toolbarEl.querySelectorAll('[data-orientation]').forEach((btn) => {
       const active = btn.dataset.orientation === orientation;
       btn.classList.toggle('active', active);
+      btn.classList.toggle('is-active', active);
       btn.setAttribute('aria-selected', active ? 'true' : 'false');
     });
   }
@@ -230,62 +234,64 @@ export function enterPrintMode() {
     el.setAttribute('contenteditable', 'false');
   });
 
-  // Cria a barra superior de impressão
-  toolbarEl = document.createElement('div');
-  toolbarEl.id = 'note-print-toolbar';
-  toolbarEl.className = 'note-print-toolbar';
-  toolbarEl.innerHTML = `
-    <div class="note-print-toolbar-left">
-      <div class="note-print-icon-badge">
-        <span class="qd-icon material-symbols-rounded">print</span>
-      </div>
-      <div class="note-print-toolbar-info">
-        <span class="note-print-toolbar-title">Modo de Impressão</span>
-        <span class="note-print-toolbar-count" id="note-print-selected-count">Carregando blocos...</span>
-      </div>
-    </div>
-    <div class="note-print-toolbar-center">
-      <div class="note-sidebar-tabs note-print-orientation-tabs" role="tablist" aria-label="Orientação do Papel">
-        <button type="button" class="note-sidebar-tab ${orientation === 'portrait' ? 'active' : ''}" data-orientation="portrait" title="Orientação Retrato (Vertical)">
-          <span class="note-sidebar-tab-title">Retrato</span>
-        </button>
-        <button type="button" class="note-sidebar-tab ${orientation === 'landscape' ? 'active' : ''}" data-orientation="landscape" title="Orientação Paisagem (Horizontal)">
-          <span class="note-sidebar-tab-title">Paisagem</span>
-        </button>
-      </div>
-      <button type="button" class="calendar-action-btn secondary btn-print-select-toggle" id="btn-print-select-toggle" title="Alternar seleção de todos os blocos">
-        <span class="qd-icon material-symbols-rounded">checklist</span>
-        <span class="btn-toggle-label">Desmarcar Todos</span>
-      </button>
-    </div>
-    <div class="note-print-toolbar-right">
-      <button type="button" class="calendar-action-btn primary btn-print-confirm" id="btn-print-confirm" title="Imprimir ou Salvar em PDF os blocos selecionados">
-        <span class="qd-icon material-symbols-rounded">print</span>
-        <span>Imprimir / Salvar PDF</span>
-      </button>
-      <button type="button" class="icon-btn btn-print-exit" id="btn-print-exit" title="Sair do modo de impressão (Esc)" aria-label="Sair">
-        <span class="qd-icon material-symbols-rounded">close</span>
-      </button>
-    </div>
-  `;
-
-  toolbarEl.querySelector('.note-print-toolbar-center').appendChild(buildMarginControls(margins, (novo) => { margins = novo; applyPageStyle(); }));
-
   // No desktop as configurações de impressão moram na aside direita (organizado, sem cobrir a nota);
   // no celular a aside é um drawer que taparia a seleção, então a barra continua no topo da nota.
+  const onMargins = (novo) => { margins = novo; applyPageStyle(); };
+  const onText = (novo) => { textSettings = novo; applyPageStyle(); };
   let asideHost = null;
   if (!isMobileMode()) {
     setRightAsideMode('config', { open: true });
     asideHost = document.getElementById('rightAsideNoteHost');
   }
   if (asideHost) {
-    toolbarEl.classList.add('is-in-aside');
+    toolbarEl = buildPrintPanel({ orientation, margins, text: textSettings, onMargins, onText });
     asideHost.hidden = false;
     asideHost.prepend(toolbarEl);
   } else {
+    toolbarEl = document.createElement('div');
+    toolbarEl.id = 'note-print-toolbar';
+    toolbarEl.className = 'note-print-toolbar';
+    toolbarEl.innerHTML = `
+      <div class="note-print-toolbar-left">
+        <div class="note-print-icon-badge">
+          <span class="qd-icon material-symbols-rounded">print</span>
+        </div>
+        <div class="note-print-toolbar-info">
+          <span class="note-print-toolbar-title">Modo de Impressão</span>
+          <span class="note-print-toolbar-count" id="note-print-selected-count">Carregando blocos...</span>
+        </div>
+      </div>
+      <div class="note-print-toolbar-center">
+        <div class="note-sidebar-tabs note-print-orientation-tabs" role="tablist" aria-label="Orientação do Papel">
+          <button type="button" class="note-sidebar-tab ${orientation === 'portrait' ? 'active' : ''}" data-orientation="portrait" title="Orientação Retrato (Vertical)">
+            <span class="note-sidebar-tab-title">Retrato</span>
+          </button>
+          <button type="button" class="note-sidebar-tab ${orientation === 'landscape' ? 'active' : ''}" data-orientation="landscape" title="Orientação Paisagem (Horizontal)">
+            <span class="note-sidebar-tab-title">Paisagem</span>
+          </button>
+        </div>
+        <button type="button" class="calendar-action-btn secondary btn-print-select-toggle" id="btn-print-select-toggle" title="Alternar seleção de todos os blocos">
+          <span class="qd-icon material-symbols-rounded">checklist</span>
+          <span class="btn-toggle-label">Desmarcar Todos</span>
+        </button>
+      </div>
+      <div class="note-print-toolbar-right">
+        <button type="button" class="calendar-action-btn primary btn-print-confirm" id="btn-print-confirm" title="Imprimir ou Salvar em PDF os blocos selecionados">
+          <span class="qd-icon material-symbols-rounded">print</span>
+          <span>Imprimir / Salvar PDF</span>
+        </button>
+        <button type="button" class="icon-btn btn-print-exit" id="btn-print-exit" title="Sair do modo de impressão (Esc)" aria-label="Sair">
+          <span class="qd-icon material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <details class="note-print-more">
+        <summary>Margens e texto</summary>
+      </details>
+    `;
+    const mais = toolbarEl.querySelector('.note-print-more');
+    mais.append(...buildPageAndTextGroups({ margins, text: textSettings, onMargins, onText }));
     editorContainer.insertBefore(toolbarEl, editorContainer.firstChild);
   }
-
   // Cria a calha independente de checkboxes (estilo WhatsApp)
   // Ela é filha direta de .note-editor e NUNCA fica dentro dos blocos, garantindo 0 mutações no texto da nota
   gutterEl = document.createElement('div');
@@ -395,7 +401,7 @@ export function enterPrintMode() {
     }
   });
 
-  if (!toolbarEl.classList.contains('is-in-aside')) toolbarEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (!asideHost) toolbarEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 export function exitPrintMode() {
