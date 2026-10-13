@@ -35,6 +35,8 @@ let _callbacks = {
   closeCopyMenu: () => {},
   isBlockUnderlined: (block) => false,
   setBlockUnderlined: (block, val) => {},
+  isTextAlignable: (block) => false,
+  setBlockTextAlign: (block, align) => {},
   PODE_SUBLINHAR: new Set(['heading1', 'heading2']),
   NO_TEXT_TYPES: new Set(['divider', 'table', 'image', 'audio', 'video']),
   INSERTED_TYPES: new Set(['divider', 'table', 'image', 'base']),
@@ -290,6 +292,38 @@ export function openBlockMenu(block, anchorEl) {
     });
     menu.appendChild(btn);
 
+    menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+  }
+
+  // Alinhar (parágrafo e título): no arquivo vira <div align="center"> etc., que outros apps entendem
+  if (_callbacks.isTextAlignable(block)) {
+    const header = document.createElement('div');
+    header.className   = 'copy-menu-header';
+    header.textContent = scopeCount > 1 ? `Alinhar (${scopeCount} blocos)` : 'Alinhar';
+    menu.appendChild(header);
+
+    const atual = block.dataset.textAlign || 'left';
+    const linha = document.createElement('div');
+    linha.className = 'block-align-row';
+    for (const [valor, icone, rotulo] of [['left', 'format_align_left', 'Esquerda'], ['center', 'format_align_center', 'Centralizado'],
+                                          ['right', 'format_align_right', 'Direita'], ['justify', 'format_align_justify', 'Justificado']]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'block-align-btn' + (atual === valor ? ' active' : '');
+      btn.title = rotulo;
+      btn.setAttribute('aria-label', rotulo);
+      btn.innerHTML = `<span class="material-symbols-rounded" aria-hidden="true">${icone}</span>`;
+      btn.addEventListener('mousedown', e => e.stopPropagation());
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        closeBlockMenu();
+        _callbacks.captureUndoPoint();
+        for (const b of targetBlocksFor(block)) if (_callbacks.isTextAlignable(b)) _callbacks.setBlockTextAlign(b, valor);
+        _callbacks.scheduleSave();
+      });
+      linha.appendChild(btn);
+    }
+    menu.appendChild(linha);
     menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
   }
 

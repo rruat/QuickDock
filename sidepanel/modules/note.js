@@ -1,4 +1,4 @@
-import {
+﻿import {
   getNoteById, updateNoteBlocksById, updateNoteMetaById, saveFile, loadFileBlob, moveInlineFileToDocuments,
   loadAllNotesMeta, salvarLinksDaNota, obterTodosLinks,
 } from './storage.js';
@@ -12,7 +12,7 @@ import { evaluateSheet } from './calc.js';
 import {
   uid, escHtml, safeHref, parseMarkdownToBlocks, blocksToMarkdown, blocksToPlainText,
   MAX_DEPTH, BULLET_GLYPHS, blocksOfNote, blocksToMarkdownForExport,
-  CALLOUT_TYPES, CALLOUT_LABELS, headingSlug, headingSlugs, parseInlineMarkdown,
+  CALLOUT_TYPES, CALLOUT_LABELS, headingSlug, headingSlugs, parseInlineMarkdown, normalizeTextAlign,
 } from './blocks.js';
 import { blockTemplates, openSaveBlockTemplate } from './templates.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from './snapshot.js';
@@ -380,6 +380,7 @@ function createBlockElFrom(b) {
   setBlockQuoted(el, !!b.quoted);
   setBlockCallout(el, b.callout);
   setBlockUnderlined(el, !!b.underlined);
+  setBlockTextAlign(el, b.textAlign);
   if (b.type === 'image') setImageData(el, b);
   if (b.type === 'audio' || b.type === 'video') setMediaData(el, b.type, b);
   return el;
@@ -424,6 +425,33 @@ function isBlockUnderlined(el) {
 function setBlockUnderlined(el, on) {
   if (on && PODE_SUBLINHAR.has(el.dataset.type)) el.dataset.underlined = 'true';
   else delete el.dataset.underlined;
+}
+
+// Alinhamento do texto (centro, direita, justificado): marca do bloco, como o sublinhado. Só parágrafo e
+// título, fora de citação e de lista aninhada — é o que o arquivo consegue gravar (<div align="center">,
+// ver blocks.js). À esquerda é o padrão e não deixa atributo.
+function isTextAlignable(el) {
+  return !!el && /^(paragraph|heading[1-6])$/.test(el.dataset?.type ?? '')
+    && !isBlockQuoted(el) && blockDepth(el) === 0;
+}
+
+function setBlockTextAlign(el, align) {
+  const a = normalizeTextAlign(align);
+  if (a && isTextAlignable(el)) el.dataset.textAlign = a;
+  else delete el.dataset.textAlign;
+}
+
+/** Alinha os blocos selecionados (ou o bloco do cursor). Devolve false se nenhum aceita alinhamento. */
+function applyTextAlign(align) {
+  const alvos = getSelectedBlocks();
+  const blocos = (alvos.length ? alvos : [currentBlock()]).filter(Boolean);
+  const aceitam = blocos.filter(isTextAlignable);
+  if (!aceitam.length) { showFeedback('Só parágrafos e títulos podem ser alinhados.'); return false; }
+  captureUndoPoint();
+  for (const b of aceitam) setBlockTextAlign(b, align);
+  scheduleSave();
+  updateMobileToolbarState();
+  return true;
 }
 
 function setBlockCallout(el, tipo) {
@@ -710,6 +738,7 @@ function convertBlockType(blockEl, newType, checked = false) {
   // O sublinhado só sobrevive entre tipos que o suportam — virar parágrafo o
   // descarta, que é o esperado.
   setBlockUnderlined(newBlock, isBlockUnderlined(blockEl));
+  setBlockTextAlign(newBlock, blockEl.dataset.textAlign);   // o alinhamento acompanha a troca de parágrafo/título
   blockEl.replaceWith(newBlock);
   return newBlock;
 }
@@ -934,6 +963,7 @@ export function serializeBlockEl(block) {
   if (isBlockQuoted(block)) b.quoted = true;
   if (block.dataset.callout) b.callout = block.dataset.callout;
   if (isBlockUnderlined(block)) b.underlined = true;
+  if (normalizeTextAlign(block.dataset.textAlign)) b.textAlign = block.dataset.textAlign;
   if (type === 'bullet' && block.dataset.marker) b.marker = block.dataset.marker;
   if (type === 'code' && block.dataset.lang) b.lang = block.dataset.lang;
   if (type === 'divider') return b;
@@ -2580,6 +2610,7 @@ function handleEnter(block) {
   setBlockDepth(newBlock, blockDepth(block));
   setBlockQuoted(newBlock, isBlockQuoted(block));
   setBlockCallout(newBlock, block.dataset.callout);   // Enter continua dentro do destaque
+  setBlockTextAlign(newBlock, block.dataset.textAlign);   // e no mesmo alinhamento (como num editor de texto)
   block.after(newBlock);
   focusBlockStart(newBlock);
   renumberLists();
@@ -3164,6 +3195,12 @@ root.addEventListener('keydown', e => {
   // do próprio campo — as regras de blocos (dividir bloco, indentar, fundir) não valem ali.
   if (e.target?.closest?.('.table-source, .image-source')) return;
   const key = e.key.toLowerCase();
+  // Alinhamento do texto (mesmos atalhos do Google Docs): Ctrl+Shift+L esquerda, E centro, R direita, J justificado
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && ['l', 'e', 'r', 'j'].includes(key)) {
+    e.preventDefault();
+    applyTextAlign({ l: 'left', e: 'center', r: 'right', j: 'justify' }[key]);
+    return;
+  }
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
     e.preventDefault();
     performUndo();
@@ -4166,6 +4203,8 @@ initNoteDragDrop({
   closeCopyMenu,
   isBlockUnderlined,
   setBlockUnderlined,
+  isTextAlignable,
+  setBlockTextAlign,
   PODE_SUBLINHAR,
   NO_TEXT_TYPES,
   INSERTED_TYPES,

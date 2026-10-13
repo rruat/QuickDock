@@ -455,6 +455,46 @@ export function getBaseBlocksFromNote(note) {
 }
 
 // ── Markdown (string) → blocos ────────────────────────────────────────────────
+// ── Alinhamento do texto (centralizado, à direita, justificado) ──────────────
+// Markdown não tem alinhamento de parágrafo. O arquivo grava o que o GitHub, o Obsidian, o Typora e o
+// VS Code já entendem: o bloco dentro de <div align="center"> (linha em branco depois de abrir e antes de
+// fechar, para o markdown de dentro continuar valendo). Na leitura, aceita também <p align>, <center>,
+// style="text-align:…", títulos <h1 align="center"> numa linha e a cerca ::: do Pandoc.
+// À esquerda é o padrão: não escreve nada.
+export const TEXT_ALIGNS = ['left', 'center', 'right', 'justify'];
+const ALINHAVEL = /^(paragraph|heading[1-6])$/;
+
+/** `center | right | justify`, ou null (à esquerda / sem alinhamento). */
+export function normalizeTextAlign(v) {
+  const a = String(v ?? '').toLowerCase();
+  return a === 'center' || a === 'right' || a === 'justify' ? a : null;
+}
+
+function alinhamentoDeAtributos(attrs) {
+  const m = /\balign\s*=\s*["']?(left|center|right|justify)/i.exec(attrs) || /text-align\s*:\s*(left|center|right|justify)/i.exec(attrs);
+  return m ? m[1].toLowerCase() : null;
+}
+
+const ALIGN_ABRE_TAG   = /^<(div|p|center|section)\b([^>]*)>$/i;
+const ALIGN_FECHA_TAG  = /^<\/(div|p|center|section)>$/i;
+const ALIGN_UMA_LINHA  = /^<(div|p|center|h[1-6])\b([^>]*)>(.*)<\/\1>$/i;
+const ALIGN_ABRE_CERCA = /^:::\s*(?:\{([^}]*)\}|(center|right|left|justify))\s*$/i;
+const ALIGN_FECHA_CERCA = /^:::\s*$/;
+
+/** A linha abre um trecho alinhado? → { align (null = esquerda), tipo: 'tag' | 'cerca' } */
+function abreAlinhamento(linha) {
+  let m;
+  if ((m = ALIGN_ABRE_TAG.exec(linha))) {
+    const a = m[1].toLowerCase() === 'center' ? 'center' : alinhamentoDeAtributos(m[2]);
+    return a ? { align: normalizeTextAlign(a), tipo: 'tag' } : null;
+  }
+  if ((m = ALIGN_ABRE_CERCA.exec(linha))) {
+    const a = m[2] ? m[2].toLowerCase() : alinhamentoDeAtributos(m[1] || '');
+    return a ? { align: normalizeTextAlign(a), tipo: 'cerca' } : null;
+  }
+  return null;
+}
+
 export function parseMarkdownToBlocks(markdown) {
   // Normaliza quebras de linha (Windows manda \r\n) — sem isso, cada linha
   // fica com um \r sobrando no final e os regexes ancorados em "$" falham
@@ -464,6 +504,7 @@ export function parseMarkdownToBlocks(markdown) {
   const depthOf = makeDepthTracker();
   let callout = null;   // destaque em curso; vale até a citação terminar
   let callout_aberto = false;   // o marcador acabou de abrir: linhas sem ">" ainda contam
+  let alinha = null;            // trecho alinhado em curso: { align, tipo, desde } (ver abreAlinhamento)
   let m;
 
   for (let i = 0; i < lines.length; i++) {
@@ -514,7 +555,37 @@ export function parseMarkdownToBlocks(markdown) {
       ...(depth   ? { depth }        : {}),
       ...(quoted  ? { quoted: true } : {}),
       ...(callout ? { callout }      : {}),
+      ...(alinha?.align && !depth && !quoted && !b.textAlign && ALINHAVEL.test(b.type) ? { textAlign: alinha.align } : {}),
     });
+
+    // Alinhamento do texto: abre e fecha com <div align="…"> (ou a cerca ::: do Pandoc); os marcadores
+    // não viram bloco, só marcam os blocos de dentro. A linha em branco logo depois de abrir e a de antes
+    // de fechar existem só para o markdown de dentro funcionar em outros apps: não são blocos.
+    if (!quoted) {
+      const aberto = abreAlinhamento(rest.trim());
+      if (aberto && !alinha) {
+        alinha = { ...aberto, desde: blocks.length };
+        if ((lines[i + 1] ?? '').trim() === '') i++;
+        continue;
+      }
+      if (alinha && (alinha.tipo === 'tag' ? ALIGN_FECHA_TAG : ALIGN_FECHA_CERCA).test(rest.trim())) {
+        const ultimo = blocks[blocks.length - 1];
+        if (blocks.length > alinha.desde && ultimo?.type === 'paragraph' && (ultimo.html ?? '') === '' && !ultimo.quoted) blocks.pop();
+        alinha = null;
+        continue;
+      }
+      // Uma linha só: <h1 align="center">Título</h1>, <p align="center">texto</p>, <center>texto</center>
+      if ((m = ALIGN_UMA_LINHA.exec(rest.trim()))) {
+        const tag = m[1].toLowerCase();
+        const a = tag === 'center' ? 'center' : alinhamentoDeAtributos(m[2]);
+        if (a) {
+          const ta = normalizeTextAlign(a);
+          const tipo = /^h[1-6]$/.test(tag) ? `heading${tag[1]}` : 'paragraph';
+          add({ type: tipo, html: parseInlineMarkdown(m[3].trim()), ...(ta ? { textAlign: ta } : {}) });
+          continue;
+        }
+      }
+    }
 
     // Bloco cercado: consome até a cerca de fechamento. Sem marca é código
     // (um bloco só, com as linhas dentro); com a marca "calc" é folha de
@@ -737,6 +808,13 @@ function nodeToMarkdown(node, parent = null) {
 // portabilidade da nota (campo `content`) e nas exportações/cópia como .md.
 // Dois espaços por nível: é o que o markdown espera e o que qualquer outro
 // editor vai ler de volta como aninhamento.
+// Só parágrafo e título, com texto, fora de citação e de lista aninhada, vão para dentro de um <div align>.
+function alinhamentoGravavel(b) {
+  return !!b && !!normalizeTextAlign(b.textAlign) && ALINHAVEL.test(b.type)
+    && !b.quoted && !b.callout && !(b.depth > 0)
+    && (b.html ?? '').replace(/<br\s*\/?>/gi, '').trim() !== '';
+}
+
 function indentOf(b) {
   return '  '.repeat(Math.min(Math.max(b.depth ?? 0, 0), MAX_DEPTH));
 }
@@ -840,7 +918,11 @@ ${pad}${q}---` : `${pad}${q}## ${text}`;
           return q ? `${pad}>` : '';
       }
     };
-    return marcador + linha();
+    // Alinhamento: blocos seguidos com o mesmo alinhamento dividem um <div align="…"> só
+    const alinhado = x => alinhamentoGravavel(x);
+    const abreDiv  = alinhado(b) && !(alinhado(lista[i - 1]) && lista[i - 1].textAlign === b.textAlign);
+    const fechaDiv = alinhado(b) && !(alinhado(lista[i + 1]) && lista[i + 1].textAlign === b.textAlign);
+    return (abreDiv ? `<div align="${b.textAlign}">\n\n` : '') + marcador + linha() + (fechaDiv ? '\n\n</div>' : '');
   }).join('\n');
 }
 

@@ -802,3 +802,18 @@
 .note-section.ctrl-active .note-editor-blocks a.note-internal-link:hover {
   text-decoration: underline;
 }
+
+/* ===== ALINHAMENTO DO TEXTO (parágrafo e título) ===== */
+/* No arquivo é <div align="center"> etc.; no editor é o atributo data-text-align do bloco. */
+.note-editor-blocks .block[data-text-align="center"]  { text-align: center; }
+.note-editor-blocks .block[data-text-align="right"]   { text-align: right; }
+.note-editor-blocks .block[data-text-align="justify"] { text-align: justify; }
+
+.block-align-row { display: flex; gap: 4px; padding: 2px 8px 6px; }
+.block-align-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; padding: 5px 0;
+  border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer;
+}
+.block-align-btn:hover { background: var(--bg-hover); color: var(--text); }
+.block-align-btn.active { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
+.block-align-btn .material-symbols-rounded { font-size: 18px; }

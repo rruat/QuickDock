@@ -1,7 +1,7 @@
-// ── note-print-text.js ──────────────────────────────────────────────────────
+﻿// ── note-print-text.js ──────────────────────────────────────────────────────
 // Texto da página impressa: tamanho (pt) do parágrafo e dos títulos (#, ##, ###, ####), entrelinha,
-// justificado e recuo da primeira linha. Campo vazio = o tamanho que a nota já tem. A predefinição ABNT
-// (NBR 14724) usa 12 pt em tudo, entrelinha 1,5, justificado e recuo de 1,25 cm. A escolha fica neste aparelho.
+// alinhamento por tipo de bloco, recuo da primeira linha e citação longa. Campo vazio = o tamanho que a nota já tem. A predefinição ABNT
+// (NBR 14724) usa 12 pt em tudo, entrelinha 1,5, parágrafos justificados, recuo de 1,25 cm e citação longa (recuo de 4 cm, 10 pt). A escolha fica neste aparelho.
 
 const STORAGE_KEY = 'quickdock:note-print-text';
 
@@ -13,8 +13,17 @@ export const SIZE_FIELDS = [
   { key: 'h4', label: 'Título 4',         mark: '####', sel: 'h4.block' },
 ];
 
-export const DEFAULT_TEXT = { p: null, h1: null, h2: null, h3: null, h4: null, line: null, justify: false, indent: false };
-export const ABNT_TEXT = { p: 12, h1: 12, h2: 12, h3: 12, h4: 12, line: 1.5, justify: true, indent: true };
+export const DEFAULT_TEXT = { p: null, h1: null, h2: null, h3: null, h4: null, line: null, alignP: null, alignH: null, indent: false, longQuote: false };
+export const ABNT_TEXT = { p: 12, h1: 12, h2: 12, h3: 12, h4: 12, line: 1.5, alignP: 'justify', alignH: null, indent: true, longQuote: true };
+
+export const ALIGN_CHOICES = [
+  { value: '', label: 'Como está na nota' },
+  { value: 'left', label: 'Esquerda' },
+  { value: 'center', label: 'Centralizado' },
+  { value: 'right', label: 'Direita' },
+  { value: 'justify', label: 'Justificado' },
+];
+const alinhamento = v => (['left', 'center', 'right', 'justify'].includes(v) ? v : null);
 
 const lim = (v, min, max, casas = 1) => {
   const t = String(v ?? '').trim().replace(',', '.');
@@ -32,15 +41,22 @@ export function normalizeText(raw) {
   const out = { ...DEFAULT_TEXT };
   for (const { key } of SIZE_FIELDS) out[key] = clampPt(r[key]);
   out.line = clampLine(r.line);
-  out.justify = r.justify === true;
+  // `justify: true` era o formato antigo (só parágrafos justificados)
+  out.alignP = alinhamento(r.alignP) ?? (r.justify === true ? 'justify' : null);
+  out.alignH = alinhamento(r.alignH);
   out.indent = r.indent === true;
+  out.longQuote = r.longQuote === true;
   return out;
 }
 
 export const isAbnt = s => JSON.stringify(normalizeText(s)) === JSON.stringify(ABNT_TEXT);
 export const isDefaultText = s => JSON.stringify(normalizeText(s)) === JSON.stringify(DEFAULT_TEXT);
 
-/** CSS que vale só durante o modo de impressão (a tela já mostra como vai sair). */
+/**
+ * CSS que vale só durante o modo de impressão (a tela já mostra como vai sair).
+ * O alinhamento escolhido aqui é por TIPO de bloco e não mexe no arquivo; um bloco que já tem alinhamento
+ * próprio na nota (<div align="center">) o mantém — por isso o `:not([data-text-align])`.
+ */
 export function textCss(state) {
   const s = normalizeText(state);
   const raiz = 'body.is-print-mode #note-editor-blocks';
@@ -49,11 +65,13 @@ export function textCss(state) {
     if (s[key] != null) regras.push(`${raiz} ${sel.startsWith('[') ? `.block${sel}` : sel} { font-size: ${s[key]}pt !important; }`);
   }
   if (s.line != null) regras.push(`${raiz} .block { line-height: ${s.line} !important; }`);
-  if (s.justify) regras.push(`${raiz} .block[data-type="paragraph"] { text-align: justify; }`);
-  if (s.indent) regras.push(`${raiz} .block[data-type="paragraph"] { text-indent: 1.25cm; }`);
+  if (s.alignP) regras.push(`${raiz} .block[data-type="paragraph"]:not([data-text-align]):not([data-quoted]) { text-align: ${s.alignP} !important; }`);
+  if (s.alignH) regras.push(`${raiz} :is(h1, h2, h3, h4, h5, h6).block:not([data-text-align]) { text-align: ${s.alignH} !important; }`);
+  if (s.indent) regras.push(`${raiz} .block[data-type="paragraph"]:not([data-quoted]) { text-indent: 1.25cm; }`);
+  // ABNT: citação direta com mais de 3 linhas — recuo de 4 cm, fonte menor (10 pt), espaço simples, justificada
+  if (s.longQuote) regras.push(`${raiz} .block[data-quoted="true"]:not([data-callout]) { margin-left: 4cm !important; padding-left: 0 !important; border: none !important; font-size: 10pt !important; line-height: 1.15 !important; text-align: justify; }`);
   return regras.join('\n');
 }
-
 export function loadText() {
   try { return normalizeText(JSON.parse(localStorage.getItem(STORAGE_KEY))); } catch { return normalizeText(null); }
 }
@@ -70,7 +88,7 @@ export function buildTextControls(state, onChange) {
   abntBtn.type = 'button';
   abntBtn.className = 'aside-panel-btn print-abnt-btn';
   abntBtn.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">school</span><span>Formatação ABNT</span>';
-  abntBtn.title = '12 pt em tudo, entrelinha 1,5, texto justificado e recuo de 1,25 cm. Para a fonte, use Arimo ou Tinos (parecidas com Arial e Times New Roman) na Aparência da nota.';
+  abntBtn.title = '12 pt em tudo, entrelinha 1,5, parágrafos justificados, recuo de 1,25 cm e citação longa (recuo de 4 cm, 10 pt). Para a fonte, use Arimo ou Tinos (parecidas com Arial e Times New Roman) na Aparência da nota.';
 
   const grade = document.createElement('div');
   grade.className = 'print-size-grid';
@@ -95,6 +113,23 @@ export function buildTextControls(state, onChange) {
   for (const f of SIZE_FIELDS) campo(f.key, f.label, f.mark, 6, 72, 0.5, 'pt');
   campo('line', 'Entrelinha', '', 1, 3, 0.05, '×');
 
+  // Alinhamento por tipo de bloco (só na impressão; o alinhamento que a nota já tem em um bloco é mantido)
+  const alinhamentos = document.createElement('div');
+  alinhamentos.className = 'print-align-grid';
+  const seletor = (key, rotulo) => {
+    const l = document.createElement('label');
+    l.className = 'print-align-field';
+    const n = document.createElement('span'); n.textContent = rotulo;
+    const s = document.createElement('select');
+    s.setAttribute('aria-label', `Alinhar ${rotulo.toLowerCase()}`);
+    for (const o of ALIGN_CHOICES) { const op = document.createElement('option'); op.value = o.value; op.textContent = o.label; s.appendChild(op); }
+    l.append(n, s);
+    alinhamentos.appendChild(l);
+    inputs[key] = s;
+  };
+  seletor('alignP', 'Parágrafos');
+  seletor('alignH', 'Títulos');
+
   const opcoes = document.createElement('div');
   opcoes.className = 'print-text-options';
   const chk = (key, texto) => {
@@ -105,8 +140,8 @@ export function buildTextControls(state, onChange) {
     opcoes.appendChild(l);
     inputs[key] = c;
   };
-  chk('justify', 'Justificar parágrafos');
   chk('indent', 'Recuo na 1ª linha (1,25 cm)');
+  chk('longQuote', 'Citação longa ABNT (recuo 4 cm, 10 pt)');
 
   const limpar = document.createElement('button');
   limpar.type = 'button';
@@ -120,8 +155,10 @@ export function buildTextControls(state, onChange) {
     for (const k of [...SIZE_FIELDS.map(f => f.key), 'line']) {
       if (document.activeElement !== inputs[k]) inputs[k].value = s[k] == null ? '' : String(s[k]);
     }
-    inputs.justify.checked = s.justify;
+    inputs.alignP.value = s.alignP ?? '';
+    inputs.alignH.value = s.alignH ?? '';
     inputs.indent.checked = s.indent;
+    inputs.longQuote.checked = s.longQuote;
   }
   const aplicar = (novo, repintar = true) => {
     state = normalizeText(novo); saveText(state);
@@ -138,10 +175,12 @@ export function buildTextControls(state, onChange) {
   }
   inputs.line.addEventListener('input', () => aplicar({ ...state, line: inputs.line.value }, false));
   inputs.line.addEventListener('change', pintar);
-  inputs.justify.addEventListener('change', () => aplicar({ ...state, justify: inputs.justify.checked }));
+  inputs.alignP.addEventListener('change', () => aplicar({ ...state, alignP: inputs.alignP.value }));
+  inputs.alignH.addEventListener('change', () => aplicar({ ...state, alignH: inputs.alignH.value }));
   inputs.indent.addEventListener('change', () => aplicar({ ...state, indent: inputs.indent.checked }));
+  inputs.longQuote.addEventListener('change', () => aplicar({ ...state, longQuote: inputs.longQuote.checked }));
 
-  wrap.append(abntBtn, grade, opcoes, limpar);
+  wrap.append(abntBtn, grade, alinhamentos, opcoes, limpar);
   pintar();
   return wrap;
 }

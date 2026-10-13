@@ -17,7 +17,31 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
 
   // ── Texto da página impressa (tamanho dos títulos, parágrafo, entrelinha) ──
   const x = await import('../sidepanel/modules/note-print-text.js');
-  igual('texto · ABNT: 12 pt em tudo, 1,5, justificado, recuo', x.ABNT_TEXT, { p: 12, h1: 12, h2: 12, h3: 12, h4: 12, line: 1.5, justify: true, indent: true });
+  igual('texto · ABNT: 12 pt em tudo, 1,5, justificado, recuo, citação longa', x.ABNT_TEXT, { p: 12, h1: 12, h2: 12, h3: 12, h4: 12, line: 1.5, alignP: 'justify', alignH: null, indent: true, longQuote: true });
+  igual('texto · o formato antigo (justify: true) ainda vale', x.normalizeText({ justify: true }).alignP, 'justify');
+  const cssAbnt = x.textCss(x.ABNT_TEXT);
+  ok('texto · alinhamento da impressão não passa por cima do alinhamento do próprio bloco', cssAbnt.includes(':not([data-text-align])') && cssAbnt.includes('text-align: justify !important'));
+  ok('texto · citação longa ABNT: recuo de 4 cm e 10 pt, sem pegar destaques', cssAbnt.includes('margin-left: 4cm') && cssAbnt.includes('font-size: 10pt') && cssAbnt.includes(':not([data-callout])'));
+  igual('texto · títulos centralizados na impressão', x.textCss({ alignH: 'center' }).includes('h1, h2, h3, h4, h5, h6).block:not([data-text-align]) { text-align: center !important'), true);
+
+  // ── Alinhamento do texto no arquivo: <div align="center"> (GitHub, Obsidian, Typora…) ──
+  const bl = await import('../sidepanel/modules/blocks.js');
+  const md = ['Antes', '<div align="center">', '', '# Título', 'Autor', '', '</div>', '', 'Depois'].join('\n');
+  const lidos = bl.parseMarkdownToBlocks(md);
+  igual('alinhamento · o <div align="center"> alinha os blocos de dentro', lidos.map(b => [b.type, b.textAlign ?? null]), [['paragraph', null], ['heading1', 'center'], ['paragraph', 'center'], ['paragraph', null], ['paragraph', null]]);
+  ok('alinhamento · as linhas em branco de dentro do div não viram blocos', lidos.length === 5);
+  const volta = bl.blocksToMarkdown(lidos);
+  ok('alinhamento · grava <div align="center"> com linha em branco antes e depois do conteúdo', volta.includes('<div align="center">\n\n# Título\nAutor\n\n</div>'), volta);
+  ok('alinhamento · blocos seguidos com o mesmo alinhamento dividem um div só', (volta.match(/<div /g) || []).length === 1);
+  igual('alinhamento · ler, gravar e ler de novo não muda nada (nem cria linhas vazias)', bl.blocksToMarkdown(bl.parseMarkdownToBlocks(volta)), volta);
+  igual('alinhamento · <p align="right"> numa linha', bl.parseMarkdownToBlocks('<p align="right">à direita</p>').map(b => [b.type, b.html, b.textAlign]), [['paragraph', 'à direita', 'right']]);
+  igual('alinhamento · <h2 align="center"> numa linha vira título 2 centralizado', bl.parseMarkdownToBlocks('<h2 align="center">Capítulo</h2>').map(b => [b.type, b.textAlign]), [['heading2', 'center']]);
+  igual('alinhamento · <center> e style="text-align" também são lidos', [bl.parseMarkdownToBlocks('<center>x</center>')[0].textAlign, bl.parseMarkdownToBlocks('<div style="text-align: right">\n\ny\n\n</div>')[0].textAlign], ['center', 'right']);
+  igual('alinhamento · cerca ::: do Pandoc', bl.parseMarkdownToBlocks('::: {style="text-align:center"}\n\nz\n\n:::').map(b => [b.html, b.textAlign]), [['z', 'center']]);
+  igual('alinhamento · à esquerda é o padrão e não escreve nada', bl.blocksToMarkdown([{ type: 'paragraph', html: 'a', textAlign: 'left' }]), 'a');
+  igual('alinhamento · parágrafo vazio e citação não ganham div', bl.blocksToMarkdown([{ type: 'paragraph', html: '', textAlign: 'center' }, { type: 'paragraph', html: 'q', quoted: true, textAlign: 'center' }]), '\n> q');
+  igual('alinhamento · alinhamentos diferentes seguidos viram divs separados', bl.blocksToMarkdown([{ type: 'paragraph', html: 'a', textAlign: 'center' }, { type: 'paragraph', html: 'b', textAlign: 'right' }]).split('\n').filter(l => l.startsWith('<div')), ['<div align="center">', '<div align="right">']);
+  igual('alinhamento · texto sem div segue exatamente como era', bl.blocksToMarkdown(bl.parseMarkdownToBlocks('# T\nlinha')), '# T\nlinha');
   igual('texto · sem nada definido não gera CSS', x.textCss(null), '');
   const css = x.textCss({ p: 11, h1: 18.5, line: 1.5, justify: true });
   ok('texto · tamanhos viram regras só do modo de impressão', css.includes('body.is-print-mode #note-editor-blocks .block[data-type="paragraph"] { font-size: 11pt') && css.includes('h1.block { font-size: 18.5pt') && !css.includes('h2.block'), css);
@@ -51,5 +75,10 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   ok('quadros · o botão de excluir o espaço existe mesmo com um só quadro', !board.includes('if (allBoards.length > 1) {'));
   ok('notas · a lista em memória é conferida quando o conjunto de notas muda', tabs.includes("'quickdock:notes-changed'") && tabs.includes('conferirListaDeNotas') && storage.includes('export async function loadAllNoteIds'));
   ok('notas · dá para excluir a última nota (vai para "nenhuma nota aberta")', !tabs.includes('Deve existir ao menos uma nota') && tabs.includes('else await deactivateActiveNote();'));
+  const noteSrc = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
+  const ddSrc = await readFile(new URL('../sidepanel/modules/note/note-drag-drop.js', import.meta.url), 'utf8');
+  ok('alinhamento · o bloco guarda e devolve o alinhamento (criar, serializar, Enter, trocar de tipo)', noteSrc.includes('setBlockTextAlign(el, b.textAlign)') && noteSrc.includes('b.textAlign = block.dataset.textAlign') && noteSrc.includes('setBlockTextAlign(newBlock, block.dataset.textAlign)') && noteSrc.includes('setBlockTextAlign(newBlock, blockEl.dataset.textAlign)'));
+  ok('alinhamento · atalhos Ctrl+Shift+L/E/R/J', noteSrc.includes("['l', 'e', 'r', 'j'].includes(key)") && noteSrc.includes("{ l: 'left', e: 'center', r: 'right', j: 'justify' }"));
+  ok('alinhamento · o menu do bloco tem a linha Alinhar (esquerda, centro, direita, justificado)', ddSrc.includes('block-align-row') && ddSrc.includes('format_align_justify'));
   ok('impressão · o @page usa as margens escolhidas', print.includes('pageMarginValue(margins)') && !print.includes('margin: 14mm'));
 }
