@@ -330,6 +330,33 @@ export function imageSrcOf(b, opts = {}) {
 // em markdown puro, sem precisar de nenhuma extensão de sintaxe nova.
 const IMAGE_SIZE_SUFFIX_RE = /\|(\d+)(?:x(\d+))?$/;
 
+// Linha de imagem mostrada com o cursor nela: `![alt](endereço|300)` ou `![alt](endereço|300x200)`.
+const LINHA_IMAGEM_RE = /^!\[([^\]]*)\]\(\s*([^)\s|]+)\s*(?:\|\s*(\d+)\s*(?:[x×]\s*(\d+))?\s*)?\)$/;
+const TAMANHO_NO_ALT_RE = /\|\s*(\d+)\s*(?:[x×]\s*(\d+))?\s*$/;
+
+/**
+ * Lê a linha de imagem. Aceita o tamanho depois do endereço (`(url|300)`) e, como no Obsidian, no
+ * texto alternativo (`![alt|300](url)`). Devolve `{ alt, src, width, height }` ou null.
+ */
+export function parseImageMarkdownLine(texto) {
+  const m = LINHA_IMAGEM_RE.exec(String(texto ?? '').replace(/\s*\n\s*/g, ' ').trim());
+  if (!m) return null;
+  let alt = m[1].trim();
+  let width = m[3] ? Number(m[3]) : null;
+  let height = m[4] ? Number(m[4]) : null;
+  if (width === null) {
+    const noAlt = TAMANHO_NO_ALT_RE.exec(alt);
+    if (noAlt) { width = Number(noAlt[1]); height = noAlt[2] ? Number(noAlt[2]) : null; alt = alt.slice(0, noAlt.index).trim(); }
+  }
+  return { alt, src: m[2], width, height };
+}
+
+/** `![alt](endereço|300)` / `![alt](endereço|300x200)` — o inverso de parseImageMarkdownLine. */
+export function imageMarkdownLine({ alt = '', src = '', width = null, height = null }) {
+  const tamanho = width ? `|${width}${height ? `x${height}` : ''}` : '';
+  return `![${String(alt).replace(/[\[\]]/g, '')}](${src}${tamanho})`;
+}
+
 function parseEmbedLine(altBruto, src) {
   let alt = altBruto;
   const tamanho = IMAGE_SIZE_SUFFIX_RE.exec(altBruto);

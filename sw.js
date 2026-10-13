@@ -1,16 +1,16 @@
-// ── sw.js ──────────────────────────────────────────────────────────────────
+﻿// â”€â”€ sw.js â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Service Worker do QuickDock PWA.
 //
-// Projetado para operar com versionamento estrito de cache e ativação imediata:
-// - Quando uma nova versão é publicada, ela assume o controle sem esperar o
-//   usuário fechar abas (skipWaiting + clients.claim).
-// - Estratégia Network-First para navegação e scripts: garante que arquivos de
-//   código atualizados sejam obtidos da rede imediatamente quando online,
-//   eliminando o risco de um SW antigo reter código desatualizado e corromper
-//   formatos compartilhados com a extensão (ver HANDOFF-5.md).
+// Projetado para operar com versionamento estrito de cache e ativaÃ§Ã£o imediata:
+// - Quando uma nova versÃ£o Ã© publicada, ela assume o controle sem esperar o
+//   usuÃ¡rio fechar abas (skipWaiting + clients.claim).
+// - EstratÃ©gia Network-First para navegaÃ§Ã£o e scripts: garante que arquivos de
+//   cÃ³digo atualizados sejam obtidos da rede imediatamente quando online,
+//   eliminando o risco de um SW antigo reter cÃ³digo desatualizado e corromper
+//   formatos compartilhados com a extensÃ£o (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-142';
+const CACHE_NAME = 'quickdock-v3.0.0-143';
 
 const ASSET_PATHS = [
   '',
@@ -330,12 +330,12 @@ self.addEventListener('install', event => {
           const url = new URL(caminho, self.registration.scope).href;
           await cache.add(url);
         } catch (err) {
-          console.warn('Falha no pré-carregamento do recurso:', caminho, err);
+          console.warn('Falha no prÃ©-carregamento do recurso:', caminho, err);
         }
       }
     })
   );
-  // Não espera abas fecharem: assume controle para que atualizações entrem logo
+  // NÃ£o espera abas fecharem: assume controle para que atualizaÃ§Ãµes entrem logo
   self.skipWaiting();
 });
 
@@ -352,13 +352,13 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
-  // A API de login (sessão, quem está logado) nunca passa pelo cache do Service Worker
+  // A API de login (sessÃ£o, quem estÃ¡ logado) nunca passa pelo cache do Service Worker
   if (new URL(req.url).pathname.startsWith('/api/')) return;
 
-  // Network-First: tenta a rede primeiro para garantir que a versão mais nova
-  // do código seja sempre servida. Em caso de falha (offline), usa o cache.
+  // Network-First: tenta a rede primeiro para garantir que a versÃ£o mais nova
+  // do cÃ³digo seja sempre servida. Em caso de falha (offline), usa o cache.
   // 'cors' entra na lista pra cachear a fonte Material Symbols do Google
-  // (fonts.gstatic.com libera CORS) e ela funcionar offline após o 1º carregamento.
+  // (fonts.gstatic.com libera CORS) e ela funcionar offline apÃ³s o 1Âº carregamento.
   event.respondWith(
     fetch(req)
       .then(response => {
@@ -372,14 +372,14 @@ self.addEventListener('fetch', event => {
         const cached = await caches.match(req);
         if (cached) return cached;
 
-        // Se for navegação (abertura de página) e offline, devolve a casca index.html
+        // Se for navegaÃ§Ã£o (abertura de pÃ¡gina) e offline, devolve a casca index.html
         if (req.mode === 'navigate') {
           const indexUrl = new URL('index.html', self.registration.scope).href;
           const rootUrl = new URL('', self.registration.scope).href;
           return (await caches.match(indexUrl)) || (await caches.match(rootUrl));
         }
 
-        return new Response('Offline e recurso não encontrado em cache.', {
+        return new Response('Offline e recurso nÃ£o encontrado em cache.', {
           status: 503,
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });

@@ -82,6 +82,6 @@ export async function runTableSourceTests({ ok, igual }) {
   ok('tabela · trocar o foco dentro do bloco ativo não o recolhe (célula → texto)', note.includes('relatedTarget && livePreviewActiveBlock?.contains?.(e.relatedTarget)'));
   ok('tabela · a barra da tabela age sobre o texto no modo texto', note.includes('handleTableToolInSource(btn)'));
   ok('tabela · a formatação inline vale dentro da célula', /table'\) \{[\s\S]{0,400}tryAutoFormatInline\(celula\)/.test(note));
-  ok('tabela · o painel não é tratado como bloco de texto (teclado e colar são do campo)', note.includes("closest?.('.table-source')") && (note.match(/\.table-source/g) || []).length >= 2);
+  ok('tabela · o painel não é tratado como bloco de texto (teclado e colar são do campo)', note.includes("closest?.('.table-source, .image-source')") && (note.match(/\.table-source, \.image-source/g) || []).length >= 2);
   ok('tabela · o alinhamento entra no modelo do bloco ao salvar', note.includes('b.align = align'));
 }

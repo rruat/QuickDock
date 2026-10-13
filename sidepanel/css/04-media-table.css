@@ -72,7 +72,7 @@
 
 /* Modo texto da tabela: com o cursor nela, a tabela vira o MARKDOWN editável NO LUGAR (como o bloco
    de código mostra as cercas) — mesma caixa do bloco de código. Ao sair, volta a ser tabela. */
-.table-source {
+.table-source, .image-source {
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -88,9 +88,15 @@
   tab-size: 2;
   transition: border-color 0.15s ease;
 }
-.table-source[hidden], .table-scroll[hidden] { display: none; }
-.table-source:focus { border-color: var(--border-hover); }
-.table-source.is-invalid { border-color: var(--sync-erro, oklch(48% 0.19 27)); }
+.table-source[hidden], .table-scroll[hidden], .image-source[hidden] { display: none; }
+.table-source:focus, .image-source:focus { border-color: var(--border-hover); }
+.table-source.is-invalid, .image-source.is-invalid { border-color: var(--sync-erro, oklch(48% 0.19 27)); }
+.image-source { margin-bottom: 6px; }
+.image-source.is-invalid::after {
+  content: "Formato: ![texto alternativo](endereço|300) ou (endereço|300x200)";
+  display: block; margin-top: 6px; white-space: normal; font-family: var(--font); font-size: 11px;
+  color: var(--sync-erro, oklch(48% 0.19 27));
+}
 .table-source.is-invalid::after {
   content: "Ainda não é uma tabela: precisa da linha de títulos, da linha | --- | e das demais com | . Ao sair, vira texto.";
   display: block; margin-top: 6px; white-space: normal; font-family: var(--font); font-size: 11px;
@@ -118,7 +124,7 @@
   height: auto;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  cursor: zoom-in;
+  cursor: text;   /* clique: linha em markdown; duplo clique: visualizador */
   background: var(--bg-secondary);
   /* Teto de altura: um print de tela inteira colado numa coluna estreita
      empurraria o resto da nota pra fora da vista. Some assim que a imagem

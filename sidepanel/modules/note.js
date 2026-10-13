@@ -44,6 +44,9 @@ import {
   insertTableBlock,
 } from './note/note-table.js';
 import { buildTableSource, showTableSource, hideTableSource, handleTableToolInSource } from './note/note-table-source.js';
+import {
+  initNoteImageSource, buildImageSource, showImageSource, hideImageSource, activateImageSource,
+} from './note/note-image-source.js';
 export { focusCell };
 import {
   initNoteMedia, revokeImageURLs, loadInlineMedia, aplicarTamanhoImagem,
@@ -212,7 +215,8 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
     img.draggable = false;
     img.alt = '';
     frame.append(img, buildImageResizeHandle(el));
-    el.append(frame, buildImageTools());
+    // A linha em markdown (`![alt](endereço|300)`) fica ACIMA da imagem e só aparece com o cursor nela
+    el.append(buildImageSource(), frame, buildImageTools());
     el.dataset.type = type;
     el.dataset.id = uid();
     return el;
@@ -636,6 +640,18 @@ initNoteTable({
   getContentEl,
   renumberLists,
   sanitizeForSave: html => sanitizeForSave(html),
+  showFeedback: (...a) => showFeedback(...a),
+  focusBlockStart: b => focusBlockStart(b),
+  focusBlockEnd: b => focusBlockEnd(b),
+});
+
+// ── Imagem: linha em markdown com o cursor nela (delegado para note-image-source.js) ───────
+initNoteImageSource({
+  captureUndoPoint,
+  scheduleSave,
+  escHtml,
+  createBlockEl,
+  renumberLists,
   showFeedback: (...a) => showFeedback(...a),
   focusBlockStart: b => focusBlockStart(b),
   focusBlockEnd: b => focusBlockEnd(b),
@@ -1326,6 +1342,20 @@ root.addEventListener('click', e => {
   if (!handleTableToolInSource(btn)) handleTableButtonClick(btn);
 });
 
+// ── Imagem: clicar nela leva o cursor para a linha em markdown (`![alt](endereço|300)`) ─────
+root.addEventListener('click', e => {
+  if (e.target.closest('.image-resize-handle, .image-tools, .image-source')) return;
+  const frame = e.target.closest('.image-frame');
+  const bloco = frame?.closest('.block-image');
+  if (bloco) { clearBlockSelection(); activateImageSource(bloco); }
+});
+
+// Navegar com as setas até uma imagem: o "cursor" chega nela como nos outros blocos
+function chegarNoBlocoSemTexto(vizinho) {
+  if (vizinho.dataset.type === 'image') { clearBlockSelection(); activateImageSource(vizinho); }
+  else setBlockSelection([vizinho.dataset.id]);
+}
+
 // ── Bloco de código: copiar código ───────────────────────────────────────────
 root.addEventListener('mousedown', e => {
   if (e.target.closest('.code-copy-btn')) {
@@ -1459,10 +1489,10 @@ root.addEventListener('click', e => {
     return;
   }
 
-  // Clique na própria imagem abre o visualizador, com as outras imagens da
-  // nota disponíveis nas setas.
+  // Duplo clique na própria imagem abre o visualizador, com as outras imagens da
+  // nota disponíveis nas setas (o clique simples leva o cursor à linha em markdown).
   const img = e.target.closest('.block-image img');
-  if (!img) return;
+  if (!img || e.detail < 2) return;
   const bloco  = img.closest('.block-image');
   const fileId = Number(bloco?.dataset.fileId);
   if (!Number.isFinite(fileId)) return;
@@ -1819,6 +1849,7 @@ export function revealBlockSyntax(block) {
   const type = block.dataset.type;
   // Tabela: o "markdown" que aparece com o cursor nela é o painel de estrutura (colunas, alinhamento)
   if (type === 'table') { showTableSource(block); return; }
+  if (type === 'image') { showImageSource(block); return; }
   const isHeading = HEADING_TAGS[type];
   const isQuoted = isBlockQuoted(block);
   const callout = block.dataset.callout;
@@ -1937,6 +1968,7 @@ function formatUnparsedInlineMarkdown(contentEl) {
 export function collapseBlockSyntax(block) {
   if (!block) return;
   if (block.dataset.type === 'table') { hideTableSource(block); return; }
+  if (block.dataset.type === 'image') { hideImageSource(block); return; }
   if (block.dataset.type === 'code') {
     const fenceOpen = block.querySelector(':scope > .md-syntax-fence-open');
     if (fenceOpen) {
@@ -3130,7 +3162,7 @@ root.addEventListener('input', () => {
 root.addEventListener('keydown', e => {
   // Painel de estrutura da tabela: é um campo de texto simples. Enter, Tab, Backspace, desfazer… são
   // do próprio campo — as regras de blocos (dividir bloco, indentar, fundir) não valem ali.
-  if (e.target?.closest?.('.table-source')) return;
+  if (e.target?.closest?.('.table-source, .image-source')) return;
   const key = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
     e.preventDefault();
@@ -3162,7 +3194,7 @@ root.addEventListener('keydown', e => {
       const vizinho = direcao === 1 ? atual.nextElementSibling : atual.previousElementSibling;
       if (vizinho) {
         if (vizinho.contentEditable === 'false') {
-          setBlockSelection([vizinho.dataset.id]);
+          chegarNoBlocoSemTexto(vizinho);
         } else {
           clearBlockSelection();
           (direcao === 1 ? focusBlockStart : focusBlockEnd)(vizinho);
@@ -3681,7 +3713,7 @@ root.addEventListener('keydown', e => {
             const moveuNaTela = rectAntes && rectDepois && Math.abs(rectDepois.top - rectAntes.top) > 1;
             const depois = currentBlock();
             if (!moveuNaTela || (depois !== atual && depois !== vizinho)) {
-              setBlockSelection([vizinho.dataset.id]);
+              chegarNoBlocoSemTexto(vizinho);
             }
           }, 0);
         }
@@ -3728,7 +3760,7 @@ root.addEventListener('keydown', e => {
 // ela não assume continua subindo pra seção Documentos.
 root.addEventListener('paste', e => {
   // No painel de estrutura da tabela cola texto puro, do jeito nativo do campo (sem virar bloco/tabela)
-  if (e.target?.closest?.('.table-source')) return;
+  if (e.target?.closest?.('.table-source, .image-source')) return;
   const claim = () => e.stopPropagation();
   e.preventDefault();
   const text = e.clipboardData?.getData('text/plain') ?? '';
