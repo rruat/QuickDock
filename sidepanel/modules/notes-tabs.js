@@ -1,5 +1,5 @@
 ﻿import {
-  loadAllNotesMeta, createNoteRecord, updateNoteMetaById, deleteNoteRecordById,
+  loadAllNotesMeta, loadAllNoteIds, createNoteRecord, updateNoteMetaById, deleteNoteRecordById,
   reorderNoteRecords, moveNoteRecord, loadActiveNoteId, saveActiveNoteId,
   getNoteById, detachFilesFromNote, updateNoteBlocksById,
   gcInlineFiles,
@@ -515,11 +515,13 @@ function openTabMenu(meta, anchorEl) {
 }
 
 /** Exclui a nota (com confirmação) e arruma abas/ativa. Devolve true se foi excluída. */
+let excluindoNota = false;   // deleteNoteById já arruma a lista sozinha: a conferência abaixo espera
 export async function deleteNoteById(id) {
   const meta = notesMeta.find(n => n.id === id);
   if (!meta) return false;
-  if (notesMeta.length <= 1) { alert('Deve existir ao menos uma nota.'); return false; }
   if (!confirm(`Excluir a nota "${meta.title}"?`)) return false;
+  excluindoNota = true;
+  try {
   await detachFilesFromNote(meta.id);
   await deleteNoteRecordById(meta.id);
   await gcInlineFiles();
@@ -528,12 +530,13 @@ export async function deleteNoteById(id) {
   saveOpenTabIds(openTabIds);
   if (activeId === meta.id) {
     const nextId = openTabIds[0] ?? notesMeta[0]?.id;
-    if (nextId) await activateNote(nextId);
+    if (nextId) await activateNote(nextId); else await deactivateActiveNote();   // era a última: tela 'nenhuma nota aberta'
   }
   await refreshDocuments();
   renderTabs();
   document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
   return true;
+  } finally { excluindoNota = false; }
 }
 
 document.addEventListener('mousedown', e => {
@@ -1944,6 +1947,35 @@ document.addEventListener('quickdock:note-title-committed', async e => {
   await refreshOpenAsideRows();
 });
 
+// ── Lista em memória x banco ───────────────────────────────────────────────────
+// Notas apagadas (ou criadas) por outro caminho — seleção em lote na tabela, calendário, sincronização —
+// não passavam por aqui: a nota seguia na aba e nas listas até recarregar a página (F5). Quando o conjunto
+// de notas muda, a lista em memória é conferida e, se estiver diferente, refeita; abas de notas que
+// sumiram fecham e, se era a aberta, vai para outra aba ou para a tela "nenhuma nota aberta".
+let conferirTimer = null;
+document.addEventListener('quickdock:notes-changed', () => {
+  clearTimeout(conferirTimer);
+  conferirTimer = setTimeout(conferirListaDeNotas, 150);
+});
+
+async function conferirListaDeNotas() {
+  if (excluindoNota) { conferirTimer = setTimeout(conferirListaDeNotas, 300); return; }   // deleteNoteById arruma sozinha
+  let ids;
+  try { ids = new Set(await loadAllNoteIds()); } catch { return; }
+  const atuais = new Set(notesMeta.map(n => n.id));
+  if (ids.size === atuais.size && [...ids].every(i => atuais.has(i))) return;
+
+  notesMeta = await loadAllNotesMeta();
+  const abertasAntes = openTabIds.length;
+  openTabIds = openTabIds.filter(i => ids.has(i));
+  if (openTabIds.length !== abertasAntes) saveOpenTabIds(openTabIds);
+  if (activeId != null && !ids.has(activeId)) {
+    const proxima = openTabIds[0];
+    if (proxima != null) await activateNote(proxima); else await deactivateActiveNote();
+  }
+  renderTabs();
+  await refreshOpenAsideRows();
+}
 export async function refreshNotesList() {
   notesMeta = await loadAllNotesMeta();
   renderTabs();

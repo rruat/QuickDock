@@ -44,5 +44,12 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   ok('impressão · o painel não tem cabeçalho próprio (a aside leva o ícone e a contagem)', !(await readFile(new URL('../sidepanel/modules/note-print-panel.js', import.meta.url), 'utf8')).includes('print-head'));
   ok('impressão · Ctrl+P só imprime com nota aberta; sem nota segue na busca', print.includes('if (!noteAberta()) return;') && shell.includes('!comNotaAberta'));
   ok('impressão · o atalho aparece no rodapé (4 cópias do index iguais)', html.includes('id="footer-print-shortcut"') && (await readFile(new URL('../index.html', import.meta.url), 'utf8')).includes('id="footer-print-shortcut"') && (await readFile(new URL('../404.html', import.meta.url), 'utf8')).includes('id="footer-print-shortcut"'));
+  // ── Excluir tudo: quadros não renascem; notas apagadas por fora saem das abas/listas ──
+  const board = await readFile(new URL('../sidepanel/modules/board-engine.js', import.meta.url), 'utf8');
+  ok('quadros · excluir o último não cria outro (nem "Espaço Inicial" nem demonstração)', !board.includes("createBlankBoard('Espaço Inicial')") && !board.includes('Brainstorming Inicial') && (board.match(/esvaziarQuadroAberto\(\)/g) || []).length >= 2);
+  ok('quadros · o espaço vazio só na memória não é gravado até ter conteúdo', board.includes('currentBoard?.naoSalvo') && board.includes('!currentBoard.cards?.length && !currentBoard.arrows?.length'));
+  ok('quadros · o botão de excluir o espaço existe mesmo com um só quadro', !board.includes('if (allBoards.length > 1) {'));
+  ok('notas · a lista em memória é conferida quando o conjunto de notas muda', tabs.includes("'quickdock:notes-changed'") && tabs.includes('conferirListaDeNotas') && storage.includes('export async function loadAllNoteIds'));
+  ok('notas · dá para excluir a última nota (vai para "nenhuma nota aberta")', !tabs.includes('Deve existir ao menos uma nota') && tabs.includes('else await deactivateActiveNote();'));
   ok('impressão · o @page usa as margens escolhidas', print.includes('pageMarginValue(margins)') && !print.includes('margin: 14mm'));
 }

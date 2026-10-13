@@ -222,6 +222,11 @@ function definirEsquema(db) {
 }
 
 // --- NOTAS ---
+/** Só os ids das notas guardadas (leitura barata, para conferir se a lista em memória ficou desatualizada). */
+export async function loadAllNoteIds() {
+  return db.notes.toCollection().primaryKeys();
+}
+
 export async function loadAllNotesMeta() {
   const notes = await (db.notes.schema.indexes.some(idx => idx.name === 'ordem')
     ? db.notes.orderBy('ordem')

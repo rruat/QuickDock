@@ -1,4 +1,4 @@
-// ── board-engine.js ───────────────────────────────────────────────────────
+﻿// ── board-engine.js ───────────────────────────────────────────────────────
 // Motor único do Quadro Infinito / Canvas Espacial — usado tanto pela aba
 // cheia dedicada (board/board.js, `board/index.html`) quanto pela visão
 // embutida no painel lateral (board-view.js, `sidepanel/index.html`).
@@ -442,6 +442,23 @@ function updateBgToggleButtons() {
   }
 }
 
+/** Espaço vazio que só existe na memória (sem registro no banco) até receber conteúdo. */
+function quadroVazioNaoSalvo() {
+  const cw = container?.clientWidth || window.innerWidth || 800;
+  const ch = container?.clientHeight || window.innerHeight || 600;
+  return {
+    id: null,
+    uid: `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    title: 'Novo Espaço',
+    pasta: '',
+    viewport: { x: Math.max(150, cw / 2) - 150, y: Math.max(100, ch / 2 - 50) - 70, zoom: 1 },
+    bgMode: 'stars',
+    cards: [],
+    arrows: [],
+    naoSalvo: true,
+  };
+}
+
 // ── Carregamento e Salvamento ─────────────────────────────────────────────────
 async function loadBoardFromUrlOrStorage() {
   const params = new URLSearchParams(window.location.search);
@@ -481,30 +498,10 @@ async function loadBoardFromUrlOrStorage() {
     };
     try { localStorage.setItem('quickdock:active-board-uid', currentBoard.uid); } catch {}
   } else {
-    // Cria espaço padrão inicial com 2 cartões demonstrativos conectados
-    const cw = container.clientWidth || window.innerWidth;
-    const ch = container.clientHeight || window.innerHeight;
-    const cx = Math.max(150, cw / 2);
-    const cy = Math.max(100, ch / 2 - 50);
-
-    currentBoard = {
-      id: null,
-      uid: `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-      title: 'Brainstorming Inicial',
-      pasta: '',
-      viewport: { x: cx - 200, y: cy - 100, zoom: 1 },
-      bgMode: 'stars',
-      cards: [
-        { id: 'c1', x: 0, y: 0, w: 220, h: 120, text: '💡 Primeira Grande Ideia\nExplore livremente este espaço infinito.', color: 'yellow' },
-        { id: 'c2', x: 300, y: 60, w: 220, h: 120, text: '🎯 Próximos Passos\nConecte cartões usando as alças de seta.', color: 'blue' }
-      ],
-      arrows: [
-        { id: 'a1', from: 'c1', to: 'c2', style: 'solid', lineStyle: 'straight' }
-      ]
-    };
-    await persistBoard();
+    // Nenhum quadro guardado (primeiro uso, ou o usuário excluiu todos): fica um espaço vazio só na memória.
+    // Ele NÃO é gravado enquanto estiver vazio — assim excluir o último quadro não faz nascer outro modelo.
+    currentBoard = quadroVazioNaoSalvo();
   }
-
   if (titleInput) titleInput.value = currentBoard.title;
 }
 
@@ -633,8 +630,18 @@ export async function updateBoardMeta(uid, patch) {
 
 // Exclui um espaço e os arquivos de mídia dos cartões. Se era o aberto, passa pra outro
 // (ou cria um novo, pra nunca ficar sem espaço).
-export async function removeBoard(uid) {
-  const board = await getBoardByUid(uid);
+/** Sem nenhum quadro no banco: a tela passa a mostrar um espaço vazio que não é gravado. */
+async function esvaziarQuadroAberto() {
+  currentBoard = quadroVazioNaoSalvo();
+  try { localStorage.removeItem('quickdock:active-board-uid'); } catch {}
+  if (titleInput) titleInput.value = currentBoard.title;
+  applyViewport();
+  updateBgToggleButtons();
+  renderCards();
+  renderArrows();
+}
+
+export async function removeBoard(uid) {  const board = await getBoardByUid(uid);
   if (!board) return;
   const eraOAberto = currentBoard?.uid === uid;
   if (eraOAberto) { clearTimeout(saveTimer); saveTimer = null; }
@@ -653,7 +660,7 @@ export async function removeBoard(uid) {
   if (eraOAberto) {
     const restantes = await loadAllBoards();
     if (restantes.length > 0) await switchBoard(restantes[0].uid);
-    else await createBlankBoard('Espaço Inicial');
+    else await esvaziarQuadroAberto();   // era o último: pode excluir todos, não nasce outro no lugar
   }
   document.dispatchEvent(new CustomEvent('quickdock:board-changed', { detail: { deletedUid: uid } }));
   document.dispatchEvent(new CustomEvent('quickdock:refresh-board-view'));
@@ -761,7 +768,7 @@ export async function toggleBoardListPopover(anchor) {
   });
   pop.appendChild(btnNew);
 
-  if (allBoards.length > 1) {
+  {
     const btnDel = document.createElement('button');
     btnDel.type = 'button';
     btnDel.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;background:transparent;border:none;color:var(--danger,oklch(63.7% 0.208 25.3));cursor:pointer;font-size:12px;';
@@ -781,7 +788,7 @@ export async function toggleBoardListPopover(anchor) {
       if (restantes.length > 0) {
         await switchBoard(restantes[0].uid);
       } else {
-        await createBlankBoard('Espaço Inicial');
+        await esvaziarQuadroAberto();
       }
     });
     pop.appendChild(btnDel);
@@ -813,6 +820,11 @@ function scheduleSave() {
 async function persistBoard() {
   clearTimeout(saveTimer);
   saveTimer = null;
+  // espaço vazio só na memória: só vira registro quando ganhar algum cartão ou seta
+  if (currentBoard?.naoSalvo) {
+    if (!currentBoard.cards?.length && !currentBoard.arrows?.length) return;
+    delete currentBoard.naoSalvo;
+  }
   try {
     const savedId = await saveBoardRecord(currentBoard);
     if (!currentBoard.id && savedId) currentBoard.id = savedId;
