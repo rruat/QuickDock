@@ -496,3 +496,30 @@ body.is-print-mode .print-selectable-item.print-excluded.print-hover {
     print-color-adjust: exact;
   }
 }
+
+/* ── Margens e texto ABNT (note-print-margins.js) ───────────────────────── */
+.note-print-margins { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); }
+.note-print-margins-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.note-print-margins-select, .note-print-margins-custom input {
+  background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 3px 6px; font: inherit;
+}
+.note-print-margins-hint { color: var(--text-muted); font-size: 11.5px; }
+.note-print-margins-custom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.note-print-margins-custom[hidden] { display: none; }
+.note-print-margins-custom label { display: inline-flex; align-items: center; gap: 4px; }
+.note-print-margins-custom input { width: 52px; }
+.note-print-margins-abnt { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+
+@media print {
+  /* Texto ABNT: 12 pt, entrelinha 1,5, justificado (a fonte é a escolhida na nota) */
+  body.print-abnt-text #note-editor-blocks,
+  body.print-abnt-text #note-editor-blocks .block {
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
+  }
+  body.print-abnt-text #note-editor-blocks .block[data-type="paragraph"] {
+    text-align: justify;
+    text-indent: 1.25cm;
+  }
+}

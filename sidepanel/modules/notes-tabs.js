@@ -1,10 +1,11 @@
-import {
+﻿import {
   loadAllNotesMeta, createNoteRecord, updateNoteMetaById, deleteNoteRecordById,
   reorderNoteRecords, moveNoteRecord, loadActiveNoteId, saveActiveNoteId,
   getNoteById, detachFilesFromNote, updateNoteBlocksById,
   gcInlineFiles,
   listarPastas, criarPasta, renomearPasta, excluirPasta, moverNotaParaPasta, normalizarCaminhoPasta,
 } from './storage.js';
+import { aplicarFonteDaNota } from './note-font.js';
 import { closeMobileLeftDrawer } from './shell/shell-mobile.js';
 import { setDocumentsNote, refreshDocuments } from './documents.js';
 import { positionPopover } from './popover.js';
@@ -123,7 +124,8 @@ async function reorderNotes(srcId, targetId, before) {
 // Sem cor definida: remove a variável (não seta "transparent") pra que os
 // elementos temáticos (citação, marcadores, checkbox) caiam de volta no
 // var(--accent) padrão em vez de ficarem invisíveis.
-export function setAccent(color) {
+export function setAccent(color, font) {
+  aplicarFonteDaNota(font);
   if (color) {
     noteEditorEl?.style.setProperty('--note-accent', color);
     document.documentElement.style.setProperty('--note-accent', color);
@@ -1755,7 +1757,7 @@ export async function activateNote(id) {
     saveOpenTabIds(openTabIds);
   }
   const meta = notesMeta.find(n => n.id === id);
-  setAccent(meta?.color);
+  setAccent(meta?.color, meta?.font);
   await switchToNote(id);
   await setDocumentsNote(id);
   await saveActiveNoteId(id);
@@ -1785,7 +1787,7 @@ document.addEventListener('quickdock:active-note-changed', e => {
       saveOpenTabIds(openTabIds);
     }
     const meta = notesMeta.find(n => n.id === id);
-    setAccent(meta?.color);
+    setAccent(meta?.color, meta?.font);
     updateNoteFolderBar(meta);
   } else {
     setAccent(null);

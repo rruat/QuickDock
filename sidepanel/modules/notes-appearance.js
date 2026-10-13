@@ -1,7 +1,8 @@
-// Popover de ícone + cor da nota — conteúdo embutido tanto no menu "⋯" da aba
+﻿// Popover de ícone + cor da nota — conteúdo embutido tanto no menu "⋯" da aba
 // (notes-tabs.js) quanto no popover solto do cabeçalho (note-header.js).
 import { updateNoteMetaById, deleteFile, saveFile } from './storage.js';
 import { positionPopover } from './popover.js';
+import { buildFontPicker } from './notes-font-picker.js';
 import { iconSvg } from './icons.js';
 import { MATERIAL_ICONS } from './material-icons-list.js';
 import { hasIconImage, renderIconImageEditor, buildIconImageNode, forgetIconFile } from './note-icon-image.js';
@@ -259,7 +260,7 @@ export function renderAppearanceContent(pop, meta) {
   const pickColor = async (hex) => {
     await updateNoteMetaById(meta.id, { color: hex });
     sincronizarComNotesMeta(meta, { color: hex });
-    if (meta.id === getActiveId()) setAccent(hex);
+    if (meta.id === getActiveId()) setAccent(hex, meta.font);
     renderTabs();
     renderAppearanceContent(pop, meta);
     refreshOpenAsideRows();
@@ -301,6 +302,9 @@ export function renderAppearanceContent(pop, meta) {
   customSwatch.appendChild(colorInput);
   colorGrid.appendChild(customSwatch);
   pop.appendChild(colorGrid);
+
+  pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+  pop.appendChild(buildFontPicker(meta, () => renderAppearanceContent(pop, meta)));
 
   // Ocultar o nome só faz sentido se sobrar ícone ou cor pra identificar a
   // aba — sem isso a aba ficaria completamente vazia, então a opção nem
@@ -791,7 +795,7 @@ export function renderAppearanceSection(container, meta, onSaved, onClose) {
   const pickColor = async (hex) => {
     await updateNoteMetaById(meta.id, { color: hex });
     sincronizarComNotesMeta(meta, { color: hex });
-    if (meta.id === getActiveId()) setAccent(hex);
+    if (meta.id === getActiveId()) setAccent(hex, meta.font);
     renderTabs();
     refreshOpenAsideRows();
     document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
@@ -854,6 +858,11 @@ export function renderAppearanceSection(container, meta, onSaved, onClose) {
     optionsCard.appendChild(hideRow);
     body.appendChild(optionsCard);
   }
+
+  const fontCard = document.createElement('div');
+  fontCard.className = 'appearance-section-card';
+  fontCard.appendChild(buildFontPicker(meta, () => { onSaved?.(); renderAppearanceSection(container, meta, onSaved, onClose); }));
+  body.appendChild(fontCard);
 
   container.appendChild(body);
 }
@@ -1180,7 +1189,7 @@ export function renderIconPanelContent(panel, meta, onSaved) {
   const pickColor = async (hex) => {
     await updateNoteMetaById(meta.id, { color: hex });
     sincronizarComNotesMeta(meta, { color: hex });
-    if (meta.id === getActiveId()) setAccent(hex);
+    if (meta.id === getActiveId()) setAccent(hex, meta.font);
     renderTabs();
     refreshOpenAsideRows();
     document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
@@ -1255,6 +1264,14 @@ export function renderIconPanelContent(panel, meta, onSaved) {
 
     body.appendChild(optionsSec);
   }
+
+  const divFonte = document.createElement('div');
+  divFonte.className = 'note-appearance-divider';
+  body.appendChild(divFonte);
+  const fontSec = document.createElement('div');
+  fontSec.className = 'note-cover-menu-section';
+  fontSec.appendChild(buildFontPicker(meta, () => { onSaved?.(); renderIconPanelContent(panel, meta, onSaved); }));
+  body.appendChild(fontSec);
 }
 
 // Ouvintes globais para fechamento e integridade

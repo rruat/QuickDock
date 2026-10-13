@@ -405,3 +405,18 @@
 }
 .notes-list-item:hover .notes-list-edit-btn { opacity: 1; }
 .notes-list-edit-btn:hover { color: var(--text); background: var(--bg-hover); }
+
+/* ── Fonte da nota (notes-font-picker.js) ───────────────────────────────── */
+.note-font-picker { display: flex; flex-direction: column; gap: 8px; }
+.note-font-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
+.note-font-option {
+  background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 8px; font-size: 13px; text-align: left; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.note-font-option:hover { background: var(--bg-hover); }
+.note-font-option.active { border-color: var(--note-accent, var(--accent)); box-shadow: inset 0 0 0 1px var(--note-accent, var(--accent)); }
+.note-font-custom { display: flex; gap: 6px; }
+.note-font-custom input { flex: 1; min-width: 0; }
+.note-font-error { font-size: 11.5px; color: var(--sync-erro, oklch(48% 0.19 27)); }
+.note-font-hint { font-size: 11px; color: var(--text-muted); }

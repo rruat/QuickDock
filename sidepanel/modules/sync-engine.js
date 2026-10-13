@@ -1,4 +1,4 @@
-// ── sync-engine.js ───────────────────────────────────────────────────────────
+﻿// ── sync-engine.js ───────────────────────────────────────────────────────────
 // Motor de sincronização de notas do QuickDock.
 //
 // Projetado para operar sem DOM e sem acoplamento direto a fornecedores de nuvem:
@@ -474,6 +474,7 @@ export class SyncEngine {
       icone: nota.icon ?? null,
       iconePreenchido: !!nota.iconFilled,
       tituloOculto: !!nota.titleHidden,
+      ...(nota.font ? { fonte: nota.font } : {}),   // fonte da nota (Google Fonts); só quando definida
       // Capa por endereço (`capa`) ou enviada do computador (`capaImagem`: imagens/<hash>.<ext>, o
       // mesmo esquema e a mesma pasta das imagens das notas). Posição e altura valem para as duas.
       capa: nota.coverUrl || undefined,
@@ -605,7 +606,7 @@ export class SyncEngine {
   _extrairPropriedadesDeMeta(meta) {
     const tratadas = new Set([
       'quickdock', 'id', 'uid', 'titulo', 'title', 'cor', 'color',
-      'icone', 'icon', 'iconePreenchido', 'iconFilled', 'tituloOculto',
+      'icone', 'icon', 'iconePreenchido', 'iconFilled', 'tituloOculto', 'fonte', 'font',
       'capa', 'capaImagem', 'capaPosicao', 'capaAltura', 'iconeImagem', 'iconeCorte', 'titleHidden', 'ordem', 'order', 'pasta', 'criadoEm', 'createdAt',
       'atualizadoEm', 'updatedAt', 'content', 'blocks', 'properties',
     ]);
@@ -1093,6 +1094,7 @@ export class SyncEngine {
           coverHeight: metaNota.capaAltura ?? null,
           iconImage: this._iconImageDeMeta(metaNota, null),
           titleHidden: !!metaNota.tituloOculto,
+          font: metaNota.fonte ?? null,
           ordem: metaNota.ordem ?? 'a0',
           properties: this._extrairPropriedadesDeMeta(metaNota),
           // Sem inventar: se o arquivo não traz criadoEm, a nota fica sem ele, e a
@@ -1177,6 +1179,7 @@ export class SyncEngine {
             coverHeight: metaNota.capaAltura !== undefined ? metaNota.capaAltura : (notaLocal.coverHeight ?? null),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
+            font: metaNota.fonte ?? null,
             ordem: metaNota.ordem || notaLocal.ordem,
             properties: this._extrairPropriedadesDeMeta(metaNota),
             updatedAt: metaNota.atualizadoEm ? new Date(metaNota.atualizadoEm).getTime() : undefined,
@@ -1240,6 +1243,7 @@ export class SyncEngine {
             coverPosition: typeof metaNota.capaPosicao === 'number' ? metaNota.capaPosicao : ((metaNota.capa || metaNota.capaImagem) ? (notaLocal.coverPosition ?? 50) : undefined),
             iconImage: this._iconImageDeMeta(metaNota, notaLocal),
             titleHidden: metaNota.tituloOculto !== undefined ? metaNota.tituloOculto : notaLocal.titleHidden,
+            font: metaNota.fonte ?? null,
             ordem: metaNota.ordem || notaLocal.ordem,
             updatedAt: metaNota.atualizadoEm ? new Date(metaNota.atualizadoEm).getTime() : undefined,
           });

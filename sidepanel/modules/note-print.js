@@ -1,7 +1,9 @@
-// ── note-print.js ─────────────────────────────────────────────────────────────
+﻿// ── note-print.js ─────────────────────────────────────────────────────────────
 // Modo de impressão estilo WhatsApp: seleção por blocos com checkboxes interativos.
 // Por padrão, todos os blocos começam selecionados. O usuário apenas desmarca
 // o que não quer imprimir. Os checkboxes somem ao sair do modo de impressão.
+
+import { loadMargins, pageMarginValue, buildMarginControls } from './note-print-margins.js';
 
 const STORAGE_KEY = 'quickdock:note-print-orientation';
 
@@ -16,8 +18,11 @@ const pageStyleEl = document.createElement('style');
 pageStyleEl.id = 'note-print-page-style';
 document.head.appendChild(pageStyleEl);
 
+let margins = loadMargins();
+
 function applyPageStyle() {
-  pageStyleEl.textContent = `@page { size: A4 ${orientation}; margin: 14mm; }`;
+  pageStyleEl.textContent = `@page { size: A4 ${orientation}; margin: ${pageMarginValue(margins)}; }`;
+  document.body.classList.toggle('print-abnt-text', margins.abntText);
 }
 
 let isPrintMode = false;
@@ -262,6 +267,7 @@ export function enterPrintMode() {
     </div>
   `;
 
+  toolbarEl.querySelector('.note-print-toolbar-center').appendChild(buildMarginControls(margins, (novo) => { margins = novo; applyPageStyle(); }));
   editorContainer.insertBefore(toolbarEl, editorContainer.firstChild);
 
   // Cria a calha independente de checkboxes (estilo WhatsApp)

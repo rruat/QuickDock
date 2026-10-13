@@ -1,4 +1,4 @@
-// ── run.mjs ────────────────────────────────────────────────────────────────
+﻿// ── run.mjs ────────────────────────────────────────────────────────────────
 // Testes de regressão do modelo de blocos.  Rode com:  node test/run.mjs
 //
 // O que se está protegendo: a nota que já está gravada no banco de alguém. O
@@ -6072,6 +6072,8 @@ for (const entrada of ['', null, undefined, '\n\n']) {
 {
   const { runImageSourceTests } = await import('./image-source-tests.mjs');
   await runImageSourceTests({ ok, igual });
+  const { runNoteFontMarginsTests } = await import('./note-font-margins-tests.mjs');
+  await runNoteFontMarginsTests({ ok, igual });
 }
 
 if (falhas.length) {

@@ -10,7 +10,7 @@
      título e propriedades subirem junto com o conteúdo em vez de ficarem
      presos acima de uma área com rolagem própria. */
   padding: 10px var(--note-gutter-x, 20px) 26px var(--note-gutter-x, 20px);
-  font-family: var(--font);
+  font-family: var(--note-font, var(--font));   /* fonte escolhida para a nota (note-font.js) */
   font-size: 13px;
   line-height: 1.65;
   color: var(--text);

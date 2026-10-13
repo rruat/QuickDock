@@ -1,4 +1,4 @@
-import { blocksToPlainText } from './blocks.js';
+﻿import { blocksToPlainText } from './blocks.js';
 import { platformStorage, setPlatformDb } from './platform.js';
 import { extrairLinksDeBlocos, resolverLinks } from './links.js';
 
@@ -226,8 +226,8 @@ export async function loadAllNotesMeta() {
   const notes = await (db.notes.schema.indexes.some(idx => idx.name === 'ordem')
     ? db.notes.orderBy('ordem')
     : db.notes.orderBy('order')).toArray();
-  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, pasta, properties, propertyTypes, propertySelectOptions, ordem, order, createdAt, updatedAt, coverUrl, coverFileId, coverPosition, coverHeight, iconImage }) => ({
-    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, coverUrl: coverUrl ?? null, coverFileId: coverFileId ?? null, coverPosition: coverPosition ?? 50, coverHeight: coverHeight ?? null, iconImage: iconImage ?? null, pasta: pasta ?? '', properties: properties ?? {}, propertyTypes: propertyTypes ?? {}, propertySelectOptions: propertySelectOptions ?? {}, ordem: ordem ?? ordemDeIndice(order ?? 0), createdAt: createdAt ?? updatedAt, updatedAt,
+  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, font, pasta, properties, propertyTypes, propertySelectOptions, ordem, order, createdAt, updatedAt, coverUrl, coverFileId, coverPosition, coverHeight, iconImage }) => ({
+    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, font: font ?? null, coverUrl: coverUrl ?? null, coverFileId: coverFileId ?? null, coverPosition: coverPosition ?? 50, coverHeight: coverHeight ?? null, iconImage: iconImage ?? null, pasta: pasta ?? '', properties: properties ?? {}, propertyTypes: propertyTypes ?? {}, propertySelectOptions: propertySelectOptions ?? {}, ordem: ordem ?? ordemDeIndice(order ?? 0), createdAt: createdAt ?? updatedAt, updatedAt,
   }));
 }
 
