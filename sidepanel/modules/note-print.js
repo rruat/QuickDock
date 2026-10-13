@@ -36,6 +36,7 @@ let toolbarEl = null;
 let gutterEl = null;
 let savedEditables = [];
 let trackedItems = [];
+let resizeObserver = null;
 
 export function isPrintModeActive() {
   return isPrintMode;
@@ -381,6 +382,13 @@ export function enterPrintMode() {
   updateToolbarStatus();
 
   window.addEventListener('resize', positionGutter);
+  // A aside abre/desliza e o editor muda de largura DEPOIS daqui: reposiciona as caixas quando a coluna da nota
+  // muda de tamanho (e uma vez após a animação), senão ficam onde o texto estava antes da aside abrir.
+  resizeObserver = new ResizeObserver(() => positionGutter());
+  resizeObserver.observe(editorContainer);
+  const blocosEl = document.getElementById('note-editor-blocks');
+  if (blocosEl) resizeObserver.observe(blocosEl);
+  [150, 400, 800].forEach(ms => setTimeout(positionGutter, ms));
 
   // Eventos da toolbar
   toolbarEl.addEventListener('click', (e) => {
@@ -420,6 +428,8 @@ export function exitPrintMode() {
   printBtn?.setAttribute('aria-expanded', 'false');
 
   window.removeEventListener('resize', positionGutter);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
 
   // Restaura contenteditable dos elementos travados
   savedEditables.forEach(el => {
