@@ -41,8 +41,9 @@ import {
   initNoteTable, DEFAULT_TABLE, buildCell, buildTableEl, buildTableTools,
   focusedCell, focusCell, addTableRow, addTableCol, delTableRow, delTableCol,
   moveCell, handleTableButtonClick, parseClipboardTable, parseTsvTable,
-  insertTableBlock, buildTableSource, refreshTableSource, showTableSource, hideTableSource,
+  insertTableBlock,
 } from './note/note-table.js';
+import { buildTableSource, showTableSource, hideTableSource, handleTableToolInSource } from './note/note-table-source.js';
 export { focusCell };
 import {
   initNoteMedia, revokeImageURLs, loadInlineMedia, aplicarTamanhoImagem,
@@ -636,6 +637,8 @@ initNoteTable({
   renumberLists,
   sanitizeForSave: html => sanitizeForSave(html),
   showFeedback: (...a) => showFeedback(...a),
+  focusBlockStart: b => focusBlockStart(b),
+  focusBlockEnd: b => focusBlockEnd(b),
 });
 
 // Esvazia o conteúdo de um bloco mantendo o <br> de segurança (ver createBlockEl).
@@ -830,7 +833,10 @@ function flushRescan() {
   if (hadFocus && caretOffset !== null) setCaretOffset(content, caretOffset);
 }
 
-root.addEventListener('blur', () => {
+root.addEventListener('blur', e => {
+  // O foco só mudou de lugar DENTRO do bloco ativo (ex.: da célula para o texto da tabela): o bloco
+  // continua ativo. Recolher aqui desfazia o modo texto da tabela no instante em que ele abria.
+  if (e.relatedTarget && livePreviewActiveBlock?.contains?.(e.relatedTarget)) return;
   flushRescan();
   if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
   if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
@@ -1317,7 +1323,7 @@ root.addEventListener('mousedown', e => {
 root.addEventListener('click', e => {
   const btn = e.target.closest('.table-btn');
   if (!btn) return;
-  handleTableButtonClick(btn);
+  if (!handleTableToolInSource(btn)) handleTableButtonClick(btn);
 });
 
 // ── Bloco de código: copiar código ───────────────────────────────────────────
@@ -2718,7 +2724,6 @@ root.addEventListener('input', () => {
     if (celula) {
       limparAncoras(celula);          // a âncora invisível do atalho anterior (ver replaceRangeWithTag)
       tryAutoFormatInline(celula);
-      refreshTableSource(block);      // o painel de estrutura espelha a célula
     }
     scheduleSave();
     return;

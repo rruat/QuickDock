@@ -65,10 +65,22 @@ export async function runTableSourceTests({ ok, igual }) {
   const html = [['<strong data-syntax="**">negrito</strong> e <em data-syntax="*">itálico</em>', '<a href="https://x.com">site</a>'], ['', '']];
   igual('tabela · HTML da célula vira markdown no arquivo', b.blocksToMarkdown([{ type: 'table', rows: html }]).split('\n')[0], '| **negrito** e *itálico* | [site](https://x.com) |');
 
+  // ── Modo texto no lugar: onde fica cada célula no texto (para o cursor cair na célula certa) ──
+  const { celulasDoTexto } = await import('../sidepanel/modules/note/note-table-source.js');
+  const texto = b.tableToSourceText([['Nome', 'Idade'], ['Ana', ''], ['', '30']], [null, 'right']);
+  const celulas = celulasDoTexto(texto);
+  igual('modo texto · uma entrada por célula, sem contar a linha | --- |', celulas.map(c => [c.row, c.col]), [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]]);
+  igual('modo texto · o conteúdo de cada célula está onde o mapa diz', celulas.map(c => texto.slice(c.inicio, c.fim)), ['Nome', 'Idade', 'Ana', '', '', '30']);
+  ok('modo texto · célula vazia recebe o cursor logo depois da barra', celulas.filter(c => c.fim === c.inicio).every(c => texto[c.inicio - 1] === ' ' || texto[c.inicio - 1] === '|'));
+  const comBarra = celulasDoTexto('| a \\| b | c |\n| --- | --- |');
+  igual('modo texto · barra escapada não conta como separador de coluna', comBarra.length, 2);
+
   // ── Ligações no código ──
   const { readFile } = await import('node:fs/promises');
   const note = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
-  ok('tabela · o painel de estrutura aparece/some com o cursor (reveal/collapse)', note.includes('showTableSource(block)') && note.includes('hideTableSource(block)'));
+  ok('tabela · o modo texto entra/sai com o cursor (reveal/collapse)', note.includes('showTableSource(block)') && note.includes('hideTableSource(block)'));
+  ok('tabela · trocar o foco dentro do bloco ativo não o recolhe (célula → texto)', note.includes('relatedTarget && livePreviewActiveBlock?.contains?.(e.relatedTarget)'));
+  ok('tabela · a barra da tabela age sobre o texto no modo texto', note.includes('handleTableToolInSource(btn)'));
   ok('tabela · a formatação inline vale dentro da célula', /table'\) \{[\s\S]{0,400}tryAutoFormatInline\(celula\)/.test(note));
   ok('tabela · o painel não é tratado como bloco de texto (teclado e colar são do campo)', note.includes("closest?.('.table-source')") && (note.match(/\.table-source/g) || []).length >= 2);
   ok('tabela · o alinhamento entra no modelo do bloco ao salvar', note.includes('b.align = align'));

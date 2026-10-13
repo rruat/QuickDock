@@ -70,28 +70,29 @@
 .block-table th.table-cell[data-align="right"],  .table-cell[data-align="right"]  { text-align: right; }
 .block-table th.table-cell[data-align="left"],   .table-cell[data-align="left"]   { text-align: left; }
 
-/* Estrutura da tabela em markdown: aparece com o cursor na tabela (como o "# " de um título) e é
-   editável — escrever **negrito**, [link](url) ou mudar o alinhamento refaz a tabela. */
+/* Modo texto da tabela: com o cursor nela, a tabela vira o MARKDOWN editável NO LUGAR (como o bloco
+   de código mostra as cercas) — mesma caixa do bloco de código. Ao sair, volta a ser tabela. */
 .table-source {
-  margin-top: 6px;
-  padding: 8px 10px;
-  border: 1px dashed var(--border);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  color: var(--text-muted);
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: 11.5px;
+  color: var(--text);
+  font-family: var(--font-mono, ui-monospace, "Cascadia Code", Consolas, monospace);
+  font-size: 12.5px;
   line-height: 1.55;
+  font-variant-ligatures: none;   /* `---` e `|` ficam como caracteres, não como ligaduras */
   white-space: pre;
   overflow-x: auto;
   outline: none;
   tab-size: 2;
+  transition: border-color 0.15s ease;
 }
-.table-source[hidden] { display: none; }
-.table-source:focus { color: var(--text); border-color: var(--accent); border-style: solid; }
+.table-source[hidden], .table-scroll[hidden] { display: none; }
+.table-source:focus { border-color: var(--border-hover); }
 .table-source.is-invalid { border-color: var(--sync-erro, oklch(48% 0.19 27)); }
 .table-source.is-invalid::after {
-  content: "Isto não é uma tabela válida (uma linha de títulos, a linha | --- | e as demais com | ). A tabela acima não foi alterada.";
+  content: "Ainda não é uma tabela: precisa da linha de títulos, da linha | --- | e das demais com | . Ao sair, vira texto.";
   display: block; margin-top: 6px; white-space: normal; font-family: var(--font); font-size: 11px;
   color: var(--sync-erro, oklch(48% 0.19 27));
 }
