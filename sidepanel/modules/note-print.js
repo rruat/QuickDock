@@ -504,6 +504,14 @@ function mount() {
   document.addEventListener('quickdock:note-selected', () => {
     if (isPrintMode) exitPrintMode();
   });
+  // Fechar a nota (ficar sem nota aberta) ou sair da tela das notas também encerra a impressão:
+  // senão o modo esconde as outras telas (calendário etc.) e a aside fica presa no painel de impressão
+  document.addEventListener('quickdock:active-note-changed', () => {
+    if (isPrintMode) exitPrintMode();   // outra nota (ou nenhuma): a seleção de blocos era da anterior
+  });
+  document.addEventListener('quickdock:shell-focus', () => {
+    if (isPrintMode && document.documentElement.dataset.shellFocus !== 'notes') exitPrintMode();
+  });
   document.addEventListener('quickdock:note-title-committed', () => {
     if (isPrintMode) updateToolbarStatus();
   });
