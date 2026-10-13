@@ -26,6 +26,8 @@ let _callbacks = {
   convertBlockType: (block, type, checked) => null,
   serializeBlockEl: (el) => ({}),
   focusBlockStart: (block) => {},
+  focusBlockEnd: (block) => {},
+  updateLivePreviewState: () => {},
   openSlashMenuForBlock: (block) => {},
   insertTemplateBlocks: (markdown, atBlock) => {},
   updateMobileToolbarState: () => {},
@@ -430,10 +432,15 @@ export function deleteBlocksOrOne(block) {
   clearBlockSelection();
   hideBlockControls();
 
-  const focusTarget = (prev && document.body.contains(prev)) ? prev : root?.firstElementChild;
+  // O cursor tem que ficar DENTRO do bloco que sobrou (no fim do anterior, ou no começo do primeiro):
+  // só `focus()` deixava o foco no editor sem seleção em bloco nenhum, e a sintaxe do título (`# `)
+  // — que só aparece com o cursor nele — nunca era revelada de novo: o "#" simplesmente sumia.
+  const temAnterior = !!(prev && document.body.contains(prev));
+  const focusTarget = temAnterior ? prev : root?.firstElementChild;
   if (focusTarget) {
-    const c = _callbacks.getContentEl(focusTarget);
-    c.focus();
+    if (temAnterior) _callbacks.focusBlockEnd(focusTarget);
+    else _callbacks.focusBlockStart(focusTarget);
+    _callbacks.updateLivePreviewState();
   }
   _callbacks.scheduleSave();
 }

@@ -2646,6 +2646,9 @@ function handleBackspaceAtStart(block) {
   prevContent.focus();
   setCaretOffset(prevContent, joinOffset);
   renumberLists();
+  // Não depende do `selectionchange`: o bloco removido era o "ativo" do Live Preview, e a sintaxe do
+  // anterior (ex.: o `# ` de um título) precisa ser revelada já, com o cursor nele
+  updateLivePreviewState();
 }
 
 // ── Eventos principais do editor ──────────────────────────────────────────────
@@ -4094,6 +4097,8 @@ initNoteDragDrop({
   convertBlockType,
   serializeBlockEl,
   focusBlockStart,
+  focusBlockEnd,
+  updateLivePreviewState,
   openSlashMenuForBlock,
   insertTemplateBlocks,
   updateMobileToolbarState,

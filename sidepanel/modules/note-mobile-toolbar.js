@@ -23,6 +23,7 @@ import {
   getSelectedBlockElements, getSelectedBlockIds, getIsBlockSelectActive,
   setIsBlockSelectActive, getLastHandleClickedId, setLastHandleClickedId,
   getUndoStackLength, getRedoStackLength, insertTemplateBlocks, blocksToExportMarkdown,
+  updateLivePreviewState,
 } from './note.js';
 
 // ── QuickBar Contextual (Dual-State & No-Scrim Sheets) ────────────────────────
@@ -736,6 +737,7 @@ function deleteSelectedBlocks() {
     const c = getContentEl(focusTarget);
     c.focus();
     setCaretOffset(c, c.textContent.length);
+    updateLivePreviewState();   // revela já a sintaxe (ex.: o `# ` do título) do bloco que ficou com o cursor
   }
   scheduleSave();
 }
