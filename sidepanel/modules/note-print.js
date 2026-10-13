@@ -57,7 +57,7 @@ function setOrientation(value) {
 
 function updateToolbarStatus() {
   if (!toolbarEl) return;
-  const countEl = toolbarEl.querySelector('#note-print-selected-count');
+  const countEl = document.getElementById('note-print-selected-count');   // no painel da aside ele mora no cabeçalho da aside
   const toggleBtn = toolbarEl.querySelector('#btn-print-select-toggle');
   const toggleLabel = toggleBtn?.querySelector('.btn-toggle-label');
 
@@ -247,8 +247,13 @@ export function enterPrintMode() {
     toolbarEl = buildPrintPanel({ orientation, margins, text: textSettings, onMargins, onText });
     asideHost.hidden = false;
     asideHost.prepend(toolbarEl);
-    const titulo = document.getElementById('rightAsideTitle');   // a aside mostra só a impressão: um painel ou outro
-    if (titulo) titulo.textContent = 'IMPRESSÃO';
+    // a aside mostra só a impressão (um painel ou outro): o cabeçalho dela leva o ícone e a contagem
+    const titulo = document.getElementById('rightAsideTitle');
+    if (titulo) {
+      titulo.dataset.print = '';
+      titulo.innerHTML = '<span class="material-symbols-rounded aside-title-icon" aria-hidden="true">print</span>'
+        + '<span class="aside-title-text">IMPRESSÃO<small id="note-print-selected-count">Carregando blocos...</small></span>';
+    }
   } else {
     toolbarEl = document.createElement('div');
     toolbarEl.id = 'note-print-toolbar';
@@ -423,7 +428,7 @@ export function exitPrintMode() {
   savedEditables = [];
 
   const tituloAside = document.getElementById('rightAsideTitle');
-  if (tituloAside?.textContent === 'IMPRESSÃO') tituloAside.textContent = 'PAINEL DA NOTA';
+  if (tituloAside && 'print' in tituloAside.dataset) { delete tituloAside.dataset.print; tituloAside.textContent = 'PAINEL DA NOTA'; }
 
   // Remove toolbar e calha de checkboxes
   if (toolbarEl) {
@@ -503,10 +508,21 @@ function mount() {
     if (isPrintMode) updateToolbarStatus();
   });
 
-  // Ctrl+P / Cmd+P aciona o modo de impressão com seleção
+  // X do cabeçalho da aside: sair do painel de impressão também sai do modo
+  document.getElementById('btnCloseRightAside')?.addEventListener('click', () => { if (isPrintMode) exitPrintMode(); });
+
+  // Ctrl+P / Cmd+P com uma nota aberta aciona o modo de impressão (e a aside de impressão);
+  // sem nota aberta o atalho segue sendo o da busca (spatial-shell.js)
+  const noteAberta = () => document.documentElement.dataset.shellFocus === 'notes' && !document.documentElement.classList.contains('no-note-open');
+  const rodapeAtalho = document.getElementById('footer-print-shortcut');
+  const pintarAtalho = () => { if (rodapeAtalho) rodapeAtalho.hidden = !noteAberta(); };
+  ['quickdock:shell-focus', 'quickdock:active-note-changed'].forEach(ev => document.addEventListener(ev, () => setTimeout(pintarAtalho, 0)));
+  pintarAtalho();
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+      if (!noteAberta()) return;
       e.preventDefault();
+      e.stopImmediatePropagation();
       if (!isPrintMode) {
         enterPrintMode();
       } else {

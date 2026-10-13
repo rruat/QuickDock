@@ -39,5 +39,10 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
      sync.includes('{ fonte: nota.font }') && (sync.match(/font: metaNota\.fonte \?\? null/g) || []).length === 3 && sync.includes("'fonte', 'font',"));
   ok('impressão · o texto escolhido entra no estilo da página', print.includes('textCss(textSettings)'));
   ok('impressão · desktop: painel na aside; celular: barra no topo', print.includes('buildPrintPanel(') && print.includes('buildPageAndTextGroups('));
+  const shell = await readFile(new URL('../sidepanel/modules/spatial-shell.js', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../sidepanel/index.html', import.meta.url), 'utf8');
+  ok('impressão · o painel não tem cabeçalho próprio (a aside leva o ícone e a contagem)', !(await readFile(new URL('../sidepanel/modules/note-print-panel.js', import.meta.url), 'utf8')).includes('print-head'));
+  ok('impressão · Ctrl+P só imprime com nota aberta; sem nota segue na busca', print.includes('if (!noteAberta()) return;') && shell.includes('!comNotaAberta'));
+  ok('impressão · o atalho aparece no rodapé (4 cópias do index iguais)', html.includes('id="footer-print-shortcut"') && (await readFile(new URL('../index.html', import.meta.url), 'utf8')).includes('id="footer-print-shortcut"') && (await readFile(new URL('../404.html', import.meta.url), 'utf8')).includes('id="footer-print-shortcut"'));
   ok('impressão · o @page usa as margens escolhidas', print.includes('pageMarginValue(margins)') && !print.includes('margin: 14mm'));
 }

@@ -556,3 +556,10 @@ body.is-print-mode .floating-aside-btn {
 .note-print-more .aside-panel-group { padding: 8px 0; }
 /* Imprimindo: a aside mostra só o painel de impressão (nada de propriedades, sumário ou ações da nota) */
 body.is-print-mode .right-aside-note-host > :not(#note-print-toolbar) { display: none !important; }
+
+/* Cabeçalho da aside no modo de impressão: ícone + título + contagem de selecionados */
+#rightAsideTitle[data-print] { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+#rightAsideTitle .aside-title-icon { font-size: 18px; color: var(--accent); }
+#rightAsideTitle .aside-title-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+#rightAsideTitle .aside-title-text small { font-size: 10.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.footer-shortcut[hidden] { display: none; }

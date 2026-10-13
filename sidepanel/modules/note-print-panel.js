@@ -1,4 +1,4 @@
-// ── note-print-panel.js ─────────────────────────────────────────────────────
+﻿// ── note-print-panel.js ─────────────────────────────────────────────────────
 // Painel de configurações do modo de impressão, no mesmo padrão dos painéis da aside direita
 // (grupos com título, bordas e cores da própria aside). O note-print.js liga os eventos pelos ids
 // e `data-` daqui: #note-print-selected-count, #btn-print-select-toggle, #btn-print-confirm,
@@ -33,20 +33,6 @@ export function buildPrintPanel({ orientation, margins, text, onMargins, onText 
   el.id = 'note-print-toolbar';
   el.className = 'note-print-panel';
 
-  const cab = document.createElement('div');
-  cab.className = 'aside-panel-group print-group print-head';
-  cab.innerHTML = `
-    <div class="print-head-row">
-      <span class="material-symbols-rounded print-head-icon" aria-hidden="true">print</span>
-      <div class="print-head-info">
-        <strong>Imprimir</strong>
-        <span id="note-print-selected-count">Carregando blocos...</span>
-      </div>
-      <button type="button" class="icon-btn" id="btn-print-exit" title="Sair do modo de impressão (Esc)" aria-label="Sair">
-        <span class="material-symbols-rounded">close</span>
-      </button>
-    </div>`;
-
   const orient = document.createElement('div');
   orient.className = 'aside-panel-segmented print-orientation';
   orient.setAttribute('role', 'tablist');
@@ -75,7 +61,6 @@ export function buildPrintPanel({ orientation, margins, text, onMargins, onText 
     </button>`;
 
   el.append(
-    cab,
     grupo('Página', orient),
     ...buildPageAndTextGroups({ margins, text, onMargins, onText }),
     grupo('Seleção', ...selecao.children),

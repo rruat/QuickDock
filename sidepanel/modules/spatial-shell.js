@@ -1,4 +1,4 @@
-// ── spatial-shell.js ────────────────────────────────────────────────────────
+﻿// ── spatial-shell.js ────────────────────────────────────────────────────────
 // Controlador do Spatial Shell Workspace (Layout IDE inspirado no design-pattern)
 // Gerencia:
 // 1. Omnibar universal com busca multi-token, stopwords, autocomplete por Tab e notas
@@ -1000,8 +1000,9 @@ function setupOmnibar() {
 // ── Atalhos de Teclado Globais ("Mãos no Teclado") ───────────────────────────
 function setupKeyboardShortcuts() {
   window.addEventListener('keydown', (e) => {
-    // Ctrl + K ou Ctrl + P -> Focar Omnibar
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'p' || e.key === 'K' || e.key === 'P')) {
+    // Ctrl + K (ou Ctrl + P, quando não há nota aberta: com nota aberta o Ctrl + P é Imprimir, em note-print.js)
+    const comNotaAberta = document.documentElement.dataset.shellFocus === 'notes' && !document.documentElement.classList.contains('no-note-open');
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || ((e.key === 'p' || e.key === 'P') && !comNotaAberta))) {
       e.preventDefault();
       const searchInput = document.getElementById('smartSearchInput');
       if (searchInput) {
