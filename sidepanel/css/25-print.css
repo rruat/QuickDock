@@ -523,3 +523,16 @@ body.is-print-mode .print-selectable-item.print-excluded.print-hover {
     text-indent: 1.25cm;
   }
 }
+
+/* Botões flutuantes (voltar, painéis laterais) não fazem parte da nota: nunca na impressão nem no modo de seleção */
+body.is-print-mode .floating-aside-group,
+body.is-print-mode .floating-aside-btn {
+  display: none !important;
+}
+@media print {
+  html .floating-aside-group,
+  html .floating-aside-btn {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
