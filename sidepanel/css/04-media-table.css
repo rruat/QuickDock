@@ -62,6 +62,39 @@
 }
 
 .table-btn:hover { background: var(--bg-hover); color: var(--text); }
+.table-btn-align { display: inline-flex; align-items: center; padding: 1px 6px; }
+.table-btn-align .material-symbols-rounded { font-size: 15px; }
+
+/* Alinhamento da coluna (`data-align` nas células; no markdown é a linha `:---`, `:---:`, `---:`) */
+.block-table th.table-cell[data-align="center"], .table-cell[data-align="center"] { text-align: center; }
+.block-table th.table-cell[data-align="right"],  .table-cell[data-align="right"]  { text-align: right; }
+.block-table th.table-cell[data-align="left"],   .table-cell[data-align="left"]   { text-align: left; }
+
+/* Estrutura da tabela em markdown: aparece com o cursor na tabela (como o "# " de um título) e é
+   editável — escrever **negrito**, [link](url) ou mudar o alinhamento refaz a tabela. */
+.table-source {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre;
+  overflow-x: auto;
+  outline: none;
+  tab-size: 2;
+}
+.table-source[hidden] { display: none; }
+.table-source:focus { color: var(--text); border-color: var(--accent); border-style: solid; }
+.table-source.is-invalid { border-color: var(--sync-erro, oklch(48% 0.19 27)); }
+.table-source.is-invalid::after {
+  content: "Isto não é uma tabela válida (uma linha de títulos, a linha | --- | e as demais com | ). A tabela acima não foi alterada.";
+  display: block; margin-top: 6px; white-space: normal; font-family: var(--font); font-size: 11px;
+  color: var(--sync-erro, oklch(48% 0.19 27));
+}
 
 /* ===== IMAGEM NA NOTA ===== */
 /* O bloco não é editável (o cursor não entra nele); o que se edita é o texto

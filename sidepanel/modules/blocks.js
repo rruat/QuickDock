@@ -76,7 +76,9 @@ export function headingSlugs(textos) {
 const INLINE_MD = [
   { re: /`([^`\n]+?)`/g, tag: 'code' },
   { re: /\[\[([^\]\n|]+)(?:\|([^\]\n]+))?\]\]/g, tag: 'wikilink' },
-  { re: /\[([^\]\n]+)\]\(([^)\s]+)\)/g, tag: 'a' },
+  // O "!" opcional é consumido: imagem por endereço remoto vira link (decisão de privacidade, ver
+  // abaixo), e sem isto sobraria um "!" solto na frente — o mesmo que o atalho de digitação faz.
+  { re: /!?\[([^\]\n]+)\]\(([^)\s]+)\)/g, tag: 'a' },
   { re: /==([^=\n]+?)==/g, tag: 'mark', syntax: '==' },
   { re: /\*\*\*([^\n]+?)\*\*\*/g, tag: 'bolditalic', syntax: '***' },
   { re: /___([^\n]+?)___/g, tag: 'bolditalic', syntax: '___' },
@@ -161,14 +163,84 @@ function splitTableRow(line) {
     .map(cell => parseInlineMarkdown(cell.trim().replace(/\\\|/g, '|')));
 }
 
-function tableToMarkdown(rows, pad = '') {
+// Alinhamento de cada coluna, lido da linha separadora: `:---` esquerda, `:---:` centro, `---:` direita.
+// null = sem marcação (o padrão do markdown).
+export function parseTableAligns(sepLine) {
+  return String(sepLine).trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => {
+    const t = c.trim();
+    const ini = t.startsWith(':'), fim = t.endsWith(':');
+    return ini && fim ? 'center' : ini ? 'left' : fim ? 'right' : null;
+  });
+}
+
+// `largura` é a largura TOTAL da célula separadora (com os dois pontos); o mínimo deixa três hifens
+// (`:---:`, `:---`, `---:`), que é como se escreve à mão.
+function sepDaColuna(alinhamento, largura = 0) {
+  const minimo = alinhamento === 'center' ? 5 : alinhamento ? 4 : 3;
+  const w = Math.max(minimo, largura);
+  if (alinhamento === 'center') return `:${'-'.repeat(w - 2)}:`;
+  if (alinhamento === 'left')   return `:${'-'.repeat(w - 1)}`;
+  if (alinhamento === 'right')  return `${'-'.repeat(w - 1)}:`;
+  return '-'.repeat(w);
+}
+
+/**
+ * @param align  alinhamento por coluna (`'left' | 'center' | 'right' | null`)
+ * @param opts.pretty  colunas alinhadas com espaços, como no markdown que a pessoa escreveria à mão —
+ *        é o texto do painel de estrutura da tabela. O arquivo da nota continua compacto (sem espaços de
+ *        enfeite), para as notas existentes não mudarem de conteúdo.
+ */
+function tableToMarkdown(rows, pad = '', align = null, { pretty = false } = {}) {
   if (!rows?.length) return '';
   const cells = rows.map(row => row.map(html =>
     htmlToMarkdownInline(html).replace(/\|/g, '\\|').replace(/\n/g, ' ').trim()));
   const cols = Math.max(...cells.map(r => r.length));
-  const line = row => `${pad}| ${[...row, ...Array(cols - row.length).fill('')].join(' | ')} |`;
-  const sep  = `${pad}| ${Array(cols).fill('---').join(' | ')} |`;
+  const completa = row => [...row, ...Array(cols - row.length).fill('')];
+  const alinhamentoDe = i => align?.[i] ?? null;
+
+  if (!pretty) {
+    const line = row => `${pad}| ${completa(row).join(' | ')} |`;
+    const sep  = `${pad}| ${Array.from({ length: cols }, (_, i) => sepDaColuna(alinhamentoDe(i))).join(' | ')} |`;
+    return [line(cells[0]), sep, ...cells.slice(1).map(line)].join('\n');
+  }
+
+  // a coluna nunca é mais estreita que a própria linha de alinhamento (`:---:` tem 5)
+  const larguras = Array.from({ length: cols }, (_, i) =>
+    Math.max(sepDaColuna(alinhamentoDe(i)).length, ...cells.map(r => (r[i] ?? '').length)));
+  const encaixa = (texto, i) => {
+    const falta = larguras[i] - texto.length;
+    const a = alinhamentoDe(i);
+    if (a === 'right') return ' '.repeat(falta) + texto;
+    if (a === 'center') { const esq = Math.floor(falta / 2); return ' '.repeat(esq) + texto + ' '.repeat(falta - esq); }
+    return texto + ' '.repeat(falta);
+  };
+  const line = row => `${pad}| ${completa(row).map(encaixa).join(' | ')} |`;
+  const sep  = `${pad}| ${larguras.map((w, i) => sepDaColuna(alinhamentoDe(i), w)).join(' | ')} |`;
   return [line(cells[0]), sep, ...cells.slice(1).map(line)].join('\n');
+}
+
+/** Texto da estrutura da tabela (colunas alinhadas) — o que o painel mostra com o cursor na tabela. */
+export function tableToSourceText(rows, align = null) {
+  return tableToMarkdown(rows, '', align, { pretty: true });
+}
+
+/**
+ * Lê o markdown de uma tabela editado à mão. Devolve `{ rows, align }` (células já em HTML) ou null
+ * se o texto deixou de ser uma tabela — quem chamou decide o que fazer (nunca perder o que foi digitado).
+ */
+export function parseTableMarkdown(text) {
+  const linhas = String(text ?? '').replace(/\r\n?/g, '\n').split('\n').map(l => l.trim()).filter(Boolean);
+  if (linhas.length < 2 || !TABLE_ROW_RE.test(linhas[0]) || !TABLE_SEP_RE.test(linhas[1])) return null;
+  const rows = [splitTableRow(linhas[0])];
+  for (const l of linhas.slice(2)) {
+    if (!TABLE_ROW_RE.test(l)) return null;
+    rows.push(splitTableRow(l));
+  }
+  const cols = Math.max(...rows.map(r => r.length));
+  const cheias = rows.map(r => [...r, ...Array(cols - r.length).fill('')]);
+  if (cheias.length === 1) cheias.push(Array(cols).fill(''));
+  const aligns = parseTableAligns(linhas[1]);
+  return { rows: cheias, align: Array.from({ length: cols }, (_, i) => aligns[i] ?? null) };
 }
 
 // ── Indentação → profundidade ─────────────────────────────────────────────────
@@ -467,6 +539,7 @@ export function parseMarkdownToBlocks(markdown) {
       const proxRest = quoted ? (QUOTE_RE.exec(prox.trimStart())?.[3] ?? prox) : prox;
       if (TABLE_ROW_RE.test(rest) && TABLE_SEP_RE.test(proxRest)) {
         const rows = [splitTableRow(rest)];
+        const alinhamentos = parseTableAligns(proxRest);
         i++; // consome o separador
         while (i + 1 < lines.length) {
           const proxLinha = lines[i + 1];
@@ -475,7 +548,9 @@ export function parseMarkdownToBlocks(markdown) {
           rows.push(splitTableRow(proxLinhaRest));
           i++;
         }
-        add({ type: 'table', rows });
+        const cols = Math.max(...rows.map(r => r.length));
+        const align = Array.from({ length: cols }, (_, c) => alinhamentos[c] ?? null);
+        add({ type: 'table', rows, ...(align.some(Boolean) ? { align } : {}) });
         continue;
       }
     }
@@ -701,7 +776,7 @@ export function blocksToMarkdown(blocks, opts = {}) {
           `${pad}${q}\`\`\``,
         ].join('\n');
       }
-      if (b.type === 'table')   return tableToMarkdown(b.rows, `${pad}${q}`);
+      if (b.type === 'table')   return tableToMarkdown(b.rows, `${pad}${q}`, b.align);
       if (b.type === 'image') {
         const tamanho = b.width ? `|${b.width}${b.height ? `x${b.height}` : ''}` : '';
         return `${pad}${q}![${(b.alt ?? '').replace(/[\[\]]/g, '')}${tamanho}](${imageSrcOf(b, opts)})`;

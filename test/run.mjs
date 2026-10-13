@@ -6064,6 +6064,11 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   await runDeleteSyncTests({ ok, igual });
 }
 
+{
+  const { runTableSourceTests } = await import('./table-source-tests.mjs');
+  await runTableSourceTests({ ok, igual });
+}
+
 if (falhas.length) {
   console.error(`\n✗ ${falhas.length} falha(s), ${passou} ok\n`);
   for (const f of falhas) console.error(`  ✗ ${f}`);

@@ -41,7 +41,7 @@ import {
   initNoteTable, DEFAULT_TABLE, buildCell, buildTableEl, buildTableTools,
   focusedCell, focusCell, addTableRow, addTableCol, delTableRow, delTableCol,
   moveCell, handleTableButtonClick, parseClipboardTable, parseTsvTable,
-  insertTableBlock,
+  insertTableBlock, buildTableSource, refreshTableSource, showTableSource, hideTableSource,
 } from './note/note-table.js';
 export { focusCell };
 import {
@@ -186,7 +186,7 @@ export const NO_TEXT_TYPES = new Set(['divider', 'table', 'image', 'audio', 'vid
 // está explicado por que ela existe.
 const ANCORA = '​';
 
-export function createBlockEl(type, innerHTML = '', checked = false, rows = null, config = '') {
+export function createBlockEl(type, innerHTML = '', checked = false, rows = null, config = '', align = null) {
   let el;
 
   if (typeof innerHTML === 'string' && (innerHTML.includes('print-select-handle') || innerHTML.includes('print-checkbox-indicator'))) {
@@ -246,7 +246,7 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
     // O bloco não é editável; cada célula é a sua própria ilha editável. É isso
     // que mantém a tabela fora das regras de Enter/Backspace dos outros blocos.
     el.contentEditable = 'false';
-    el.append(buildTableEl(rows), buildTableTools());
+    el.append(buildTableEl(rows, align), buildTableTools(), buildTableSource());
     el.dataset.type = type;
     el.dataset.id = uid();
     return el;
@@ -366,7 +366,7 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
 // exatamente assim que uma tabela colada virava uma tabela vazia. Campo novo
 // no modelo entra aqui e todas as chamadas passam a respeitá-lo de uma vez.
 function createBlockElFrom(b) {
-  const el = createBlockEl(b.type, b.html ?? '', b.checked ?? false, b.rows ?? null, b.config ?? '');
+  const el = createBlockEl(b.type, b.html ?? '', b.checked ?? false, b.rows ?? null, b.config ?? '', b.align ?? null);
   if (b.id) el.dataset.id = b.id;
   if (b.marker) el.dataset.marker = b.marker;
   if (b.lang) el.dataset.lang = b.lang;
@@ -634,6 +634,8 @@ initNoteTable({
   currentBlock,
   getContentEl,
   renumberLists,
+  sanitizeForSave: html => sanitizeForSave(html),
+  showFeedback: (...a) => showFeedback(...a),
 });
 
 // Esvazia o conteúdo de um bloco mantendo o <br> de segurança (ver createBlockEl).
@@ -933,6 +935,9 @@ export function serializeBlockEl(block) {
   if (type === 'table') {
     b.rows = [...block.querySelectorAll('tr')].map(tr =>
       [...tr.children].map(cell => sanitizeForSave(cell.innerHTML)));
+    // Alinhamento por coluna (guardado nas células da 1ª linha); só entra no modelo se alguém alinhou
+    const align = [...(block.querySelector('tr')?.children ?? [])].map(c => c.dataset.align || null);
+    if (align.some(Boolean)) b.align = align;
     return b;
   }
   if (type === 'base') {
@@ -1806,6 +1811,8 @@ function isCalloutFirst(block) {
 export function revealBlockSyntax(block) {
   if (!block) return;
   const type = block.dataset.type;
+  // Tabela: o "markdown" que aparece com o cursor nela é o painel de estrutura (colunas, alinhamento)
+  if (type === 'table') { showTableSource(block); return; }
   const isHeading = HEADING_TAGS[type];
   const isQuoted = isBlockQuoted(block);
   const callout = block.dataset.callout;
@@ -1923,6 +1930,7 @@ function formatUnparsedInlineMarkdown(contentEl) {
 
 export function collapseBlockSyntax(block) {
   if (!block) return;
+  if (block.dataset.type === 'table') { hideTableSource(block); return; }
   if (block.dataset.type === 'code') {
     const fenceOpen = block.querySelector(':scope > .md-syntax-fence-open');
     if (fenceOpen) {
@@ -2702,9 +2710,19 @@ root.addEventListener('input', () => {
   // qualquer atalho ou detecção leia o texto do bloco e a conte como caractere.
   if (block.dataset.type !== 'table') limparAncoras(getContentEl(block));
 
-  // Célula de tabela só salva: atalho de bloco e menu "/" não fazem sentido
-  // dentro dela, e a detecção varreria o bloco inteiro em vez da célula.
-  if (block.dataset.type === 'table') { scheduleSave(); return; }
+  // Célula de tabela: atalho de BLOCO e menu "/" não fazem sentido dentro dela (e a detecção
+  // varreria o bloco inteiro em vez da célula), mas a formatação INLINE vale: **negrito**, *itálico*,
+  // `código`, ~~riscado~~, ==marca-texto== e [link](endereço) viram formatação ao digitar.
+  if (block.dataset.type === 'table') {
+    const celula = focusedCell();
+    if (celula) {
+      limparAncoras(celula);          // a âncora invisível do atalho anterior (ver replaceRangeWithTag)
+      tryAutoFormatInline(celula);
+      refreshTableSource(block);      // o painel de estrutura espelha a célula
+    }
+    scheduleSave();
+    return;
+  }
 
   // Divisor: se o texto foi modificado e não é mais divisor, converte para parágrafo
   if (block.dataset.type === 'divider') {
@@ -3105,6 +3123,9 @@ root.addEventListener('input', () => {
 });
 
 root.addEventListener('keydown', e => {
+  // Painel de estrutura da tabela: é um campo de texto simples. Enter, Tab, Backspace, desfazer… são
+  // do próprio campo — as regras de blocos (dividir bloco, indentar, fundir) não valem ali.
+  if (e.target?.closest?.('.table-source')) return;
   const key = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
     e.preventDefault();
@@ -3701,6 +3722,8 @@ root.addEventListener('keydown', e => {
 // trata imagem. `claim()` marca explicitamente o que a nota assumiu, e o que
 // ela não assume continua subindo pra seção Documentos.
 root.addEventListener('paste', e => {
+  // No painel de estrutura da tabela cola texto puro, do jeito nativo do campo (sem virar bloco/tabela)
+  if (e.target?.closest?.('.table-source')) return;
   const claim = () => e.stopPropagation();
   e.preventDefault();
   const text = e.clipboardData?.getData('text/plain') ?? '';
