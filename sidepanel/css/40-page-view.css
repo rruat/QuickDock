@@ -1,0 +1,79 @@
+﻿/* ==========================================================================
+   40-page-view.css - "Ver como páginas" (A4) e a impressão a partir dela
+   Quebra as páginas com o Paged.js (vendor/pagedjs); aqui só o visual das folhas e da barra.
+   ========================================================================== */
+
+#note-page-view {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+}
+
+.page-view-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 8px 14px; background: var(--bg-card); border-bottom: 1px solid var(--border);
+  font-size: 12px; color: var(--text-secondary);
+}
+.page-view-bar button {
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 8px; background: transparent;
+  color: var(--text); font: inherit; font-size: 12px; cursor: pointer;
+}
+.page-view-bar button:hover { background: var(--bg-hover); }
+.page-view-bar .page-view-print { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.page-view-status { font-weight: 600; color: var(--text); }
+.page-view-zoom { display: inline-flex; align-items: center; gap: 6px; }
+.page-view-zoom-value { min-width: 3.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.page-view-spacer { flex: 1; }
+#note-page-view.is-loading .page-view-pages { opacity: 0.4; }
+
+.page-view-stage { flex: 1; min-height: 0; overflow: auto; padding: 24px; }
+.page-view-pages { transition: opacity 0.15s ease; }
+
+/* As folhas: sempre brancas com texto escuro, como o papel, qualquer que seja o tema do app */
+#note-page-view .pagedjs_pages {
+  display: flex; flex-direction: column; align-items: center; gap: 18px; margin: 0 auto;
+  --bg: oklch(100% 0 0); --bg-secondary: oklch(97% 0 0); --bg-card: oklch(100% 0 0); --bg-hover: oklch(95.8% 0 0);
+  --border: oklch(87% 0 0); --text: oklch(0% 0 0); --text-secondary: oklch(32.1% 0 0); --text-muted: oklch(45% 0 0);
+  --accent: oklch(0% 0 0);
+}
+#note-page-view .pagedjs_page {
+  background: oklch(100% 0 0); color: oklch(0% 0 0); box-shadow: 0 2px 12px oklch(0% 0 0 / 0.25); flex: none;
+}
+#note-page-view .pagedjs_margin-content { color: oklch(32.1% 0 0); }
+
+/* Conteúdo das folhas */
+.page-doc { padding: 0 !important; width: auto !important; max-width: none !important; }
+.page-doc-title { font-size: 1.7em; font-weight: 700; line-height: 1.25; margin: 0 0 0.6em; }
+.page-doc .block { margin-left: 0; }
+.page-break-marker { break-after: page; page-break-after: always; height: 0; margin: 0; padding: 0; }
+.page-break-marker[data-blank="true"] { break-before: page; page-break-before: always; height: 1px; }
+
+/* Sumário na página: texto, pontilhado e número da página (preenchido pelo Paged.js) */
+.page-toc { margin: 0 0 1em; }
+.page-toc-title { font-weight: 700; text-align: center; margin-bottom: 0.8em; }
+.page-toc-row { display: flex; align-items: baseline; gap: 4px; color: inherit; text-decoration: none; padding-left: calc(var(--lvl, 0) * 1.1em); line-height: 1.6; }
+.page-toc-text { flex: none; max-width: 85%; }
+.page-toc-dots { flex: 1; border-bottom: 1px dotted currentColor; transform: translateY(-0.25em); min-width: 1em; }
+a.page-toc-row::after { content: target-counter(attr(href url), page); flex: none; font-variant-numeric: tabular-nums; }
+
+/* Impressão a partir das páginas: só a raiz com as folhas aparece, sem moldura nem sombra */
+#note-page-print-root { display: none; }
+@media print {
+  body.is-page-printing > *:not(#note-page-print-root) { display: none !important; }
+  body.is-page-printing #note-page-print-root { display: block !important; }
+  body.is-page-printing { background: oklch(100% 0 0) !important; }
+  body.is-page-printing .pagedjs_pages { display: block !important; gap: 0 !important; margin: 0 !important; zoom: 1 !important; }
+  body.is-page-printing .pagedjs_page { box-shadow: none !important; margin: 0 !important; }
+  /* o overlay da visualização não imprime junto, e o @page do modo de impressão comum não vale aqui */
+  #note-page-view { display: none !important; }
+}
+
+/* A área de cada página ganha a classe do editor (para as regras `.note-editor-blocks .block…` valerem):
+   sem o espaçamento e a largura que o editor dá a ela, que o Paged.js já controla */
+#note-page-view .pagedjs_page_content.note-editor-blocks { padding: 0 !important; }
+
+/* Com as folhas na tela, as caixas de seleção do modo de impressão ficam escondidas (elas são do texto, não das folhas) */
+body.is-page-view .note-print-gutter { display: none !important; }

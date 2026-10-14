@@ -22,7 +22,7 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   const cssAbnt = x.textCss(x.ABNT_TEXT);
   ok('texto · alinhamento da impressão não passa por cima do alinhamento do próprio bloco', cssAbnt.includes(':not([data-text-align])') && cssAbnt.includes('text-align: justify !important'));
   ok('texto · citação longa ABNT: recuo de 4 cm e 10 pt, sem pegar destaques', cssAbnt.includes('margin-left: 4cm') && cssAbnt.includes('font-size: 10pt') && cssAbnt.includes(':not([data-callout])'));
-  igual('texto · títulos centralizados na impressão', x.textCss({ alignH: 'center' }).includes('h1, h2, h3, h4, h5, h6).block:not([data-text-align]) { text-align: center !important'), true);
+  igual('texto · títulos centralizados na impressão', x.textCss({ alignH: 'center' }).includes('h6.block:not([data-text-align]) { text-align: center !important') && !x.textCss({ alignH: 'center' }).includes(':is('), true);
 
   // ── Alinhamento do texto no arquivo: <div align="center"> (GitHub, Obsidian, Typora…) ──
   const bl = await import('../sidepanel/modules/blocks.js');
@@ -106,6 +106,24 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   const pa = await import('../sidepanel/modules/note/note-paste-align.js');
   igual('colar · valores de alinhamento do Word, Docs e navegadores', ['center', '-webkit-center', 'right', 'end', 'justify', 'left', 'start', '', 'xyz'].map(pa.alignFromCss), ['center', 'center', 'right', 'right', 'justify', null, null, null, null]);
   igual('colar · sem alinhamento no html nada muda (segue o colar de sempre)', pa.htmlToAlignedMarkdown('<p>oi</p>'), null);
+
+  // ── Ver como páginas (Paged.js) e numeração ──
+  const nm = await import('../sidepanel/modules/note-page-numbering.js');
+  igual('páginas · sem numeração não gera regra', nm.numberingCss({ mode: 'off' }), '');
+  ok('páginas · numeração ABNT: canto superior direito, mostrando a partir da página 5', nm.numberingCss({ mode: 'top-right', from: 5 }).includes('@top-right { content: counter(page)') && nm.numberingCss({ mode: 'top-right', from: 5 }).includes('@page:nth(-n+4) { @top-right { content: none; } }'));
+  ok('páginas · a partir da 1 não esconde nenhuma', !nm.numberingCss({ mode: 'bottom-center', from: 1 }).includes(':nth('));
+  igual('páginas · valores inválidos voltam ao padrão', nm.normalizeNumbering({ mode: 'xyz', from: 'abc' }), { mode: 'off', from: 1 });
+  const pv = await readFile(new URL('../sidepanel/modules/note-page-view.js', import.meta.url), 'utf8');
+  const vendor = await readFile(new URL('../vendor/pagedjs/paged.min.js', import.meta.url), 'utf8');
+  const swSrc = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  ok('páginas · o Paged.js (MIT) está no projeto, com a licença', vendor.includes('@license Paged.js') && vendor.includes('MIT') && (await readFile(new URL('../vendor/pagedjs/LICENSE.md', import.meta.url), 'utf8')).includes('MIT License'));
+  ok('páginas · a mesma cópia vale para a extensão (sidepanel/vendor)', (await readFile(new URL('../sidepanel/vendor/pagedjs/paged.min.js', import.meta.url), 'utf8')) === vendor);
+  ok('páginas · biblioteca, módulos e estilo no pré-cache do app offline', ['vendor/pagedjs/paged.min.js', 'note-page-view.js', 'note-page-numbering.js', '40-page-view.css'].every(n => swSrc.includes(n)));
+  ok('páginas · quebras forçadas e número do sumário vão no CSS entregue ao Paged.js', pv.includes('break-after: page') && pv.includes('target-counter(attr(href url), page)') && pv.includes('CSS_DO_DOCUMENTO'));
+  ok('páginas · o destino do link tem id válido (prefixo pg-, não começa com número)', pv.includes('`pg-${slug}`'));
+  ok('páginas · as regras do editor valem dentro das folhas (classe na área da página)', pv.includes("pagina.area.classList.add('note-editor-blocks')"));
+  const printSrc = await readFile(new URL('../sidepanel/modules/note-print.js', import.meta.url), 'utf8');
+  ok('páginas · imprimir com as folhas abertas imprime as próprias folhas', printSrc.includes('if (isPageViewOpen()) { printPageView(); return; }') && printSrc.includes('closePageView();'));
 
   const noteSrc = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const ddSrc = await readFile(new URL('../sidepanel/modules/note/note-drag-drop.js', import.meta.url), 'utf8');

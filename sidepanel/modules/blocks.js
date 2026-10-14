@@ -1,4 +1,4 @@
-// ── blocks.js ──────────────────────────────────────────────────────────────
+﻿// ── blocks.js ──────────────────────────────────────────────────────────────
 // Modelo de blocos do editor de notas e conversão de/para markdown (importação, colagem,
 // sincronização e exportação).
 
@@ -875,7 +875,7 @@ function nodeToMarkdown(node, parent = null) {
  */
 // Âncora no formato do GitHub (mantém acentos; títulos repetidos ganham -1, -2). É a que outros apps
 // (GitHub, GitLab, VS Code, Typora) procuram; o QuickDock acha o mesmo título pelos dois formatos.
-function githubSlugs(textos) {
+export function githubSlugs(textos) {
   const usados = new Map();
   return textos.map(t => {
     const base = String(t).toLowerCase().trim().replace(/[^\p{L}\p{N}\p{M}\- _]/gu, '').replace(/\s/g, '-');

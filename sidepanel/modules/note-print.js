@@ -5,6 +5,8 @@
 
 import { loadMargins, pageMarginValue } from './note-print-margins.js';
 import { loadText, textCss } from './note-print-text.js';
+import { loadNumbering } from './note-page-numbering.js';
+import { isPageViewOpen, openPageView, closePageView, refreshPageView, printPageView } from './note-page-view.js';
 import { buildPrintPanel, buildPageAndTextGroups } from './note-print-panel.js';
 import { setRightAsideMode } from './shell/shell-right-aside.js';
 import { isMobileMode } from './platform.js';
@@ -24,14 +26,20 @@ document.head.appendChild(pageStyleEl);
 
 let margins = loadMargins();
 let textSettings = loadText();
+let numbering = loadNumbering();
 
 function applyPageStyle() {
+  if (isPageViewOpen()) {   // as margens, a numeração e o texto vão para o Paged.js; aqui só o tamanho do papel
+    pageStyleEl.textContent = `@page { size: A4 ${orientation}; margin: 0; }`;
+    return;
+  }
   pageStyleEl.textContent = `@page { size: A4 ${orientation}; margin: ${pageMarginValue(margins)}; }
 ${textCss(textSettings)}`;
 }
 
 let isPrintMode = false;
 let printBtn = null;
+let pagesBtn = null;
 let toolbarEl = null;
 let gutterEl = null;
 let savedEditables = [];
@@ -46,6 +54,7 @@ function setOrientation(value) {
   orientation = value === 'landscape' ? 'landscape' : 'portrait';
   try { localStorage.setItem(STORAGE_KEY, orientation); } catch {}
   applyPageStyle();
+  refreshPageView();
   if (toolbarEl) {
     toolbarEl.querySelectorAll('[data-orientation]').forEach((btn) => {
       const active = btn.dataset.orientation === orientation;
@@ -121,6 +130,7 @@ function setItemState(itemObj, selected) {
 function toggleItem(itemObj) {
   setItemState(itemObj, !itemObj.selected);
   updateToolbarStatus();
+  refreshPageView();
 }
 
 function createHandle(label = '') {
@@ -237,15 +247,16 @@ export function enterPrintMode() {
 
   // No desktop as configurações de impressão moram na aside direita (organizado, sem cobrir a nota);
   // no celular a aside é um drawer que taparia a seleção, então a barra continua no topo da nota.
-  const onMargins = (novo) => { margins = novo; applyPageStyle(); };
-  const onText = (novo) => { textSettings = novo; applyPageStyle(); };
+  const onMargins = (novo) => { margins = novo; applyPageStyle(); refreshPageView(); };
+  const onText = (novo) => { textSettings = novo; applyPageStyle(); refreshPageView(); };
+  const onNumbering = (novo) => { numbering = novo; refreshPageView(); };
   let asideHost = null;
   if (!isMobileMode()) {
     setRightAsideMode('config', { open: true });
     asideHost = document.getElementById('rightAsideNoteHost');
   }
   if (asideHost) {
-    toolbarEl = buildPrintPanel({ orientation, margins, text: textSettings, onMargins, onText });
+    toolbarEl = buildPrintPanel({ orientation, margins, text: textSettings, numbering, onMargins, onText, onNumbering });
     asideHost.hidden = false;
     asideHost.prepend(toolbarEl);
     // a aside mostra só a impressão (um painel ou outro): o cabeçalho dela leva o ícone e a contagem
@@ -297,7 +308,7 @@ export function enterPrintMode() {
       </details>
     `;
     const mais = toolbarEl.querySelector('.note-print-more');
-    mais.append(...buildPageAndTextGroups({ margins, text: textSettings, onMargins, onText }));
+    mais.append(...buildPageAndTextGroups({ margins, text: textSettings, numbering, onMargins, onText, onNumbering }));
     editorContainer.insertBefore(toolbarEl, editorContainer.firstChild);
   }
   // Cria a calha independente de checkboxes (estilo WhatsApp)
@@ -406,6 +417,11 @@ export function enterPrintMode() {
       return;
     }
 
+    if (e.target.closest('#btn-page-view')) {
+      togglePageView();
+      return;
+    }
+
     if (e.target.closest('#btn-print-confirm')) {
       executePrint();
       return;
@@ -420,8 +436,31 @@ export function enterPrintMode() {
   if (!asideHost) toolbarEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+// O que a visualização em páginas desenha: o título e os blocos que estão marcados, na ordem da nota
+function getPageSource() {
+  const marcado = tipo => trackedItems.filter(i => i.type === tipo && i.selected);
+  const titulo = marcado('title')[0] ? (document.getElementById('note-header-title')?.textContent ?? '').trim() : '';
+  return {
+    title: titulo,
+    blocks: marcado('block').map(i => i.el),
+    orientation, margins, text: textSettings, numbering,
+  };
+}
+
+function togglePageView() {
+  const botao = document.getElementById('btn-page-view');
+  if (isPageViewOpen()) closePageView();
+  else openPageView(getPageSource);
+  botao?.classList.toggle('is-active', isPageViewOpen());
+}
+document.addEventListener('quickdock:page-view-closed', () => {
+  document.getElementById('btn-page-view')?.classList.remove('is-active');
+  applyPageStyle();
+});
+
 export function exitPrintMode() {
   if (!isPrintMode) return;
+  closePageView();
   isPrintMode = false;
   document.body.classList.remove('is-print-mode');
   printBtn?.classList.remove('active');
@@ -464,6 +503,7 @@ export function exitPrintMode() {
 }
 
 export function executePrint() {
+  if (isPageViewOpen()) { printPageView(); return; }   // com as páginas na tela, imprime as próprias páginas (numeração, sumário)
   const selectedCount = trackedItems.filter(item => item.selected).length;
   if (selectedCount === 0 && trackedItems.length > 0) {
     alert('Nenhum bloco selecionado. Por favor, marque pelo menos um bloco para imprimir.');
@@ -511,6 +551,21 @@ function mount() {
   });
 
   // Ao trocar ou fechar nota, sai do modo de impressão
+  // Botão "Ver como páginas" no cabeçalho: entra no modo de impressão (onde ficam as configurações) e abre as folhas
+  pagesBtn = document.createElement('button');
+  pagesBtn.id = 'btn-note-pages';
+  pagesBtn.type = 'button';
+  pagesBtn.className = 'section-btn btn-pages-note';
+  pagesBtn.title = 'Ver como páginas (A4)';
+  pagesBtn.setAttribute('aria-label', 'Ver como páginas');
+  pagesBtn.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">auto_stories</span>';
+  printBtn.after(pagesBtn);
+  pagesBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!isPrintMode) enterPrintMode();
+    if (!isPageViewOpen()) togglePageView();
+  });
+
   document.addEventListener('quickdock:note-selected', () => {
     if (isPrintMode) exitPrintMode();
   });

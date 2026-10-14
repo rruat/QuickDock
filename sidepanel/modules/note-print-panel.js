@@ -2,10 +2,11 @@
 // Painel de configurações do modo de impressão, no mesmo padrão dos painéis da aside direita
 // (grupos com título, bordas e cores da própria aside). O note-print.js liga os eventos pelos ids
 // e `data-` daqui: #note-print-selected-count, #btn-print-select-toggle, #btn-print-confirm,
-// #btn-print-exit e [data-orientation].
+// #btn-print-exit, #btn-page-view e [data-orientation].
 
 import { buildMarginControls } from './note-print-margins.js';
 import { buildTextControls } from './note-print-text.js';
+import { buildNumberingControls } from './note-page-numbering.js';
 
 function grupo(titulo, ...filhos) {
   const g = document.createElement('section');
@@ -20,15 +21,16 @@ function grupo(titulo, ...filhos) {
 }
 
 /** Grupos Margens e Texto (usados no painel da aside e, recolhidos, na barra do celular). */
-export function buildPageAndTextGroups({ margins, text, onMargins, onText }) {
+export function buildPageAndTextGroups({ margins, text, numbering, onMargins, onText, onNumbering }) {
   return [
     grupo('Margens', buildMarginControls(margins, onMargins)),
     grupo('Texto', buildTextControls(text, onText)),
+    grupo('Numeração das páginas', buildNumberingControls(numbering, onNumbering)),
   ];
 }
 
 /** Painel completo (desktop). */
-export function buildPrintPanel({ orientation, margins, text, onMargins, onText }) {
+export function buildPrintPanel({ orientation, margins, text, numbering, onMargins, onText, onNumbering }) {
   const el = document.createElement('div');
   el.id = 'note-print-toolbar';
   el.className = 'note-print-panel';
@@ -46,6 +48,12 @@ export function buildPrintPanel({ orientation, margins, text, onMargins, onText 
     b.classList.toggle('is-active', ativo);
   });
 
+  const visualizacao = document.createElement('div');
+  visualizacao.innerHTML = `
+    <button type="button" class="aside-panel-btn" id="btn-page-view" title="Mostra a nota em folhas A4, com margens, quebras de página, numeração e sumário com páginas">
+      <span class="material-symbols-rounded" aria-hidden="true">auto_stories</span><span>Ver como páginas (A4)</span>
+    </button>`;
+
   const selecao = document.createElement('div');
   selecao.innerHTML = `
     <button type="button" class="aside-panel-btn btn-print-select-toggle" id="btn-print-select-toggle" title="Alternar seleção de todos os blocos">
@@ -61,8 +69,8 @@ export function buildPrintPanel({ orientation, margins, text, onMargins, onText 
     </button>`;
 
   el.append(
-    grupo('Página', orient),
-    ...buildPageAndTextGroups({ margins, text, onMargins, onText }),
+    grupo('Página', orient, ...visualizacao.children),
+    ...buildPageAndTextGroups({ margins, text, numbering, onMargins, onText, onNumbering }),
     grupo('Seleção', ...selecao.children),
     rodape,
   );

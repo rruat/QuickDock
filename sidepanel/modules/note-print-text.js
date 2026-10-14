@@ -57,16 +57,15 @@ export const isDefaultText = s => JSON.stringify(normalizeText(s)) === JSON.stri
  * O alinhamento escolhido aqui é por TIPO de bloco e não mexe no arquivo; um bloco que já tem alinhamento
  * próprio na nota (<div align="center">) o mantém — por isso o `:not([data-text-align])`.
  */
-export function textCss(state) {
+export function textCss(state, raiz = 'body.is-print-mode #note-editor-blocks') {
   const s = normalizeText(state);
-  const raiz = 'body.is-print-mode #note-editor-blocks';
   const regras = [];
   for (const { key, sel } of SIZE_FIELDS) {
     if (s[key] != null) regras.push(`${raiz} ${sel.startsWith('[') ? `.block${sel}` : sel} { font-size: ${s[key]}pt !important; }`);
   }
   if (s.line != null) regras.push(`${raiz} .block { line-height: ${s.line} !important; }`);
   if (s.alignP) regras.push(`${raiz} .block[data-type="paragraph"]:not([data-text-align]):not([data-quoted]) { text-align: ${s.alignP} !important; }`);
-  if (s.alignH) regras.push(`${raiz} :is(h1, h2, h3, h4, h5, h6).block:not([data-text-align]) { text-align: ${s.alignH} !important; }`);
+  if (s.alignH) regras.push(`${[1, 2, 3, 4, 5, 6].map(n => `${raiz} h${n}.block:not([data-text-align])`).join(', ')} { text-align: ${s.alignH} !important; }`);   // sem :is() — o Paged.js lê CSS com seletores simples
   if (s.indent) regras.push(`${raiz} .block[data-type="paragraph"]:not([data-quoted]) { text-indent: 1.25cm; }`);
   // ABNT: citação direta com mais de 3 linhas — recuo de 4 cm, fonte menor (10 pt), espaço simples, justificada
   if (s.longQuote) regras.push(`${raiz} .block[data-quoted="true"]:not([data-callout]) { margin-left: 4cm !important; padding-left: 0 !important; border: none !important; font-size: 10pt !important; line-height: 1.15 !important; text-align: justify; }`);

@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    QuickDock - Estilos Modulares do Painel Lateral (Sidepanel)
    Substitui o antigo arquivo monolitico style.css de 12.700 linhas
    ========================================================================== */
@@ -42,6 +42,7 @@
 @import 'css/37-graph-quickbar.css';
 @import 'css/38-mobile-shell-v2.css';
 @import 'css/39-floating-asides.css';
+@import 'css/40-page-view.css';
 @import 'css/40-calendar-day-sheet.css';
 @import 'css/41-sync-ui.css';
 

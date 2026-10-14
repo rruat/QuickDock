@@ -10,7 +10,7 @@
 //   formatos compartilhados com a extensÃ£o (ver HANDOFF-5.md).
 // - Fallback para cache quando offline.
 
-const CACHE_NAME = 'quickdock-v3.0.0-156';
+const CACHE_NAME = 'quickdock-v3.0.0-158';
 
 const ASSET_PATHS = [
   '',
@@ -48,6 +48,7 @@ const ASSET_PATHS = [
   'sidepanel/css/37-graph-quickbar.css',
   'sidepanel/css/38-mobile-shell-v2.css',
   'sidepanel/css/39-floating-asides.css',
+  'sidepanel/css/40-page-view.css',
   'sidepanel/css/40-calendar-day-sheet.css',
   'sidepanel/css/41-sync-ui.css',
   'sidepanel/css/20-json-studio.css',
@@ -62,6 +63,7 @@ const ASSET_PATHS = [
   'sidepanel/css/29-calendar-views.css',
   'vendor/leaflet/leaflet.css',
   'vendor/leaflet/leaflet.js',
+  'vendor/pagedjs/paged.min.js',
   'vendor/leaflet/images/marker-icon.png',
   'vendor/leaflet/images/marker-icon-2x.png',
   'vendor/leaflet/images/marker-shadow.png',
@@ -114,6 +116,8 @@ const ASSET_PATHS = [
   'sidepanel/modules/note-print-margins.js',
   'sidepanel/modules/note-print-text.js',
   'sidepanel/modules/note-print-panel.js',
+  'sidepanel/modules/note-page-view.js',
+  'sidepanel/modules/note-page-numbering.js',
   'sidepanel/modules/note-font.js',
   'sidepanel/modules/notes-font-picker.js',
   'sidepanel/modules/note-cover.js',
