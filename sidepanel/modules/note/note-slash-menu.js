@@ -1,4 +1,4 @@
-// ── note-slash-menu.js ───────────────────────────────────────────────────────
+﻿// ── note-slash-menu.js ───────────────────────────────────────────────────────
 // Menu "/" de inserção e troca rápida de tipo de bloco ou inserção de templates.
 // Exibe opções em grade em 3 colunas organizadas por grupos (Texto, Listas,
 // Destaques, Blocos, Modelos), com suporte a navegação por teclado e filtros.
@@ -7,6 +7,7 @@ import { createIcon } from '../icons.js';
 import { positionMenu } from '../note-detection.js';
 import { blockTemplates } from '../templates.js';
 import { CALLOUT_TYPES, CALLOUT_LABELS } from '../blocks.js';
+import { setPageBreakBlank } from './note-pagebreak.js';
 
 export const CALLOUT_ICONS = {
   note: 'info', tip: 'lightbulb', important: 'priority_high',
@@ -42,9 +43,12 @@ export const SLASH_ITEMS = [
   { key: 'video',     label: 'Vídeo',                short: 'Vídeo',    hint: 'arquivo',   icon: 'videocam',              grupo: 'Blocos',    type: 'video'     },
   { key: 'base',      label: 'Base de dados',        short: 'Base',     hint: '```base',   icon: 'view_kanban',           grupo: 'Blocos',    type: 'base'      },
   { key: 'divisor',   label: 'Divisor',              short: 'Divisor',  hint: '---',       icon: 'horizontal_rule',       grupo: 'Blocos',    type: 'divider'   },
+  { key: 'sumario',   label: 'Sumário',              short: 'Sumário',  hint: 'toc',       icon: 'toc',                   grupo: 'Página',    type: 'toc'       },
+  { key: 'quebra',    label: 'Quebra de página',     short: 'Quebra',   hint: 'nova pág.', icon: 'insert_page_break',     grupo: 'Página',    type: 'pagebreak' },
+  { key: 'pagbranco', label: 'Página em branco',     short: 'Em branco',hint: 'pág. vazia',icon: 'note_add',              grupo: 'Página',    type: 'pagebreak', blank: true },
 ];
 
-export const INSERTED_TYPES = new Set(['divider', 'table', 'image', 'base']);
+export const INSERTED_TYPES = new Set(['divider', 'table', 'image', 'base', 'pagebreak', 'toc']);
 
 let slashMenuEl = null;
 let slashItems  = [];
@@ -202,6 +206,7 @@ export function confirmSlashSelection() {
 
   if (INSERTED_TYPES.has(item.type)) {
     const inserted = _callbacks.createBlockEl(item.type);
+    if (item.blank) setPageBreakBlank(inserted, true);   // "Página em branco": a mesma quebra, com uma página vazia
     block.replaceWith(inserted);
     const para = _callbacks.createBlockEl('paragraph');
     inserted.after(para);

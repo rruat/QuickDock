@@ -1,4 +1,4 @@
-// ── note-drag-drop.js ────────────────────────────────────────────────────────
+﻿// ── note-drag-drop.js ────────────────────────────────────────────────────────
 // Controles de bloco flutuantes (＋ e ⠿), menu de opções do bloco,
 // arrastar para reordenar, arrastar com Ctrl para seleção múltipla e
 // suporte a gestos de toque (touch / pointer: coarse).
@@ -38,8 +38,8 @@ let _callbacks = {
   isTextAlignable: (block) => false,
   setBlockTextAlign: (block, align) => {},
   PODE_SUBLINHAR: new Set(['heading1', 'heading2']),
-  NO_TEXT_TYPES: new Set(['divider', 'table', 'image', 'audio', 'video']),
-  INSERTED_TYPES: new Set(['divider', 'table', 'image', 'base']),
+  NO_TEXT_TYPES: new Set(['divider', 'table', 'image', 'audio', 'video', 'pagebreak', 'toc']),
+  INSERTED_TYPES: new Set(['divider', 'table', 'image', 'base', 'pagebreak', 'toc']),
   SLASH_ITEMS: [],
   buildTypeGrid: (items, cb) => document.createElement('div'),
 };

@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    04-media-table.css - Tabela, imagem na nota, audio e video
    Linhas originais: 1017 a 1231 (215 linhas)
    Parte da arquitetura CSS modular do QuickDock
@@ -257,3 +257,42 @@
   outline-offset: -4px;
   border-radius: var(--radius-sm);
 }
+
+/* ===== QUEBRA DE PÁGINA E SUMÁRIO (blocos) ===== */
+.note-editor-blocks .block-pagebreak {
+  white-space: normal;
+  display: flex; align-items: center; gap: 10px; margin: 10px 0; padding: 2px 0;
+  color: var(--text-muted); font-size: 11px; letter-spacing: 0.4px; text-transform: uppercase; user-select: none;
+}
+.block-pagebreak .pagebreak-line { flex: 1; border-top: 1px dashed var(--border-hover, var(--border)); }
+.block-pagebreak[data-blank="true"] .pagebreak-line { border-top-style: double; border-top-width: 3px; }
+
+.note-editor-blocks .block-toc {
+  white-space: normal;   /* os blocos usam pre-wrap: o recuo do HTML do bloco viraria linhas em branco */
+  margin: 8px 0; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+.toc-head { display: flex; align-items: center; gap: 8px; }
+.toc-title {
+  flex: 1; min-width: 0; border: none; background: transparent; color: var(--text);
+  font: inherit; font-weight: 700; font-size: 1.05em; outline: none; padding: 2px 0;
+}
+.toc-badge { font-size: 10px; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted); }
+.toc-tools { display: none; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 8px; font-size: 12px; color: var(--text-secondary); }
+.block-toc:hover .toc-tools, .block-toc:focus-within .toc-tools { display: flex; }
+.toc-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 99px; overflow: hidden; }
+.toc-seg button { padding: 2px 10px; border: none; background: transparent; color: var(--text-secondary); font: inherit; font-size: 11.5px; cursor: pointer; }
+.toc-seg button.active { background: var(--bg-hover); color: var(--accent); font-weight: 600; }
+.toc-opt { display: inline-flex; align-items: center; gap: 4px; }
+.toc-opt select { padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; font-size: 12px; }
+.block-toc.is-manual .toc-opt-auto, .block-toc:not(.is-manual) .toc-opt-manual { display: none; }
+.toc-link-btn { background: none; border: none; padding: 0; font: inherit; font-size: 12px; color: var(--accent); cursor: pointer; text-decoration: underline; }
+.toc-foot { margin-top: 6px; }
+.toc-list { display: flex; flex-direction: column; gap: 1px; }
+.toc-item { background: none; border: none; padding: 2px 0; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.toc-item:hover { color: var(--accent); text-decoration: underline; }
+.toc-row { display: flex; align-items: center; gap: 4px; }
+.toc-row > input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; font-size: 12.5px; padding: 2px 6px; }
+.toc-row > button:not(.toc-item) { border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-secondary); width: 22px; height: 22px; line-height: 1; cursor: pointer; }
+.toc-row > button:not(.toc-item):hover { background: var(--bg-hover); color: var(--text); }
+.toc-empty { font-size: 12px; color: var(--text-muted); padding: 2px 0; }

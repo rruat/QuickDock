@@ -14,6 +14,9 @@ import {
   MAX_DEPTH, BULLET_GLYPHS, blocksOfNote, blocksToMarkdownForExport,
   CALLOUT_TYPES, CALLOUT_LABELS, headingSlug, headingSlugs, parseInlineMarkdown, normalizeTextAlign,
 } from './blocks.js';
+import { htmlToAlignedMarkdown } from './note/note-paste-align.js';
+import { buildPageBreak, setPageBreakBlank } from './note/note-pagebreak.js';
+import { initNoteToc, buildToc, setTocData, getTocData, refreshTocBlocks } from './note/note-toc.js';
 import { blockTemplates, openSaveBlockTemplate } from './templates.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from './snapshot.js';
 import { iconSvg, createIcon } from './icons.js';
@@ -179,11 +182,11 @@ export const HEADING_TAGS = { heading1: 'h1', heading2: 'h2', heading3: 'h3', he
 // divisor não tem texto e a tabela não tem um conteúdo único — são N células.
 // Numa folha de cálculo a linha inteira já é conta: a detecção de conta solta
 // no meio do texto não tem o que fazer ali dentro.
-const NO_DETECTION = new Set(['code', 'divider', 'table', 'image', 'calc', 'base']);
+const NO_DETECTION = new Set(['code', 'divider', 'table', 'image', 'calc', 'base', 'pagebreak', 'toc']);
 
 // Blocos sem um conteúdo de texto único: getContentEl devolve o próprio bloco
 // neles, então perguntar pelo texto não faz sentido.
-export const NO_TEXT_TYPES = new Set(['divider', 'table', 'image', 'audio', 'video', 'base']);
+export const NO_TEXT_TYPES = new Set(['divider', 'table', 'image', 'audio', 'video', 'base', 'pagebreak', 'toc']);
 
 // Âncora invisível do cursor. Fica aqui em cima porque sanitizeForSave a usa
 // muito antes do ponto onde ela é criada — ver replaceRangeWithTag, que é onde
@@ -217,6 +220,14 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
     frame.append(img, buildImageResizeHandle(el));
     // A linha em markdown (`![alt](endereço|300)`) fica ACIMA da imagem e só aparece com o cursor nela
     el.append(buildImageSource(), frame, buildImageTools());
+    el.dataset.type = type;
+    el.dataset.id = uid();
+    return el;
+  }
+
+  // Quebra de página e sumário: blocos sem texto editável (como o divisor e a tabela)
+  if (type === 'pagebreak' || type === 'toc') {
+    el = type === 'pagebreak' ? buildPageBreak() : buildToc();
     el.dataset.type = type;
     el.dataset.id = uid();
     return el;
@@ -382,6 +393,8 @@ function createBlockElFrom(b) {
   setBlockUnderlined(el, !!b.underlined);
   setBlockTextAlign(el, b.textAlign);
   if (b.type === 'image') setImageData(el, b);
+  if (b.type === 'pagebreak') setPageBreakBlank(el, !!b.blank);
+  if (b.type === 'toc') setTocData(el, b);
   if (b.type === 'audio' || b.type === 'video') setMediaData(el, b.type, b);
   return el;
 }
@@ -643,7 +656,7 @@ function focusBlockEnd(block) {
   }
   // Imagem, áudio e vídeo não recebem cursor de texto: o destino é a linha
   // seguinte, e se não houver uma (ou for outro bloco do mesmo tipo), cria.
-  if (block.dataset.type === 'image' || block.dataset.type === 'audio' || block.dataset.type === 'video') {
+  if (['image', 'audio', 'video', 'pagebreak', 'toc'].includes(block.dataset.type)) {
     let next = block.nextElementSibling;
     if (!next || next.dataset.type === block.dataset.type) {
       next = createBlockEl('paragraph');
@@ -967,6 +980,8 @@ export function serializeBlockEl(block) {
   if (type === 'bullet' && block.dataset.marker) b.marker = block.dataset.marker;
   if (type === 'code' && block.dataset.lang) b.lang = block.dataset.lang;
   if (type === 'divider') return b;
+  if (type === 'pagebreak') { if (block.dataset.blank === 'true') b.blank = true; return b; }
+  if (type === 'toc') return { ...b, ...getTocData(block) };
   if (type === 'image') {
     const fileId = Number(block.dataset.fileId);
     if (Number.isFinite(fileId)) b.fileId = fileId;
@@ -3829,6 +3844,12 @@ root.addEventListener('paste', e => {
     }
   }
 
+  // Texto vindo de Word/Docs/páginas com parágrafos centralizados, à direita ou justificados: mantém o alinhamento
+  if (!focusedCell()) {
+    const comAlinhamento = htmlToAlignedMarkdown(e.clipboardData?.getData('text/html') ?? '');
+    if (comAlinhamento) { claim(); pasteMultilineText(comAlinhamento); return; }
+  }
+
   if (!text) return;   // nada que a nota saiba tratar — segue pros Documentos
   claim();
 
@@ -4176,6 +4197,15 @@ export function insertDividerAtCursor() {
   renumberLists();
   scheduleSave();
 }
+
+// ── Sumário (bloco): a lista acompanha os títulos da nota ───────────────────────
+initNoteToc({
+  captureUndoPoint,
+  scheduleSave,
+  getHeadings: () => extrairSumarioDaNota().map(h => ({ nivel: h.nivel, texto: (getContentEl(h.el)?.textContent || '').trim() })),
+  goToHeading: irParaTitulo,
+});
+document.addEventListener('quickdock:outline-rendered', () => refreshTocBlocks(root));
 
 // ── Controles de bloco e Drag & Drop (touchDragTimer / touchstart delegado para note-drag-drop.js) ─────
 initNoteDragDrop({

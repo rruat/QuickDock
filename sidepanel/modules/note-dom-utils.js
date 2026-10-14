@@ -1,4 +1,4 @@
-// Utilitários puros de cursor/seleção/offset de texto dentro de um bloco.
+﻿// Utilitários puros de cursor/seleção/offset de texto dentro de um bloco.
 // Usados por praticamente todo o resto de note.js — sem estado próprio, só
 // dependem do container raiz do editor (note-state.js).
 import { root } from './note-state.js';
@@ -80,6 +80,11 @@ export function currentBlock() {
 }
 
 export function focusBlockStart(block) {
+  // Quebra de página e sumário não recebem cursor de texto: vale o próximo bloco (se houver)
+  if (['pagebreak', 'toc'].includes(block.dataset?.type)) {
+    if (block.nextElementSibling) focusBlockStart(block.nextElementSibling);
+    return;
+  }
   const content = getContentEl(block);
   content.focus();
   setCaretOffset(content, 0);

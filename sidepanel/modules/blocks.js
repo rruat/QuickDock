@@ -495,6 +495,45 @@ function abreAlinhamento(linha) {
   return null;
 }
 
+// ── Quebra de página e sumário ───────────────────────────────────────────────
+// Os dois são gravados de um jeito que outro app ignora ou mostra como conteúdo comum:
+//  • quebra de página: <div style="page-break-after: always;"></div> — o que Obsidian, Typora e VS Code
+//    usam ao exportar para PDF; no GitHub o estilo é removido e sobra um <div> vazio (invisível).
+//    "Página em branco" são duas dessas linhas seguidas, a segunda com &nbsp; (a página do meio fica vazia).
+//  • sumário: lista de links entre dois comentários HTML (<!-- toc --> … <!-- /toc -->). Em outro app os
+//    comentários somem e a lista aparece normal, com links que funcionam pelos títulos.
+export const TOC_DEFAULT_LEVELS = 3;
+const PAGEBREAK_DIV   = '<div style="page-break-after: always;"></div>';
+const PAGEBREAK_BLANK = '<div style="page-break-after: always;">&nbsp;</div>';
+const PAGEBREAK_RE = /^(?:<div\s+style\s*=\s*["'][^"']*page-break-(?:after|before)\s*:\s*always[^"']*["']\s*>\s*(?:&nbsp;)?\s*<\/div>|\\newpage|\\pagebreak|<!--\s*page-?break\s*-->|<br\s+style\s*=\s*["'][^"']*page-break-(?:after|before)\s*:\s*always[^"']*["']\s*\/?>|<pagebreak\s*\/?>)$/i;
+const PAGEBREAK_BLANK_RE = /^<div\s+style\s*=\s*["'][^"']*page-break-(?:after|before)\s*:\s*always[^"']*["']\s*>\s*&nbsp;\s*<\/div>$/i;
+const TOC_OPEN_RE  = /^<!--\s*toc\b([^>]*?)-->$/i;
+const TOC_CLOSE_RE = /^<!--\s*\/toc\s*-->$/i;
+const TOC_ALIAS_RE = /^(\[TOC\]|\[\[_TOC_\]\])$/i;   // Typora / GitLab
+
+function clampNivel(n) { return Math.min(6, Math.max(1, Math.round(Number(n)) || 1)); }
+
+/** Lê o que há entre <!-- toc … --> e <!-- /toc -->: título em negrito e, no modo manual, os itens. */
+function parseTocRegion(attrs, corpo) {
+  const manual = /\bmanual\b/i.test(attrs);
+  const lv = /levels\s*=\s*([1-6])/i.exec(attrs);
+  const bloco = { type: 'toc', mode: manual ? 'manual' : 'auto', levels: lv ? Number(lv[1]) : TOC_DEFAULT_LEVELS, numbered: /\bnumbered\b/i.test(attrs), title: '' };
+  const itens = [];
+  let titulo = null;
+  for (const linha of corpo) {
+    if (linha.trim() === '') continue;
+    const t = /^\*\*(.+)\*\*$/.exec(linha.trim());
+    if (t && titulo === null && itens.length === 0) { titulo = t[1].trim(); continue; }
+    const li = /^(\s*)[-*+]\s+(.*)$/.exec(linha);
+    if (!li) continue;
+    const link = /^\[(.+?)\]\(#([^)]*)\)$/.exec(li[2].trim());
+    itens.push({ text: (link ? link[1] : li[2]).trim(), level: clampNivel(Math.floor(indentWidth(li[1]) / 2) + 1), ...(link ? { slug: link[2] } : {}) });
+  }
+  bloco.title = titulo ?? '';
+  if (manual) bloco.items = itens;
+  return bloco;
+}
+
 export function parseMarkdownToBlocks(markdown) {
   // Normaliza quebras de linha (Windows manda \r\n) — sem isso, cada linha
   // fica com um \r sobrando no final e os regexes ancorados em "$" falham
@@ -562,6 +601,26 @@ export function parseMarkdownToBlocks(markdown) {
     // não viram bloco, só marcam os blocos de dentro. A linha em branco logo depois de abrir e a de antes
     // de fechar existem só para o markdown de dentro funcionar em outros apps: não são blocos.
     if (!quoted) {
+      // Quebra de página (e "página em branco": duas linhas seguidas, a segunda com &nbsp;)
+      if (PAGEBREAK_RE.test(rest.trim())) {
+        const eVazia = !/&nbsp;/i.test(rest);
+        if (eVazia && PAGEBREAK_BLANK_RE.test((lines[i + 1] ?? '').trim())) { i++; add({ type: 'pagebreak', blank: true }); }
+        else add({ type: 'pagebreak' });
+        continue;
+      }
+      // Sumário: <!-- toc … --> lista <!-- /toc -->, [TOC] (Typora) ou [[_TOC_]] (GitLab)
+      if (TOC_ALIAS_RE.test(rest.trim())) {
+        add({ type: 'toc', mode: 'auto', levels: TOC_DEFAULT_LEVELS, numbered: false, title: '' });
+        continue;
+      }
+      if ((m = TOC_OPEN_RE.exec(rest.trim()))) {
+        let fim = -1;
+        for (let j = i + 1; j < lines.length; j++) { if (TOC_CLOSE_RE.test(lines[j].trim())) { fim = j; break; } }
+        const corpo = fim < 0 ? [] : lines.slice(i + 1, fim);
+        add(parseTocRegion(m[1] || '', corpo));
+        if (fim >= 0) i = fim;
+        continue;
+      }
       const aberto = abreAlinhamento(rest.trim());
       if (aberto && !alinha) {
         alinha = { ...aberto, desde: blocks.length };
@@ -621,6 +680,8 @@ export function parseMarkdownToBlocks(markdown) {
         for (const linha of corpo) {
           add({ type: 'calc', html: parseInlineMarkdown(linha.replace(/\s{2,}\/\/.*$/, '').trimEnd()) });
         }
+      } else if (marca === 'toc') {
+        add({ type: 'toc', mode: 'auto', levels: TOC_DEFAULT_LEVELS, numbered: false, title: '' });   // plugin do Obsidian
       } else if (marca === 'base' || marca === 'database') {
         add({ type: 'base', config: corpo.join('\n') });
       } else {
@@ -808,6 +869,57 @@ function nodeToMarkdown(node, parent = null) {
 // portabilidade da nota (campo `content`) e nas exportações/cópia como .md.
 // Dois espaços por nível: é o que o markdown espera e o que qualquer outro
 // editor vai ler de volta como aninhamento.
+/**
+ * Entradas do sumário: no automático vêm dos títulos de `lista` (mesmo apelido/âncora do sumário lateral);
+ * no manual, dos itens que a pessoa montou. `numbered` põe 1, 1.1, 1.1.1 (estilo ABNT) nos que ainda não têm número.
+ */
+// Âncora no formato do GitHub (mantém acentos; títulos repetidos ganham -1, -2). É a que outros apps
+// (GitHub, GitLab, VS Code, Typora) procuram; o QuickDock acha o mesmo título pelos dois formatos.
+function githubSlugs(textos) {
+  const usados = new Map();
+  return textos.map(t => {
+    const base = String(t).toLowerCase().trim().replace(/[^\p{L}\p{N}\p{M}\- _]/gu, '').replace(/\s/g, '-');
+    const n = usados.get(base) ?? 0;
+    usados.set(base, n + 1);
+    return n === 0 ? base : `${base}-${n}`;
+  });
+}
+
+export function tocEntries(b, lista) {
+  if (b.mode === 'manual') {
+    return (b.items ?? []).map(it => ({ text: String(it.text ?? ''), level: clampNivel(it.level), slug: it.slug || '' }));
+  }
+  const titulos = (lista ?? []).filter(x => /^heading[1-6]$/.test(x.type));
+  const textos = titulos.map(h => htmlToPlainText(h.html ?? '').trim());
+  const slugs = githubSlugs(textos);
+  const max = clampNivel(b.levels ?? TOC_DEFAULT_LEVELS);
+  const itens = titulos.map((h, i) => ({ text: textos[i], level: Number(h.type.slice(-1)), slug: slugs[i] }))
+    .filter(it => it.text && it.level <= max);
+  if (b.numbered && itens.length) {
+    const base = Math.min(...itens.map(it => it.level));
+    const cont = [];
+    for (const it of itens) {
+      const d = it.level - base;
+      cont[d] = (cont[d] ?? 0) + 1;
+      cont.length = d + 1;
+      if (!/^\d+(\.\d+)*\.?\s/.test(it.text)) it.text = `${cont.map(n => n ?? 1).join('.')} ${it.text}`;
+    }
+  }
+  return itens;
+}
+
+function tocToMarkdown(b, lista) {
+  const manual = b.mode === 'manual';
+  const attrs = [manual ? 'manual' : `levels=${clampNivel(b.levels ?? TOC_DEFAULT_LEVELS)}`, !manual && b.numbered ? 'numbered' : ''].filter(Boolean).join(' ');
+  const entradas = tocEntries(b, lista);
+  const base = entradas.length ? Math.min(...entradas.map(e => e.level)) : 1;
+  const itens = entradas.map(e => {
+    const texto = e.text.replace(/[\[\]]/g, '');
+    return `${'  '.repeat(e.level - base)}- ${e.slug ? `[${texto}](#${e.slug})` : texto}`;
+  });
+  return [`<!-- toc ${attrs} -->`, ...(b.title ? [`**${String(b.title).replace(/\*/g, '')}**`, ''] : []), ...itens, '<!-- /toc -->'].join('\n');
+}
+
 // Só parágrafo e título, com texto, fora de citação e de lista aninhada, vão para dentro de um <div align>.
 function alinhamentoGravavel(b) {
   return !!b && !!normalizeTextAlign(b.textAlign) && ALINHAVEL.test(b.type)
@@ -873,6 +985,8 @@ export function blocksToMarkdown(blocks, opts = {}) {
           && htmlToPlainText(acima.html ?? '').trim() !== '';
         return `${pad}${q}${ambiguo ? '***' : '---'}`;
       }
+      if (b.type === 'pagebreak') return b.blank ? `${PAGEBREAK_DIV}\n${PAGEBREAK_BLANK}` : PAGEBREAK_DIV;
+      if (b.type === 'toc')       return tocToMarkdown(b, lista);
       if (b.type === 'base') {
         const corpo = (b.config ?? '').trim();
         return [
@@ -999,6 +1113,11 @@ export function blocksToPlainText(blocks) {
       if (b.type === 'video')   return `${pad}${q}[vídeo${b.alt ? `: ${b.alt}` : ''}]`;
       if (b.type === 'base')    return `${pad}${q}[base de dados]`;
       if (b.type === 'divider') return `${pad}${q}──────────`;
+      if (b.type === 'pagebreak') return `${pad}${q}[${b.blank ? 'página em branco' : 'quebra de página'}]`;
+      if (b.type === 'toc') {
+        const itens = tocEntries(b, lista).map(e => `${pad}${q}${'  '.repeat(e.level - 1)}${e.text}`);
+        return [`${pad}${q}${b.title || 'Sumário'}`, ...itens].join('\n');
+      }
       if (b.type === 'table') {
         return (b.rows ?? []).map(row => `${pad}${q}${row.map(htmlToPlainText).join('\t')}`).join('\n');
       }

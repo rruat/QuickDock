@@ -1,4 +1,4 @@
-// Sumário (Outline) da nota, scrollspy, e as abas da sidebar/rodapé que
+﻿// Sumário (Outline) da nota, scrollspy, e as abas da sidebar/rodapé que
 // alternam entre sumário e backlinks.
 import { headingSlug, headingSlugs, escHtml } from './blocks.js';
 import { root, noteEditorEl } from './note-state.js';
@@ -151,6 +151,7 @@ export function renderOutline() {
   populateList(mobileOutlineListEl);
   populateList(document.getElementById('mobile-outline-container'));
   updateActiveOutlineHeading();
+  document.dispatchEvent(new CustomEvent('quickdock:outline-rendered'));   // os sumários dentro da nota se atualizam
 }
 
 let scrollSpyRaf = null;

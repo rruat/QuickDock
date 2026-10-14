@@ -75,10 +75,45 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   ok('quadros · o botão de excluir o espaço existe mesmo com um só quadro', !board.includes('if (allBoards.length > 1) {'));
   ok('notas · a lista em memória é conferida quando o conjunto de notas muda', tabs.includes("'quickdock:notes-changed'") && tabs.includes('conferirListaDeNotas') && storage.includes('export async function loadAllNoteIds'));
   ok('notas · dá para excluir a última nota (vai para "nenhuma nota aberta")', !tabs.includes('Deve existir ao menos uma nota') && tabs.includes('else await deactivateActiveNote();'));
+  // ── Quebra de página ──
+  const PB = '<div style="page-break-after: always;"></div>';
+  igual('página · quebra: lê e grava <div style="page-break-after: always;">', bl.blocksToMarkdown(bl.parseMarkdownToBlocks(`a\n${PB}\nb`)), `a\n${PB}\nb`);
+  igual('página · quebra: é um bloco próprio', bl.parseMarkdownToBlocks(`a\n${PB}\nb`).map(b => b.type), ['paragraph', 'pagebreak', 'paragraph']);
+  const em = bl.parseMarkdownToBlocks(`${PB}\n<div style="page-break-after: always;">&nbsp;</div>`);
+  igual('página · página em branco são duas linhas seguidas e viram um bloco só', em.map(b => [b.type, !!b.blank]), [['pagebreak', true]]);
+  igual('página · página em branco volta igual', bl.blocksToMarkdown(em), `${PB}\n<div style="page-break-after: always;">&nbsp;</div>`);
+  igual('página · outras formas de escrever a quebra são entendidas', ['\\newpage', '<!-- pagebreak -->', '<br style="page-break-before: always">', '<div style="page-break-before:always"></div>'].map(l => bl.parseMarkdownToBlocks(l)[0].type), ['pagebreak', 'pagebreak', 'pagebreak', 'pagebreak']);
+
+  // ── Sumário ──
+  const nota = ['<!-- toc levels=3 -->', '**Sumário**', '', '<!-- /toc -->', '# Introdução', 'texto', '## Objetivo', '# Método', '#### Detalhe fundo'].join('\n');
+  const bTocs = bl.parseMarkdownToBlocks(nota);
+  igual('sumário · lê o bloco e as opções', [bTocs[0].type, bTocs[0].mode, bTocs[0].levels, bTocs[0].numbered, bTocs[0].title], ['toc', 'auto', 3, false, 'Sumário']);
+  const saidaToc = bl.blocksToMarkdown(bTocs);
+  ok('sumário · automático: lista de links entre comentários, só até o nível pedido', saidaToc.startsWith('<!-- toc levels=3 -->\n**Sumário**\n\n- [Introdução](#introdução)\n  - [Objetivo](#objetivo)\n- [Método](#método)\n<!-- /toc -->'), saidaToc);
+  ok('sumário · não inclui o título de nível fundo', !saidaToc.includes('Detalhe fundo)') && !saidaToc.includes('[Detalhe'));
+  igual('sumário · ler, gravar e ler de novo não muda nada', bl.blocksToMarkdown(bl.parseMarkdownToBlocks(saidaToc)), saidaToc);
+  const numerado = bl.blocksToMarkdown([{ type: 'toc', mode: 'auto', levels: 3, numbered: true, title: '' }, { type: 'heading1', html: 'Intro' }, { type: 'heading2', html: 'Meta' }, { type: 'heading2', html: 'Escopo' }, { type: 'heading1', html: 'Fim' }]);
+  ok('sumário · numeração ABNT (1, 1.1, 1.2, 2)', numerado.includes('- [1 Intro](#intro)\n  - [1.1 Meta](#meta)\n  - [1.2 Escopo](#escopo)\n- [2 Fim](#fim)'), numerado);
+  igual('sumário · título que já começa com número não ganha outro', bl.tocEntries({ mode: 'auto', levels: 3, numbered: true }, [{ type: 'heading1', html: '1 Intro' }])[0].text, '1 Intro');
+  igual('sumário · títulos repetidos recebem apelidos diferentes (como no GitHub)', bl.tocEntries({ mode: 'auto', levels: 3 }, [{ type: 'heading1', html: 'A' }, { type: 'heading1', html: 'A' }]).map(e => e.slug), ['a', 'a-1']);
+  const manual = bl.parseMarkdownToBlocks('<!-- toc manual -->\n**Índice**\n\n- [Parte 1](#parte-1)\n  - sem link\n<!-- /toc -->');
+  igual('sumário · manual guarda os itens da pessoa', [manual[0].mode, manual[0].items], ['manual', [{ text: 'Parte 1', level: 1, slug: 'parte-1' }, { text: 'sem link', level: 2 }]]);
+  igual('sumário · manual não é refeito a partir dos títulos', bl.blocksToMarkdown([...manual, { type: 'heading1', html: 'Outro' }]).includes('Outro)'), false);
+  igual('sumário · [TOC] (Typora) e ```toc (Obsidian) viram o bloco', [bl.parseMarkdownToBlocks('[TOC]')[0].type, bl.parseMarkdownToBlocks('```toc\n```')[0].type], ['toc', 'toc']);
+  igual('sumário · sem o comentário de fechamento não engole o resto da nota', bl.parseMarkdownToBlocks('<!-- toc -->\ntexto').map(b => b.type), ['toc', 'paragraph']);
+
+  // ── Colar texto já alinhado ──
+  const pa = await import('../sidepanel/modules/note/note-paste-align.js');
+  igual('colar · valores de alinhamento do Word, Docs e navegadores', ['center', '-webkit-center', 'right', 'end', 'justify', 'left', 'start', '', 'xyz'].map(pa.alignFromCss), ['center', 'center', 'right', 'right', 'justify', null, null, null, null]);
+  igual('colar · sem alinhamento no html nada muda (segue o colar de sempre)', pa.htmlToAlignedMarkdown('<p>oi</p>'), null);
+
   const noteSrc = await readFile(new URL('../sidepanel/modules/note.js', import.meta.url), 'utf8');
   const ddSrc = await readFile(new URL('../sidepanel/modules/note/note-drag-drop.js', import.meta.url), 'utf8');
   ok('alinhamento · o bloco guarda e devolve o alinhamento (criar, serializar, Enter, trocar de tipo)', noteSrc.includes('setBlockTextAlign(el, b.textAlign)') && noteSrc.includes('b.textAlign = block.dataset.textAlign') && noteSrc.includes('setBlockTextAlign(newBlock, block.dataset.textAlign)') && noteSrc.includes('setBlockTextAlign(newBlock, blockEl.dataset.textAlign)'));
   ok('alinhamento · atalhos Ctrl+Shift+L/E/R/J', noteSrc.includes("['l', 'e', 'r', 'j'].includes(key)") && noteSrc.includes("{ l: 'left', e: 'center', r: 'right', j: 'justify' }"));
   ok('alinhamento · o menu do bloco tem a linha Alinhar (esquerda, centro, direita, justificado)', ddSrc.includes('block-align-row') && ddSrc.includes('format_align_justify'));
+  ok('colar · a nota usa o alinhamento do html colado', noteSrc.includes('htmlToAlignedMarkdown(e.clipboardData'));
+  ok('página · quebra e sumário são blocos sem texto (menu "/", seleção, copiar)', noteSrc.includes("'pagebreak', 'toc'") && (await readFile(new URL('../sidepanel/modules/note/note-slash-menu.js', import.meta.url), 'utf8')).includes("type: 'pagebreak', blank: true"));
+  ok('página · o sumário da nota se atualiza quando os títulos mudam', noteSrc.includes("'quickdock:outline-rendered'") && (await readFile(new URL('../sidepanel/modules/note-outline.js', import.meta.url), 'utf8')).includes("'quickdock:outline-rendered'"));
   ok('impressão · o @page usa as margens escolhidas', print.includes('pageMarginValue(margins)') && !print.includes('margin: 14mm'));
 }
