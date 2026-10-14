@@ -1,0 +1,41 @@
+/* ==========================================================================
+   41-page-guide.css - Guia de páginas no editor (opção; modules/note-page-guide.js)
+   A nota vira uma folha branca do tamanho do papel, com as margens do painel de impressão.
+   As linhas de fim de página vêm de um SVG de fundo (--guide-svg).
+   ========================================================================== */
+
+body.has-page-guide:not(.is-print-mode) .note-editor { background: var(--bg-secondary); }
+
+body.has-page-guide:not(.is-print-mode) #note-editor-blocks {
+  position: relative;
+  box-sizing: border-box;
+  flex: none;
+  width: var(--guide-w) !important;
+  max-width: none !important;
+  min-height: var(--guide-h);
+  margin: 12px auto 32px !important;
+  padding: var(--guide-pt) var(--guide-pr) var(--guide-pb) var(--guide-pl) !important;
+  background: oklch(100% 0 0);
+  color: oklch(0% 0 0);
+  box-shadow: 0 2px 12px oklch(0% 0 0 / 0.22);
+  /* a folha é sempre papel (claro), qualquer que seja o tema do app */
+  --bg: oklch(100% 0 0); --bg-secondary: oklch(97% 0 0); --bg-card: oklch(100% 0 0); --bg-hover: oklch(95.8% 0 0);
+  --border: oklch(87% 0 0); --text: oklch(0% 0 0); --text-secondary: oklch(32.1% 0 0); --text-muted: oklch(45% 0 0);
+}
+
+body.has-page-guide:not(.is-print-mode) #note-editor-blocks::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--guide-svg, none);
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+
+.btn-page-guide-note.active { background: var(--bg-hover); color: var(--accent); }
+
+@media print {
+  body.has-page-guide #note-editor-blocks { box-shadow: none !important; }
+  body.has-page-guide #note-editor-blocks::after { display: none !important; }
+}

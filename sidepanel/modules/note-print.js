@@ -6,6 +6,7 @@
 import { loadMargins, pageMarginValue } from './note-print-margins.js';
 import { loadText, textCss } from './note-print-text.js';
 import { loadNumbering } from './note-page-numbering.js';
+import { refreshPageGuide } from './note-page-guide.js';
 import { isPageViewOpen, isPageViewShowing, openPageView, closePageView, refreshPageView, printPageView, showPageViewPages } from './note-page-view.js';
 import { buildPrintPanel, buildPageAndTextGroups } from './note-print-panel.js';
 import { setRightAsideMode } from './shell/shell-right-aside.js';
@@ -55,6 +56,7 @@ function setOrientation(value) {
   try { localStorage.setItem(STORAGE_KEY, orientation); } catch {}
   applyPageStyle();
   refreshPageView();
+  refreshPageGuide();
   if (toolbarEl) {
     toolbarEl.querySelectorAll('[data-orientation]').forEach((btn) => {
       const active = btn.dataset.orientation === orientation;
@@ -247,7 +249,7 @@ export function enterPrintMode() {
 
   // No desktop as configurações de impressão moram na aside direita (organizado, sem cobrir a nota);
   // no celular a aside é um drawer que taparia a seleção, então a barra continua no topo da nota.
-  const onMargins = (novo) => { margins = novo; applyPageStyle(); refreshPageView(); };
+  const onMargins = (novo) => { margins = novo; applyPageStyle(); refreshPageView(); refreshPageGuide(); };
   const onText = (novo) => { textSettings = novo; applyPageStyle(); refreshPageView(); };
   const onNumbering = (novo) => { numbering = novo; refreshPageView(); };
   let asideHost = null;
