@@ -6,7 +6,7 @@
 import { loadMargins, pageMarginValue } from './note-print-margins.js';
 import { loadText, textCss } from './note-print-text.js';
 import { loadNumbering } from './note-page-numbering.js';
-import { isPageViewOpen, openPageView, closePageView, refreshPageView, printPageView } from './note-page-view.js';
+import { isPageViewOpen, isPageViewShowing, openPageView, closePageView, refreshPageView, printPageView, showPageViewPages } from './note-page-view.js';
 import { buildPrintPanel, buildPageAndTextGroups } from './note-print-panel.js';
 import { setRightAsideMode } from './shell/shell-right-aside.js';
 import { isMobileMode } from './platform.js';
@@ -450,8 +450,10 @@ function getPageSource() {
 
 function togglePageView() {
   const botao = document.getElementById('btn-page-view');
-  if (isPageViewOpen()) closePageView();
-  else openPageView(getPageSource);
+  const painelNaAside = toolbarEl?.classList.contains('note-print-panel');   // desktop: as folhas moram na aside, ao lado da nota
+  if (isPageViewOpen() && !isPageViewShowing()) showPageViewPages();           // estava na aba Configurações: volta às folhas
+  else if (isPageViewOpen()) closePageView();
+  else openPageView(getPageSource, painelNaAside ? { parent: toolbarEl.parentElement, panel: toolbarEl } : {});
   botao?.classList.toggle('is-active', isPageViewOpen());
 }
 document.addEventListener('quickdock:page-view-closed', () => {

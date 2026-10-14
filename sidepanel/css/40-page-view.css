@@ -77,3 +77,19 @@ a.page-toc-row::after { content: target-counter(attr(href url), page); flex: non
 
 /* Com as folhas na tela, as caixas de seleção do modo de impressão ficam escondidas (elas são do texto, não das folhas) */
 body.is-page-view .note-print-gutter { display: none !important; }
+
+/* Na aside direita (desktop): a visualização divide o espaço com o painel de configurações por abas, e a aside
+   alarga enquanto as páginas estão à vista (as folhas A4 precisam de largura) */
+body.is-page-view-wide { --right-aside-width: clamp(420px, 46vw, 680px); }
+.right-aside-note-host:has(> #note-page-view) { height: 100%; }
+#note-page-view.is-in-aside { position: static; flex: 1 1 auto; min-height: 0; background: transparent; z-index: auto; }
+#note-page-view.is-in-aside[hidden] { display: none; }
+.page-view-tabs { display: flex; gap: 4px; padding: 8px 12px 0; }
+.page-view-tabs button {
+  flex: 1; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: transparent;
+  color: var(--text-secondary); font: inherit; font-size: 12px; cursor: pointer;
+}
+.page-view-tabs button.active { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); font-weight: 600; }
+#note-page-view.is-in-aside .page-view-bar { padding: 8px 12px; gap: 8px; background: transparent; border-bottom: 1px solid var(--border); }
+#note-page-view.is-in-aside .page-view-stage { padding: 12px; background: var(--bg-secondary); }
+.note-print-panel[hidden] { display: none !important; }

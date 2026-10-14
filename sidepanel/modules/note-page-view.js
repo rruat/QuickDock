@@ -37,8 +37,13 @@ let obterFonte = null;          // () => { title, blocks, orientation, margins, 
 let renderizando = false, renderPendente = false, timer = null;
 let zoomModo = 'fit', zoom = 1;
 let paginas = 0;
+let observadorEstagio = null;       // refaz o ajuste de zoom quando a largura da aside muda (abre/alarga com animação)
+let painelEl = null;               // painel de configurações da aside (some enquanto as folhas estão à vista)
+let naAside = false;               // true: as folhas moram na aside direita; false: cobrem a nota (celular)
+let visivel = true, sujo = false;  // aba Páginas à vista? / mudou algo enquanto estava na aba Configurações?
 
 export const isPageViewOpen = () => !!overlay;
+export const isPageViewShowing = () => !!overlay && visivel;
 
 // ── Conteúdo ────────────────────────────────────────────────────────────────
 const textoDe = el => (el.querySelector(':scope > .block-content') || el).textContent.replace(/\s+/g, ' ').trim();
@@ -142,7 +147,7 @@ function limparPaginas() {
 }
 
 async function renderizar() {
-  if (!overlay) return;
+  if (!overlay || !visivel) return;
   if (renderizando) { renderPendente = true; return; }
   renderizando = true;
   overlay.classList.add('is-loading');
@@ -174,6 +179,7 @@ async function renderizar() {
 /** Pede um novo desenho (as configurações de impressão mudaram); junta várias alterações seguidas. */
 export function refreshPageView() {
   if (!overlay) return;
+  if (!visivel) { sujo = true; return; }   // na aba Configurações o contêiner está escondido e o Paged.js não consegue medir
   clearTimeout(timer);
   timer = setTimeout(renderizar, 450);
 }
@@ -181,7 +187,7 @@ export function refreshPageView() {
 // ── Zoom ────────────────────────────────────────────────────────────────────
 function aplicarZoom() {
   const paginasEl = host?.querySelector('.pagedjs_pages');
-  if (!paginasEl) return;
+  if (!paginasEl || !visivel) return;
   if (zoomModo === 'fit') {
     const folha = paginasEl.querySelector('.pagedjs_page');
     const larguraFolha = folha?.getBoundingClientRect().width / (Number(paginasEl.dataset.zoom) || 1) || 794;
@@ -200,14 +206,27 @@ function mudarZoom(delta) {
 }
 
 // ── Abrir e fechar ──────────────────────────────────────────────────────────
-export function openPageView(fonte) {
+/**
+ * @param fonte  () => conteúdo e configurações atuais (vem do note-print.js)
+ * @param opcoes.parent  onde pôr as folhas: a aside direita (desktop). Sem isso cobrem a área da nota (celular).
+ * @param opcoes.panel   o painel de configurações da aside, que alterna com as folhas
+ */
+export function openPageView(fonte, { parent = null, panel = null } = {}) {
   if (overlay) return;
-  const area = document.querySelector('#section-note .note-workspace-body');
+  const area = parent ?? document.querySelector('#section-note .note-workspace-body');
   if (!area) return;
   obterFonte = fonte;
+  naAside = !!parent;
+  painelEl = naAside ? panel : null;
+  visivel = true; sujo = false;
   overlay = document.createElement('div');
   overlay.id = 'note-page-view';
-  overlay.innerHTML = '<div class="page-view-bar">'
+  overlay.classList.toggle('is-in-aside', naAside);
+  overlay.innerHTML = (naAside
+      ? '<div class="page-view-tabs" role="tablist"><button type="button" class="active" data-pv="tab-pages" role="tab">Páginas</button>'
+        + '<button type="button" data-pv="tab-settings" role="tab">Configurações</button></div>'
+      : '')
+    + '<div class="page-view-bar">'
     + '<span class="page-view-status">…</span>'
     + '<span class="page-view-zoom"><button type="button" data-pv="out" title="Menos zoom" aria-label="Menos zoom">−</button>'
     + '<span class="page-view-zoom-value">100%</span>'
@@ -215,13 +234,15 @@ export function openPageView(fonte) {
     + '<button type="button" data-pv="fit" title="Ajustar à largura">Ajustar</button></span>'
     + '<span class="page-view-spacer"></span>'
     + '<button type="button" class="page-view-print" data-pv="print" title="Imprimir ou salvar em PDF as páginas">Imprimir / PDF</button>'
-    + '<button type="button" data-pv="close" title="Voltar à nota" aria-label="Fechar visualização">Fechar</button>'
+    + '<button type="button" data-pv="close" title="Fechar a visualização" aria-label="Fechar visualização">Fechar</button>'
     + '</div><div class="page-view-stage"><div class="page-view-pages"></div></div>';
   area.appendChild(overlay);
+  if (painelEl) painelEl.hidden = true;
   host = overlay.querySelector('.page-view-pages');
   statusEl = overlay.querySelector('.page-view-status');
   zoomEl = overlay.querySelector('.page-view-zoom-value');
   document.body.classList.add('is-page-view');
+  document.body.classList.toggle('is-page-view-wide', naAside);
   overlay.addEventListener('click', (e) => {
     const b = e.target.closest('[data-pv]');
     if (!b) return;
@@ -231,25 +252,51 @@ export function openPageView(fonte) {
     else if (acao === 'fit') { zoomModo = 'fit'; aplicarZoom(); }
     else if (acao === 'print') imprimirPaginas();
     else if (acao === 'close') closePageView();
+    else if (acao === 'tab-settings') showPageViewSettings();
   });
   window.addEventListener('resize', aplicarZoomSeAjustado);
+  observadorEstagio = new ResizeObserver(aplicarZoomSeAjustado);
+  observadorEstagio.observe(overlay.querySelector('.page-view-stage'));
   renderizar();
 }
 
 const aplicarZoomSeAjustado = () => { if (zoomModo === 'fit') aplicarZoom(); };
+
+/** Aba "Configurações": o painel volta à aside e as folhas ficam guardadas, escondidas. */
+export function showPageViewSettings() {
+  if (!overlay || !naAside) return;
+  visivel = false;
+  overlay.hidden = true;
+  if (painelEl) painelEl.hidden = false;
+  document.body.classList.remove('is-page-view-wide');
+}
+
+/** Aba "Páginas": redesenha se algo mudou nas configurações enquanto estava fora. */
+export function showPageViewPages() {
+  if (!overlay) return;
+  visivel = true;
+  overlay.hidden = false;
+  if (painelEl) painelEl.hidden = true;
+  document.body.classList.toggle('is-page-view-wide', naAside);
+  // espera a aside alargar antes de medir
+  setTimeout(() => { if (sujo || !host.querySelector('.pagedjs_page')) { sujo = false; renderizar(); } else aplicarZoom(); }, 260);
+}
 
 export function closePageView() {
   if (!overlay) return;
   clearTimeout(timer);
   limparPaginas();
   overlay.remove();
-  overlay = host = statusEl = zoomEl = null;
+  if (painelEl) painelEl.hidden = false;
+  overlay = host = statusEl = zoomEl = painelEl = null;
   obterFonte = null;
-  document.body.classList.remove('is-page-view');
+  naAside = false; visivel = true; sujo = false;
+  document.body.classList.remove('is-page-view', 'is-page-view-wide');
   window.removeEventListener('resize', aplicarZoomSeAjustado);
+  observadorEstagio?.disconnect();
+  observadorEstagio = null;
   document.dispatchEvent(new CustomEvent('quickdock:page-view-closed'));
 }
-
 // ── Imprimir as páginas ─────────────────────────────────────────────────────
 // As folhas do Paged.js já têm o tamanho do papel: elas vão para uma raiz própria, filha direta do body,
 // que é a única coisa visível na impressão (ver 40-page-view.css), e voltam para o lugar depois.

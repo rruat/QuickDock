@@ -122,6 +122,9 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   ok('páginas · quebras forçadas e número do sumário vão no CSS entregue ao Paged.js', pv.includes('break-after: page') && pv.includes('target-counter(attr(href url), page)') && pv.includes('CSS_DO_DOCUMENTO'));
   ok('páginas · o destino do link tem id válido (prefixo pg-, não começa com número)', pv.includes('`pg-${slug}`'));
   ok('páginas · as regras do editor valem dentro das folhas (classe na área da página)', pv.includes("pagina.area.classList.add('note-editor-blocks')"));
+  ok('páginas · no desktop as folhas moram na aside direita, com abas Páginas e Configurações', pv.includes('tab-settings') && pv.includes('showPageViewSettings') && pv.includes("is-page-view-wide") && (await readFile(new URL('../sidepanel/modules/note-print.js', import.meta.url), 'utf8')).includes('{ parent: toolbarEl.parentElement, panel: toolbarEl }'));
+  ok('páginas · na aba Configurações não se tenta medir o que está escondido (marca como desatualizado)', pv.includes('if (!visivel) { sujo = true; return; }'));
+  ok('impressão · o título da nota começa desmarcado', (await readFile(new URL('../sidepanel/modules/note-print.js', import.meta.url), 'utf8')).includes('setItemState(itemObj, false);   // o título da nota não sai por padrão'));
   const printSrc = await readFile(new URL('../sidepanel/modules/note-print.js', import.meta.url), 'utf8');
   ok('páginas · imprimir com as folhas abertas imprime as próprias folhas', printSrc.includes('if (isPageViewOpen()) { printPageView(); return; }') && printSrc.includes('closePageView();'));
 
