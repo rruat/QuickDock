@@ -125,20 +125,22 @@ export async function runNoteFontMarginsTests({ ok, igual }) {
   ok('páginas · no desktop as folhas moram na aside direita, com abas Páginas e Configurações', pv.includes('tab-settings') && pv.includes('showPageViewSettings') && pv.includes("is-page-view-wide") && (await readFile(new URL('../sidepanel/modules/note-print.js', import.meta.url), 'utf8')).includes('{ parent: toolbarEl.parentElement, panel: toolbarEl }'));
   ok('páginas · na aba Configurações não se tenta medir o que está escondido (marca como desatualizado)', pv.includes('if (!visivel) { sujo = true; return; }'));
   ok('impressão · o título da nota começa desmarcado', (await readFile(new URL('../sidepanel/modules/note-print.js', import.meta.url), 'utf8')).includes('setItemState(itemObj, false);   // o título da nota não sai por padrão'));
-  // ── Guia de páginas no editor (aproximado) ──
+  // ── Guia de páginas no editor (folhas separadas, como no Word; aproximado) ──
   const pg = await import('../sidepanel/modules/note-page-guide.js').catch(() => null);
-  ok('guia · o módulo exporta o cálculo puro de marcas', pg && typeof pg.calcularMarcas === 'function');
-  if (pg?.calcularMarcas) {
+  ok('guia · o módulo exporta o planejamento puro das páginas', pg && typeof pg.planejar === 'function');
+  if (pg?.planejar) {
     const T = (tipo, top, altura, extra = {}) => ({ tipo, top, altura, ...extra });
-    igual('guia · texto que passa do fim da página é partido ali', pg.calcularMarcas([T('paragraph', 100, 450)], { margemTopo: 100, alturaUtil: 300 }), { marcas: [{ y: 400, n: 2 }], paginas: 2 });
-    igual('guia · tabela não se parte: vai inteira para a página seguinte', pg.calcularMarcas([T('paragraph', 100, 250), T('table', 350, 100)], { margemTopo: 100, alturaUtil: 300 }), { marcas: [{ y: 350, n: 2 }], paginas: 2 });
-    igual('guia · quebra de página força a próxima e recomeça a conta depois dela', pg.calcularMarcas([T('paragraph', 100, 100), T('pagebreak', 200, 20), T('paragraph', 220, 250)], { margemTopo: 100, alturaUtil: 300 }), { marcas: [{ y: 210, n: 2, forcada: true }], paginas: 2 });
-    igual('guia · página em branco conta duas', pg.calcularMarcas([T('pagebreak', 100, 20, { vazia: true })], { margemTopo: 100, alturaUtil: 300 }).paginas, 3);
-    igual('guia · nota curta cabe em uma página', pg.calcularMarcas([T('paragraph', 100, 50)], { margemTopo: 100, alturaUtil: 300 }).paginas, 1);
-  }
-  const guiaSrc = await readFile(new URL('../sidepanel/modules/note-page-guide.js', import.meta.url), 'utf8');
+    const G = { altura: 400, margemTopo: 50, margemBase: 50, intervalo: 20 };   // folha de 400, conteúdo de 300 (de 50 a 350)
+    igual('guia · nota curta cabe numa folha, sem empurrar nada', pg.planejar([T('paragraph', 50, 100), T('paragraph', 150, 100)], G), { empurroes: [], paginas: 1 });
+    igual('guia · o bloco que não cabe no resto da página vai inteiro para o topo da seguinte', pg.planejar([T('paragraph', 50, 280), T('paragraph', 330, 60)], G), { empurroes: [{ i: 1, alvo: 470 }], paginas: 2 });
+    igual('guia · depois do empurrão a conta segue da folha nova (o que veio depois sobe junto)', pg.planejar([T('paragraph', 50, 280), T('paragraph', 330, 60), T('paragraph', 390, 100)], G).empurroes, [{ i: 1, alvo: 470 }]);
+    igual('guia · quebra de página: o bloco seguinte abre a folha seguinte', pg.planejar([T('paragraph', 50, 100), T('pagebreak', 150, 20), T('paragraph', 170, 50)], G), { empurroes: [{ i: 2, alvo: 470 }], paginas: 2 });
+    igual('guia · página em branco deixa uma folha inteira vazia', pg.planejar([T('pagebreak', 50, 20, { vazia: true }), T('paragraph', 70, 50)], G), { empurroes: [{ i: 1, alvo: 890 }], paginas: 3 });
+    igual('guia · terminar com quebra cria a folha seguinte vazia', pg.planejar([T('paragraph', 50, 50), T('pagebreak', 100, 20)], G).paginas, 2);
+    igual('guia · bloco mais alto que a página atravessa as folhas e a conta continua de onde ele termina', pg.planejar([T('image', 50, 700), T('paragraph', 750, 50)], G).paginas, 3);
+  }  const guiaSrc = await readFile(new URL('../sidepanel/modules/note-page-guide.js', import.meta.url), 'utf8');
   ok('guia · desligado por padrão e lembrado neste aparelho', guiaSrc.includes("localStorage.getItem(KEY) === '1'") && guiaSrc.includes("let ativo = false;"));
-  ok('guia · as linhas não são filhos do editor (o editor trata cada filho como um bloco da nota)', guiaSrc.includes('--guide-svg') && !guiaSrc.includes('raiz.appendChild'));
+  ok('guia · as folhas não são filhos do editor (o editor trata cada filho como um bloco da nota)', guiaSrc.includes('--guide-svg') && !guiaSrc.includes('raiz.appendChild'));
   const printSrc = await readFile(new URL('../sidepanel/modules/note-print.js', import.meta.url), 'utf8');
   ok('páginas · imprimir com as folhas abertas imprime as próprias folhas', printSrc.includes('if (isPageViewOpen()) { printPageView(); return; }') && printSrc.includes('closePageView();'));
 

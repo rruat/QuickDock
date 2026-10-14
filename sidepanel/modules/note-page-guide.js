@@ -1,25 +1,27 @@
-﻿// ── note-page-guide.js ──────────────────────────────────────────────────────
-// "Guia de páginas": opção (desligada por padrão) que, no próprio editor, mostra o conteúdo da nota como uma
-// folha A4 — largura e margens do painel de impressão — com linhas tracejadas onde cada página termina e a
-// numeração delas. Serve para ter noção do tamanho enquanto escreve; a edição continua igual.
+// ── note-page-guide.js ──────────────────────────────────────────────────────
+// "Guia de páginas": opção (desligada por padrão) que, no próprio editor, mostra a nota como no Word: folhas
+// A4 brancas separadas por um intervalo cinza, com as margens do painel de impressão, o número de cada página
+// e o texto realmente empurrado para a folha seguinte quando a página acaba. Serve para ter noção do tamanho e
+// de onde cada página começa e termina enquanto escreve; a edição continua igual.
 //
-// É APROXIMADO: o texto corre contínuo e as linhas são calculadas somando a altura dos blocos (um parágrafo
-// que atravessa a linha é partido ali; tabela, código e imagem vão inteiros para a página seguinte; quebra de
-// página força a próxima). A conta exata é a de "Ver como páginas", que usa o Paged.js.
+// É APROXIMADO: um bloco que não cabe no resto da página vai INTEIRO para a seguinte (o Word parte o parágrafo
+// linha a linha; o editor não consegue), então um parágrafo longo pode deixar um espaço em branco maior no fim
+// da folha. A conta exata é a de "Ver como páginas" (Paged.js). Quebras de página forçam a folha seguinte.
 //
-// As linhas são desenhadas por um SVG de fundo (pseudo-elemento do editor), e não por elementos novos:
-// o editor trata cada filho de #note-editor-blocks como um bloco da nota.
+// O empurrão é um `margin-top` no primeiro bloco de cada página; as folhas são um SVG de fundo do editor
+// (e não elementos novos: o editor trata cada filho de #note-editor-blocks como um bloco da nota).
 
 import { loadMargins, effectiveCm } from './note-print-margins.js';
 
 const KEY = 'quickdock:note-page-guide';
 const KEY_ORIENTACAO = 'quickdock:note-print-orientation';   // a mesma do modo de impressão
 const MM = 96 / 25.4;                                         // pixels CSS por milímetro
-const NAO_PARTE = new Set(['table', 'code', 'image', 'audio', 'video', 'base', 'calc', 'toc']);
+const INTERVALO = 28;                                         // espaço cinza entre uma folha e a seguinte (px)
 
 let ativo = false;
 try { ativo = localStorage.getItem(KEY) === '1'; } catch { /* sem storage */ }
-let observador = null, raf = null, botao = null;
+let raf = null, botao = null, observador = null;
+const empurrados = new Set();                                 // blocos com margin-top posto por este módulo
 
 export const isPageGuideOn = () => ativo;
 
@@ -27,71 +29,100 @@ function orientacao() {
   try { return localStorage.getItem(KEY_ORIENTACAO) === 'landscape' ? 'landscape' : 'portrait'; } catch { return 'portrait'; }
 }
 
-/** Posições das linhas de fim de página, somando a altura dos blocos. Pura: recebe medidas, devolve marcas. */
-export function calcularMarcas(blocos, { margemTopo, alturaUtil }) {
-  const marcas = [];
-  let pagina = 1;
-  let inicio = margemTopo;                       // onde começa o conteúdo da página atual
-  for (const b of blocos) {
-    const topo = b.top, fim = b.top + b.altura;
-    if (b.tipo === 'pagebreak') {
-      pagina++; marcas.push({ y: topo + b.altura / 2, n: pagina, forcada: true });
-      inicio = fim;
-      if (b.vazia) { pagina++; marcas.push({ y: fim, n: pagina, forcada: true }); }
-      continue;
+/**
+ * Decide, sem mexer no DOM, quais blocos vão para o topo da página seguinte.
+ * `blocos`: [{ tipo, top, altura, vazia }] medidos SEM nenhum empurrão (fluxo contínuo).
+ * `geo`: { altura (da folha), margemTopo, margemBase, intervalo }.
+ * Devolve { empurroes: [{ i, alvo }] (alvo = topo absoluto desejado), paginas }.
+ */
+export function planejar(blocos, geo) {
+  const { altura: H, margemTopo: mt, margemBase: mb, intervalo: G } = geo;
+  const inicioDe = p => p * (H + G) + mt;
+  const fimDe = p => p * (H + G) + H - mb;
+  const util = H - mt - mb;
+  const empurroes = [];
+  let pagina = 0, forcar = 0, acumulado = 0;
+  blocos.forEach((b, i) => {
+    let top = b.top + acumulado;
+    if (b.tipo === 'pagebreak') {            // a própria linha da quebra fica na página que termina
+      forcar = b.vazia ? 2 : 1;
+      return;
     }
-    let guarda = 0;
-    while (fim > inicio + alturaUtil && guarda++ < 500) {
-      if (NAO_PARTE.has(b.tipo) && topo > inicio + 1) {   // bloco que não se parte: começa a página seguinte
-        pagina++; marcas.push({ y: topo, n: pagina }); inicio = topo;
-      } else {                                            // texto: a linha cai onde a página acaba
-        inicio += alturaUtil; pagina++; marcas.push({ y: inicio, n: pagina });
-      }
+    let nova = forcar;
+    if (!nova && b.altura <= util && top + b.altura > fimDe(pagina) + 0.5) nova = 1;   // não cabe no resto: vai inteiro
+    if (nova) {
+      pagina += nova; forcar = 0;
+      const alvo = inicioDe(pagina);
+      empurroes.push({ i, alvo });
+      acumulado += alvo - top;
+      top = alvo;
     }
-  }
-  return { marcas, paginas: pagina };
+    // bloco mais alto que a página: atravessa as seguintes; a conta continua da folha onde ele termina
+    const ultima = Math.floor((top + b.altura - mt - 1) / (H + G));
+    if (ultima > pagina) pagina = ultima;
+  });
+  if (forcar) pagina += forcar;              // terminou com quebra: a folha seguinte existe (vazia)
+  return { empurroes, paginas: pagina + 1 };
 }
 
-function svgDasLinhas(marcas, largura, altura, labelX) {
-  const linhas = marcas.map(m => `<line x1="0" x2="${largura}" y1="${m.y}" y2="${m.y}" stroke="oklch(62% 0.02 260)" stroke-width="1" stroke-dasharray="6 4"/>`
-    + `<text x="${labelX}" y="${m.y - 4}" text-anchor="end" font-family="sans-serif" font-size="10" fill="oklch(50% 0.02 260)">Página ${m.n}</text>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${largura}" height="${altura}">${linhas}</svg>`;
+function svgDasFolhas(paginas, W, H, G, mb) {
+  const folhas = Array.from({ length: paginas }, (_, p) => {
+    const y = p * (H + G);
+    return `<rect x="0.5" y="${y + 0.5}" width="${W - 1}" height="${H - 1}" fill="oklch(100% 0 0)" stroke="oklch(80% 0 0)"/>`
+      + `<text x="${W / 2}" y="${y + H - Math.max(8, mb / 2) + 3}" text-anchor="middle" font-family="sans-serif" font-size="10" fill="oklch(55% 0 0)">Página ${p + 1}</text>`;
+  }).join('');
+  const total = paginas * H + (paginas - 1) * G;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${total}">${folhas}</svg>`;
+}
+
+function limpar(raiz) {
+  for (const b of empurrados) b.style.marginTop = '';
+  empurrados.clear();
+  if (!raiz) return;
+  ['--guide-w', '--guide-h', '--guide-pt', '--guide-pr', '--guide-pb', '--guide-pl', '--guide-svg'].forEach(p => raiz.style.removeProperty(p));
+  raiz.style.zoom = '';
 }
 
 function desenhar() {
   raf = null;
   const raiz = document.getElementById('note-editor-blocks');
   if (!raiz) return;
-  if (!ativo) {
-    document.body.classList.remove('has-page-guide');
-    ['--guide-w', '--guide-h', '--guide-pt', '--guide-pr', '--guide-pb', '--guide-pl', '--guide-svg'].forEach(p => raiz.style.removeProperty(p));
-    raiz.style.zoom = '';
-    return;
-  }
+  if (!ativo) { document.body.classList.remove('has-page-guide'); limpar(raiz); return; }
+
   const m = effectiveCm(loadMargins());
   const paisagem = orientacao() === 'landscape';
   const W = (paisagem ? 297 : 210) * MM, H = (paisagem ? 210 : 297) * MM;
   const px = cm => cm * 10 * MM;
-  const topo = px(m.top), base = px(m.bottom), dir = px(m.right), esq = px(m.left);
+  const topo = px(m.top), base = px(m.bottom);
 
+  // folha primeiro (largura e margens), para os blocos serem medidos já com a largura do papel
+  limpar(raiz);
   document.body.classList.add('has-page-guide');
   const set = (k, v) => raiz.style.setProperty(k, v);
-  set('--guide-w', `${W}px`); set('--guide-h', `${H}px`);
-  set('--guide-pt', `${topo}px`); set('--guide-pr', `${dir}px`); set('--guide-pb', `${base}px`); set('--guide-pl', `${esq}px`);
-
-  // A folha encolhe (zoom) quando a coluna da nota é mais estreita que o papel: a conta de linhas continua a mesma
+  set('--guide-w', `${W}px`); set('--guide-pt', `${topo}px`); set('--guide-pr', `${px(m.right)}px`);
+  set('--guide-pb', `${base}px`); set('--guide-pl', `${px(m.left)}px`);
   const editor = document.querySelector('.note-editor');
-  const disponivel = (editor?.clientWidth ?? W) - 32;
-  const z = Math.min(1, Math.max(0.3, disponivel / W));
+  const z = Math.min(1, Math.max(0.3, ((editor?.clientWidth ?? W) - 32) / W));   // coluna mais estreita que o papel: encolhe
   raiz.style.zoom = z < 1 ? String(z) : '';
 
-  const blocos = [...raiz.children].map(b => ({
-    tipo: b.dataset?.type ?? '', top: b.offsetTop, altura: b.offsetHeight, vazia: b.dataset?.blank === 'true',
-  }));
-  const { marcas, paginas } = calcularMarcas(blocos, { margemTopo: topo, alturaUtil: Math.max(40, H - topo - base) });
-  const altura = Math.max(raiz.scrollHeight, H);
-  set('--guide-svg', `url("data:image/svg+xml,${encodeURIComponent(svgDasLinhas(marcas, W, altura, W - 10))}")`);
-  if (botao) botao.title = `Guia de páginas (A4) — ${paginas} ${paginas === 1 ? 'página' : 'páginas'} aproximadas`;
+  const filhos = [...raiz.children];
+  const medidos = filhos.map(b => ({ tipo: b.dataset?.type ?? '', top: b.offsetTop, altura: b.offsetHeight, vazia: b.dataset?.blank === 'true' }));
+  const plano = planejar(medidos, { altura: H, margemTopo: topo, margemBase: base, intervalo: INTERVALO });
+
+  for (const { i, alvo } of plano.empurroes) {
+    const b = filhos[i];
+    const margem0 = parseFloat(getComputedStyle(b).marginTop) || 0;
+    const antes = b.offsetTop;
+    b.style.marginTop = `${margem0 + (alvo - antes)}px`;
+    const real = b.offsetTop;                                        // margens vizinhas podem se fundir: corrige a diferença
+    if (Math.abs(real - alvo) > 0.5) b.style.marginTop = `${margem0 + (alvo - antes) + (alvo - real)}px`;
+    empurrados.add(b);
+  }
+
+  const total = plano.paginas * H + (plano.paginas - 1) * INTERVALO;
+  set('--guide-h', `${total}px`);
+  set('--guide-svg', `url("data:image/svg+xml,${encodeURIComponent(svgDasFolhas(plano.paginas, W, H, INTERVALO, base))}")`);
+  if (botao) botao.title = `Guia de páginas (A4) — ${plano.paginas} ${plano.paginas === 1 ? 'página' : 'páginas'} aproximadas`;
 }
 
 /** Redesenha (conteúdo, margens, orientação ou largura mudaram); junta várias chamadas num só quadro. */
