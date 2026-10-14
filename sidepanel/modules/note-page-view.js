@@ -140,6 +140,24 @@ function montarCss(fonte) {
 }
 
 // ── Desenho das páginas ─────────────────────────────────────────────────────
+// Mídia que ainda está sendo carregada pelo editor (arquivo local ou imagem sincronizada): espera o src
+// aparecer, com limite, para não travar a visualização se o arquivo não existir neste aparelho.
+async function esperarMidias(blocos, limiteMs = 4000) {
+  const pendentes = blocos
+    .filter(b => (b.dataset?.fileId || b.dataset?.imagePath))
+    .map(b => b.querySelector('img, video, audio'))
+    .filter(m => m && !m.getAttribute('src'));
+  if (!pendentes.length) return;
+  const inicio = Date.now();
+  await new Promise(ok => {
+    const verificar = () => {
+      if (!overlay || pendentes.every(m => m.getAttribute('src')) || Date.now() - inicio > limiteMs) return ok();
+      setTimeout(verificar, 50);
+    };
+    verificar();
+  });
+}
+
 function limparPaginas() {
   try { previewer?.polisher?.destroy?.(); } catch { /* já limpo */ }
   previewer = null;
@@ -157,6 +175,9 @@ async function renderizar() {
     if (!overlay) return;
     limparPaginas();
     const fonte = obterFonte();
+    // imagens/áudio/vídeo da nota carregam em segundo plano (blob:); clonar antes deixaria o elemento sem arquivo
+    await esperarMidias(fonte.blocks);
+    if (!overlay) return;
     const doc = montarDocumento(fonte);
     previewer = new window.PagedModule.Previewer();
     // As regras do editor são .note-editor-blocks .block…; o Paged.js não leva esse elemento para as páginas,
@@ -166,6 +187,8 @@ async function renderizar() {
     paginas = fluxo?.total ?? host.querySelectorAll('.pagedjs_page').length;
     statusEl.textContent = `${paginas} ${paginas === 1 ? 'página' : 'páginas'}`;
     aplicarZoom();
+    // o guia de páginas do editor usa esta mesma contagem (é a conta exata do modo de impressão)
+    document.dispatchEvent(new CustomEvent('quickdock:page-view-counted', { detail: { paginas } }));
   } catch (err) {
     console.error('Visualização em páginas:', err);
     statusEl.textContent = 'Não foi possível gerar as páginas';
@@ -291,11 +314,13 @@ export function closePageView() {
   overlay = host = statusEl = zoomEl = painelEl = null;
   obterFonte = null;
   naAside = false; visivel = true; sujo = false;
+  paginas = 0;
   document.body.classList.remove('is-page-view', 'is-page-view-wide');
   window.removeEventListener('resize', aplicarZoomSeAjustado);
   observadorEstagio?.disconnect();
   observadorEstagio = null;
   document.dispatchEvent(new CustomEvent('quickdock:page-view-closed'));
+  document.dispatchEvent(new CustomEvent('quickdock:page-view-counted', { detail: { paginas: null } }));
 }
 // ── Imprimir as páginas ─────────────────────────────────────────────────────
 // As folhas do Paged.js já têm o tamanho do papel: elas vão para uma raiz própria, filha direta do body,

@@ -21,6 +21,7 @@ const INTERVALO = 28;                                         // espaço cinza e
 let ativo = false;
 try { ativo = localStorage.getItem(KEY) === '1'; } catch { /* sem storage */ }
 let raf = null, botao = null, observador = null;
+let contagemDoModo = null;                                    // páginas do "Ver como páginas" (Paged.js), quando estão na tela
 const empurrados = new Set();                                 // blocos com margin-top posto por este módulo
 
 export const isPageGuideOn = () => ativo;
@@ -108,6 +109,8 @@ function desenhar() {
   const filhos = [...raiz.children];
   const medidos = filhos.map(b => ({ tipo: b.dataset?.type ?? '', top: b.offsetTop, altura: b.offsetHeight, vazia: b.dataset?.blank === 'true' }));
   const plano = planejar(medidos, { altura: H, margemTopo: topo, margemBase: base, intervalo: INTERVALO });
+  // com "Ver como páginas" aberto, o número de folhas é o dele (Paged.js): o guia não pode mostrar outra quantidade
+  const paginas = contagemDoModo || plano.paginas;
 
   for (const { i, alvo } of plano.empurroes) {
     const b = filhos[i];
@@ -119,10 +122,12 @@ function desenhar() {
     empurrados.add(b);
   }
 
-  const total = plano.paginas * H + (plano.paginas - 1) * INTERVALO;
+  const total = paginas * H + (paginas - 1) * INTERVALO;
   set('--guide-h', `${total}px`);
-  set('--guide-svg', `url("data:image/svg+xml,${encodeURIComponent(svgDasFolhas(plano.paginas, W, H, INTERVALO, base))}")`);
-  if (botao) botao.title = `Guia de páginas (A4) — ${plano.paginas} ${plano.paginas === 1 ? 'página' : 'páginas'} aproximadas`;
+  set('--guide-svg', `url("data:image/svg+xml,${encodeURIComponent(svgDasFolhas(paginas, W, H, INTERVALO, base))}")`);
+  if (botao) botao.title = contagemDoModo
+    ? `Guia de páginas (A4) — ${paginas} ${paginas === 1 ? 'página' : 'páginas'} (igual a Ver como páginas)`
+    : `Guia de páginas (A4) — ${paginas} ${paginas === 1 ? 'página' : 'páginas'} aproximadas`;
 }
 
 /** Redesenha (conteúdo, margens, orientação ou largura mudaram); junta várias chamadas num só quadro. */
@@ -162,6 +167,11 @@ function montar() {
   if (editor) observador.observe(editor);
   new MutationObserver(refreshPageGuide).observe(raiz, { childList: true });
   document.addEventListener('quickdock:active-note-changed', refreshPageGuide);
+  // "Ver como páginas" publica a contagem do Paged.js ao desenhar e null ao fechar
+  document.addEventListener('quickdock:page-view-counted', (e) => {
+    contagemDoModo = e.detail?.paginas || null;
+    refreshPageGuide();
+  });
   window.addEventListener('resize', refreshPageGuide);
   refreshPageGuide();
 }
