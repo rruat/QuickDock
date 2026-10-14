@@ -352,6 +352,7 @@ export function enterPrintMode() {
     gutterEl.appendChild(handle);
     const itemObj = { el: titleRowEl, handle, selected: true, type: 'title' };
     setupItem(itemObj);
+    setItemState(itemObj, false);   // o título da nota não sai por padrão (trabalhos têm o próprio título no texto); marque a caixa para incluir
     trackedItems.push(itemObj);
   }
 
