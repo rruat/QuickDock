@@ -577,3 +577,17 @@ body.is-print-mode .right-aside-note-host > :not(#note-print-toolbar) { display:
   color: var(--text); font: inherit; font-size: 12.5px; outline: none;
 }
 .print-align-field select:focus { border-color: var(--accent); }
+
+/* Indicador de sincronização (selo e botão flutuante) não faz parte da nota: nunca no papel nem no modo de impressão */
+body.is-print-mode .sync-indicador,
+body.is-print-mode .sync-selo,
+body.is-print-mode .sync-indicador-flutuante {
+  display: none !important;
+}
+@media print {
+  .sync-indicador, .sync-selo, .sync-indicador-flutuante,
+  html .sync-indicador, html .sync-indicador-flutuante {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
