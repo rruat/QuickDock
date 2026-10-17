@@ -543,12 +543,13 @@
   opacity: 0.85;
 }
 
-.block-code {
+/* .note-editor-blocks .block põe padding 3px 8px; este seletor (mesma especificidade, mais abaixo) ganha dele */
+.note-editor-blocks .block-code {
   position: relative;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  border-radius: 0.75rem;                 /* mesmo raio do header das views */
+  padding: 0 12px 8px;
   margin: 4px 0;
   transition: border-color 0.15s ease;
 }
@@ -556,41 +557,57 @@
 .block-code.is-active {
   border-color: var(--border-hover);
 }
+/* Header igual ao das views: mesma altura, mesmo padding lateral e divisor de 1px sem padding.
+   Vai de borda a borda do bloco (margem negativa) e o código começa logo abaixo do divisor. */
 .code-block-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-  font-size: 11px;
+  height: var(--header-height, 49px);
+  margin: 0 -12px 8px;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0.75rem 0.75rem 0 0;
   user-select: none;
 }
 .code-block-header:empty,
 .block-code:has(.md-syntax-fence-open) .code-block-header {
   display: none;
 }
+.code-block-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.code-lang-icon .material-symbols-rounded { font-size: 16px; }
+.block-code:has(.md-syntax-fence-open) {
+  padding-top: 8px;
+}
 .code-lang-label {
   font-family: var(--font-mono, monospace);
-  font-size: 10px;
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
 }
+/* Botão no mesmo tamanho dos botões de ação do header das views (24px de altura) */
 .code-copy-btn {
+  height: 24px;
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   color: var(--text-secondary);
-  font-size: 10px;
-  padding: 2px 7px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 0 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   transition: all 0.15s ease;
-  line-height: 1.4;
+  line-height: 1;
 }
 .code-copy-btn:hover {
   background: var(--bg-hover);
@@ -604,6 +621,8 @@
 .code-copy-icon {
   display: inline-block;
   vertical-align: middle;
+  width: 14px;
+  height: 14px;
 }
 .block-code .block-content {
   display: block;
@@ -613,6 +632,22 @@
   white-space: pre-wrap;
   tab-size: 2;
   outline: none;
+}
+
+/* Números de linha: coluna flutuante à esquerda, mesma fonte e altura de linha do código */
+.code-line-numbers {
+  float: left;
+  margin-right: 12px;
+  padding-right: 10px;
+  border-right: 1px solid var(--border);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+  white-space: pre;
+  color: var(--text-muted);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Tokens de destaque de sintaxe em código de programação */

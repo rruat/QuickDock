@@ -187,8 +187,6 @@ async function renderizar() {
     paginas = fluxo?.total ?? host.querySelectorAll('.pagedjs_page').length;
     statusEl.textContent = `${paginas} ${paginas === 1 ? 'página' : 'páginas'}`;
     aplicarZoom();
-    // o guia de páginas do editor usa esta mesma contagem (é a conta exata do modo de impressão)
-    document.dispatchEvent(new CustomEvent('quickdock:page-view-counted', { detail: { paginas } }));
   } catch (err) {
     console.error('Visualização em páginas:', err);
     statusEl.textContent = 'Não foi possível gerar as páginas';
@@ -314,13 +312,11 @@ export function closePageView() {
   overlay = host = statusEl = zoomEl = painelEl = null;
   obterFonte = null;
   naAside = false; visivel = true; sujo = false;
-  paginas = 0;
   document.body.classList.remove('is-page-view', 'is-page-view-wide');
   window.removeEventListener('resize', aplicarZoomSeAjustado);
   observadorEstagio?.disconnect();
   observadorEstagio = null;
   document.dispatchEvent(new CustomEvent('quickdock:page-view-closed'));
-  document.dispatchEvent(new CustomEvent('quickdock:page-view-counted', { detail: { paginas: null } }));
 }
 // ── Imprimir as páginas ─────────────────────────────────────────────────────
 // As folhas do Paged.js já têm o tamanho do papel: elas vão para uma raiz própria, filha direta do body,

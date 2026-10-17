@@ -7,6 +7,7 @@ import {
   refreshBacklinks, backlinksListEl, desktopBacklinksListEl,
 } from './note-backlinks.js';
 import { HEADING_TAGS, showFeedback, getCurrentNoteId } from './note.js';
+import { enterImageSelect, sair as sairSelecaoImagem } from './note-image-select.js';
 
 // Sumário (Outline), Backlinks e Abas
 const outlineSidebarEl = document.getElementById('note-outline-sidebar');
@@ -22,6 +23,8 @@ const floatingOutlineToggleBtn = document.getElementById('btn-outline-floating-t
 const floatingOutlineBadge = document.getElementById('note-outline-floating-badge');
 const tabBtnBacklinks = document.getElementById('tab-btn-backlinks');
 const tabBtnOutline = document.getElementById('tab-btn-outline');
+const tabBtnImagem = document.getElementById('tab-btn-imagem');
+const imagemPanelEl = document.getElementById('note-image-panel');
 
 // ── Âncora: pular pro título da própria nota ──────────────────────────────────
 // Os títulos da nota aberta e o apelido de cada um. É calculado na hora do
@@ -254,22 +257,32 @@ if (tabSidebarBacklinks) {
 // ── Alternador do Rodapé (Backlinks vs Sumário) ───────────────────────────────
 let activeBottomTab = typeof localStorage !== 'undefined' ? (localStorage.getItem('quickdock:note-bottom-tab') || 'backlinks') : 'backlinks';
 
+// 'imagem' não é lembrado: ao abrir a nota de novo, o modo de imagem começa desligado
 export function setBottomTab(tab) {
+  const imagem = tab === 'imagem';
   activeBottomTab = tab === 'outline' ? 'outline' : 'backlinks';
-  try { localStorage.setItem('quickdock:note-bottom-tab', activeBottomTab); } catch {}
+  if (!imagem) { try { localStorage.setItem('quickdock:note-bottom-tab', activeBottomTab); } catch {} }
 
-  const isBacklinks = activeBottomTab === 'backlinks';
+  const isBacklinks = activeBottomTab === 'backlinks' && !imagem;
+  const isOutline = activeBottomTab === 'outline' && !imagem;
   if (tabBtnBacklinks) {
     tabBtnBacklinks.classList.toggle('active', isBacklinks);
     tabBtnBacklinks.setAttribute('aria-selected', isBacklinks ? 'true' : 'false');
   }
   if (tabBtnOutline) {
-    tabBtnOutline.classList.toggle('active', !isBacklinks);
-    tabBtnOutline.setAttribute('aria-selected', !isBacklinks ? 'true' : 'false');
+    tabBtnOutline.classList.toggle('active', isOutline);
+    tabBtnOutline.setAttribute('aria-selected', isOutline ? 'true' : 'false');
+  }
+  if (tabBtnImagem) {
+    tabBtnImagem.classList.toggle('active', imagem);
+    tabBtnImagem.setAttribute('aria-selected', imagem ? 'true' : 'false');
   }
   if (backlinksListEl) backlinksListEl.hidden = !isBacklinks;
-  if (mobileOutlineListEl) mobileOutlineListEl.hidden = isBacklinks;
-  if (!isBacklinks) renderOutline();
+  if (mobileOutlineListEl) mobileOutlineListEl.hidden = !isOutline;
+  if (imagemPanelEl) imagemPanelEl.hidden = !imagem;
+  if (isOutline) renderOutline();
+  // o modo de seleção só existe com a aba Imagem aberta
+  if (imagem) enterImageSelect(); else sairSelecaoImagem();
 }
 
 if (tabBtnBacklinks) {
@@ -278,6 +291,13 @@ if (tabBtnBacklinks) {
 if (tabBtnOutline) {
   tabBtnOutline.addEventListener('click', () => setBottomTab('outline'));
 }
+if (tabBtnImagem) {
+  tabBtnImagem.addEventListener('click', () => setBottomTab('imagem'));
+}
+// o modo acabou por outro motivo (Esc, outra nota, modo de impressão): a aba volta para Backlinks
+document.addEventListener('quickdock:image-select-ended', () => {
+  if (activeBottomTab === 'imagem' || imagemPanelEl?.hidden === false) setBottomTab('backlinks');
+});
 
 // ── Barra Lateral do Sumário (Desktop) ────────────────────────────────────────
 let outlineSidebarOpen = typeof localStorage !== 'undefined' ? localStorage.getItem('quickdock:outline-sidebar:open') !== 'false' : true;

@@ -1,0 +1,76 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   42-image-select.css — modo "Gerar imagem" (escolher blocos e gerar PNG)
+   A calha e as caixinhas vêm do modo de impressão (25-print.css); o estado
+   próprio é body.is-image-select-mode. Os controles ficam na aba Imagem da
+   barra inferior da nota (index.html, #note-image-panel).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Espaço para a calha à esquerda, igual ao modo de impressão */
+body.is-image-select-mode .note-editor-blocks {
+  padding-left: 54px !important;
+  padding-right: 54px !important;
+}
+
+/* Blocos não marcados ficam apagados; marcados ficam normais */
+body.is-image-select-mode .note-editor-blocks > .block.image-selectable:not(.image-selected) {
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+}
+
+body.is-image-select-mode .note-editor-blocks > .block.image-selectable {
+  cursor: pointer;
+}
+
+body.is-image-select-mode .note-editor-blocks > .block.image-selectable:hover {
+  outline: 1px dashed var(--accent);
+  outline-offset: 3px;
+}
+
+/* Painel da aba Imagem (dentro de .note-bottom-content) */
+.note-image-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+}
+
+.note-image-panel[hidden] { display: none; }
+
+.note-image-panel-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.note-image-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.note-image-toolbar-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.note-image-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.note-image-toolbar-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Botão do cabeçalho com o modo ligado */
+.section-btn.btn-image-note.active {
+  color: var(--accent, oklch(58.5% 0.204 277.1)) !important;
+  background-color: var(--border) !important;
+}

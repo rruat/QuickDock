@@ -441,6 +441,10 @@
                   <span>Sumário</span>
                   <span id="note-outline-count" class="backlinks-count">0</span>
                 </button>
+                <button id="tab-btn-imagem" class="note-bottom-tab" type="button" role="tab" aria-selected="false" aria-controls="note-image-panel">
+                  <span class="qd-icon material-symbols-rounded" aria-hidden="true">image</span>
+                  <span>Imagem</span>
+                </button>
               </div>
               <button id="note-backlinks-toggle" class="note-backlinks-toggle" type="button" aria-expanded="true" title="Recolher / Expandir painel inferior">
                 <span class="qd-icon material-symbols-rounded backlinks-chevron" aria-hidden="true">expand_more</span>
@@ -449,6 +453,19 @@
             <div class="note-bottom-content">
               <div id="note-backlinks-list" class="note-backlinks-list" role="tabpanel" aria-labelledby="tab-btn-backlinks"></div>
               <div id="note-mobile-outline-list" class="note-outline-list note-mobile-outline-list" role="tabpanel" aria-labelledby="tab-btn-outline" hidden></div>
+              <div id="note-image-panel" class="note-image-panel" role="tabpanel" aria-labelledby="tab-btn-imagem" hidden>
+                <p class="note-image-panel-hint">Marque os blocos na calha à esquerda. Todos começam desmarcados.</p>
+                <div class="note-image-panel-row">
+                  <span id="note-image-count" class="note-image-toolbar-count">Nenhum bloco marcado</span>
+                  <div class="note-image-toolbar-actions">
+                    <button type="button" class="calendar-action-btn secondary" data-image-act="todos">Selecionar todos</button>
+                    <button type="button" class="calendar-action-btn secondary" data-image-act="baixar" title="Baixar PNG dos blocos marcados">
+                      <span class="qd-icon material-symbols-rounded">download</span><span>Baixar PNG</span></button>
+                    <button type="button" class="calendar-action-btn primary" data-image-act="copiar" title="Copiar imagem dos blocos marcados">
+                      <span class="qd-icon material-symbols-rounded">content_copy</span><span>Copiar imagem</span></button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -118,10 +118,10 @@
   gap: 6px;
   height: 30px;
   margin-bottom: 6px;
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;                  /* pílula */
+  background: var(--bg-secondary);       /* mais escuro que a aside (--bg), nos dois temas */
   color: var(--text-muted);
 }
 
@@ -140,19 +140,25 @@
 }
 
 /* ── Lista de views ── */
-.aside-views-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.aside-views-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }
 
+/* Lista agrupada: o primeiro item tem o topo arredondado, o último a base, e os do meio são retos */
 .aside-view-item {
   display: flex;
   align-items: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
+.aside-view-item + .aside-view-item { margin-top: -1px; }   /* uma borda só entre dois itens */
+.aside-view-item:first-child { border-radius: 16px 16px 0 0; }
+.aside-view-item:last-child { border-radius: 0 0 16px 16px; }
+.aside-view-item:first-child:last-child { border-radius: 16px; }
+
 .aside-view-item:hover { background: var(--bg-hover); }
-.aside-view-item.is-active { background: var(--bg-hover); border-color: var(--accent); }
+.aside-view-item.is-active { background: var(--bg-hover); }
 
 .aside-view-main {
   display: flex;

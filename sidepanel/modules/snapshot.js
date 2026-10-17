@@ -27,7 +27,12 @@ const VARIAVEIS = [
 const CSS_DA_IMAGEM = `
   .snapshot-wrap > style { display: none; }
   /* Sem rolagem e sem altura elástica: a imagem tem que mostrar tudo. */
-  .snapshot-blocks { overflow: visible; height: auto; flex: none; padding: 0; }
+  /* O editor põe padding (e altura elástica) na sua caixa de blocos; dentro da imagem ela tem que ser só o
+     conteúdo dos blocos escolhidos. Seletor mais específico que as regras do editor (ex.: modo de imagem). */
+  .snapshot-wrap .snapshot-blocks.note-editor-blocks {
+    overflow: visible !important; height: auto !important; min-height: 0 !important; flex: none !important;
+    padding: 0 !important; margin: 0 !important; max-width: none !important;
+  }
   /* A caixa de seleção vira símbolo desenhado (ver trocarCheckboxes). */
   .snapshot-check { color: var(--note-accent, var(--accent)); font-size: 14px; line-height: 1.2; }
 `;
@@ -37,12 +42,27 @@ let cssCache = null;
 // Junta o CSS do painel inteiro. A folha do Google Fonts é de outro domínio e
 // lançar exceção ao ler as regras dela é o esperado — os ícones daquela fonte
 // não aparecem dentro de um bloco, então não fazem falta aqui.
+// O style.css carrega as outras folhas com @import: a regra de @import só traz a linha do import (cssText),
+// não as regras que ela puxa. Por isso a leitura desce em cada folha importada (styleSheet).
+function regrasDaFolha(folha) {
+  let css = '';
+  for (const regra of folha.cssRules) {
+    if (!regra.styleSheet) { css += `${regra.cssText}\n`; continue; }
+    try {
+      css += regrasDaFolha(regra.styleSheet);
+    } catch {
+      /* folha importada de outro domínio (ex.: Google Fonts): não dá para ler, e não faz falta aqui */
+    }
+  }
+  return css;
+}
+
 function cssDoPainel() {
   if (cssCache !== null) return cssCache;
   let css = '';
   for (const folha of document.styleSheets) {
     try {
-      for (const regra of folha.cssRules) css += `${regra.cssText}\n`;
+      css += regrasDaFolha(folha);
     } catch {
       /* folha de outro domínio — segue o baile */
     }
@@ -84,6 +104,24 @@ function trocarCheckboxes(clone) {
   }
 }
 
+// A fonte de ícones do app (Material Symbols) não chega dentro do SVG: o nome do ícone sairia como texto
+// ("code"). Os ícones que aparecem em blocos viram um desenho embutido; o resto some em vez de vazar o nome.
+const ICONES_DA_IMAGEM = {
+  code: '<polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/><line x1="13.5" y1="5" x2="10.5" y2="19"/>',
+  terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><polyline points="7 9 10 12 7 15"/><line x1="12" y1="15" x2="17" y2="15"/>',
+  data_object: '<path d="M8 3H6a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2"/><path d="M16 3h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2"/>',
+  database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 2.5 15.3 0 18"/><path d="M12 3c-2.5 2.7-2.5 15.3 0 18"/>',
+};
+
+function trocarIcones(clone) {
+  for (const icone of clone.querySelectorAll('.material-symbols-rounded')) {
+    const desenho = ICONES_DA_IMAGEM[icone.textContent.trim()];
+    if (!desenho) { icone.remove(); continue; }
+    icone.innerHTML = `<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">${desenho}</svg>`;
+  }
+}
+
 // Tira da imagem tudo que é controle da interface e não conteúdo da nota.
 function limparControles(clone) {
   clone.querySelectorAll('.table-tools, .image-tools, .block-controls').forEach(el => el.remove());
@@ -106,12 +144,15 @@ export async function blocksToPngBlob(blocos) {
 
   // A largura é a da área de texto do editor: assim as quebras de linha da
   // imagem são exatamente as que a pessoa está vendo na tela.
-  const largura = Math.max(
-    220,
-    Math.round(editor.clientWidth
-      - parseFloat(estiloEditor.paddingLeft)
-      - parseFloat(estiloEditor.paddingRight)),
-  );
+  // Mas o editor tem largura máxima de leitura (--note-max-width no desktop): os blocos param nela, então a
+  // imagem também tem que parar nela. Sem isso sobra um espaço vazio à direita.
+  const padEsq = parseFloat(estiloEditor.paddingLeft), padDir = parseFloat(estiloEditor.paddingRight);
+  const teto = parseFloat(estiloEditor.maxWidth);   // 'none' vira NaN
+  const larguraDisponivel = editor.clientWidth - padEsq - padDir;
+  const tetoConteudo = Number.isFinite(teto)
+    ? (estiloEditor.boxSizing === 'border-box' ? teto - padEsq - padDir : teto)
+    : Infinity;
+  const largura = Math.max(220, Math.round(Math.min(larguraDisponivel, tetoConteudo)));
 
   const corDeFundo = estiloEditor.backgroundColor === 'rgba(0, 0, 0, 0)'
     ? (estiloRaiz.getPropertyValue('--bg').trim() || 'oklch(100% 0 0)')
@@ -147,6 +188,7 @@ export async function blocksToPngBlob(blocos) {
 
   limparControles(embrulho);
   trocarCheckboxes(embrulho);
+  trocarIcones(embrulho);
   await embutirImagens(embrulho);
 
   // ── Mede fora da vista ─────────────────────────────────────────────────────

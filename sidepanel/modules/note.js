@@ -23,7 +23,7 @@ import { iconSvg, createIcon } from './icons.js';
 import { buildEmbeddedBaseBlock } from './bases/bases-embedded.js';
 import { onViewChange } from './views.js';
 import {
-  highlightCode, updateCodeBlockHighlight, renderCodeBlockHeader,
+  highlightCode, updateCodeBlockHighlight, renderCodeBlockHeader, renderCodeLineNumbers,
   getCodeBlockText, handleCodeBlockCopy, getCodeCaretOffset, setCodeCaretOffset,
 } from './code-highlighter.js';
 import {
@@ -99,6 +99,7 @@ export {
 };
 import { syncVisualViewport } from './note-viewport.js';
 import './note-print.js';
+import './note-image-select.js';
 import {
   ttTitleCase, ttSentenceCase, ttParaCase, ttInvertCase, ttNoAccents,
   ttCleanSpaces, applyTransformToSelection,
@@ -325,6 +326,7 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
     content.innerHTML = innerHTML || '';
     el.appendChild(content);
     renderCodeBlockHeader(el, el.dataset.lang || '');
+    renderCodeLineNumbers(el);
     if (innerHTML) {
       updateCodeBlockHighlight(el);
     }
@@ -932,7 +934,7 @@ function sanitizeForSave(html, keepBreaks = false) {
   div.querySelectorAll('.print-select-handle, .print-checkbox-indicator, .note-print-gutter').forEach(el => el.remove());
   div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());
   div.querySelectorAll('.md-syntax-fence').forEach(el => el.remove());
-  div.querySelectorAll('.code-block-header').forEach(el => el.remove());
+  div.querySelectorAll('.code-block-header, .code-line-numbers').forEach(el => el.remove());
   div.querySelectorAll('span[class*="tok-"]').forEach(s => s.replaceWith(...s.childNodes));
   div.querySelectorAll('.md-token-open, .is-active, .md-inline-active').forEach(el => {
     el.classList.remove('md-token-open', 'is-active', 'md-inline-active');

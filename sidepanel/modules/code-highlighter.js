@@ -403,6 +403,12 @@ function fallbackCopy(text, btn) {
  * @param {HTMLElement} block
  * @param {string} lang
  */
+// Ícone do header por família de linguagem (mesmo símbolo do .section-icon dos headers das views)
+const ICONE_DA_LINGUAGEM = {
+  json: 'data_object', sql: 'database', shell: 'terminal', powershell: 'terminal',
+  html: 'web', css: 'web',
+};
+
 export function renderCodeBlockHeader(block, lang) {
   let header = block.querySelector(':scope > .code-block-header');
   if (!header) {
@@ -410,8 +416,15 @@ export function renderCodeBlockHeader(block, lang) {
     header.className = 'code-block-header';
     header.contentEditable = 'false';
 
+    const titulo = document.createElement('span');
+    titulo.className = 'code-block-title';
+    const icone = document.createElement('span');
+    icone.className = 'section-icon code-lang-icon';
+    icone.setAttribute('aria-hidden', 'true');
+    icone.innerHTML = '<span class="material-symbols-rounded"></span>';
     const label = document.createElement('span');
     label.className = 'code-lang-label';
+    titulo.append(icone, label);
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -419,7 +432,7 @@ export function renderCodeBlockHeader(block, lang) {
     btn.title = 'Copiar código';
     btn.innerHTML = `<svg class="code-copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span class="code-copy-text">Copiar</span>`;
 
-    header.append(label, btn);
+    header.append(titulo, btn);
     block.prepend(header);
   }
 
@@ -428,6 +441,8 @@ export function renderCodeBlockHeader(block, lang) {
     const effective = lang || detectLanguage(getCodeBlockText(block));
     const disp = getLanguageDisplayName(effective) || (effective ? effective.toUpperCase() : 'CÓDIGO');
     labelEl.textContent = disp;
+    const simbolo = header.querySelector('.code-lang-icon .material-symbols-rounded');
+    if (simbolo) simbolo.textContent = ICONE_DA_LINGUAGEM[effective] || 'code';
   }
 }
 
@@ -445,6 +460,30 @@ export function updateCodeBlockHighlight(block) {
   const rawText = getCodeBlockText(block);
   const highlighted = highlightCode(rawText, lang);
   content.innerHTML = highlighted || '<br>';
+  renderCodeLineNumbers(block);
+}
+
+/**
+ * Números de linha à esquerda do código. Ficam FORA do .block-content (que é o texto editável e o que
+ * se salva), então não entram no conteúdo da nota nem na cópia do código.
+ * @param {HTMLElement} block
+ */
+export function renderCodeLineNumbers(block) {
+  if (!block || block.dataset?.type !== 'code') return;
+  let gutter = block.querySelector(':scope > .code-line-numbers');
+  if (!gutter) {
+    gutter = document.createElement('span');
+    gutter.className = 'code-line-numbers';
+    gutter.contentEditable = 'false';
+    gutter.setAttribute('aria-hidden', 'true');
+    const content = block.querySelector(':scope > .block-content');
+    if (content) content.before(gutter);
+    else block.append(gutter);
+  }
+  const total = getCodeBlockText(block).split('\n').length;
+  if (gutter.dataset.total === String(total)) return;
+  gutter.dataset.total = String(total);
+  gutter.textContent = Array.from({ length: total }, (_, i) => i + 1).join('\n');
 }
 
 /**

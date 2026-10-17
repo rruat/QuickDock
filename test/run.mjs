@@ -5712,7 +5712,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
     blocksCssSource.includes('border: 1px solid var(--border);') &&
     blocksCssSource.includes('border-color: var(--border-hover);') &&
     !blocksCssSource.includes('rgba(125, 125, 125, 0.2);') &&
-    blocksCssSource.includes('color-mix(in srgb, var(--border) 50%, transparent);'));
+    blocksCssSource.includes('border-bottom: 1px solid var(--border);'));   // divisor do header igual ao das views
 
   ok('25-print.css · garante tokens legíveis de sintaxe para saída em papel claro',
     printCssSource.includes('--code-kw: oklch(55.2% 0.205 24.5);') &&
