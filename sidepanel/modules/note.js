@@ -457,7 +457,7 @@ function setBlockTextAlign(el, align) {
 }
 
 /** Alinha os blocos selecionados (ou o bloco do cursor). Devolve false se nenhum aceita alinhamento. */
-function applyTextAlign(align) {
+export function applyTextAlign(align) {
   const alvos = getSelectedBlocks();
   const blocos = (alvos.length ? alvos : [currentBlock()]).filter(Boolean);
   const aceitam = blocos.filter(isTextAlignable);
@@ -2134,7 +2134,12 @@ export function collapseInlineSyntax(inlineEl) {
     const delimiters = getInlineDelimiters(inlineEl);
     const expectedOpen = delimiters.openSyntax;
     const expectedClose = delimiters.closeSyntax;
-    if (openSpan.textContent !== expectedOpen || closeSpan.textContent !== expectedClose) {
+    // Link web: o fechamento revelado é "](endereço)" (o endereço fica num span editável dentro dele),
+    // não só "]". Comparar com "]" desembrulhava o link toda vez que o cursor saía dele e o endereço sumia.
+    const fechamentoOk = (inlineEl.tagName === 'A' && !isWiki)
+      ? closeSpan.textContent.startsWith('](')
+      : closeSpan.textContent === expectedClose;
+    if (openSpan.textContent !== expectedOpen || !fechamentoOk) {
       inlineEl.classList.remove('md-token-open', 'md-inline-active');
       openSpan.remove();
       closeSpan.remove();
@@ -2268,6 +2273,10 @@ function checkBlockShortcut(block, profundidade = 0) {
   const resto = content.textContent.slice(prefixoLen);
   const base = prefixoLen + (resto.length - resto.replace(new RegExp(`^${ANCORA}+`), '').length);
   const text = content.textContent.slice(base);
+  // Espaço(s) acidental(is) no começo da linha não impedem o atalho ("  # título", " - [ ] item").
+  // Eles entram na conta do prefixo e saem junto com ele na conversão.
+  const espacosIniciais = /^[ \t ]*/.exec(text)[0].length;
+  const textoDoAtalho = text.slice(espacosIniciais);
 
   let candidatos = BLOCK_SHORTCUTS;
   if (ehLista) candidatos = [CHECKLIST_NA_LISTA];
@@ -2280,11 +2289,11 @@ function checkBlockShortcut(block, profundidade = 0) {
     ? getCaretOffset(content) : null;
 
   for (const s of candidatos) {
-    const m = s.re.exec(text);
+    const m = s.re.exec(textoDoAtalho);
     if (!m) continue;
     const type = s.type(m);
     const checked = s.checked ? s.checked(m) : false;
-    const prefixLen = s.prefixLen ? s.prefixLen(m) : m[0].length;
+    const prefixLen = espacosIniciais + (s.prefixLen ? s.prefixLen(m) : m[0].length);
     const restanteDoCursor = cursorAntes == null ? 0 : Math.max(0, cursorAntes - (base + prefixLen));
 
     if (prefixLen > 0 && base + prefixLen <= content.textContent.length) {
@@ -2611,11 +2620,34 @@ function handleEnter(block) {
     return;
   }
 
-  const start = pointAtOffset(content, offset);
+  // Cursor dentro de um link com a sintaxe revelada ("[", "](endereço)"): fecha a sintaxe antes de dividir.
+  // Senão o pedaço da direita leva só o "](endereço)" e a linha nova ganha uma cópia do link sem o texto.
+  let offsetDividir = offset;
+  if (livePreviewActiveInline && content.contains(livePreviewActiveInline)) {
+    const inl = livePreviewActiveInline;
+    const abertura = inl.querySelector(':scope > .md-syntax-open');
+    let removidosAntes = 0;
+    if (abertura) {
+      const antesDaAbertura = document.createRange();
+      antesDaAbertura.setStart(content, 0);
+      antesDaAbertura.setEndBefore(abertura);
+      if (offset > antesDaAbertura.toString().length) removidosAntes = abertura.textContent.length;
+    }
+    livePreviewActiveInline = null;
+    collapseInlineSyntax(inl);
+    offsetDividir = Math.max(0, Math.min(offset - removidosAntes, content.textContent.length));
+  }
+
+  const start = pointAtOffset(content, offsetDividir);
   const afterRange = document.createRange();
   afterRange.setStart(start.node, start.offset);
   afterRange.setEndAfter(content.lastChild ?? content.firstChild ?? content);
-  const afterHTML = htmlOfFragment(afterRange.extractContents());
+  const afterFragment = afterRange.extractContents();
+  // Cursor no fim do texto de um link (ou negrito, etc.): a divisão deixa uma cópia VAZIA do elemento no pedaço
+  // da direita. Sem texto, ela não tem o que mostrar — só o endereço, revelado como "[](...)" na linha nova.
+  afterFragment.querySelectorAll('a, strong, b, em, i, mark, s, del, code')
+    .forEach(el => { if (!el.textContent.replace(/​/g, '').trim()) el.remove(); });
+  const afterHTML = htmlOfFragment(afterFragment);
 
   const marker = block.dataset.marker ||
     content.querySelector(':scope > .md-syntax-prefix')?.textContent?.trim() ||

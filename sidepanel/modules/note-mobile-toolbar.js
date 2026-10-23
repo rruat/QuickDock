@@ -23,7 +23,7 @@ import {
   getSelectedBlockElements, getSelectedBlockIds, getIsBlockSelectActive,
   setIsBlockSelectActive, getLastHandleClickedId, setLastHandleClickedId,
   getUndoStackLength, getRedoStackLength, insertTemplateBlocks, blocksToExportMarkdown,
-  updateLivePreviewState,
+  updateLivePreviewState, applyTextAlign,
 } from './note.js';
 
 // ── QuickBar Contextual (Dual-State & No-Scrim Sheets) ────────────────────────
@@ -431,6 +431,19 @@ const mobIndentBtn = createMobToolbarBtn(
   }
 );
 
+// Alinhamento do texto (parágrafo e título): mesmo caminho do atalho de teclado, que alinha a seleção ou o bloco do cursor
+const mobAlignBtns = [
+  ['left', 'format_align_left', 'Alinhar à esquerda'],
+  ['center', 'format_align_center', 'Centralizar'],
+  ['right', 'format_align_right', 'Alinhar à direita'],
+  ['justify', 'format_align_justify', 'Justificar'],
+].map(([valor, icone, titulo]) => createMobToolbarBtn(
+  `align-${valor}`,
+  `<span class="qd-icon material-symbols-rounded">${icone}</span>`,
+  titulo,
+  () => applyTextAlign(valor)
+));
+
 const mobBtnType = createMobToolbarBtn(
   'change-type',
   '<span class="qd-icon material-symbols-rounded">interests</span><span class="mob-btn-label">Tipo</span>',
@@ -469,6 +482,8 @@ mobileBlockBar.append(
   Object.assign(document.createElement('div'), { className: 'mob-sep' }),
   mobOutdentBtn,
   mobIndentBtn,
+  Object.assign(document.createElement('div'), { className: 'mob-sep' }),
+  ...mobAlignBtns,
   Object.assign(document.createElement('div'), { className: 'mob-sep' }),
   mobBtnType,
   Object.assign(document.createElement('div'), { className: 'mob-sep' }),

@@ -4148,7 +4148,7 @@ for (const entrada of ['', null, undefined, '\n\n']) {
   igual('cabeçalho · "# tag" separado vira título', testShortcut('# minhatag'), { type: 'heading1', rest: 'minhatag' });
 
   ok('cabeçalho · checkBlockShortcut remove prefixo e preserva texto restante',
-    noteJsSource.includes('const prefixLen = s.prefixLen ? s.prefixLen(m) : m[0].length;') &&
+    noteJsSource.includes('const prefixLen = espacosIniciais + (s.prefixLen ? s.prefixLen(m) : m[0].length);') &&
     noteJsSource.includes('r.deleteContents();') &&
     noteJsSource.includes('convertBlockType(block, type, checked);'));
 
