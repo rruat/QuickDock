@@ -201,60 +201,6 @@ function onPanEnd() {
   document.body.style.userSelect = ''; // restaura seleção normal
 }
 
-// ── Toque / Pinça no celular ──────────────────────────────────────────────────
-let initialPinchDist = null;
-let initialScale     = null;
-
-function onTouchStart(e) {
-  if (e.touches.length === 1) {
-    const t = e.touches[0];
-    isPanning = true;
-    panStartX = t.clientX - tx;
-    panStartY = t.clientY - ty;
-    viewerWrap?.classList.add('panning');
-  } else if (e.touches.length === 2) {
-    isPanning = false;
-    initialPinchDist = Math.hypot(
-      e.touches[0].clientX - e.touches[1].clientX,
-      e.touches[0].clientY - e.touches[1].clientY
-    );
-    initialScale = scale;
-  }
-}
-
-function onTouchMove(e) {
-  if (e.touches.length === 1 && isPanning) {
-    const t = e.touches[0];
-    tx = t.clientX - panStartX;
-    ty = t.clientY - panStartY;
-    applyTransform(false);
-    e.preventDefault();
-  } else if (e.touches.length === 2 && initialPinchDist && initialScale) {
-    const currentDist = Math.hypot(
-      e.touches[0].clientX - e.touches[1].clientX,
-      e.touches[0].clientY - e.touches[1].clientY
-    );
-    const factor = currentDist / initialPinchDist;
-    scale = clamp(initialScale * factor, MIN_SCALE, MAX_SCALE);
-    applyTransform(false); // (o rótulo do zoom é atualizado dentro de applyTransform)
-    e.preventDefault();
-  }
-}
-
-function onTouchEnd(e) {
-  if (e.touches.length === 0) {
-    isPanning = false;
-    initialPinchDist = null;
-    viewerWrap?.classList.remove('panning');
-  } else if (e.touches.length === 1) {
-    const t = e.touches[0];
-    isPanning = true;
-    panStartX = t.clientX - tx;
-    panStartY = t.clientY - ty;
-    initialPinchDist = null;
-  }
-}
-
 // ── Atalhos de teclado (só quando o modal está aberto e é imagem) ─────────────
 function onKeyDown(e) {
   if (modal.classList.contains('hidden') || !viewerImg) return;
@@ -275,7 +221,7 @@ function onKeyDown(e) {
 function setupImageViewer(url) {
   toolbar.classList.remove('hidden');
 
-  body.style.cssText = 'overflow:hidden; padding:0; background:oklch(17.8% 0 0);';
+  body.style.cssText = 'overflow:hidden; padding:0; background:#111;';
 
   viewerWrap = document.createElement('div');
   viewerWrap.className = 'img-viewer';
@@ -294,13 +240,9 @@ function setupImageViewer(url) {
   });
 
   // Registra listeners do viewer
-  viewerWrap.addEventListener('wheel',       onWheel,      { passive: false });
-  viewerWrap.addEventListener('mousedown',   onPanStart);
-  viewerWrap.addEventListener('touchstart',  onTouchStart, { passive: false });
-  viewerWrap.addEventListener('touchmove',   onTouchMove,  { passive: false });
-  viewerWrap.addEventListener('touchend',    onTouchEnd);
-  viewerWrap.addEventListener('touchcancel', onTouchEnd);
-  viewerWrap.addEventListener('dragstart',   e => e.preventDefault()); // elimina ghost do browser
+  viewerWrap.addEventListener('wheel',     onWheel,    { passive: false });
+  viewerWrap.addEventListener('mousedown', onPanStart);
+  viewerWrap.addEventListener('dragstart', e => e.preventDefault()); // elimina ghost do browser
   document.addEventListener('mousemove',  onPanMove);
   document.addEventListener('mouseup',    onPanEnd);
   document.addEventListener('keydown',    onKeyDown);
@@ -310,12 +252,8 @@ function teardownImageViewer() {
   toolbar.classList.add('hidden');
   body.style.cssText = '';
 
-  viewerWrap?.removeEventListener('wheel',       onWheel);
-  viewerWrap?.removeEventListener('mousedown',   onPanStart);
-  viewerWrap?.removeEventListener('touchstart',  onTouchStart);
-  viewerWrap?.removeEventListener('touchmove',   onTouchMove);
-  viewerWrap?.removeEventListener('touchend',    onTouchEnd);
-  viewerWrap?.removeEventListener('touchcancel', onTouchEnd);
+  viewerWrap?.removeEventListener('wheel',     onWheel);
+  viewerWrap?.removeEventListener('mousedown', onPanStart);
   document.removeEventListener('mousemove',  onPanMove);
   document.removeEventListener('mouseup',    onPanEnd);
   document.removeEventListener('keydown',    onKeyDown);

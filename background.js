@@ -1,7 +1,3 @@
-import { initBackgroundAlarms } from './background/background-alarms.js';
-
-initBackgroundAlarms();
-
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch(console.error);

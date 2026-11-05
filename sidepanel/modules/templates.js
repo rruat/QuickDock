@@ -8,7 +8,6 @@ import {
   wasSeeded, markSeeded,
 } from './storage.js';
 import { positionPopover } from './popover.js';
-import { iconSvg } from './icons.js';
 
 const EXEMPLO_NOTA = {
   kind: 'note',
@@ -247,23 +246,22 @@ export async function openTemplatesManager(anchorEl, opts) {
     const acoes = document.createElement('div');
     acoes.className = 'template-actions';
 
-    const mk = (iconName, title, run) => {
+    const mk = (glyph, title, run) => {
       const b = document.createElement('button');
       b.className = 'template-btn';
-      b.innerHTML = iconSvg(iconName);
+      b.textContent = glyph;
       b.title = title;
-      b.setAttribute('aria-label', title);
       b.addEventListener('mousedown', e => e.stopPropagation());
       b.addEventListener('click', async e => { e.stopPropagation(); await run(); });
       return b;
     };
 
     acoes.append(
-      mk('download', 'Baixar .md para compartilhar', () => {
+      mk('↓', 'Baixar .md para compartilhar', () => {
         downloadText(`${safeFilename(tpl.name)}.md`, tpl.content);
       }),
-      mk('edit', 'Editar no editor de notas', () => requestTemplateEdit(tpl)),
-      mk('close', 'Excluir modelo', async () => {
+      mk('✎', 'Editar no editor de notas', () => requestTemplateEdit(tpl)),
+      mk('✕', 'Excluir modelo', async () => {
         if (!confirm(`Excluir o modelo "${tpl.name}"?`)) return;
         await deleteTemplateById(tpl.id);
         await reopen();

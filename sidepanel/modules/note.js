@@ -1,207 +1,464 @@
-﻿import {
-  getNoteById, updateNoteBlocksById, updateNoteMetaById, saveFile, loadFileBlob, moveInlineFileToDocuments,
-  loadAllNotesMeta, salvarLinksDaNota, obterTodosLinks,
-} from './storage.js';
 import {
-  extrairLinksDeBlocos, resolverLinks, calcularBacklinks,
-} from './links.js';
-import { refreshDocuments, setDocsCollapsed } from './documents.js';
+  getNoteById, updateNoteBlocksById, saveFile, loadFileBlob, moveInlineFileToDocuments,
+} from './storage.js';
+import { refreshDocuments } from './documents.js';
 import { setActiveArea, isNoteActive } from './active-area.js';
 import { openModal } from './modal.js';
+import { tryParseMath } from './math-parser.js';
 import { evaluateSheet } from './calc.js';
 import {
   uid, escHtml, safeHref, parseMarkdownToBlocks, blocksToMarkdown, blocksToPlainText,
-  MAX_DEPTH, BULLET_GLYPHS, blocksOfNote, blocksToMarkdownForExport,
-  CALLOUT_TYPES, CALLOUT_LABELS, headingSlug, headingSlugs, parseInlineMarkdown, normalizeTextAlign,
+  MAX_DEPTH, BULLET_GLYPHS, normalizeBlock, blocksToMarkdownForExport,
+  CALLOUT_TYPES, CALLOUT_LABELS,
 } from './blocks.js';
-import { htmlToAlignedMarkdown } from './note/note-paste-align.js';
-import { buildPageBreak, setPageBreakBlank } from './note/note-pagebreak.js';
-import { initNoteToc, buildToc, setTocData, getTocData, refreshTocBlocks } from './note/note-toc.js';
 import { blockTemplates, openSaveBlockTemplate } from './templates.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from './snapshot.js';
-import { iconSvg, createIcon } from './icons.js';
-import { buildEmbeddedBaseBlock } from './bases/bases-embedded.js';
-import { onViewChange } from './views.js';
-import {
-  highlightCode, updateCodeBlockHighlight, renderCodeBlockHeader, renderCodeLineNumbers,
-  getCodeBlockText, handleCodeBlockCopy, getCodeCaretOffset, setCodeCaretOffset,
-} from './code-highlighter.js';
-import {
-  noteSection, noteWorkspaceBodyEl, noteEditorEl, root, indicator, btnTouchSelect,
-  getIsCtrlHeld, setIsCtrlHeld,
-} from './note-state.js';
-import {
-  pointAtOffset, rangeFromOffsets, getCaretOffset, setCaretOffset, caretViewportRect,
-  getContentEl, getBlockFromNode, currentBlock, focusBlockStart,
-} from './note-dom-utils.js';
-import {
-  initNoteHistory, getUndoStackLength, getRedoStackLength, snapshotState,
-  captureUndoPoint, captureTypingUndoPoint, resetUndoHistory,
-  performUndo, performRedo,
-} from './note/note-history.js';
-export { getUndoStackLength, getRedoStackLength, snapshotState, captureUndoPoint, performUndo, performRedo };
-import {
-  initNoteTable, DEFAULT_TABLE, buildCell, buildTableEl, buildTableTools,
-  focusedCell, focusCell, addTableRow, addTableCol, delTableRow, delTableCol,
-  moveCell, handleTableButtonClick, parseClipboardTable, parseTsvTable,
-  insertTableBlock,
-} from './note/note-table.js';
-import { buildTableSource, showTableSource, hideTableSource, handleTableToolInSource } from './note/note-table-source.js';
-import {
-  initNoteImageSource, buildImageSource, showImageSource, hideImageSource, activateImageSource,
-} from './note/note-image-source.js';
-export { focusCell };
-import {
-  initNoteMedia, revokeImageURLs, loadInlineMedia, aplicarTamanhoImagem,
-  setImageData, setMediaData, buildImageTools, buildMediaTools,
-  buildImageResizeHandle, setImageResolver,
-} from './note/note-media.js';
-export { setImageResolver };
-import {
-  initNoteSlashMenu, SLASH_ITEMS, INSERTED_TYPES, buildTypeGrid,
-  slashItemsWithTemplates, closeSlashMenu, cancelSlashMenu,
-  moveSlashSelection, moveSlashRow, confirmSlashSelection,
-  checkSlashMenu, isSlashMenuOpen, openSlashMenuForBlock,
-} from './note/note-slash-menu.js';
-import {
-  initNoteDragDrop, getSelectedBlockIds, getIsBlockSelectActive, setIsBlockSelectActive,
-  getLastHandleClickedId, setLastHandleClickedId, setBlockSelection, clearBlockSelection,
-  selectBlockRange, targetBlocksFor, getSelectedBlockElements, printBlocks, transformBlocks,
-  hideBlockControls, positionBlockControls, findBlockById, orderedBlocks,
-  deleteBlocksOrOne, closeBlockMenu, isGestureActive, isSelecaoEspelhada, setSelecaoEspelhada,
-  handleHandleClick, blockNearestToY,
-} from './note/note-drag-drop.js';
-import {
-  getInlineDelimiters,
-  extractExtraPrefixText,
-  findNearestInlineFormatting,
-  isDividerText,
-} from './note/note-live-preview.js';
-import {
-  openLinkMenu as _openLinkMenu,
-  closeLinkMenu as _closeLinkMenu,
-  openAltMenu as _openAltMenu,
-  closeAltMenu as _closeAltMenu,
-  isClickInsideLinkMenu,
-} from './note/note-dialogs.js';
-import {
-  showSavedIndicator,
-  isEditorFocusedHelper,
-  canSafelyReloadHelper,
-  blocksToExportMarkdownHelper,
-  indexNoteLinksHelper,
-} from './note/note-lifecycle.js';
-export {
-  getSelectedBlockIds, getIsBlockSelectActive, setIsBlockSelectActive,
-  getLastHandleClickedId, setLastHandleClickedId, setBlockSelection,
-  clearBlockSelection, targetBlocksFor, getSelectedBlockElements,
-  printBlocks, transformBlocks,
-};
-import { syncVisualViewport } from './note-viewport.js';
-import './note-print.js';
-import './note-image-select.js';
-import {
-  ttTitleCase, ttSentenceCase, ttParaCase, ttInvertCase, ttNoAccents,
-  ttCleanSpaces, applyTransformToSelection,
-} from './note-text-transforms.js';
-import { downloadTextFile, getSuggestedBlockFilename } from './note-export-helpers.js';
-import { renderNoteHeader, getHeaderNoteRef, flushHeaderTitle, clearNoteHeader } from './note-header.js';
-export { renderNoteHeader };
-import { atualizarLinksInternos, refreshBacklinks } from './note-backlinks.js';
-export { atualizarLinksInternos, refreshBacklinks };
-import {
-  irParaTitulo, extrairSumarioDaNota, renderOutline, updateActiveOutlineHeading,
-  scheduleOutlineUpdate, setSidebarTab, setBottomTab, setOutlineSidebarOpen,
-} from './note-outline.js';
-export {
-  irParaTitulo, extrairSumarioDaNota, renderOutline, updateActiveOutlineHeading,
-  scheduleOutlineUpdate, setSidebarTab, setBottomTab, setOutlineSidebarOpen,
-};
-import { renderPropertiesBar, iniciarNovaPropriedade } from './note-properties.js';
-export { renderPropertiesBar };
-import {
-  showFeedback, showCopyMenu, closeCopyMenu, positionMenu, showMathMenu,
-  applyDetectionMarks, unwrapMarks, mathCache, isCopyMenuOpen,
-} from './note-detection.js';
-export { showFeedback };
-import {
-  closeLinkAutocomplete, checkLinkAutocomplete, moveLinkAutocompleteSelection,
-  confirmLinkAutocompleteSelection, closeLinkAutocompleteIfOutside, isLinkAutocompleteOpen,
-} from './note-link-autocomplete.js';
-export { closeLinkAutocomplete };
-import {
-  getLastFocusedBlock, updateMobileToolbarState, isEventInsideMobileToolbar,
-} from './note-mobile-toolbar.js';
-export { getLastFocusedBlock };
+
+const noteSection  = document.querySelector('.note-section');
+const noteEditorEl = document.querySelector('.note-editor');
+const root         = document.getElementById('note-editor-blocks');
+const indicator    = document.getElementById('save-indicator');
 
 let currentNoteId  = null;
-let touchSelectionActive = false;
-export { getIsCtrlHeld, setIsCtrlHeld };
-
-// ── Modo de seleção por toque (em telas com dedo / pointer: coarse) ─────────
-export function isTouchSelectionMode() {
-  return touchSelectionActive;
-}
-
-export function setTouchSelectionMode(active) {
-  if (touchSelectionActive === active) return;
-  touchSelectionActive = active;
-  noteSection.classList.toggle('touch-selection-active', active);
-  noteSection.classList.toggle('ctrl-active', active || getIsCtrlHeld());
-  if (btnTouchSelect) {
-    btnTouchSelect.classList.toggle('is-active', active);
-    btnTouchSelect.setAttribute('aria-pressed', active ? 'true' : 'false');
-  }
-  if (active) {
-    showFeedback('Modo seleção ativo · toque para selecionar');
-  } else {
-    if (!isCopyMenuOpen()) indicator.classList.remove('visible');
-  }
-}
-
-export function toggleTouchSelectionMode() {
-  setTouchSelectionMode(!touchSelectionActive);
-}
-
-if (btnTouchSelect) {
-  btnTouchSelect.addEventListener('click', e => {
-    e.stopPropagation();
-    toggleTouchSelectionMode();
-  });
-}
+let isCtrlHeld     = false;
+let activeMenu     = null;
 let indicatorTimer = null;
 let saveTimer      = null;
 let rescanTimer    = null;
 let rescanBlock    = null;
-export function getIndicatorTimer() { return indicatorTimer; }
-export function setIndicatorTimer(t) { indicatorTimer = t; }
+const mathCache    = new Map(); // expr raw → resultado parseado
+
+// ── Utilitários de data ───────────────────────────────────────────────────────
+function parseDate(raw) {
+  const s = raw.trim();
+  let day, month, year;
+
+  if (/^\d{8}$/.test(s)) {
+    year = +s.slice(0, 4); month = +s.slice(4, 6); day = +s.slice(6, 8);
+  } else if (/^\d{4}[-\/]\d{2}[-\/]\d{2}$/.test(s)) {
+    [year, month, day] = s.split(/[-\/]/).map(Number);
+  } else if (/^\d{2}[\/\-\. ]\d{2}[\/\-\. ]\d{4}$/.test(s)) {
+    [day, month, year] = s.split(/[\/\-\. ]/).map(Number);
+  } else {
+    return null;
+  }
+
+  if (!day || !month || !year) return null;
+  if (month < 1 || month > 12) return null;
+  if (day   < 1 || day   > 31) return null;
+  if (year  < 1900 || year > new Date().getFullYear()) return null;
+
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return d;
+}
+
+function calculateAge(date) {
+  const now = new Date();
+  let age   = now.getFullYear() - date.getFullYear();
+  const m   = now.getMonth() - date.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < date.getDate())) age--;
+  return age;
+}
+
+function formatDateBR(date) {
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${d}/${m}/${date.getFullYear()}`;
+}
+
+const ATE_RE = /[ \t]+at[eé][ \t]+/i;
+
+function parseDateRange(raw) {
+  const parts = raw.split(ATE_RE);
+  if (parts.length !== 2) return null;
+  const d1 = parseDate(parts[0].trim());
+  const d2 = parseDate(parts[1].trim());
+  if (!d1 || !d2) return null;
+  const days = Math.round((d2 - d1) / 86400000);
+  return { d1, d2, days };
+}
+
+function parseTime(raw) {
+  const m = raw.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  const h = +m[1], min = +m[2], sec = m[3] ? +m[3] : 0;
+  if (h > 23 || min > 59 || sec > 59) return null;
+  return { h, min, sec, totalSec: h * 3600 + min * 60 + sec };
+}
+
+function fmtTime(t) {
+  return `${String(t.h).padStart(2,'0')}:${String(t.min).padStart(2,'0')}`;
+}
+
+function parseTimeRange(raw) {
+  const parts = raw.split(ATE_RE);
+  if (parts.length !== 2) return null;
+  const t1 = parseTime(parts[0].trim());
+  const t2 = parseTime(parts[1].trim());
+  if (!t1 || !t2) return null;
+  return { t1, t2, diffSec: t2.totalSec - t1.totalSec };
+}
+
+function parseDateTime(raw) {
+  const m = raw.trim().match(/^(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})[ \t]+(\d{1,2}:\d{2}(?::\d{2})?)$/);
+  if (!m) return null;
+  const d = parseDate(m[1]);
+  const t = parseTime(m[2]);
+  if (!d || !t) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), t.h, t.min, t.sec);
+}
+
+function parseDateTimeRange(raw) {
+  const parts = raw.split(ATE_RE);
+  if (parts.length !== 2) return null;
+  const dt1 = parseDateTime(parts[0].trim());
+  const dt2 = parseDateTime(parts[1].trim());
+  if (!dt1 || !dt2) return null;
+  return { dt1, dt2, diffSec: Math.round((dt2 - dt1) / 1000) };
+}
+
+function fmtTimeDiff(absSec) {
+  const d   = Math.floor(absSec / 86400);
+  const rem = absSec % 86400;
+  const h   = Math.floor(rem / 3600);
+  const min = Math.floor((rem % 3600) / 60);
+  const parts = [];
+  if (d   > 0)              parts.push(`${d} ${d === 1 ? 'dia' : 'dias'}`);
+  if (h   > 0)              parts.push(`${h}h`);
+  if (min > 0 || d + h === 0) parts.push(`${min}min`);
+  return parts.join(' ');
+}
+
+function onlyDigits(str) { return str.replace(/\D/g, ''); }
+
+function maskCPF(n)   { return `${n.slice(0,3)}.${n.slice(3,6)}.${n.slice(6,9)}-${n.slice(9)}`; }
+function maskCNPJ(n)  { return `${n.slice(0,2)}.${n.slice(2,5)}.${n.slice(5,8)}/${n.slice(8,12)}-${n.slice(12)}`; }
+
+function validateCPF(raw) {
+  const n = raw.replace(/\D/g, '');
+  if (n.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(n)) return false;
+  const d = n.split('').map(Number);
+  const dig = (len, base) => {
+    const r = d.slice(0, len).reduce((s, v, i) => s + v * (base - i), 0) % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return dig(9, 10) === d[9] && dig(10, 11) === d[10];
+}
+
+function validateCNPJ(raw) {
+  const n = raw.replace(/[.\-\/]/g, '').toUpperCase();
+  if (n.length !== 14) return false;
+  if (/^(.)\1{13}$/.test(n)) return false;
+  if (!/^[A-Z0-9]{12}\d{2}$/.test(n)) return false;
+  const val = c => c.charCodeAt(0) - 48;
+  const chars = n.split('');
+  const dig = (len, w) => {
+    const r = chars.slice(0, len).reduce((s, c, i) => s + val(c) * w[i], 0) % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return dig(12, [5,4,3,2,9,8,7,6,5,4,3,2]) === +n[12] &&
+         dig(13, [6,5,4,3,2,9,8,7,6,5,4,3,2]) === +n[13];
+}
+function maskCEP(n)   { return `${n.slice(0,5)}-${n.slice(5)}`; }
+function maskPhone(n) {
+  if (n.length === 11) return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`;
+  return n;
+}
+
+const TYPE_LABELS = { cpf: 'CPF', cnpj: 'CNPJ', phone: 'Telefone', date: 'Data', daterange: 'Período', timerange: 'Intervalo de horas', datetimerange: 'Período com hora', cep: 'CEP', email: 'E-mail', math: 'Cálculo' };
+
+function buildCopyOptions(type, raw) {
+  const d = onlyDigits(raw);
+
+  switch (type) {
+    case 'cpf': {
+      const masked = d.length === 11 ? maskCPF(d) : raw;
+      return [
+        { label: masked, hint: 'com máscara', value: masked },
+        { label: d,      hint: 'só números',  value: d      },
+      ];
+    }
+    case 'cnpj': {
+      const stripped = raw.replace(/[.\-\/]/g, '').toUpperCase();
+      const masked = stripped.length === 14 ? maskCNPJ(stripped) : raw;
+      return [
+        { label: masked,   hint: 'com máscara', value: masked   },
+        { label: stripped, hint: 'sem máscara', value: stripped },
+      ];
+    }
+    case 'phone': {
+      const formatted = maskPhone(d.slice(0, 11));
+      return [
+        { label: formatted, hint: 'formatado BR', value: formatted },
+        { label: d,         hint: 'só números',   value: d         },
+      ];
+    }
+    case 'date': {
+      const date = parseDate(raw);
+      if (!date) return [{ label: raw, hint: 'data', value: raw }];
+      const age    = calculateAge(date);
+      const dateBR = formatDateBR(date);
+      return [
+        { label: dateBR,        hint: 'data',       value: dateBR        },
+        { label: `${age} anos`, hint: 'idade',      value: `${age} anos` },
+        { label: String(age),   hint: 'só a idade', value: String(age)   },
+      ];
+    }
+    case 'cep': {
+      const digits = onlyDigits(raw);
+      const masked = digits.length === 8 ? maskCEP(digits) : raw;
+      return [
+        { label: masked,  hint: 'com máscara', value: masked  },
+        { label: digits,  hint: 'só números',  value: digits  },
+      ];
+    }
+    case 'daterange': {
+      const range = parseDateRange(raw);
+      if (!range) return [{ label: raw, hint: 'período', value: raw }];
+      const { d1, d2, days } = range;
+      const abs = Math.abs(days);
+      const inv = days < 0 ? ' (invertido)' : '';
+
+      const opts = [];
+
+      const dStr = `${abs} ${abs === 1 ? 'dia' : 'dias'}${inv}`;
+      opts.push({ label: dStr, hint: 'total em dias', value: dStr });
+
+      if (abs >= 7) {
+        const w = Math.floor(abs / 7), rd = abs % 7;
+        const wStr = `${w} ${w === 1 ? 'semana' : 'semanas'}${rd ? ` e ${rd} ${rd === 1 ? 'dia' : 'dias'}` : ''}${inv}`;
+        opts.push({ label: wStr, hint: 'em semanas', value: wStr });
+      }
+
+      if (abs >= 28) {
+        const [lo, hi] = days >= 0 ? [d1, d2] : [d2, d1];
+        let m = (hi.getFullYear() - lo.getFullYear()) * 12 + (hi.getMonth() - lo.getMonth());
+        const pivot = new Date(lo.getFullYear(), lo.getMonth() + m, lo.getDate());
+        if (pivot > hi) m--;
+        const pivot2 = new Date(lo.getFullYear(), lo.getMonth() + m, lo.getDate());
+        const rd = Math.round((hi - pivot2) / 86400000);
+        const mStr = `${m} ${m === 1 ? 'mês' : 'meses'}${rd ? ` e ${rd} ${rd === 1 ? 'dia' : 'dias'}` : ''}${inv}`;
+        opts.push({ label: mStr, hint: 'em meses', value: mStr });
+      }
+
+      if (abs >= 365) {
+        const [lo, hi] = days >= 0 ? [d1, d2] : [d2, d1];
+        let y = hi.getFullYear() - lo.getFullYear();
+        const pivot = new Date(lo.getFullYear() + y, lo.getMonth(), lo.getDate());
+        if (pivot > hi) y--;
+        const pivot2 = new Date(lo.getFullYear() + y, lo.getMonth(), lo.getDate());
+        let rm = (hi.getFullYear() - pivot2.getFullYear()) * 12 + (hi.getMonth() - pivot2.getMonth());
+        const yStr = `${y} ${y === 1 ? 'ano' : 'anos'}${rm ? ` e ${rm} ${rm === 1 ? 'mês' : 'meses'}` : ''}${inv}`;
+        opts.push({ label: yStr, hint: 'em anos', value: yStr });
+      }
+
+      opts.push({ label: `${formatDateBR(d1)} até ${formatDateBR(d2)}`, hint: 'período formatado', value: `${formatDateBR(d1)} até ${formatDateBR(d2)}` });
+
+      return opts;
+    }
+    case 'timerange': {
+      const r = parseTimeRange(raw);
+      if (!r) return [{ label: raw, hint: 'intervalo', value: raw }];
+      const abs = Math.abs(r.diffSec);
+      const inv = r.diffSec < 0 ? ' (invertido)' : '';
+      const opts = [];
+      const totalMin = Math.round(abs / 60);
+      const h = Math.floor(totalMin / 60), m = totalMin % 60;
+      if (h > 0) {
+        const s = `${h}h${m > 0 ? ` ${m}min` : ''}${inv}`;
+        opts.push({ label: s, hint: 'duração', value: s });
+      }
+      const ms = `${totalMin} ${totalMin === 1 ? 'minuto' : 'minutos'}${inv}`;
+      opts.push({ label: ms, hint: 'em minutos', value: ms });
+      opts.push({ label: `${fmtTime(r.t1)} até ${fmtTime(r.t2)}`, hint: 'período', value: `${fmtTime(r.t1)} até ${fmtTime(r.t2)}` });
+      return opts;
+    }
+    case 'datetimerange': {
+      const r = parseDateTimeRange(raw);
+      if (!r) return [{ label: raw, hint: 'período', value: raw }];
+      const abs = Math.abs(r.diffSec);
+      const inv = r.diffSec < 0 ? ' (invertido)' : '';
+      const opts = [];
+      opts.push({ label: `${fmtTimeDiff(abs)}${inv}`, hint: 'duração', value: `${fmtTimeDiff(abs)}${inv}` });
+      const totalH = Math.floor(abs / 3600), remMin = Math.round((abs % 3600) / 60);
+      const hs = `${totalH}h${remMin > 0 ? ` ${remMin}min` : ''}${inv}`;
+      opts.push({ label: hs, hint: 'total em horas', value: hs });
+      const totalMin = Math.round(abs / 60);
+      opts.push({ label: `${totalMin} minutos${inv}`, hint: 'total em minutos', value: `${totalMin} minutos${inv}` });
+      opts.push({ label: raw, hint: 'período', value: raw });
+      return opts;
+    }
+    case 'email': {
+      const lower = raw.toLowerCase();
+      const opts = [{ label: raw, hint: 'email', value: raw }];
+      if (lower !== raw) opts.push({ label: lower, hint: 'minúsculas', value: lower });
+      return opts;
+    }
+    default:
+      return [{ label: raw, hint: '', value: raw }];
+  }
+}
+
+// ── Detecção inteligente (CPF / CNPJ / telefone / data / CEP / e-mail / cálculo) ──
+const DETECTORS = [
+  { type: 'email', re: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g },
+  { type: 'cnpj',  re: /[A-Z0-9]{2}\.[A-Z0-9]{3}\.[A-Z0-9]{3}\/[A-Z0-9]{4}-\d{2}/gi },
+  { type: 'cpf',   re: /\d{3}\.\d{3}\.\d{3}-\d{2}/g                         },
+  { type: 'cep',           re: /\b\d{5}-\d{3}\b/g },
+  { type: 'datetimerange', re: /\b\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}[ \t]+\d{1,2}:\d{2}(?::\d{2})?[ \t]+at[eé][ \t]+\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}[ \t]+\d{1,2}:\d{2}(?::\d{2})?\b/gi },
+  { type: 'daterange',     re: /\b\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}[ \t]+at[eé][ \t]+\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}\b/gi },
+  { type: 'timerange',     re: /\b\d{1,2}:\d{2}(?::\d{2})?[ \t]+at[eé][ \t]+\d{1,2}:\d{2}(?::\d{2})?\b/gi },
+  { type: 'date',          re: /\b\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4}\b/g },
+  { type: 'date',  re: /\b\d{4}-\d{2}-\d{2}\b/g                             },
+  { type: 'date',  re: /\b\d{2} \d{2} \d{4}\b/g                             },
+  { type: 'phone', re: /\(?\d{2}\)?[\s]?\d{4,5}-\d{4}/g                     },
+  { type: 'date',  re: /\b(?:19|20)\d{6}\b/g                                 },
+  { type: 'cnpj',  re: /\b\d{14}\b/g                                         },
+  { type: 'cpf',   re: /\b\d{11}\b/g                                         },
+  { type: 'phone', re: /\b\d{10}\b/g                                          },
+  { type: 'cep',   re: /\b\d{8}\b/g                                           },
+  { type: 'math',  re: /\(*-?\d+(?:[.,]\d+)*[)%]*(?:\s*(?:\*\*|[-+×÷*/^])\s*\(*-?\d+(?:[.,]\d+)*[)%]*)+/g },
+];
+
+function findDetectionMatches(text) {
+  const matches = [];
+  for (const { type, re } of DETECTORS) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const start = m.index;
+      const end   = start + m[0].length;
+      if (type === 'date'          && !parseDate(m[0]))          continue;
+      if (type === 'daterange'     && !parseDateRange(m[0]))     continue;
+      if (type === 'timerange'     && !parseTimeRange(m[0]))     continue;
+      if (type === 'datetimerange' && !parseDateTimeRange(m[0])) continue;
+      if (type === 'math') {
+        const p = tryParseMath(m[0]);
+        if (!p) continue;
+        mathCache.set(m[0], p);
+      }
+      const overlaps = matches.some(e => e.start < end && e.end > start);
+      if (!overlaps) matches.push({ start, end, type, raw: m[0] });
+    }
+  }
+  matches.sort((a, b) => a.start - b.start);
+  return matches;
+}
+
+// Remove marcações antigas de um bloco, deixando só o texto/formatação real.
+function unwrapMarks(el) {
+  el.querySelectorAll('mark').forEach(mark => mark.replaceWith(...mark.childNodes));
+  el.normalize();
+}
+
+// Reaplica <mark> nos trechos de texto puro do bloco (não mexe no que já é
+// negrito/itálico/código real — só varre os nós de texto).
+function applyDetectionMarks(el) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) textNodes.push(node);
+
+  for (const textNode of textNodes) {
+    const text = textNode.data;
+    const matches = findDetectionMatches(text);
+    if (matches.length === 0) continue;
+
+    const frag = document.createDocumentFragment();
+    let pos = 0;
+    for (const m of matches) {
+      if (m.start > pos) frag.appendChild(document.createTextNode(text.slice(pos, m.start)));
+      const mark = document.createElement('mark');
+      let cls = m.type;
+      if (m.type === 'cpf')  cls += validateCPF(m.raw)  ? ' valid' : ' invalid';
+      if (m.type === 'cnpj') cls += validateCNPJ(m.raw) ? ' valid' : ' invalid';
+      mark.className = cls;
+      mark.dataset.type = m.type;
+      mark.dataset.value = m.raw;
+      mark.textContent = m.raw;
+      frag.appendChild(mark);
+      pos = m.end;
+    }
+    if (pos < text.length) frag.appendChild(document.createTextNode(text.slice(pos)));
+    textNode.replaceWith(frag);
+  }
+}
+
+// ── Cursor / offsets de texto dentro de um bloco ──────────────────────────────
+function pointAtOffset(contentEl, offset) {
+  const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
+  let node, acc = 0, last = null;
+  while ((node = walker.nextNode())) {
+    last = node;
+    const len = node.data.length;
+    if (acc + len >= offset) return { node, offset: offset - acc };
+    acc += len;
+  }
+  if (last) return { node: last, offset: last.data.length };
+  return { node: contentEl, offset: 0 };
+}
+
+function rangeFromOffsets(contentEl, start, end) {
+  const a = pointAtOffset(contentEl, start);
+  const b = pointAtOffset(contentEl, end);
+  const range = document.createRange();
+  range.setStart(a.node, a.offset);
+  range.setEnd(b.node, b.offset);
+  return range;
+}
+
+function getCaretOffset(contentEl) {
+  const sel = document.getSelection();
+  if (!sel || sel.rangeCount === 0) return 0;
+  const range = sel.getRangeAt(0);
+  if (!contentEl.contains(range.startContainer)) return 0;
+  const pre = range.cloneRange();
+  pre.selectNodeContents(contentEl);
+  pre.setEnd(range.startContainer, range.startOffset);
+  return pre.toString().length;
+}
+
+function setCaretOffset(contentEl, offset) {
+  const p = pointAtOffset(contentEl, offset);
+  const range = document.createRange();
+  range.setStart(p.node, p.offset);
+  range.collapse(true);
+  const sel = document.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
 
 // ── Modelo de blocos ───────────────────────────────────────────────────────────
-export const HEADING_TAGS = { heading1: 'h1', heading2: 'h2', heading3: 'h3', heading4: 'h4', heading5: 'h5', heading6: 'h6' };
+const HEADING_TAGS = { heading1: 'h1', heading2: 'h2', heading3: 'h3', heading4: 'h4', heading5: 'h5', heading6: 'h6' };
 
 // Blocos que não passam pela detecção de CPF/data/cálculo: código é literal,
 // divisor não tem texto e a tabela não tem um conteúdo único — são N células.
 // Numa folha de cálculo a linha inteira já é conta: a detecção de conta solta
 // no meio do texto não tem o que fazer ali dentro.
-const NO_DETECTION = new Set(['code', 'divider', 'table', 'image', 'calc', 'base', 'pagebreak', 'toc']);
+const NO_DETECTION = new Set(['code', 'divider', 'table', 'image', 'calc']);
 
 // Blocos sem um conteúdo de texto único: getContentEl devolve o próprio bloco
 // neles, então perguntar pelo texto não faz sentido.
-export const NO_TEXT_TYPES = new Set(['divider', 'table', 'image', 'audio', 'video', 'base', 'pagebreak', 'toc']);
+const NO_TEXT_TYPES = new Set(['divider', 'table', 'image']);
 
 // Âncora invisível do cursor. Fica aqui em cima porque sanitizeForSave a usa
 // muito antes do ponto onde ela é criada — ver replaceRangeWithTag, que é onde
 // está explicado por que ela existe.
 const ANCORA = '​';
 
-export function createBlockEl(type, innerHTML = '', checked = false, rows = null, config = '', align = null) {
+function createBlockEl(type, innerHTML = '', checked = false, rows = null) {
   let el;
 
-  if (typeof innerHTML === 'string' && (innerHTML.includes('print-select-handle') || innerHTML.includes('print-checkbox-indicator'))) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = innerHTML;
-    tmp.querySelectorAll('.print-select-handle, .print-checkbox-indicator').forEach(n => n.remove());
-    innerHTML = tmp.innerHTML;
+  // "quote" deixou de ser um tipo e virou decoração. Um registro antigo que
+  // escape da normalização ainda chega aqui — vira parágrafo citado, que é a
+  // forma nova do mesmo conteúdo.
+  if (type === 'quote') {
+    const p = createBlockEl('paragraph', innerHTML);
+    setBlockQuoted(p, true);
+    return p;
   }
 
   if (type === 'image') {
@@ -210,48 +467,10 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
     // Não editável, como a tabela e o divisor: o que se edita aqui é o texto
     // alternativo, por botão, não o conteúdo do bloco.
     el.contentEditable = 'false';
-    // Moldura própria pra alça de redimensionar ficar grudada no canto da
-    // imagem de verdade, e não no bloco inteiro (que também tem a barra de
-    // ferramentas embaixo, de altura variável).
-    const frame = document.createElement('div');
-    frame.className = 'image-frame';
     const img = document.createElement('img');
     img.draggable = false;
     img.alt = '';
-    frame.append(img, buildImageResizeHandle(el));
-    // A linha em markdown (`![alt](endereço|300)`) fica ACIMA da imagem e só aparece com o cursor nela
-    el.append(buildImageSource(), frame, buildImageTools());
-    el.dataset.type = type;
-    el.dataset.id = uid();
-    return el;
-  }
-
-  // Quebra de página e sumário: blocos sem texto editável (como o divisor e a tabela)
-  if (type === 'pagebreak' || type === 'toc') {
-    el = type === 'pagebreak' ? buildPageBreak() : buildToc();
-    el.dataset.type = type;
-    el.dataset.id = uid();
-    return el;
-  }
-
-  if (type === 'audio' || type === 'video') {
-    el = document.createElement('div');
-    el.className = `block block-${type}`;
-    // Mesma ideia da imagem: não editável, sem cursor de texto dentro.
-    el.contentEditable = 'false';
-    const media = document.createElement(type);
-    media.controls = true;
-    media.preload = 'metadata';
-    if (type === 'video') {
-      // Vídeo ganha a mesma moldura+alça de redimensionar da imagem — largura
-      // de player faz sentido ajustar; áudio (só a barra de controles) não.
-      const frame = document.createElement('div');
-      frame.className = 'image-frame';
-      frame.append(media, buildImageResizeHandle(el));
-      el.append(frame, buildMediaTools());
-    } else {
-      el.append(media, buildMediaTools());
-    }
+    el.append(img, buildImageTools());
     el.dataset.type = type;
     el.dataset.id = uid();
     return el;
@@ -263,14 +482,10 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
     // O bloco não é editável; cada célula é a sua própria ilha editável. É isso
     // que mantém a tabela fora das regras de Enter/Backspace dos outros blocos.
     el.contentEditable = 'false';
-    el.append(buildTableEl(rows, align), buildTableTools(), buildTableSource());
+    el.append(buildTableEl(rows), buildTableTools());
     el.dataset.type = type;
     el.dataset.id = uid();
     return el;
-  }
-
-  if (type === 'base') {
-    return buildEmbeddedBaseBlock(config || innerHTML, () => scheduleSave());
   }
 
   if (HEADING_TAGS[type]) {
@@ -319,43 +534,17 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
   } else if (type === 'code') {
     el = document.createElement('div');
     el.className = 'block block-code';
-    el.dataset.type = 'code';
     const content = document.createElement('span');
     content.className = 'block-content';
     content.contentEditable = 'true';
-    content.innerHTML = innerHTML || '';
+    content.innerHTML = innerHTML;
     el.appendChild(content);
-    renderCodeBlockHeader(el, el.dataset.lang || '');
-    renderCodeLineNumbers(el);
-    if (innerHTML) {
-      updateCodeBlockHighlight(el);
-    }
 
   } else if (type === 'divider') {
     el = document.createElement('div');
     el.className = 'block block-divider';
-    const content = document.createElement('span');
-    content.className = 'block-content divider-content';
-    content.contentEditable = 'true';
-    content.textContent = (innerHTML && /^(-{3,}|\*{3,}|_{3,})$/.test(innerHTML.trim())) ? innerHTML.trim() : '---';
-    const hr = document.createElement('hr');
-    hr.contentEditable = 'false';
-    el.append(content, hr);
-
-    // Entrar e sair do modo "texto cru" (--- em vez da linha) é decidido por
-    // onde o cursor está a cada mudança de seleção (ver syncDividerActiveState,
-    // chamada de dentro de updateLivePreviewState) — igual ao resto do editor
-    // faz para cabeçalho/citação/destaque. focusin/focusout não servem aqui:
-    // todo bloco é um contenteditable aninhado dentro do mesmo host editável
-    // do documento inteiro, então mover o cursor com clique ou seta nunca
-    // dispara blur de verdade num bloco só, e o divisor ficava preso mostrando
-    // "---" pra sempre depois do primeiro clique.
-    el.addEventListener('mousedown', e => {
-      if (el.classList.contains('is-active')) return;   // já ativo: deixa o clique posicionar o cursor
-      e.preventDefault();
-      content.focus();
-      setCaretOffset(content, content.textContent.length);
-    });
+    el.contentEditable = 'false';
+    el.appendChild(document.createElement('hr'));
 
   } else {
     el = document.createElement('p');
@@ -371,7 +560,7 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
   // clicável/digitável de forma confiável em alguns navegadores — sobretudo
   // o <span> de conteúdo de listas/checklist/código, que colapsa a altura
   // zero quando vazio. Um <br> "segura" o espaço pro cursor.
-  if (type !== 'divider' && type !== 'base') {
+  if (type !== 'divider') {
     const contentEl = getContentEl(el);
     if (!contentEl.hasChildNodes()) contentEl.appendChild(document.createElement('br'));
   }
@@ -383,21 +572,14 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
 // createBlockEl tem parâmetros posicionais e é fácil esquecer o último — foi
 // exatamente assim que uma tabela colada virava uma tabela vazia. Campo novo
 // no modelo entra aqui e todas as chamadas passam a respeitá-lo de uma vez.
-function createBlockElFrom(b) {
-  const el = createBlockEl(b.type, b.html ?? '', b.checked ?? false, b.rows ?? null, b.config ?? '', b.align ?? null);
+function createBlockElFrom(bruto) {
+  const b  = normalizeBlock(bruto);
+  const el = createBlockEl(b.type, b.html ?? '', b.checked ?? false, b.rows ?? null);
   if (b.id) el.dataset.id = b.id;
-  if (b.marker) el.dataset.marker = b.marker;
-  if (b.lang) el.dataset.lang = b.lang;
-  if (b.type === 'code') updateCodeBlockHighlight(el);
   setBlockDepth(el, b.depth ?? 0);
   setBlockQuoted(el, !!b.quoted);
   setBlockCallout(el, b.callout);
-  setBlockUnderlined(el, !!b.underlined);
-  setBlockTextAlign(el, b.textAlign);
   if (b.type === 'image') setImageData(el, b);
-  if (b.type === 'pagebreak') setPageBreakBlank(el, !!b.blank);
-  if (b.type === 'toc') setTocData(el, b);
-  if (b.type === 'audio' || b.type === 'video') setMediaData(el, b.type, b);
   return el;
 }
 
@@ -411,64 +593,13 @@ function isBlockQuoted(el) {
 
 function setBlockQuoted(el, on) {
   if (on) el.dataset.quoted = 'true';
-  else {
-    delete el.dataset.quoted;
-    delete el.dataset.callout;
-    // O "> " / "> [!TIP]" revelado pelo Live Preview é decoração da citação: se
-    // ficasse no DOM depois de tirar a citação (Backspace/Enter numa linha
-    // vazia), virava um ">" solto na frente do bloco.
-    getContentEl(el)?.querySelectorAll(':scope > .md-syntax-prefix[data-syntax-type="quote"], :scope > .md-syntax-prefix[data-syntax-type="callout"]')
-      .forEach(p => p.remove());
-  }
+  else { delete el.dataset.quoted; delete el.dataset.callout; }
 }
 
 // Destaque (callout) é uma segunda camada em cima da citação: a caixa colorida
 // com rótulo dos sites de documentação. No markdown ela é exatamente isso —
 // uma citação com um marcador na primeira linha —, então tirar a citação tira
 // o destaque junto (ver setBlockQuoted).
-// Título sublinhado. Também é decoração, não tipo — senão seriam mais duas
-// entradas num menu que já estava grande demais. No arquivo isso vira setext
-// (o texto com === ou --- embaixo), que é markdown de verdade.
-//
-// Só título 1 e 2: é o que o setext alcança, e é onde um traço embaixo lê bem.
-const PODE_SUBLINHAR = new Set(['heading1', 'heading2']);
-
-function isBlockUnderlined(el) {
-  return el?.dataset?.underlined === 'true';
-}
-
-function setBlockUnderlined(el, on) {
-  if (on && PODE_SUBLINHAR.has(el.dataset.type)) el.dataset.underlined = 'true';
-  else delete el.dataset.underlined;
-}
-
-// Alinhamento do texto (centro, direita, justificado): marca do bloco, como o sublinhado. Só parágrafo e
-// título, fora de citação e de lista aninhada — é o que o arquivo consegue gravar (<div align="center">,
-// ver blocks.js). À esquerda é o padrão e não deixa atributo.
-function isTextAlignable(el) {
-  return !!el && /^(paragraph|heading[1-6])$/.test(el.dataset?.type ?? '')
-    && !isBlockQuoted(el) && blockDepth(el) === 0;
-}
-
-function setBlockTextAlign(el, align) {
-  const a = normalizeTextAlign(align);
-  if (a && isTextAlignable(el)) el.dataset.textAlign = a;
-  else delete el.dataset.textAlign;
-}
-
-/** Alinha os blocos selecionados (ou o bloco do cursor). Devolve false se nenhum aceita alinhamento. */
-export function applyTextAlign(align) {
-  const alvos = getSelectedBlocks();
-  const blocos = (alvos.length ? alvos : [currentBlock()]).filter(Boolean);
-  const aceitam = blocos.filter(isTextAlignable);
-  if (!aceitam.length) { showFeedback('Só parágrafos e títulos podem ser alinhados.'); return false; }
-  captureUndoPoint();
-  for (const b of aceitam) setBlockTextAlign(b, align);
-  scheduleSave();
-  updateMobileToolbarState();
-  return true;
-}
-
 function setBlockCallout(el, tipo) {
   if (tipo && CALLOUT_TYPES.includes(tipo)) {
     el.dataset.quoted  = 'true';
@@ -516,7 +647,7 @@ function normalizeDepths() {
 //   nível por vez: antes o primeiro bloco do grupo era tratado como dono de
 //   todos, e como ele já estava na margem e não tinha pra onde subir, ele
 //   travava o grupo inteiro e a tecla não fazia nada.
-export function indentBlocks(blocks, delta) {
+function indentBlocks(blocks, delta) {
   const selecionados = new Set(blocks);
   const novos = new Map();
   const depthDe = b => (novos.has(b) ? novos.get(b) : blockDepth(b));
@@ -560,20 +691,79 @@ export function indentBlocks(blocks, delta) {
 // Blocos que o Tab deve mover: a seleção múltipla quando existe, senão o
 // bloco do cursor.
 function blocksForIndent() {
-  if (getSelectedBlockIds().size > 0) {
-    return orderedBlocks().filter(b => getSelectedBlockIds().has(b.dataset.id));
+  if (selectedBlockIds.size > 0) {
+    return orderedBlocks().filter(b => selectedBlockIds.has(b.dataset.id));
   }
   const block = currentBlock();
   return block ? [block] : [];
 }
 
-// ── Imagem e mídia (delegado para note-media.js) ───────────────────────────
-initNoteMedia({
-  getRoot: () => root,
-  getCurrentNoteId: () => currentNoteId,
-  captureUndoPoint,
-  scheduleSave,
-});
+function getContentEl(blockEl) {
+  return blockEl.querySelector(':scope > .block-content') || blockEl;
+}
+
+// ── Imagem na nota ────────────────────────────────────────────────────────────
+// O bloco guarda só o id do arquivo; o Blob mora na tabela `files` com a marca
+// `inline`. O que aparece na tela é um objectURL, criado sob demanda.
+//
+// Revogar ao trocar de nota é obrigatório: sem isso cada troca de aba deixa um
+// Blob inteiro preso na memória, e uma sessão de trabalho acumula todos.
+const imageURLs = new Map();   // fileId → objectURL
+
+function revokeImageURLs() {
+  for (const url of imageURLs.values()) URL.revokeObjectURL(url);
+  imageURLs.clear();
+}
+
+function loadInlineImage(imgEl, fileId) {
+  const cached = imageURLs.get(fileId);
+  if (cached) { imgEl.src = cached; return; }
+
+  loadFileBlob(fileId).then(blob => {
+    if (!blob) {
+      imgEl.closest('.block-image')?.classList.add('block-image-missing');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    // A nota pode ter mudado enquanto o banco respondia. Sem esta checagem, a
+    // URL nova ficaria presa num elemento que já saiu da tela.
+    if (!root.contains(imgEl)) { URL.revokeObjectURL(url); return; }
+    imageURLs.set(fileId, url);
+    imgEl.src = url;
+  });
+}
+
+function setImageData(el, { fileId, alt }) {
+  const img = el.querySelector('img');
+  if (alt) el.dataset.alt = alt;
+  else delete el.dataset.alt;
+  if (img) img.alt = alt ?? '';
+  if (fileId != null && Number.isFinite(Number(fileId))) {
+    el.dataset.fileId = String(fileId);
+    if (img) loadInlineImage(img, Number(fileId));
+  }
+}
+
+function buildImageTools() {
+  const bar = document.createElement('div');
+  bar.className = 'image-tools';
+  bar.contentEditable = 'false';
+  const acts = [
+    ['to-docs', 'Mover p/ Documentos', 'Tirar da nota e guardar na seção Documentos', 'image-btn-accent'],
+    ['replace', 'Trocar',  'Trocar por outra imagem'],
+    ['alt',     'Texto',   'Descrever a imagem (texto alternativo)'],
+    ['remove',  'Remover', 'Remover a imagem da nota'],
+  ];
+  for (const [act, label, title, extra] of acts) {
+    const btn = document.createElement('button');
+    btn.className   = `image-btn ${extra ?? ''}`.trim();
+    btn.dataset.act = act;
+    btn.textContent = label;
+    btn.title       = title;
+    bar.appendChild(btn);
+  }
+  return bar;
+}
 
 // Base64 → arquivo. Chega assim de um .md importado, de uma colagem de texto
 // ou de um modelo compartilhado. A decodificação é na mão (atob) em vez de
@@ -619,19 +809,12 @@ export async function absorbDataUrls(blocks, noteId = undefined) {
 
 // Um arquivo de imagem (colado, arrastado ou escolhido) vira bloco na nota.
 async function insertImageFile(file, atBlock) {
-  return insertMediaFile(file, atBlock, 'image');
-}
-
-// Mesma ideia da imagem: guarda o Blob (saveFile já é genérico, não sabe nem
-// precisa saber o tipo), cria o bloco e deixa uma linha embaixo pra continuar
-// escrevendo.
-async function insertMediaFile(file, atBlock, type) {
   const fileId = await saveFile(file, currentNoteId, { inline: true });
   const bloco  = atBlock ?? currentBlock() ?? root.lastElementChild;
   if (!bloco) return null;
 
   captureUndoPoint();
-  const el = createBlockElFrom({ type, fileId, alt: '', depth: blockDepth(bloco) });
+  const el = createBlockElFrom({ type: 'image', fileId, alt: '', depth: blockDepth(bloco) });
 
   const vazio = !NO_TEXT_TYPES.has(bloco.dataset.type)
     && !getContentEl(bloco).textContent.trim();
@@ -639,7 +822,7 @@ async function insertMediaFile(file, atBlock, type) {
   else bloco.after(el);
 
   // Sempre deixa uma linha logo abaixo: senão não há onde continuar a escrever
-  // quando o bloco é o último da nota.
+  // quando a imagem é o último bloco da nota.
   if (!el.nextElementSibling) el.after(createBlockEl('paragraph'));
   focusBlockEnd(el.nextElementSibling);
   renumberLists();
@@ -656,11 +839,11 @@ function focusBlockEnd(block) {
     focusCell(block.querySelector('.table-cell'));
     return;
   }
-  // Imagem, áudio e vídeo não recebem cursor de texto: o destino é a linha
-  // seguinte, e se não houver uma (ou for outro bloco do mesmo tipo), cria.
-  if (['image', 'audio', 'video', 'pagebreak', 'toc'].includes(block.dataset.type)) {
+  // Divisor e imagem não recebem cursor: o destino é a linha seguinte, e se
+  // não houver uma, cria.
+  if (block.dataset.type === 'divider' || block.dataset.type === 'image') {
     let next = block.nextElementSibling;
-    if (!next || next.dataset.type === block.dataset.type) {
+    if (!next || next.dataset.type === 'divider' || next.dataset.type === 'image') {
       next = createBlockEl('paragraph');
       block.after(next);
     }
@@ -672,33 +855,114 @@ function focusBlockEnd(block) {
   setCaretOffset(content, content.textContent.length);
 }
 
-// ── Tabela (delegado para note-table.js) ──────────────────────────────────
-initNoteTable({
-  getRoot: () => root,
-  captureUndoPoint,
-  scheduleSave,
-  escHtml,
-  createBlockEl,
-  currentBlock,
-  getContentEl,
-  renumberLists,
-  sanitizeForSave: html => sanitizeForSave(html),
-  showFeedback: (...a) => showFeedback(...a),
-  focusBlockStart: b => focusBlockStart(b),
-  focusBlockEnd: b => focusBlockEnd(b),
-});
+// ── Tabela ────────────────────────────────────────────────────────────────────
+const DEFAULT_TABLE = [['', ''], ['', '']];
 
-// ── Imagem: linha em markdown com o cursor nela (delegado para note-image-source.js) ───────
-initNoteImageSource({
-  captureUndoPoint,
-  scheduleSave,
-  escHtml,
-  createBlockEl,
-  renumberLists,
-  showFeedback: (...a) => showFeedback(...a),
-  focusBlockStart: b => focusBlockStart(b),
-  focusBlockEnd: b => focusBlockEnd(b),
-});
+function buildCell(isHeader, html) {
+  const cell = document.createElement(isHeader ? 'th' : 'td');
+  cell.className = 'table-cell';
+  cell.contentEditable = 'true';
+  cell.innerHTML = html || '<br>';
+  return cell;
+}
+
+function buildTableEl(rows) {
+  const data   = rows?.length ? rows : DEFAULT_TABLE;
+  const scroll = document.createElement('div');
+  scroll.className = 'table-scroll';
+  const table = document.createElement('table');
+
+  data.forEach((row, r) => {
+    const tr = document.createElement('tr');
+    row.forEach(html => tr.appendChild(buildCell(r === 0, html)));
+    table.appendChild(tr);
+  });
+
+  scroll.appendChild(table);
+  return scroll;
+}
+
+function buildTableTools() {
+  const bar = document.createElement('div');
+  bar.className = 'table-tools';
+  bar.contentEditable = 'false';
+  const acts = [
+    ['add-row', '+ linha',  'Adicionar linha abaixo da atual'],
+    ['add-col', '+ coluna', 'Adicionar coluna à direita da atual'],
+    ['del-row', '− linha',  'Remover a linha do cursor'],
+    ['del-col', '− coluna', 'Remover a coluna do cursor'],
+  ];
+  for (const [act, label, title] of acts) {
+    const btn = document.createElement('button');
+    btn.className   = 'table-btn';
+    btn.dataset.act = act;
+    btn.textContent = label;
+    btn.title       = title;
+    bar.appendChild(btn);
+  }
+  return bar;
+}
+
+function focusedCell() {
+  const sel = document.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  let node = sel.getRangeAt(0).startContainer;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  const cell = node?.closest?.('.table-cell');
+  return cell && root.contains(cell) ? cell : null;
+}
+
+function focusCell(cell) {
+  if (!cell) return;
+  cell.focus();
+  const range = document.createRange();
+  range.selectNodeContents(cell);
+  range.collapse(false);
+  const sel = document.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function addTableRow(table, afterIndex) {
+  const cols = table.rows[0]?.cells.length ?? 2;
+  const tr   = table.insertRow(Math.min(afterIndex + 1, table.rows.length));
+  for (let i = 0; i < cols; i++) tr.appendChild(buildCell(false, ''));
+  return tr;
+}
+
+function addTableCol(table, afterIndex) {
+  [...table.rows].forEach((tr, r) => {
+    tr.insertBefore(buildCell(r === 0, ''), tr.cells[afterIndex + 1] ?? null);
+  });
+}
+
+// A primeira linha é o cabeçalho e o markdown exige pelo menos uma linha de
+// dados, então o piso é duas linhas e uma coluna.
+function delTableRow(table, index) {
+  if (table.rows.length <= 2 || index === 0) return;
+  table.deleteRow(index);
+}
+
+function delTableCol(table, index) {
+  if ((table.rows[0]?.cells.length ?? 0) <= 1) return;
+  [...table.rows].forEach(tr => tr.cells[index]?.remove());
+}
+
+function moveCell(cell, delta) {
+  const table = cell.closest('table');
+  const cells = [...table.querySelectorAll('.table-cell')];
+  const i     = cells.indexOf(cell);
+
+  // Tab na última célula cria uma linha, em vez de sair da tabela.
+  if (delta > 0 && i === cells.length - 1) {
+    captureUndoPoint();
+    addTableRow(table, table.rows.length - 1);
+    scheduleSave();
+    focusCell([...table.querySelectorAll('.table-cell')][i + 1]);
+    return;
+  }
+  focusCell(cells[i + delta]);
+}
 
 // Esvazia o conteúdo de um bloco mantendo o <br> de segurança (ver createBlockEl).
 function clearContent(el) {
@@ -722,40 +986,30 @@ function convertBlockType(blockEl, newType, checked = false) {
   }
 
   const oldContent = getContentEl(blockEl);
-  oldContent.querySelectorAll(':scope > .md-syntax-prefix').forEach(el => {
-    const text = el.textContent;
-    let extra = '';
-    const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
-    const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
-    const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
-    const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
-    const mBullet = /^([-*+])[ \t]?(.*)$/s.exec(text);
-    const mNum = /^(\d+\.)[ \t]?(.*)$/s.exec(text);
-    // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
-    // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
-    // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
-    if (mCall) extra = mCall[2];
-    else if (mCheck) extra = mCheck[2];
-    else if (mBullet) extra = mBullet[2];
-    else if (mNum) extra = mNum[2];
-    else if (mHead && mHead[2]) extra = mHead[2];
-    else if (mQuote && mQuote[2]) extra = mQuote[2];
-    if (extra) el.after(document.createTextNode(extra));
-  });
-  oldContent.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
   const newBlock = createBlockEl(newType, oldContent.innerHTML, checked);
-  if (blockEl.dataset.marker && newType === 'bullet') newBlock.dataset.marker = blockEl.dataset.marker;
-  if (blockEl.dataset.lang && newType === 'code') newBlock.dataset.lang = blockEl.dataset.lang;
-  if (newType === 'code') updateCodeBlockHighlight(newBlock);
   setBlockDepth(newBlock, blockDepth(blockEl));
   setBlockQuoted(newBlock, isBlockQuoted(blockEl));
   setBlockCallout(newBlock, blockEl.dataset.callout);
-  // O sublinhado só sobrevive entre tipos que o suportam — virar parágrafo o
-  // descarta, que é o esperado.
-  setBlockUnderlined(newBlock, isBlockUnderlined(blockEl));
-  setBlockTextAlign(newBlock, blockEl.dataset.textAlign);   // o alinhamento acompanha a troca de parágrafo/título
   blockEl.replaceWith(newBlock);
   return newBlock;
+}
+
+function getBlockFromNode(node) {
+  let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+  while (el && el !== root && !el.classList?.contains('block')) el = el.parentElement;
+  return el === root ? null : el;
+}
+
+function currentBlock() {
+  const sel = document.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  return getBlockFromNode(sel.anchorNode);
+}
+
+function focusBlockStart(block) {
+  const content = getContentEl(block);
+  content.focus();
+  setCaretOffset(content, 0);
 }
 
 // Marcadores de lista. Roda depois de qualquer mudança estrutural, então é
@@ -806,16 +1060,7 @@ function recalcCalcSheets() {
     folha.forEach((bloco, k) => {
       const r  = resultado[k];
       const el = bloco.querySelector(':scope > .calc-result');
-      if (el) {
-        el.textContent = r.tipo === 'valor' ? r.fmt : (r.tipo === 'erro' ? r.erro : '');
-        el.classList.remove('copiado');
-        // O título só existe quando há um valor: é ele, junto com o cursor de
-        // mão, que promete "clique pra copiar". Erro e linha de texto não têm
-        // o que copiar, e um alvo que promete e não entrega é pior que alvo
-        // nenhum.
-        if (r.tipo === 'valor') el.title = 'Clique para copiar';
-        else el.removeAttribute('title');
-      }
+      if (el) el.textContent = r.tipo === 'valor' ? r.fmt : (r.tipo === 'erro' ? r.erro : '');
 
       if (r.tipo === 'erro') bloco.dataset.calcErro = 'true';
       else delete bloco.dataset.calcErro;
@@ -829,7 +1074,7 @@ function recalcCalcSheets() {
   }
 }
 
-export function renumberLists() {
+function renumberLists() {
   normalizeDepths();
   markCalloutEdges();
   recalcCalcSheets();
@@ -857,18 +1102,98 @@ export function renumberLists() {
   }
 }
 
-// ── Undo / redo próprios (delegado para note-history.js) ──────────────────────
-initNoteHistory({
-  getRoot: () => root,
-  renumberLists,
-  refreshChecklistStates,
-  getContentEl,
-  setCaretOffset,
-  scheduleSave,
-});
+// ── Undo / redo próprios ──────────────────────────────────────────────────────
+// O undo nativo do navegador só entende edição de texto simples — ele não
+// sabe desfazer as trocas de tipo de bloco (viram elementos novos via
+// replaceWith), então precisa de um histórico próprio por nota.
+const UNDO_LIMIT = 100;
+let undoStack = [];
+let redoStack = [];
+let pendingTypingSnapshot = null;
+let typingSnapshotTimer   = null;
+
+function snapshotState() {
+  return root.innerHTML;
+}
+
+function pushUndoSnapshot(html) {
+  undoStack.push(html);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack = [];
+}
+
+// Chama antes de qualquer mudança estrutural (conversão de tipo, enter,
+// backspace, colar, divisor…) — captura o estado imediatamente anterior.
+// `html` permite capturar um estado colhido antes de saber se a mudança ia
+// mesmo acontecer — é o caso do Tab, que às vezes não tem pra onde indentar e
+// não deve sujar o histórico.
+function captureUndoPoint(html = null) {
+  clearTimeout(typingSnapshotTimer);
+  pendingTypingSnapshot = null;
+  pushUndoSnapshot(html ?? snapshotState());
+}
+
+// Para digitação contínua: grava só um ponto no início de cada "rajada" de
+// teclas (debounce), não a cada caractere.
+function captureTypingUndoPoint() {
+  if (pendingTypingSnapshot === null) {
+    pendingTypingSnapshot = snapshotState();
+    pushUndoSnapshot(pendingTypingSnapshot);
+  }
+  clearTimeout(typingSnapshotTimer);
+  typingSnapshotTimer = setTimeout(() => { pendingTypingSnapshot = null; }, 600);
+}
+
+function resetUndoHistory() {
+  undoStack = [];
+  redoStack = [];
+  pendingTypingSnapshot = null;
+  clearTimeout(typingSnapshotTimer);
+}
+
+function restoreSnapshot(html) {
+  root.innerHTML = html;
+
+  // O atributo "checked" do <input> não acompanha sozinho o innerHTML (é uma
+  // propriedade viva, não refletida) — sincroniza a partir do data-checked,
+  // que é um atributo de verdade e volta certinho.
+  root.querySelectorAll('.block-checklist').forEach(block => {
+    const cb = block.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = block.dataset.checked === 'true';
+  });
+
+  renumberLists();
+  refreshChecklistStates();   // o "meio marcado" também é propriedade viva
+
+  const last = root.lastElementChild;
+  if (last) {
+    const c = getContentEl(last);
+    c.focus();
+    setCaretOffset(c, c.textContent.length);
+  }
+  scheduleSave();
+}
+
+function performUndo() {
+  if (undoStack.length === 0) return;
+  pendingTypingSnapshot = null;
+  clearTimeout(typingSnapshotTimer);
+  const current = snapshotState();
+  const prev = undoStack.pop();
+  redoStack.push(current);
+  restoreSnapshot(prev);
+}
+
+function performRedo() {
+  if (redoStack.length === 0) return;
+  const current = snapshotState();
+  const next = redoStack.pop();
+  undoStack.push(current);
+  restoreSnapshot(next);
+}
 
 // ── Detecção com debounce (não recalcula a cada tecla, só quando pausa) ──────
-export function scheduleRescan(block) {
+function scheduleRescan(block) {
   rescanBlock = block;
   clearTimeout(rescanTimer);
   rescanTimer = setTimeout(flushRescan, 500);
@@ -893,15 +1218,7 @@ function flushRescan() {
   if (hadFocus && caretOffset !== null) setCaretOffset(content, caretOffset);
 }
 
-root.addEventListener('blur', e => {
-  // O foco só mudou de lugar DENTRO do bloco ativo (ex.: da célula para o texto da tabela): o bloco
-  // continua ativo. Recolher aqui desfazia o modo texto da tabela no instante em que ele abria.
-  if (e.relatedTarget && livePreviewActiveBlock?.contains?.(e.relatedTarget)) return;
-  flushRescan();
-  if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
-  if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
-  if (activeDividerBlock) { commitDivider(activeDividerBlock); activeDividerBlock = null; }
-}, true);
+root.addEventListener('blur', flushRescan, true);
 
 // ── Salvamento ────────────────────────────────────────────────────────────────
 // `keepBreaks` mantém <br> real (bloco de código, onde é quebra de linha de
@@ -910,56 +1227,15 @@ root.addEventListener('blur', e => {
 function sanitizeForSave(html, keepBreaks = false) {
   const div = document.createElement('div');
   div.innerHTML = html;
-  div.querySelectorAll('mark:not(.md-highlight):not([data-syntax="=="])').forEach(m => m.replaceWith(...m.childNodes));
-  div.querySelectorAll('.md-syntax-prefix').forEach(el => {
-    const text = el.textContent;
-    let extra = '';
-    const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
-    const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
-    const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
-    const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
-    const mBullet = /^([-*+])[ \t]?(.*)$/s.exec(text);
-    const mNum = /^(\d+\.)[ \t]?(.*)$/s.exec(text);
-    // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
-    // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
-    // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
-    if (mCall) extra = mCall[2];
-    else if (mCheck) extra = mCheck[2];
-    else if (mBullet) extra = mBullet[2];
-    else if (mNum) extra = mNum[2];
-    else if (mHead && mHead[2]) extra = mHead[2];
-    else if (mQuote && mQuote[2]) extra = mQuote[2];
-    if (extra) el.after(document.createTextNode(extra));
-  });
-  div.querySelectorAll('.print-select-handle, .print-checkbox-indicator, .note-print-gutter').forEach(el => el.remove());
-  div.querySelectorAll('.md-syntax-prefix, .md-syntax').forEach(el => el.remove());
-  div.querySelectorAll('.md-syntax-fence').forEach(el => el.remove());
-  div.querySelectorAll('.code-block-header, .code-line-numbers').forEach(el => el.remove());
-  div.querySelectorAll('span[class*="tok-"]').forEach(s => s.replaceWith(...s.childNodes));
-  div.querySelectorAll('.md-token-open, .is-active, .md-inline-active').forEach(el => {
-    el.classList.remove('md-token-open', 'is-active', 'md-inline-active');
-  });
+  div.querySelectorAll('mark').forEach(m => m.replaceWith(...m.childNodes));
   // Link é o único elemento que carrega dado do usuário num atributo. Aqui é o
   // funil por onde passa tudo que é persistido — inclusive HTML colado de fora
   // —, então é onde href hostil e atributos de evento morrem.
   div.querySelectorAll('a').forEach(a => {
-    const rawHref = a.getAttribute('href');
-    const href = safeHref(rawHref);
+    const href = safeHref(a.getAttribute('href'));
     if (!href) { a.replaceWith(...a.childNodes); return; }
-    const ehNota = /^nota:/i.test(href);
-    const existingTitle = a.getAttribute('data-note-title');
     [...a.attributes].forEach(attr => a.removeAttribute(attr.name));
     a.setAttribute('href', href);
-    if (ehNota) {
-      a.className = 'note-internal-link';
-      let titulo = existingTitle;
-      if (!titulo) {
-        const rawTarget = href.replace(/^nota:/i, '');
-        try { titulo = decodeURIComponent(rawTarget); } catch { titulo = rawTarget; }
-      }
-      a.dataset.noteTitle = titulo;
-      a.title = `Ctrl+clique para abrir nota: ${titulo}`;
-    }
   });
   if (!keepBreaks) div.querySelectorAll('br').forEach(br => br.remove());
   // Âncora invisível da formatação ao digitar (ver replaceRangeWithTag): ela é
@@ -970,58 +1246,26 @@ function sanitizeForSave(html, keepBreaks = false) {
   return div.innerHTML;
 }
 
-export function serializeBlockEl(block) {
+function serializeBlockEl(block) {
   const type = block.dataset.type;
   const b = { id: block.dataset.id, type };
   const depth = blockDepth(block);
   if (depth) b.depth = depth;   // ausente = nível 0, que é o formato de antes
   if (isBlockQuoted(block)) b.quoted = true;
   if (block.dataset.callout) b.callout = block.dataset.callout;
-  if (isBlockUnderlined(block)) b.underlined = true;
-  if (normalizeTextAlign(block.dataset.textAlign)) b.textAlign = block.dataset.textAlign;
-  if (type === 'bullet' && block.dataset.marker) b.marker = block.dataset.marker;
-  if (type === 'code' && block.dataset.lang) b.lang = block.dataset.lang;
   if (type === 'divider') return b;
-  if (type === 'pagebreak') { if (block.dataset.blank === 'true') b.blank = true; return b; }
-  if (type === 'toc') return { ...b, ...getTocData(block) };
   if (type === 'image') {
     const fileId = Number(block.dataset.fileId);
     if (Number.isFinite(fileId)) b.fileId = fileId;
-    if (block.dataset.imagePath) b.imagePath = block.dataset.imagePath;
     if (block.dataset.alt) b.alt = block.dataset.alt;
-    if (block.dataset.width) b.width = Number(block.dataset.width);
-    if (block.dataset.height) b.height = Number(block.dataset.height);
-    return b;
-  }
-  if (type === 'audio' || type === 'video') {
-    const fileId = Number(block.dataset.fileId);
-    if (Number.isFinite(fileId)) b.fileId = fileId;
-    if (block.dataset.alt) b.alt = block.dataset.alt;
-    if (type === 'video' && block.dataset.width) b.width = Number(block.dataset.width);
-    if (type === 'video' && block.dataset.height) b.height = Number(block.dataset.height);
     return b;
   }
   if (type === 'table') {
     b.rows = [...block.querySelectorAll('tr')].map(tr =>
       [...tr.children].map(cell => sanitizeForSave(cell.innerHTML)));
-    // Alinhamento por coluna (guardado nas células da 1ª linha); só entra no modelo se alguém alinhou
-    const align = [...(block.querySelector('tr')?.children ?? [])].map(c => c.dataset.align || null);
-    if (align.some(Boolean)) b.align = align;
     return b;
   }
-  if (type === 'base') {
-    b.config = block.dataset.config ?? '';
-    return b;
-  }
-  const contentEl = getContentEl(block);
-  let rawHtml = contentEl.innerHTML;
-  if (rawHtml.includes('print-select-handle') || rawHtml.includes('print-checkbox-indicator')) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = rawHtml;
-    tmp.querySelectorAll('.print-select-handle, .print-checkbox-indicator, .note-print-gutter').forEach(n => n.remove());
-    rawHtml = tmp.innerHTML;
-  }
-  b.html = sanitizeForSave(rawHtml, type === 'code');
+  b.html = sanitizeForSave(getContentEl(block).innerHTML, type === 'code');
   if (type === 'checklist') b.checked = block.dataset.checked === 'true';
   return b;
 }
@@ -1037,7 +1281,10 @@ export function getCurrentBlocks() {
 }
 
 function showSaved() {
-  showSavedIndicator(indicator, iconSvg);
+  indicator.textContent = 'salvo ✓';
+  indicator.classList.add('visible');
+  clearTimeout(indicatorTimer);
+  indicatorTimer = setTimeout(() => indicator.classList.remove('visible'), 2200);
 }
 
 // ── Modo modelo ───────────────────────────────────────────────────────────────
@@ -1050,7 +1297,6 @@ let editingTemplate = null;
 export function isEditingTemplate() { return !!editingTemplate; }
 
 export async function openTemplateInEditor(tpl) {
-  await returnLentEditor();
   await flushSave();                 // grava a nota que estava aberta
   editingTemplate = { id: tpl.id };
   renderBlocks(await absorbDataUrls(parseMarkdownToBlocks(tpl.content ?? '')));
@@ -1065,23 +1311,30 @@ export function currentTemplateMarkdown() {
 // Markdown pronto pra sair da extensão: a imagem vai embutida em base64, pra
 // que o arquivo abra em qualquer lugar sem depender do banco daqui.
 export async function blocksToExportMarkdown(blocks) {
-  return blocksToExportMarkdownHelper(blocks, loadFileBlob, blocksToMarkdownForExport);
+  return blocksToMarkdownForExport(blocks, async fileId => {
+    const blob = await loadFileBlob(fileId);
+    if (!blob) return null;
+    return new Promise(resolve => {
+      const leitor = new FileReader();
+      leitor.onload  = () => resolve(leitor.result);
+      leitor.onerror = () => resolve(null);
+      leitor.readAsDataURL(blob);
+    });
+  });
 }
 
 export function clearTemplateEditing() { editingTemplate = null; }
 
-export function scheduleSave() {
-  if (editingTemplate || document.body.classList.contains('is-print-mode')) return;
-  scheduleOutlineUpdate();
+function scheduleSave() {
+  if (editingTemplate) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 800);
 }
 
 export async function flushSave() {
   clearTimeout(saveTimer);
-  saveTimer = null;
   flushRescan();
-  if (editingTemplate || currentNoteId == null || document.body.classList.contains('is-print-mode')) return;
+  if (editingTemplate || currentNoteId == null) return;
   const blocks = serializeBlocks();
   // Markdown completo (não só texto simples) — é o que permite recuperar
   // negrito/itálico/etc. se a nota precisar ser reconstruída a partir desse
@@ -1089,120 +1342,13 @@ export async function flushSave() {
   const content = blocksToMarkdown(blocks);
   await updateNoteBlocksById(currentNoteId, blocks, content);
   showSaved();
-
-  // Indexa os links da nota salva no Dexie v10
-  await indexNoteLinksHelper(currentNoteId, blocks, {
-    getNoteById,
-    loadAllNotesMeta,
-    extrairLinksDeBlocos,
-    resolverLinks,
-    salvarLinksDaNota,
-    refreshBacklinks,
-  });
-  renderOutline();
-
-  // Avisa quem mantém uma visão derivada de TODAS as notas (Grafo/Constelações)
-  // que os links desta nota acabaram de ser reindexados — dispara mesmo sem
-  // mudança real de conteúdo (flushSave roda ao trocar de nota também), mas
-  // quem escuta só faz trabalho de verdade se estiver com o painel aberto.
-  document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
-}
-
-document.addEventListener('quickdock:flush-pending-save', () => {
-  if (saveTimer) {
-    flushSave();
-  }
-});
-
-export function getCurrentNoteId() {
-  return currentNoteId;
-}
-
-// ── Editor emprestado ao Espaço (quadro infinito) ─────────────────────────────
-// O editor de blocos é um só (ligado a #note-editor-blocks). Pra editar uma nota
-// DENTRO de um cartão do Espaço sem criar um segundo editor, o cartão toma o
-// editor emprestado — mesmo raciocínio do modo modelo (notes-template-mode.js):
-// o DOM do editor vai pro cartão, `currentNoteId` passa a ser a nota do cartão (então
-// autosave, indexação de links e anexos gravam NELA) e, ao devolver, a nota que
-// estava aberta volta pro lugar. O cabeçalho/propriedades da nota aberta não são
-// tocados. Qualquer outra coisa que troque o conteúdo do editor (abrir outra nota,
-// limpar nota, editar modelo, recarga por sincronização) devolve o empréstimo antes —
-// senão escreveria na nota errada.
-let editorLoan = null;   // { previousId, moveBack }
-
-export function isEditorLent() {
-  return editorLoan !== null;
-}
-
-/**
- * @param {number} noteId nota que o cartão vai editar
- * @param {{ moveIn: () => void, moveBack: () => void }} dom quem sabe mover o DOM (o Espaço)
- * @returns {Promise<boolean>} false se a nota não existe
- */
-export async function lendEditorTo(noteId, { moveIn, moveBack }) {
-  await returnLentEditor();
-  await flushSave();
-  flushHeaderTitle();
-  const note = await getNoteById(noteId);
-  if (!note) return false;
-  const previousId = currentNoteId;
-  editorLoan = { previousId, moveBack };
-  currentNoteId = noteId;
-  renderBlocks(blocksOfNote(note));
-  moveIn();
-  return true;
-}
-
-export async function returnLentEditor() {
-  if (!editorLoan) return;
-  const { previousId, moveBack } = editorLoan;
-  await flushSave();        // grava a nota do cartão (currentNoteId ainda é ela)
-  editorLoan = null;
-  moveBack();               // DOM de volta pro lugar
-  await switchToNote(previousId, { descartarDom: true });   // o que está na tela é da nota do cartão: não regravar
-}
-
-// Usado pelo painel dedicado de Base (bases-view.js) quando a nota aberta não
-// tem nenhum bloco de base ainda — reaproveita createBlockEl('base') (mesma
-// função que o menu "/" já usa) pra não duplicar o que é "uma base nova".
-export async function appendBaseBlockToCurrentNote() {
-  if (currentNoteId == null) return false;
-  captureUndoPoint();
-  const bloco = createBlockEl('base');
-  root.appendChild(bloco);
-  root.appendChild(createBlockEl('paragraph'));
-  renumberLists();
-  await flushSave();
-  return true;
-}
-
-// O painel dedicado de Base escreve a config nova direto no dataset do bloco
-// embutido (mesmo elemento que o editor já serializa) e só pede pra gravar
-// por aqui — evita ter dois escritores diferentes tentando salvar a mesma
-// nota (o autosave normal, disparado por qualquer tecla, sempre serializa o
-// DOM vivo do editor; gravar direto no banco por fora seria apagado por ele).
-export function requestSaveFromExternalEdit() {
-  scheduleSave();
-}
-
-export function isEditorFocused() {
-  return isEditorFocusedHelper(noteEditorEl) || isEditorFocusedHelper(root);
-}
-
-export function hasPendingSave() {
-  return saveTimer !== null;
-}
-
-export function canSafelyReloadCurrentNote() {
-  return canSafelyReloadHelper(isEditingTemplate(), isEditorFocused(), hasPendingSave());
 }
 
 // Esvazia a nota aberta. Tem que passar pelo editor: escrever direto no banco
 // não adianta, porque o autosave seguinte serializaria o DOM antigo por cima.
 export async function clearCurrentNote() {
-  await returnLentEditor();
   clearTimeout(saveTimer);
-  renderBlocks(blocksOfNote(null));
+  renderBlocks(parseMarkdownToBlocks(''));
   await flushSave();
 }
 
@@ -1223,143 +1369,146 @@ function renderBlocks(blocks) {
   resetUndoHistory(); // histórico de undo é por nota, não deve vazar de uma pra outra
 }
 
-// `descartarDom`: o banco passa a ser a verdade e o que está no editor é jogado
-// fora. Só a sincronização usa isso, e ela precisa.
-//
-// O `flushSave()` abaixo existe para quem TROCA de nota: salva o que você estava
-// escrevendo antes de sair. Mas quando a sincronização acaba de gravar a versão
-// nova da MESMA nota e manda recarregar, esse flush serializa o DOM antigo por
-// cima do que acabou de descer — e o editor então lê de volta justamente o texto
-// velho. Na rodada seguinte ele sobe como "alteração local" e desfaz a edição
-// feita no outro aparelho. Era isso que estava revertendo as notas.
-export async function switchToNote(id, { descartarDom = false } = {}) {
-  if (editorLoan) await returnLentEditor();
-  if (descartarDom) {
-    // Sem isso, um autosave já agendado dispararia depois do render e gravaria
-    // o DOM antigo assim mesmo.
-    clearTimeout(saveTimer);
-    saveTimer = null;
-  } else {
-    await flushSave();
-  }
-  // Título do cabeçalho pendente de gravar (debounce ainda não estourou):
-  // grava agora, na nota que estava aberta — sem isso, trocar de nota rápido
-  // depois de digitar um título novo perderia a edição em silêncio.
-  flushHeaderTitle();
+export async function switchToNote(id) {
+  await flushSave();
   editingTemplate = null;            // trocar de nota abandona o modo modelo
   currentNoteId = id;
-  if (id == null) {
-    revokeImageURLs();
-    root.innerHTML = '';
-    clearNoteHeader();
-    renderOutline();
-    // Fechar a última aba nunca disparava este aviso (só ativar uma nota
-    // dispara, em notes-tabs.js) — sem isto, quem escuta pra saber "qual nota
-    // está aberta agora" (bases-view.js) não sabia que passou a não ter
-    // nenhuma.
-    document.dispatchEvent(new CustomEvent('quickdock:active-note-changed', { detail: { id: null } }));
-    return;
-  }
   const note = await getNoteById(id);
-  const blocks = blocksOfNote(note);
+  const blocks = (note?.blocks?.length) ? note.blocks : parseMarkdownToBlocks(note?.content ?? '');
   renderBlocks(blocks);
-  updateMobileToolbarState();
-  renderNoteHeader(note);
-  renderPropertiesBar(note);
-  atualizarLinksInternos();
-  await refreshBacklinks(id);
-  renderOutline();
-  // Centralizado aqui (não só em notes-tabs.js activateNote()) porque nem
-  // toda troca de nota passa por lá — o próprio painel de Base (bases-view-
-  // container.js handleCreateNewNote) chama switchToNote() direto. Sem isto,
-  // criar uma nota pelo painel de Base trocava a nota ativa mas o painel
-  // continuava mostrando a base da nota anterior. Duplica o aviso no caminho
-  // que já passa por activateNote() — seguro, quem escuta só re-renderiza.
-  document.dispatchEvent(new CustomEvent('quickdock:active-note-changed', { detail: { id } }));
 }
 
+// ── Posicionamento de menus ───────────────────────────────────────────────────
+// Abre pro lado com mais espaço e limita a altura ao que realmente cabe. Sem o
+// limite, um menu alto (o "/" tem 11 tipos, "Transformar em" tem 9) passa da
+// borda da janela e as últimas opções ficam inalcançáveis — o max-height fixo
+// do CSS não resolve, porque o que falta é espaço, não altura de conteúdo.
+function positionMenu(menu, anchorRect) {
+  const gap = 6;
+  const margin = 8;
+  const below = window.innerHeight - anchorRect.bottom - gap - margin;
+  const above = anchorRect.top - gap - margin;
+  const openDown = below >= above;
+  const avail = Math.max(80, openDown ? below : above);
 
-// ── Clique em marcação detectada (CPF, data, cálculo…) ou seleção por toque ──
-root.addEventListener('click', e => {
-  if (!getIsCtrlHeld() && !touchSelectionActive && !getIsBlockSelectActive()) return;
+  menu.style.maxHeight = `${avail}px`;
+  menu.style.overflowY = 'auto';
 
-  // Mesmo gesto que abre o menu de CPF/data: com Ctrl ou modo de seleção por toque, clique em link navega.
-  // Sem Ctrl/modo toque o clique só posiciona o cursor — senão não dá pra editar o texto.
-  const link = e.target.closest('a');
-  if (link && root.contains(link)) {
-    const rawHref = link.getAttribute('href') || '';
-    const href = safeHref(rawHref);
-    if (!href) return;
-    // Âncora não abre aba nenhuma: rola até o título da própria nota.
-    if (href.startsWith('#')) {
-      irParaTitulo(href.slice(1));
-      return;
-    }
-    if (href.startsWith('nota:') || link.classList.contains('note-internal-link')) {
-      e.preventDefault();
-      const targetPath = link.dataset.notePath || null;
-      const targetUid = link.dataset.noteUid || null;
-      const targetTitle = link.dataset.noteTitle || decodeURIComponent(href.replace(/^nota:/, ''));
-      document.dispatchEvent(new CustomEvent('quickdock:activate-note', {
-        detail: {
-          title: targetTitle,
-          path: targetPath || targetTitle,
-          uid: targetUid,
-          createIfMissing: true
-        }
-      }));
-      return;
-    }
-    window.open(href, '_blank', 'noopener');
-    return;
+  const height = Math.min(menu.scrollHeight, avail);
+  // Prende dentro da janela nas duas pontas: num painel bem baixo o espaço do
+  // lado escolhido pode ser menor que o piso, e sem isto o menu vazaria.
+  let top = openDown ? anchorRect.bottom + gap : anchorRect.top - gap - height;
+  top = Math.max(margin, Math.min(top, window.innerHeight - margin - height));
+
+  menu.style.top  = `${top}px`;
+  menu.style.left = `${Math.max(margin, Math.min(anchorRect.left, window.innerWidth - menu.offsetWidth - margin))}px`;
+}
+
+// ── Menu de cópia ─────────────────────────────────────────────────────────────
+function closeCopyMenu() {
+  activeMenu?.remove();
+  activeMenu = null;
+}
+
+function showCopyMenu(type, raw, anchorRect) {
+  closeCopyMenu();
+
+  const options = buildCopyOptions(type, raw);
+  const menu    = document.createElement('div');
+  menu.className = 'copy-menu';
+
+  const header = document.createElement('div');
+  header.className   = 'copy-menu-header';
+  header.textContent = TYPE_LABELS[type] || 'Valor detectado';
+  menu.appendChild(header);
+
+  if (type === 'cpf' || type === 'cnpj') {
+    const valid  = type === 'cpf' ? validateCPF(raw) : validateCNPJ(raw);
+    const badge  = document.createElement('div');
+    badge.className   = `copy-menu-badge ${valid ? 'valid' : 'invalid'}`;
+    badge.textContent = valid ? '✓ Válido' : '✗ Inválido';
+    menu.appendChild(badge);
   }
 
-  const tagEl = e.target.closest('.note-tag, mark.tag');
-  if (tagEl && root.contains(tagEl)) {
-    const tagValue = tagEl.dataset.tag || tagEl.textContent.replace(/^#/, '').trim();
-    if (tagValue) {
-      e.preventDefault();
-      const searchInput = document.querySelector('.notes-search-input');
-      if (searchInput) {
-        searchInput.value = `#${tagValue}`;
-        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-        searchInput.focus();
-      }
-      document.dispatchEvent(new CustomEvent('quickdock:search-notes', {
-        detail: { query: `#${tagValue}` }
-      }));
-      return;
+  for (const { label, hint, value } of options) {
+    const btn = document.createElement('button');
+    btn.className = 'copy-opt';
+    btn.innerHTML = `
+      <span class="copy-opt-value">${escHtml(label)}</span>
+      ${hint ? `<span class="copy-opt-hint">${escHtml(hint)}</span>` : ''}
+    `;
+    btn.addEventListener('mousedown', e => e.stopPropagation());
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(value).then(() => {
+        showFeedback('copiado!');
+        closeCopyMenu();
+      });
+    });
+    menu.appendChild(btn);
+  }
+
+  document.body.appendChild(menu);
+  activeMenu = menu;
+  positionMenu(menu, anchorRect);
+}
+
+document.addEventListener('mousedown', e => {
+  if (activeMenu && !activeMenu.contains(e.target)) closeCopyMenu();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeCopyMenu();
+});
+
+// ── Feedback visual ───────────────────────────────────────────────────────────
+function showFeedback(msg) {
+  indicator.textContent = msg;
+  indicator.classList.add('visible');
+  clearTimeout(indicatorTimer);
+  indicatorTimer = setTimeout(() => {
+    indicator.classList.remove('visible');
+    if (isCtrlHeld) {
+      indicator.textContent = 'Ctrl+clique para copiar';
+      indicator.classList.add('visible');
     }
+  }, 1400);
+}
+
+// ── Ctrl: ativa modo de cópia rápida ──────────────────────────────────────────
+function setCtrl(active) {
+  if (isCtrlHeld === active) return;
+  isCtrlHeld = active;
+  noteSection.classList.toggle('ctrl-active', active);
+
+  if (active) {
+    showFeedback('Ctrl+clique para copiar');
+  } else {
+    if (!activeMenu) indicator.classList.remove('visible');
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Control' || e.key === 'Meta') setCtrl(true);
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'Control' || e.key === 'Meta') setCtrl(false);
+});
+window.addEventListener('blur', () => setCtrl(false));
+
+// ── Clique em marcação detectada (CPF, data, cálculo…) ────────────────────────
+root.addEventListener('click', e => {
+  if (!isCtrlHeld) return;
+
+  // Mesmo gesto que abre o menu de CPF/data: com Ctrl, clique em link navega.
+  // Sem Ctrl o clique só posiciona o cursor — senão não dá pra editar o texto.
+  const link = e.target.closest('a');
+  if (link && root.contains(link)) {
+    const href = safeHref(link.getAttribute('href'));
+    if (href) window.open(href, '_blank', 'noopener');
+    return;
   }
 
   const mark = e.target.closest('mark');
-  if (!mark) {
-    if (getIsBlockSelectActive()) {
-      const block = e.target.closest('.block');
-      if (block && root.contains(block)) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (getSelectedBlockIds().has(block.dataset.id)) {
-          getSelectedBlockIds().delete(block.dataset.id);
-          setBlockSelection([...getSelectedBlockIds()]);
-        } else {
-          getSelectedBlockIds().add(block.dataset.id);
-          setBlockSelection([...getSelectedBlockIds()]);
-          setLastHandleClickedId(block.dataset.id);
-        }
-        return;
-      }
-    } else if (touchSelectionActive) {
-      // No modo de seleção por toque, tocar em um bloco (fora de link/mark) seleciona o bloco
-      const block = e.target.closest('.block');
-      if (block && root.contains(block)) {
-        handleHandleClick(block, true);
-        e.preventDefault();
-      }
-    }
-    closeCopyMenu();
-    return;
-  }
+  if (!mark) { closeCopyMenu(); return; }
 
   const type = mark.dataset.type;
   const raw  = mark.dataset.value;
@@ -1386,70 +1535,22 @@ root.addEventListener('mousedown', e => {
 root.addEventListener('click', e => {
   const btn = e.target.closest('.table-btn');
   if (!btn) return;
-  if (!handleTableToolInSource(btn)) handleTableButtonClick(btn);
-});
+  const table = btn.closest('.block-table')?.querySelector('table');
+  if (!table) return;
 
-// ── Imagem: clicar nela leva o cursor para a linha em markdown (`![alt](endereço|300)`) ─────
-root.addEventListener('click', e => {
-  if (e.target.closest('.image-resize-handle, .image-tools, .image-source')) return;
-  const frame = e.target.closest('.image-frame');
-  const bloco = frame?.closest('.block-image');
-  if (bloco) { clearBlockSelection(); activateImageSource(bloco); }
-});
+  // Sem cursor em célula, a ação cai na última linha/coluna.
+  const cell = focusedCell();
+  const r = cell?.closest('tr')?.rowIndex ?? table.rows.length - 1;
+  const c = cell?.cellIndex ?? (table.rows[0].cells.length - 1);
 
-// Navegar com as setas até uma imagem: o "cursor" chega nela como nos outros blocos
-function chegarNoBlocoSemTexto(vizinho) {
-  if (vizinho.dataset.type === 'image') { clearBlockSelection(); activateImageSource(vizinho); }
-  else setBlockSelection([vizinho.dataset.id]);
-}
-
-// ── Bloco de código: copiar código ───────────────────────────────────────────
-root.addEventListener('mousedown', e => {
-  if (e.target.closest('.code-copy-btn')) {
-    e.preventDefault();
+  captureUndoPoint();
+  switch (btn.dataset.act) {
+    case 'add-row': addTableRow(table, r); break;
+    case 'add-col': addTableCol(table, c); break;
+    case 'del-row': delTableRow(table, r); break;
+    case 'del-col': delTableCol(table, c); break;
   }
-}, true);
-
-root.addEventListener('click', e => {
-  const copyBtn = e.target.closest('.code-copy-btn');
-  if (copyBtn) {
-    const block = copyBtn.closest('.block-code');
-    if (block) {
-      e.preventDefault();
-      e.stopPropagation();
-      handleCodeBlockCopy(copyBtn, block);
-    }
-  }
-});
-
-// ── Cálculo: clique no resultado copia ────────────────────────────────────────
-// O mousedown é cancelado em captura pra que o cursor não saia de onde estava:
-// o valor vai pra área de transferência sem tirar a pessoa da linha que ela
-// estava escrevendo.
-root.addEventListener('mousedown', e => {
-  const alvo = e.target.closest('.calc-result');
-  if (!alvo || !alvo.title) return;   // sem título = erro ou linha de texto
-  e.preventDefault();
-}, true);
-
-root.addEventListener('click', async e => {
-  const alvo = e.target.closest('.calc-result');
-  if (!alvo || !alvo.title) return;
-
-  const valor = alvo.textContent.trim();
-  if (!valor) return;
-  e.stopPropagation();
-
-  try {
-    await navigator.clipboard.writeText(valor);
-    // O aviso mais útil é no próprio lugar em que se clicou; o indicador de
-    // baixo é o segundo, pra quem estava olhando pra lá.
-    alvo.classList.add('copiado');
-    setTimeout(() => alvo.classList.remove('copiado'), 900);
-    showFeedback('copiado!');
-  } catch {
-    showFeedback('não deu pra copiar');
-  }
+  scheduleSave();
 });
 
 // ── Imagem: botões de ação e visualizador ─────────────────────────────────────
@@ -1461,15 +1562,10 @@ imagePicker.type   = 'file';
 imagePicker.accept = 'image/*';
 imagePicker.hidden = true;
 document.body.appendChild(imagePicker);
-let imagePickerIntent = null;   // { trocar: bloco } ou { inserirEm: bloco, tipo? }
+let imagePickerIntent = null;   // { trocar: bloco } ou { inserirEm: bloco }
 
-const MEDIA_ACCEPT = { image: 'image/*', audio: 'audio/*', video: 'video/*' };
-
-// `tipo` só importa pra "inserir nova" (áudio/vídeo do menu "/") — "trocar"
-// continua exclusivo de imagem, é o único caso que usa esse botão hoje.
-function pedirImagem(intent, tipo = 'image') {
-  imagePickerIntent = { ...intent, tipo };
-  imagePicker.accept = MEDIA_ACCEPT[tipo] ?? 'image/*';
+function pedirImagem(intent) {
+  imagePickerIntent = intent;
   imagePicker.value = '';
   imagePicker.click();
 }
@@ -1479,11 +1575,9 @@ imagePicker.addEventListener('change', async () => {
   imagePicker.value = '';
   const intent = imagePickerIntent;
   imagePickerIntent = null;
-  const tipo = intent?.tipo ?? 'image';
-  if (!file || !file.type.startsWith(`${tipo}/`) || !intent) return;
+  if (!file || !file.type.startsWith('image/') || !intent) return;
 
   if (intent.inserirEm) {
-    if (tipo !== 'image') { await insertMediaFile(file, intent.inserirEm, tipo); return; }
     await insertImageFile(file, intent.inserirEm);
     return;
   }
@@ -1536,10 +1630,10 @@ root.addEventListener('click', e => {
     return;
   }
 
-  // Duplo clique na própria imagem abre o visualizador, com as outras imagens da
-  // nota disponíveis nas setas (o clique simples leva o cursor à linha em markdown).
+  // Clique na própria imagem abre o visualizador, com as outras imagens da
+  // nota disponíveis nas setas.
   const img = e.target.closest('.block-image img');
-  if (!img || e.detail < 2) return;
+  if (!img) return;
   const bloco  = img.closest('.block-image');
   const fileId = Number(bloco?.dataset.fileId);
   if (!Number.isFinite(fileId)) return;
@@ -1549,24 +1643,6 @@ root.addEventListener('click', e => {
     .filter(g => Number.isFinite(g.id));
 
   openModal(fileId, bloco.dataset.alt || 'Imagem', 'image/*', galeria);
-});
-
-// Botão "Remover" de áudio/vídeo — ouvinte à parte do da imagem (mesmo
-// data-act de "remover" faz o mesmo em espírito, mas aqui não existe
-// "trocar"/"texto alternativo" nem visualizador em modal pra reaproveitar).
-root.addEventListener('click', e => {
-  const btn = e.target.closest('[data-act="remove-media"]');
-  if (!btn) return;
-  const bloco = btn.closest('.block-audio, .block-video');
-  if (!bloco) return;
-  e.stopPropagation();
-  captureUndoPoint();
-  const seguinte = bloco.nextElementSibling ?? bloco.previousElementSibling;
-  bloco.remove();
-  if (root.children.length === 0) root.appendChild(createBlockEl('paragraph'));
-  focusBlockEnd(seguinte ?? root.lastElementChild);
-  renumberLists();
-  scheduleSave();
 });
 
 async function moverImagemParaDocumentos(bloco) {
@@ -1593,17 +1669,54 @@ async function moverImagemParaDocumentos(bloco) {
 }
 
 // Texto alternativo: menu dentro da extensão, não um dialog da página.
-function closeAltMenu() {
-  _closeAltMenu();
-}
+let altMenuEl = null;
+function closeAltMenu() { altMenuEl?.remove(); altMenuEl = null; }
 
 function openAltMenu(bloco, anchorRect) {
-  _openAltMenu(bloco, anchorRect, {
-    captureUndoPoint,
-    setImageData,
-    scheduleSave,
-    positionMenu,
+  closeAltMenu();
+  const menu = document.createElement('div');
+  menu.className = 'copy-menu alt-menu';
+
+  const head = document.createElement('div');
+  head.className = 'copy-menu-header';
+  head.textContent = 'Texto alternativo';
+
+  const dica = document.createElement('div');
+  dica.className = 'alt-menu-hint';
+  dica.textContent = 'Descreve a imagem pra quem usa leitor de tela — e é o que aparece se o arquivo se perder.';
+
+  const campo = document.createElement('input');
+  campo.className = 'link-input';
+  campo.type = 'text';
+  campo.value = bloco.dataset.alt ?? '';
+  campo.placeholder = 'Ex.: print do protocolo aberto';
+
+  const aplicar = () => {
+    captureUndoPoint();
+    setImageData(bloco, { alt: campo.value.trim() });
+    closeAltMenu();
+    scheduleSave();
+  };
+
+  campo.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter')  { e.preventDefault(); aplicar(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeAltMenu(); }
   });
+
+  const ok = document.createElement('button');
+  ok.className = 'copy-opt';
+  ok.innerHTML = '<span class="copy-opt-value">Salvar</span>';
+  ok.addEventListener('mousedown', e => e.stopPropagation());
+  ok.addEventListener('click', aplicar);
+
+  menu.append(head, dica, campo, ok);
+  menu.addEventListener('mousedown', e => e.stopPropagation());
+  document.body.appendChild(menu);
+  altMenuEl = menu;
+  positionMenu(menu, anchorRect);
+  campo.focus();
+  campo.select();
 }
 
 document.addEventListener('mousedown', () => closeAltMenu());
@@ -1622,15 +1735,13 @@ root.addEventListener('dragleave', e => {
 
 root.addEventListener('drop', async e => {
   root.classList.remove('editor-drop');
-  const arquivos = [...(e.dataTransfer?.files ?? [])]
-    .map(f => ({ file: f, tipo: f.type.startsWith('image/') ? 'image' : f.type.startsWith('audio/') ? 'audio' : f.type.startsWith('video/') ? 'video' : null }))
-    .filter(x => x.tipo);
-  if (arquivos.length === 0) return;   // outro tipo de arquivo é assunto dos Documentos
+  const imagens = [...(e.dataTransfer?.files ?? [])].filter(f => f.type.startsWith('image/'));
+  if (imagens.length === 0) return;   // outro tipo de arquivo é assunto dos Documentos
 
   e.preventDefault();
   e.stopPropagation();
   let alvo = blockNearestToY(e.clientY) ?? root.lastElementChild;
-  for (const { file, tipo } of arquivos) alvo = (await insertMediaFile(file, alvo, tipo)) ?? alvo;
+  for (const file of imagens) alvo = (await insertImageFile(file, alvo)) ?? alvo;
 });
 
 // ── Checklist aninhada ────────────────────────────────────────────────────────
@@ -1712,13 +1823,6 @@ function refreshChecklistStates() {
 }
 
 // ── Checklist: clique direto na caixa (sem precisar de Ctrl) ──────────────────
-// O clique precisa só alternar a caixa. Sem este mousedown o navegador também
-// leva o cursor pra linha, o Live Preview trocava a caixa pelo "- [ ] " e a
-// pessoa nunca via o item marcado.
-root.addEventListener('mousedown', e => {
-  if (e.target.matches?.('.block-checklist input[type="checkbox"]')) e.preventDefault();
-});
-
 root.addEventListener('change', e => {
   if (!e.target.matches('input[type="checkbox"]')) return;
   const block = getBlockFromNode(e.target);
@@ -1789,20 +1893,36 @@ root.addEventListener('copy', e => {
 });
 
 // ── Menu "/" (trocar tipo de bloco) ───────────────────────────────────────────
-// Os tipos de bloco, em grade e agrupados.
-//
-// Eram dezoito numa lista de uma coluna, e o menu virou uma rolagem sem fim —
-// achar "Tabela" custava mais que criar a tabela. Em três colunas os mesmos
-// dezoito cabem em sete linhas, e o grupo diz de cara em que vizinhança
-// procurar.
-//
-// ── Menu Slash & Tipos de Bloco (delegado para note-slash-menu.js) ────────────
+const SLASH_ITEMS = [
+  { key: 'texto',      label: 'Texto',                 hint: 'parágrafo',  type: 'paragraph' },
+  { key: 'titulo1',    label: 'Título 1',               hint: '#',          type: 'heading1'  },
+  { key: 'titulo2',    label: 'Título 2',               hint: '##',         type: 'heading2'  },
+  { key: 'titulo3',    label: 'Título 3',               hint: '###',        type: 'heading3'  },
+  { key: 'lista',      label: 'Lista com marcadores',   hint: '-',          type: 'bullet'    },
+  { key: 'numerada',   label: 'Lista numerada',         hint: '1.',         type: 'number'    },
+  { key: 'checklist',  label: 'Checklist',              hint: '[ ]',        type: 'checklist' },
+  { key: 'citacao',    label: 'Citação',                hint: '>',          type: 'quote'     },
+  ...CALLOUT_TYPES.map(t => ({
+    key:   CALLOUT_LABELS[t].toLowerCase(),
+    label: `Destaque · ${CALLOUT_LABELS[t]}`,
+    hint:  `[!${t}]`,
+    type:  `callout:${t}`,
+  })),
+  { key: 'codigo',     label: 'Código',                 hint: '```',        type: 'code'      },
+  { key: 'calculo',    label: 'Cálculo',                hint: '= ao vivo',  type: 'calc'      },
+  { key: 'tabela',     label: 'Tabela',                 hint: '| |',        type: 'table'     },
+  { key: 'imagem',     label: 'Imagem',                 hint: 'arquivo',    type: 'image'     },
+  { key: 'divisor',    label: 'Divisor',                hint: '---',        type: 'divider'   },
+];
 
+// Tipos que não são conversão de um parágrafo, e sim inserção de uma estrutura
+// própria: substituem o bloco e abrem um parágrafo livre logo abaixo.
+const INSERTED_TYPES = new Set(['divider', 'table', 'image']);
 
 // ── Modelos de bloco ──────────────────────────────────────────────────────────
 // O markdown do modelo passa pelo mesmo parser da importação, então checklist,
 // título e tabela chegam como blocos de verdade, não como texto.
-export async function insertTemplateBlocks(markdown, atBlock) {
+async function insertTemplateBlocks(markdown, atBlock) {
   const els = (await absorbDataUrls(parseMarkdownToBlocks(markdown))).map(createBlockElFrom);
   if (els.length === 0 || !atBlock) return;
 
@@ -1828,533 +1948,161 @@ export async function insertTemplateBlocks(markdown, atBlock) {
   scheduleSave();
 }
 
-document.addEventListener('quickdock:insert-template-blocks', e => {
-  const { content } = e.detail || {};
-  if (!content) return;
-  captureUndoPoint();
-  const target = currentBlock() || getLastFocusedBlock() || root.lastElementChild;
-  if (target) insertTemplateBlocks(content, target);
-});
-
-// ── Menu Slash (delegado para note-slash-menu.js) ─────────────────────────
-initNoteSlashMenu({
-  getContentEl,
-  clearContent,
-  captureUndoPoint,
-  insertTemplateBlocks,
-  pedirImagem,
-  createBlockEl,
-  convertBlockType,
-  focusCell,
-  focusBlockStart,
-  renumberLists,
-});
-
-
-// ── Obsidian Live Preview Engine ─────────────────────────────────────────────
-let livePreviewActiveBlock = null;
-let livePreviewActiveInline = null;
-let activeDividerBlock = null;
-
-// Sai do modo "texto cru" de um divisor: se o texto ainda for --- / *** / ___
-// continua divisor (só esconde a edição); senão vira parágrafo com o que foi
-// digitado, ou some se ficou vazio.
-function commitDivider(block) {
-  block.classList.remove('is-active');
-  if (!document.body.contains(block)) return;
-  const content = getContentEl(block);
-  const text = content.textContent.trim();
-  if (/^(-{3,}|\*{3,}|_{3,})$/.test(text)) return;
-  if (text === '') {
-    const prev = block.previousElementSibling ?? block.nextElementSibling;
-    block.remove();
-    if (prev) focusBlockEnd(prev);
-  } else {
-    const para = convertBlockType(block, 'paragraph');
-    getContentEl(para).textContent = text;
-  }
+// Modelos entram no menu "/" como itens normais, filtráveis pelo nome.
+function slashItemsWithTemplates() {
+  return [
+    ...SLASH_ITEMS,
+    ...blockTemplates().map(t => ({
+      key: t.name.toLowerCase(),
+      label: t.name,
+      hint: 'modelo',
+      template: t.content,
+    })),
+  ];
 }
 
-// Mantém no máximo um divisor "aberto" por vez, decidido por onde o cursor
-// está agora — chamada a cada seleção nova (ver updateLivePreviewState).
-function syncDividerActiveState(block) {
-  if (block === activeDividerBlock) return;
-  const prev = activeDividerBlock;
-  activeDividerBlock = (block?.dataset.type === 'divider') ? block : null;
-  if (prev) commitDivider(prev);
-  if (activeDividerBlock) activeDividerBlock.classList.add('is-active');
+let slashMenuEl = null;
+let slashItems  = [];
+let slashIndex  = 0;
+let slashBlock  = null;
+
+function closeSlashMenuEl() { slashMenuEl?.remove(); slashMenuEl = null; }
+function closeSlashMenu() { closeSlashMenuEl(); slashItems = []; slashBlock = null; }
+
+function cancelSlashMenu() {
+  if (slashBlock) clearContent(getContentEl(slashBlock));
+  closeSlashMenu();
 }
 
-// Primeiro bloco de uma sequência do mesmo destaque (o que carrega o marcador).
-function isCalloutFirst(block) {
-  const tipo = block.dataset.callout;
-  return !!tipo && block.previousElementSibling?.dataset?.callout !== tipo;
-}
+function renderSlashMenu(block) {
+  closeSlashMenuEl();
+  const menu = document.createElement('div');
+  menu.className = 'copy-menu slash-menu';
 
-export function revealBlockSyntax(block) {
-  if (!block) return;
-  const type = block.dataset.type;
-  // Tabela: o "markdown" que aparece com o cursor nela é o painel de estrutura (colunas, alinhamento)
-  if (type === 'table') { showTableSource(block); return; }
-  if (type === 'image') { showImageSource(block); return; }
-  const isHeading = HEADING_TAGS[type];
-  const isQuoted = isBlockQuoted(block);
-  const callout = block.dataset.callout;
-  // Checklist dentro de citação continua mostrando só o "> " (a caixa segue
-  // visível); o modo fonte "- [ ] " é do item solto.
-  const isChecklist = type === 'checklist' && !isQuoted;
-  const isBullet = type === 'bullet' && !isQuoted;
-  const isNumber = type === 'number' && !isQuoted;
-  const isCode = type === 'code';
-
-  if (isCode) {
-    if (!block.querySelector(':scope > .md-syntax-fence-open')) {
-      const fenceOpen = document.createElement('div');
-      fenceOpen.className = 'md-syntax-fence md-syntax-fence-open';
-      fenceOpen.contentEditable = 'true';
-      fenceOpen.textContent = '```' + (block.dataset.lang || '');
-
-      const fenceClose = document.createElement('div');
-      fenceClose.className = 'md-syntax-fence md-syntax-fence-close';
-      fenceClose.contentEditable = 'true';
-      fenceClose.textContent = '```';
-
-      block.prepend(fenceOpen);
-      block.append(fenceClose);
-    }
-    return;
-  }
-
-  if (!isHeading && !isQuoted && !callout && !isChecklist && !isBullet && !isNumber) return;
-
-  const contentEl = getContentEl(block);
-  if (!contentEl) return;
-  if (contentEl.querySelector(':scope > .md-syntax-prefix')) return;
-
-  const prefixSpan = document.createElement('span');
-  prefixSpan.className = 'md-syntax-prefix';
-  prefixSpan.contentEditable = 'true';
-
-  if (callout) {
-    // O marcador "[!NOTE]" existe só na primeira linha do destaque (é assim no
-    // markdown). As demais linhas mostram só o ">" da citação — sem isto, cada
-    // Enter dentro do destaque ganhava mais um "[!NOTE]" repetido.
-    const primeira = isCalloutFirst(block);
-    prefixSpan.textContent = primeira ? `> [!${callout.toUpperCase()}]` : '> ';
-    prefixSpan.dataset.syntaxType = 'callout';
-    prefixSpan.classList.add('md-syntax-callout');
-    // O marcador fica na sua própria linha, com o texto do destaque embaixo.
-    if (primeira) prefixSpan.classList.add('md-syntax-callout-marker');
-  } else if (isHeading) {
-    const level = Number(type.replace('heading', ''));
-    prefixSpan.textContent = '#'.repeat(level) + ' ';
-    prefixSpan.dataset.syntaxType = 'heading';
-  } else if (isChecklist) {
-    prefixSpan.textContent = block.dataset.checked === 'true' ? '- [x] ' : '- [ ] ';
-    prefixSpan.dataset.syntaxType = 'checklist';
-  } else if (isBullet) {
-    const m = block.dataset.marker || '-';
-    prefixSpan.textContent = `${m} `;
-    prefixSpan.dataset.syntaxType = 'bullet';
-  } else if (isNumber) {
-    const visualMarker = block.querySelector(':scope > .block-marker');
-    const numText = visualMarker?.textContent?.trim() || '1.';
-    prefixSpan.textContent = numText.endsWith('.') ? `${numText} ` : `${numText}. `;
-    prefixSpan.dataset.syntaxType = 'number';
-  } else if (isQuoted) {
-    prefixSpan.textContent = '> ';
-    prefixSpan.dataset.syntaxType = 'quote';
-  }
-
-  contentEl.prepend(prefixSpan);
-  // Bloco vazio (<br> ou nada depois do prefixo) precisa de uma âncora de texto
-  // do lado de fora do span — senão o que se digita entra DENTRO do prefixo.
-  const depois = prefixSpan.nextSibling;
-  if (!depois || depois.nodeName === 'BR') {
-    prefixSpan.after(document.createTextNode(ANCORA));
-  }
-
-  // Bloco novo (Enter): o cursor estava em "início do bloco", que agora fica
-  // ANTES do prefixo recém-inserido. Move pra depois dele; do contrário o texto
-  // digitado entrava no span do prefixo (ex.: "texto> ").
-  const sel = document.getSelection();
-  if (sel && sel.isCollapsed && sel.anchorNode === contentEl && sel.anchorOffset === 0) {
-    const alvo = prefixSpan.nextSibling;
-    const r = document.createRange();
-    if (alvo?.nodeType === Node.TEXT_NODE) r.setStart(alvo, alvo.data === ANCORA ? alvo.length : 0);
-    else r.setStartAfter(prefixSpan);
-    r.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(r);
-  }
-}
-
-function formatUnparsedInlineMarkdown(contentEl) {
-  if (!contentEl) return;
-  const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
-  const textNodes = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    if (!node.parentElement?.closest('code, a, .md-syntax, .md-syntax-prefix')) {
-      textNodes.push(node);
-    }
-  }
-  for (const tn of textNodes) {
-    const text = tn.data;
-    if (text.includes('==') || text.includes('__') || text.includes('***') || text.includes('___') || (text.includes('_') && !text.includes(' '))) {
-      const html = parseInlineMarkdown(text);
-      if (html !== escHtml(text)) {
-        const span = document.createElement('span');
-        span.innerHTML = html;
-        tn.replaceWith(...span.childNodes);
-      }
-    }
-  }
-}
-
-export function collapseBlockSyntax(block) {
-  if (!block) return;
-  if (block.dataset.type === 'table') { hideTableSource(block); return; }
-  if (block.dataset.type === 'image') { hideImageSource(block); return; }
-  if (block.dataset.type === 'code') {
-    const fenceOpen = block.querySelector(':scope > .md-syntax-fence-open');
-    if (fenceOpen) {
-      const match = /^`{3,}([a-zA-Z0-9_-]*)/.exec(fenceOpen.textContent.trim());
-      if (match) {
-        block.dataset.lang = match[1] || '';
-      }
-      fenceOpen.remove();
-    }
-    block.querySelectorAll(':scope > .md-syntax-fence-close').forEach(f => f.remove());
-    updateCodeBlockHighlight(block);
-  }
-  const contentEl = getContentEl(block);
-  if (!contentEl) return;
-  contentEl.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => {
-    const text = p.textContent;
-    let extra = '';
-    const mCall = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(text);
-    const mHead = /^(#{1,6}[ \t]?)(.*)$/s.exec(text);
-    const mQuote = /^(>[ \t]?)(.*)$/s.exec(text);
-    const mCheck = /^([-*] \[[ xX]?\][ \t]?)(.*)$/s.exec(text);
-    const mBullet = /^([-*+])[ \t]?(.*)$/s.exec(text);
-    const mNum = /^(\d+\.)[ \t]?(.*)$/s.exec(text);
-    // Prefixo de destaque: só o que vem depois do marcador é texto. Sem `if (mCall)`
-    // (em vez de `mCall && mCall[2]`), um marcador sozinho caía no teste da citação
-    // e o "[!NOTE]" vazava pro texto a cada foco perdido ou salvamento.
-    if (mCall) extra = mCall[2];
-    else if (mCheck) extra = mCheck[2];
-    else if (mBullet) {
-      block.dataset.marker = mBullet[1];
-      extra = mBullet[2];
-    } else if (mNum) extra = mNum[2];
-    else if (mHead && mHead[2]) extra = mHead[2];
-    else if (mQuote && mQuote[2]) extra = mQuote[2];
-    if (extra) p.after(document.createTextNode(extra));
-    p.remove();
+  slashItems.forEach((it, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-opt slash-opt' + (i === slashIndex ? ' active' : '');
+    btn.innerHTML = `<span class="copy-opt-value">${escHtml(it.label)}</span><span class="copy-opt-hint">${escHtml(it.hint)}</span>`;
+    btn.addEventListener('mousedown', e => e.preventDefault());
+    btn.addEventListener('click', () => { slashIndex = i; confirmSlashSelection(); });
+    menu.appendChild(btn);
   });
-  if (block.dataset.type !== 'code' && block.dataset.type !== 'calc' && block.dataset.type !== 'table') {
-    formatUnparsedInlineMarkdown(contentEl);
-  }
+
+  document.body.appendChild(menu);
+  slashMenuEl = menu;
+  positionMenu(menu, block.getBoundingClientRect());
+  highlightSlashItem();
 }
 
-const INLINE_SYNTAX_MAP = {
-  STRONG: '**',
-  B: '**',
-  EM: '*',
-  I: '*',
-  S: '~~',
-  STRIKE: '~~',
-  DEL: '~~',
-  CODE: '`',
-  MARK: '==',
-};
+// Andar com as setas só troca o destaque — não reconstrói o menu. Reconstruir
+// significa tirar o elemento do DOM e recolocar, e era isso que fazia o menu
+// piscar a cada tecla. Reconstruir só faz sentido quando a LISTA muda, que é
+// quando a pessoa digita mais uma letra depois da barra.
+function highlightSlashItem() {
+  if (!slashMenuEl) return;
+  const opcoes = slashMenuEl.querySelectorAll('.slash-opt');
+  opcoes.forEach((btn, i) => btn.classList.toggle('active', i === slashIndex));
+  // Sem isto o item ativo some da vista quando a lista é mais alta que o menu.
+  opcoes[slashIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
 
-export function revealInlineSyntax(inlineEl) {
-  if (!inlineEl) return;
-  if (inlineEl.querySelector(':scope > .md-syntax-open')) return;
+function moveSlashSelection(delta) {
+  slashIndex = (slashIndex + delta + slashItems.length) % slashItems.length;
+  highlightSlashItem();
+}
 
-  const href = inlineEl.getAttribute?.('href') || '';
-  const isWiki = inlineEl.classList?.contains('note-internal-link') || (inlineEl.tagName === 'A' && /^nota:/i.test(href));
-  if (inlineEl.tagName === 'A' && !isWiki) {
-    const openSpan = document.createElement('span');
-    openSpan.className = 'md-syntax md-syntax-open';
-    openSpan.contentEditable = 'true';
-    openSpan.textContent = '[';
+function confirmSlashSelection() {
+  const item  = slashItems[slashIndex];
+  const block = slashBlock;
+  closeSlashMenu();
+  if (!item || !block) return;
 
-    const closeSpan = document.createElement('span');
-    closeSpan.className = 'md-syntax md-syntax-close';
-    closeSpan.contentEditable = 'true';
-    closeSpan.innerHTML = `](<span class="md-syntax-link-href" contenteditable="true">${escHtml(href)}</span>)`;
+  captureUndoPoint();
 
-    inlineEl.prepend(openSpan);
-    inlineEl.append(closeSpan);
-    inlineEl.classList.add('md-token-open');
+  if (item.template) {
+    // Tira o "/nome-do-modelo" que ficou digitado ANTES de inserir: com o
+    // texto ainda ali, insertTemplateBlocks não reconhecia a linha como vazia
+    // e pendurava o modelo abaixo dela, deixando a barra na nota.
+    clearContent(getContentEl(block));
+    insertTemplateBlocks(item.template, block);
     return;
   }
 
-  const delimiters = getInlineDelimiters(inlineEl);
-  const openSyntax = delimiters.openSyntax;
-  const closeSyntax = delimiters.closeSyntax;
-
-  if (!openSyntax) return;
-
-  const openSpan = document.createElement('span');
-  openSpan.className = 'md-syntax md-syntax-open';
-  openSpan.contentEditable = 'true';
-  openSpan.textContent = openSyntax;
-
-  const closeSpan = document.createElement('span');
-  closeSpan.className = 'md-syntax md-syntax-close';
-  closeSpan.contentEditable = 'true';
-  closeSpan.textContent = closeSyntax;
-
-  inlineEl.prepend(openSpan);
-  inlineEl.append(closeSpan);
-  inlineEl.classList.add('md-token-open');
-}
-
-export function collapseInlineSyntax(inlineEl) {
-  if (!inlineEl) return;
-  const href = inlineEl.getAttribute?.('href') || '';
-  const isWiki = inlineEl.classList?.contains('note-internal-link') || (inlineEl.tagName === 'A' && /^nota:/i.test(href));
-  if (inlineEl.tagName === 'A' && !isWiki) {
-    const hrefSpan = inlineEl.querySelector('.md-syntax-link-href');
-    if (hrefSpan) {
-      const newHref = hrefSpan.textContent.trim();
-      if (newHref) {
-        inlineEl.setAttribute('href', safeHref(newHref) || newHref);
-      }
-    }
-  }
-
-  const openSpan = inlineEl.querySelector(':scope > .md-syntax-open');
-  const closeSpan = inlineEl.querySelector(':scope > .md-syntax-close');
-  if (openSpan && closeSpan) {
-    const delimiters = getInlineDelimiters(inlineEl);
-    const expectedOpen = delimiters.openSyntax;
-    const expectedClose = delimiters.closeSyntax;
-    // Link web: o fechamento revelado é "](endereço)" (o endereço fica num span editável dentro dele),
-    // não só "]". Comparar com "]" desembrulhava o link toda vez que o cursor saía dele e o endereço sumia.
-    const fechamentoOk = (inlineEl.tagName === 'A' && !isWiki)
-      ? closeSpan.textContent.startsWith('](')
-      : closeSpan.textContent === expectedClose;
-    if (openSpan.textContent !== expectedOpen || !fechamentoOk) {
-      inlineEl.classList.remove('md-token-open', 'md-inline-active');
-      openSpan.remove();
-      closeSpan.remove();
-      inlineEl.replaceWith(...inlineEl.childNodes);
-      return;
-    }
-  }
-
-  inlineEl.querySelectorAll(':scope > .md-syntax').forEach(s => s.remove());
-  inlineEl.classList.remove('md-token-open');
-  if (!inlineEl.textContent.trim()) {
-    inlineEl.remove();
-  }
-}
-
-export function updateLivePreviewState() {
-  const sel = document.getSelection();
-  if (!sel || sel.rangeCount === 0) {
-    if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
-    if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
-    syncDividerActiveState(null);
+  // Imagem não insere bloco vazio: o bloco nasce junto com o arquivo, quando
+  // ele for escolhido. Aqui só se limpa o "/imagem" que ficou digitado.
+  if (item.type === 'image') {
+    clearContent(getContentEl(block));
+    pedirImagem({ inserirEm: block });
     return;
   }
 
-  const anchor = sel.anchorNode;
-  if (!anchor || !root.contains(anchor)) {
-    if (livePreviewActiveBlock) { collapseBlockSyntax(livePreviewActiveBlock); livePreviewActiveBlock = null; }
-    if (livePreviewActiveInline) { collapseInlineSyntax(livePreviewActiveInline); livePreviewActiveInline = null; }
-    syncDividerActiveState(null);
-    return;
+  if (INSERTED_TYPES.has(item.type)) {
+    const inserted = createBlockEl(item.type);
+    block.replaceWith(inserted);
+    const para = createBlockEl('paragraph');
+    inserted.after(para);
+    if (item.type === 'table') focusCell(inserted.querySelector('.table-cell'));
+    else focusBlockStart(para);
+  } else {
+    const newBlock = convertBlockType(block, item.type);
+    clearContent(getContentEl(newBlock));
+    focusBlockStart(newBlock);
   }
+  renumberLists();
+}
 
-  const block = getBlockFromNode(anchor);
-  syncDividerActiveState(block);
-  if (block !== livePreviewActiveBlock) {
-    if (livePreviewActiveBlock) collapseBlockSyntax(livePreviewActiveBlock);
-    livePreviewActiveBlock = block;
-    if (block) revealBlockSyntax(block);
-  }
+function checkSlashMenu(block) {
+  const text = getContentEl(block).textContent;
+  const m = /^\/(\w*)$/.exec(text);
+  if (!m) { closeSlashMenu(); return; }
 
-  const inline = findNearestInlineFormatting(anchor, root);
+  const filter = m[1].toLowerCase();
+  slashItems = slashItemsWithTemplates()
+    .filter(it => it.label.toLowerCase().includes(filter) || it.key.includes(filter));
+  if (slashItems.length === 0) { closeSlashMenu(); return; }
 
-  if (inline !== livePreviewActiveInline) {
-    if (livePreviewActiveInline) collapseInlineSyntax(livePreviewActiveInline);
-    livePreviewActiveInline = inline;
-    if (inline) revealInlineSyntax(inline);
-  }
+  slashBlock = block;
+  slashIndex = 0;
+  renderSlashMenu(block);
 }
 
 // ── Atalhos de Markdown → tipo de bloco ───────────────────────────────────────
 const BLOCK_SHORTCUTS = [
-  { re: /^(#{1,6}) (.*)$/s, type: m => `heading${m[1].length}`, prefixLen: m => m[1].length + 1 },
-  // Digitado tecla por tecla, "- " já vira lista antes do "[ ]" chegar; aí o
-  // "[] " seguinte transforma o item em checkbox (ver CHECKLIST_NA_LISTA).
-  { id: 'checklist', re: /^\[([ xX]?)\] (.*)$/s, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), prefixLen: m => m[1].length + 3 },
-  // "- [ ] " / "- [] " / "- [x] " chegando de uma vez (colado ou digitado rápido).
-  { re: /^[-*] \[([ xX]?)\] (.*)$/s, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), prefixLen: m => m[0].length - m[2].length },
-  { re: /^([-*+]) (?!\[)(.*)$/s, type: () => 'bullet', marker: m => m[1], prefixLen: () => 2 },
-  { re: /^\d+\. (.*)$/s, type: () => 'number', prefixLen: m => m[0].length - m[1].length },
-  { re: /^> (.*)$/s, type: () => 'quote', prefixLen: () => 2, soPlano: true },
+  { re: /^(#{1,6}) $/, type: m => `heading${m[1].length}` },
+  { re: /^([-*]) \[([ xX])\] $/, type: () => 'checklist', checked: m => /[xX]/.test(m[2]) },
+  { re: /^[-*] $/, type: () => 'bullet' },
+  { re: /^\d+\. $/, type: () => 'number' },
+  { re: /^> $/, type: () => 'quote' },
   // A palavra-chave é a do markdown (inglês), igual à que vai pro arquivo.
-  { re: /^\[!(note|tip|important|warning|caution)\] (.*)$/is, type: m => `callout:${m[1].toLowerCase()}`, prefixLen: m => m[0].length - m[2].length },
-  { re: /^```([a-zA-Z0-9_-]*)$/, type: () => 'code', lang: m => m[1], prefixLen: m => m[0].length },
+  { re: /^\[!(note|tip|important|warning|caution)\] $/i, type: m => `callout:${m[1].toLowerCase()}` },
+  { re: /^```$/, type: () => 'code' },
 ];
 
 function checkDividerShortcut(block) {
   const content = getContentEl(block);
-  const text = content.textContent.trim();
-  if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) return false;
-
-  // "---" (só esse — o mesmo delimitador do frontmatter YAML, não "***"/"___")
-  // como o primeiro conteúdo da nota abre as propriedades em vez de virar um
-  // divisor comum, igual ao Obsidian. Só dispara com a nota ainda sem
-  // nenhuma propriedade: se já tem alguma, a pessoa já sabe onde elas estão
-  // e "---" ali continua sendo divisor mesmo.
-  const headerNoteRef = getHeaderNoteRef();
-  if (text === '---' && block === root.firstElementChild
-    && headerNoteRef && !Object.keys(headerNoteRef.properties || {}).length) {
-    clearContent(content);
-    iniciarNovaPropriedade(headerNoteRef);
-    closeSlashMenu();
-    return true;
-  }
+  if (!/^(-{3,}|\*{3,}|_{3,})$/.test(content.textContent)) return false;
 
   const divider = createBlockEl('divider');
-  const dividerContent = getContentEl(divider);
-  dividerContent.textContent = text;
   block.replaceWith(divider);
-
-  let next = divider.nextElementSibling;
-  if (!next) {
-    next = createBlockEl('paragraph');
-    divider.after(next);
-  }
-  focusBlockStart(next);
+  const para = createBlockEl('paragraph');
+  divider.after(para);
+  focusBlockStart(para);
   renumberLists();
-  closeSlashMenu();
   return true;
 }
 
-// Dentro de uma citação, "[!NOTE]" (sem precisar do espaço) vira destaque.
-const CALLOUT_NA_CITACAO = {
-  re: /^\[!(note|tip|important|warning|caution)\][ \t]?(.*)$/is,
-  type: m => `callout:${m[1].toLowerCase()}`,
-  prefixLen: m => m[0].length - m[2].length,
-};
-
-// "- " e "1. " já viraram lista antes do resto ser digitado; "[] " / "[ ] " / "[x] "
-// logo depois transforma o item em checkbox.
-const CHECKLIST_NA_LISTA = BLOCK_SHORTCUTS.find(s => s.id === 'checklist');
-
-function checkBlockShortcut(block, profundidade = 0) {
-  const content = getContentEl(block);
-  if (!content) return false;
-  // Citação e destaque são decoração sobre "paragraph" (convertBlockType nem
-  // troca block.dataset.type pra elas) — sem esta saída, a cada tecla digitada
-  // DEPOIS de virar citação o texto ainda começa com "> " e a mesma regex
-  // casa de novo, apagando o "> " de dentro do <span> do prefixo (que essa
-  // segunda passada nem recria) e deixando o resto do texto preso lá dentro.
-  if (block.dataset.callout) return false;
-
-  // Quem é citação/lista já passou pelo atalho do "> " / "- ": o que foi digitado
-  // DEPOIS é que ainda pode virar outra coisa (destaque, checkbox, título...).
-  // O prefixo "> " vive num <span> à parte e não entra na leitura do texto.
-  const quoted = isBlockQuoted(block);
-  const ehLista = block.dataset.type === 'bullet' || block.dataset.type === 'number';
-  // (item de lista também: o Live Preview mostra o "- " do marcador num <span> de prefixo, que não é texto digitado)
-  const prefixoSpan = (quoted || ehLista) ? content.querySelector(':scope > .md-syntax-prefix') : null;
-  // Âncoras invisíveis logo depois do prefixo não contam: a regex é ancorada no início.
-  const prefixoLen = prefixoSpan ? prefixoSpan.textContent.length : 0;
-  const resto = content.textContent.slice(prefixoLen);
-  const base = prefixoLen + (resto.length - resto.replace(new RegExp(`^${ANCORA}+`), '').length);
-  const text = content.textContent.slice(base);
-  // Espaço(s) acidental(is) no começo da linha não impedem o atalho ("  # título", " - [ ] item").
-  // Eles entram na conta do prefixo e saem junto com ele na conversão.
-  const espacosIniciais = /^[ \t ]*/.exec(text)[0].length;
-  const textoDoAtalho = text.slice(espacosIniciais);
-
-  let candidatos = BLOCK_SHORTCUTS;
-  if (ehLista) candidatos = [CHECKLIST_NA_LISTA];
-  else if (quoted) candidatos = [CALLOUT_NA_CITACAO, ...BLOCK_SHORTCUTS.filter(s => !s.soPlano)];
-
-  // Onde o cursor estava, pra devolvê-lo ao mesmo ponto do texto depois da
-  // conversão (colar/digitar rápido deixa texto depois do prefixo; sem isto o
-  // cursor ia pro começo e o Enter seguinte abria uma linha acima do texto).
-  const cursorAntes = document.activeElement === content || content.contains(document.getSelection()?.anchorNode)
-    ? getCaretOffset(content) : null;
-
-  for (const s of candidatos) {
-    const m = s.re.exec(textoDoAtalho);
+function checkBlockShortcut(block) {
+  const text = getContentEl(block).textContent;
+  for (const s of BLOCK_SHORTCUTS) {
+    const m = s.re.exec(text);
     if (!m) continue;
     const type = s.type(m);
     const checked = s.checked ? s.checked(m) : false;
-    const prefixLen = espacosIniciais + (s.prefixLen ? s.prefixLen(m) : m[0].length);
-    const restanteDoCursor = cursorAntes == null ? 0 : Math.max(0, cursorAntes - (base + prefixLen));
-
-    if (prefixLen > 0 && base + prefixLen <= content.textContent.length) {
-      const r = rangeFromOffsets(content, base, base + prefixLen);
-      r.deleteContents();
-    }
     const newBlock = convertBlockType(block, type, checked);
-    if (s.marker) newBlock.dataset.marker = s.marker(m);
-    if (s.lang) {
-      newBlock.dataset.lang = s.lang(m);
-      updateCodeBlockHighlight(newBlock);
-    }
-    if (type.startsWith('callout:')) {
-      // O destaque troca o prefixo "> " da citação pelo marcador "> [!NOTE]".
-      getContentEl(newBlock).querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
-      markCalloutEdges();
-    }
-    revealBlockSyntax(newBlock);
-    const newContent = getContentEl(newBlock);
-    const prefixEl = newContent.querySelector(':scope > .md-syntax-prefix');
-    if (prefixEl) {
-      // O cursor tem que cair DEPOIS do span do prefixo, nunca dentro dele —
-      // mas simplesmente pôr a seleção "logo depois do span, sem nada
-      // adiante" não basta: é a mesma fronteira descrita no comentário da
-      // âncora invisível (replaceRangeWithTag) — o Chrome estende o elemento
-      // anterior ao digitar em vez de criar texto novo do lado de fora. O
-      // título inteiro que a pessoa digita a seguir entrava dentro do span,
-      // com o estilo pequeno/apagado do prefixo em vez do título de verdade
-      // (o texto "sumia" visualmente). Uma âncora de verdade do lado de fora
-      // resolve — limparAncoras tira ela assim que a primeira letra entra.
-      // O Chrome também costuma deixar um <br> solto depois do prefixo
-      // quando o resto do bloco fica vazio — lixo desta conversão, não o
-      // placeholder de bloco vazio de verdade (que é só quando o <br> é o
-      // único filho).
-      if (newContent.lastChild?.nodeName === 'BR' && newContent.lastChild !== prefixEl) {
-        newContent.lastChild.remove();
-      }
-      newContent.focus();
-      const ancora = document.createTextNode(ANCORA);
-      prefixEl.after(ancora);
-      const afterPrefix = document.createRange();
-      afterPrefix.setStart(ancora, 1);
-      afterPrefix.collapse(true);
-      const sel = document.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(afterPrefix);
-    } else {
-      focusBlockStart(newBlock);
-    }
-    if (restanteDoCursor > 0) {
-      const novoPrefixo = getContentEl(newBlock).querySelector(':scope > .md-syntax-prefix');
-      const ateOTexto = novoPrefixo ? novoPrefixo.textContent.length + ANCORA.length : 0;
-      setCaretOffset(getContentEl(newBlock), ateOTexto + restanteDoCursor);
-    }
+    clearContent(getContentEl(newBlock));
+    focusBlockStart(newBlock);
     renumberLists();
     closeSlashMenu();
-    // O que sobrou depois do prefixo ainda pode ser outro atalho — colar ou
-    // digitar rápido "> [!NOTE]", "- [ ] item", "> - x"... entrega tudo de uma
-    // vez, e a primeira conversão só consumia o "> " / "- ". Reanalisa o bloco
-    // novo (com limite, por segurança).
-    if (profundidade < 3) checkBlockShortcut(newBlock, profundidade + 1);
     return true;
   }
   return false;
@@ -2379,40 +2127,9 @@ const INLINE_SHORTCUTS = [
       return href ? { href } : null;   // endereço recusado: deixa o texto como está
     },
   },
-  // Wikilink ao digitar: "[[Título]]" ou "[[Título|Alias]]" vira link interno imediato
-  {
-    re: /\[\[([^\]\n|]+)(?:\|([^\]\n]+))?\]\]$/,
-    tag: 'a',
-    attrs: m => {
-      const target = m[1].trim().replace(/\\/g, '/');
-      return {
-        href: `nota:${encodeURIComponent(target)}`,
-        class: 'note-internal-link',
-        'data-note-title': target,
-        'data-note-path': target,
-        title: `Ctrl+clique para abrir nota: ${target}`
-      };
-    },
-    text: m => (m[2] ? m[2].trim() : m[1].trim())
-  },
-  {
-    re: /\*\*\*([^\n]+?)\*\*\*$/,
-    tag: 'strong',
-    attrs: () => ({ 'data-syntax': '***' }),
-    html: m => `<em>${escHtml(m[1])}</em>`
-  },
-  {
-    re: /___([^\n]+?)___$/,
-    tag: 'strong',
-    attrs: () => ({ 'data-syntax': '___' }),
-    html: m => `<em>${escHtml(m[1])}</em>`
-  },
-  { re: /\*\*([^\n]+?)\*\*$/, tag: 'strong', attrs: () => ({ 'data-syntax': '**' }) },
-  { re: /__([^\n]+?)__$/, tag: 'strong', attrs: () => ({ 'data-syntax': '__' }) },
-  { re: /==([^=\n]+?)==$/, tag: 'mark', attrs: () => ({ class: 'md-highlight', 'data-syntax': '==' }) },
+  { re: /\*\*([^\n]+?)\*\*$/, tag: 'strong' },
   { re: /~~([^\n]+?)~~$/, tag: 's' },
-  { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*$/, tag: 'em', attrs: () => ({ 'data-syntax': '*' }) },
-  { re: /(?<![a-zA-Z0-9_])_(?![\s_])([^_\n]+?)(?<![\s_])_$/, tag: 'em', attrs: () => ({ 'data-syntax': '_' }) },
+  { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*$/, tag: 'em' },
 ];
 
 // Âncora invisível. O cursor precisa cair num nó de texto DE VERDADE fora do
@@ -2425,18 +2142,13 @@ const INLINE_SHORTCUTS = [
 // Ela é temporária: some assim que a primeira letra de verdade entra ao lado
 // (limparAncoras, no início do 'input'), e sanitizeForSave a remove como rede
 // de segurança pra que nunca chegue ao banco em nenhum caminho.
-export function replaceRangeWithTag(contentEl, start, end, tag, innerText, attrs = {}, innerHTML = null) {
+function replaceRangeWithTag(contentEl, start, end, tag, innerText, attrs = {}) {
   const range = rangeFromOffsets(contentEl, start, end);
   range.deleteContents();
   const el = document.createElement(tag);
-  if (innerHTML != null) {
-    el.innerHTML = innerHTML;
-  } else {
-    el.textContent = innerText;
-  }
+  el.textContent = innerText;
   for (const [nome, valor] of Object.entries(attrs)) el.setAttribute(nome, valor);
   range.insertNode(el);
-  if (attrs.class === 'note-internal-link') atualizarLinksInternos();
 
   const ancora = document.createTextNode(ANCORA);
   el.after(ancora);
@@ -2489,17 +2201,14 @@ function tryAutoFormatInline(contentEl) {
   const offset = getCaretOffset(contentEl);
   const before = contentEl.textContent.slice(0, offset);
 
-  for (const item of INLINE_SHORTCUTS) {
-    const { re, tag, attrs, text } = item;
+  for (const { re, tag, attrs } of INLINE_SHORTCUTS) {
     const m = re.exec(before);
     if (!m) continue;
     // `attrs` devolvendo null quer dizer "este atalho não se aplica" — é assim
     // que um endereço inválido deixa o texto digitado intacto em vez de sumir.
     const atributos = attrs ? attrs(m) : {};
     if (atributos === null) continue;
-    const textoInterno = text ? text(m) : m[1];
-    const htmlInterno = item.html ? item.html(m) : null;
-    replaceRangeWithTag(contentEl, offset - m[0].length, offset, tag, textoInterno, atributos, htmlInterno);
+    replaceRangeWithTag(contentEl, offset - m[0].length, offset, tag, m[1], atributos);
     return;
   }
 }
@@ -2511,89 +2220,16 @@ function htmlOfFragment(fragment) {
   return div.innerHTML;
 }
 
-function textoSemPrefixo(content) {
-  const clone = content.cloneNode(true);
-  clone.querySelectorAll(':scope > .md-syntax-prefix').forEach(p => p.remove());
-  return clone.textContent.replaceAll(ANCORA, '').trim();
-}
-
 function handleEnter(block) {
   captureUndoPoint();
   const content  = getContentEl(block);
   const offset   = getCaretOffset(content);
   const type     = block.dataset.type;
-
-  // Divisor no Enter: insere um parágrafo novo depois do divisor e move o cursor para lá
-  if (type === 'divider') {
-    const newBlock = createBlockEl('paragraph');
-    block.after(newBlock);
-    focusBlockStart(newBlock);
-    renumberLists();
-    return;
-  }
-
-  // Bloco de código: sair ao chegar ao final do bloco com Enter ou em bloco vazio
-  if (type === 'code') {
-    const sel = document.getSelection();
-    const anchor = sel?.anchorNode;
-    const fenceClose = block.querySelector(':scope > .md-syntax-fence-close');
-    const fenceOpen = block.querySelector(':scope > .md-syntax-fence-open');
-    const isAtFenceClose = fenceClose && (fenceClose === anchor || fenceClose.contains(anchor));
-    const isAtFenceOpen = fenceOpen && (fenceOpen === anchor || fenceOpen.contains(anchor));
-
-    if (isAtFenceOpen) {
-      focusBlockStart(block);
-      return;
-    }
-
-    const isEmpty = content.textContent.trim() === '';
-    const text = content.textContent;
-    const isAtEnd = offset >= text.length;
-    const hasTrailingBlank = text.endsWith('\n') || content.innerHTML.endsWith('<br>');
-
-    if (isAtFenceClose || isEmpty || (isAtEnd && hasTrailingBlank)) {
-      if (hasTrailingBlank) {
-        if (text.endsWith('\n')) {
-          content.textContent = text.replace(/\n$/, '');
-        } else if (content.lastChild?.nodeName === 'BR') {
-          content.lastChild.remove();
-        }
-      }
-      collapseBlockSyntax(block);
-      let next = block.nextElementSibling;
-      if (!next || next.dataset.type !== 'paragraph' || next.textContent.trim() !== '') {
-        const newBlock = createBlockEl('paragraph');
-        block.after(newBlock);
-        next = newBlock;
-      }
-      focusBlockStart(next);
-      renumberLists();
-      return;
-    }
-
-    if (sel && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      range.deleteContents();
-      const brOrNl = document.createTextNode('\n');
-      range.insertNode(brOrNl);
-      range.setStartAfter(brOrNl);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
-      scheduleCodeHighlight(block);
-      scheduleSave();
-    }
-    return;
-  }
-
   const isListish = type === 'bullet' || type === 'number' || type === 'checklist';
   // A folha de cálculo se repete no Enter como uma lista se repete, e sai pelo
   // mesmo gesto: Enter numa linha vazia.
   const repete    = isListish || type === 'calc';
-  // "Vazio" ignora o prefixo do Live Preview ("> ", "> [!NOTE]") e as âncoras
-  // invisíveis: um bloco novo de citação/destaque já nasce com o prefixo
-  // revelado, e sem isto o segundo Enter nunca saía do destaque.
-  const isEmpty   = textoSemPrefixo(content) === '';
+  const isEmpty   = content.textContent.trim() === '';
 
   if (repete && isEmpty) {
     // Indentado, o Enter num item vazio sai um nível — só no nível 0 é que
@@ -2620,46 +2256,17 @@ function handleEnter(block) {
     return;
   }
 
-  // Cursor dentro de um link com a sintaxe revelada ("[", "](endereço)"): fecha a sintaxe antes de dividir.
-  // Senão o pedaço da direita leva só o "](endereço)" e a linha nova ganha uma cópia do link sem o texto.
-  let offsetDividir = offset;
-  if (livePreviewActiveInline && content.contains(livePreviewActiveInline)) {
-    const inl = livePreviewActiveInline;
-    const abertura = inl.querySelector(':scope > .md-syntax-open');
-    let removidosAntes = 0;
-    if (abertura) {
-      const antesDaAbertura = document.createRange();
-      antesDaAbertura.setStart(content, 0);
-      antesDaAbertura.setEndBefore(abertura);
-      if (offset > antesDaAbertura.toString().length) removidosAntes = abertura.textContent.length;
-    }
-    livePreviewActiveInline = null;
-    collapseInlineSyntax(inl);
-    offsetDividir = Math.max(0, Math.min(offset - removidosAntes, content.textContent.length));
-  }
-
-  const start = pointAtOffset(content, offsetDividir);
+  const start = pointAtOffset(content, offset);
   const afterRange = document.createRange();
   afterRange.setStart(start.node, start.offset);
   afterRange.setEndAfter(content.lastChild ?? content.firstChild ?? content);
-  const afterFragment = afterRange.extractContents();
-  // Cursor no fim do texto de um link (ou negrito, etc.): a divisão deixa uma cópia VAZIA do elemento no pedaço
-  // da direita. Sem texto, ela não tem o que mostrar — só o endereço, revelado como "[](...)" na linha nova.
-  afterFragment.querySelectorAll('a, strong, b, em, i, mark, s, del, code')
-    .forEach(el => { if (!el.textContent.replace(/​/g, '').trim()) el.remove(); });
-  const afterHTML = htmlOfFragment(afterFragment);
+  const afterHTML = htmlOfFragment(afterRange.extractContents());
 
-  const marker = block.dataset.marker ||
-    content.querySelector(':scope > .md-syntax-prefix')?.textContent?.trim() ||
-    '-';
   const nextType = repete ? type : 'paragraph';
   const newBlock = createBlockEl(nextType, afterHTML, false);
-  if (block.dataset.marker && nextType === 'bullet') newBlock.dataset.marker = block.dataset.marker;
-  else if (nextType === 'bullet') newBlock.dataset.marker = marker;
   setBlockDepth(newBlock, blockDepth(block));
   setBlockQuoted(newBlock, isBlockQuoted(block));
   setBlockCallout(newBlock, block.dataset.callout);   // Enter continua dentro do destaque
-  setBlockTextAlign(newBlock, block.dataset.textAlign);   // e no mesmo alinhamento (como num editor de texto)
   block.after(newBlock);
   focusBlockStart(newBlock);
   renumberLists();
@@ -2689,41 +2296,6 @@ function handleBackspaceAtStart(block) {
     return;
   }
 
-  // Divisor: apagar no início remove o divisor e foca o anterior
-  if (type === 'divider') {
-    const prev = block.previousElementSibling;
-    const next = block.nextElementSibling;
-    block.remove();
-    if (prev) {
-      focusBlockEnd(prev);
-    } else if (next) {
-      focusBlockStart(next);
-    } else {
-      const para = createBlockEl('paragraph');
-      root.appendChild(para);
-      focusBlockStart(para);
-    }
-    renumberLists();
-    return;
-  }
-
-  // Cabeçalhos: Backspace no início reduz o nível (h3 -> h2 -> h1 -> parágrafo),
-  // permitindo desformatar ou alterar o nível sem precisar da toolbar.
-  if (HEADING_TAGS[type]) {
-    const level = Number(type.replace('heading', ''));
-    if (level > 1) {
-      const novo = convertBlockType(block, `heading${level - 1}`);
-      revealBlockSyntax(novo);
-      focusBlockStart(novo);
-      renumberLists();
-      return;
-    }
-    const para = convertBlockType(block, 'paragraph');
-    focusBlockStart(para);
-    renumberLists();
-    return;
-  }
-
   // Bloco especial COM texto: primeiro Backspace só tira a formatação
   // (volta a parágrafo), preserva o conteúdo — evita apagar sem querer.
   // Já vazio (ex.: checklist sem texto), pula direto pra mesclar/remover —
@@ -2746,11 +2318,7 @@ function handleBackspaceAtStart(block) {
   }
 
   if (prev.dataset.type === 'divider') {
-    const prevContent = getContentEl(prev);
-    if (isEmpty) block.remove();
-    prev.classList.add('is-active');
-    prevContent.focus();
-    setCaretOffset(prevContent, prevContent.textContent.length);
+    prev.remove();
     renumberLists();
     return;
   }
@@ -2772,9 +2340,6 @@ function handleBackspaceAtStart(block) {
   prevContent.focus();
   setCaretOffset(prevContent, joinOffset);
   renumberLists();
-  // Não depende do `selectionchange`: o bloco removido era o "ativo" do Live Preview, e a sintaxe do
-  // anterior (ex.: o `# ` de um título) precisa ser revelada já, com o cursor nele
-  updateLivePreviewState();
 }
 
 // ── Eventos principais do editor ──────────────────────────────────────────────
@@ -2791,34 +2356,6 @@ root.addEventListener('beforeinput', () => {
 root.addEventListener('mousedown', () => setActiveArea('note'), true);
 root.addEventListener('focusin',   () => setActiveArea('note'));
 
-let codeHighlightTimer = null;
-function scheduleCodeHighlight(block) {
-  clearTimeout(codeHighlightTimer);
-  codeHighlightTimer = setTimeout(() => {
-    if (!block || !root.contains(block) || block.dataset.type !== 'code') return;
-    const content = getContentEl(block);
-    if (!content) return;
-
-    const fenceOpen = block.querySelector(':scope > .md-syntax-fence-open');
-    if (fenceOpen) {
-      const match = /^`{3,}([a-zA-Z0-9_-]*)/.exec(fenceOpen.textContent.trim());
-      if (match) {
-        block.dataset.lang = match[1] || '';
-      }
-    }
-
-    const sel = document.getSelection();
-    const isContentFocused = sel && sel.rangeCount > 0 && content.contains(sel.anchorNode);
-    const caret = isContentFocused ? getCodeCaretOffset(content) : null;
-
-    updateCodeBlockHighlight(block);
-
-    if (isContentFocused && caret !== null) {
-      setCodeCaretOffset(content, caret);
-    }
-  }, 200);
-}
-
 root.addEventListener('input', () => {
   const block = currentBlock();
   if (!block) return;
@@ -2828,390 +2365,14 @@ root.addEventListener('input', () => {
   // qualquer atalho ou detecção leia o texto do bloco e a conte como caractere.
   if (block.dataset.type !== 'table') limparAncoras(getContentEl(block));
 
-  // Célula de tabela: atalho de BLOCO e menu "/" não fazem sentido dentro dela (e a detecção
-  // varreria o bloco inteiro em vez da célula), mas a formatação INLINE vale: **negrito**, *itálico*,
-  // `código`, ~~riscado~~, ==marca-texto== e [link](endereço) viram formatação ao digitar.
-  if (block.dataset.type === 'table') {
-    const celula = focusedCell();
-    if (celula) {
-      limparAncoras(celula);          // a âncora invisível do atalho anterior (ver replaceRangeWithTag)
-      tryAutoFormatInline(celula);
-    }
-    scheduleSave();
-    return;
-  }
-
-  // Divisor: se o texto foi modificado e não é mais divisor, converte para parágrafo
-  if (block.dataset.type === 'divider') {
-    const text = getContentEl(block).textContent.trim();
-    if (!/^(-{3,}|\*{3,}|_{3,})$/.test(text)) {
-      const para = convertBlockType(block, 'paragraph');
-      getContentEl(para).textContent = text;
-      focusBlockEnd(para);
-    }
-    scheduleSave();
-    return;
-  }
-
-  // Live Preview: monitorar edição do cabeçalho (#)
-  if (HEADING_TAGS[block.dataset.type]) {
-    const contentEl = getContentEl(block);
-    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
-    
-    let hashCount = 0;
-    if (prefixSpan) {
-      const match = /^(#{1,6})(?:[ \t](.*)|([^#\s].*))?$/s.exec(prefixSpan.textContent);
-      if (match) {
-        hashCount = match[1].length;
-        const extraText = match[2] ?? match[3] ?? '';
-        if (extraText) {
-          prefixSpan.textContent = '#'.repeat(hashCount) + ' ';
-          let nextNode = prefixSpan.nextSibling;
-          if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
-            nextNode.data = extraText + nextNode.data;
-          } else {
-            const tn = document.createTextNode(extraText);
-            prefixSpan.after(tn);
-            nextNode = tn;
-          }
-          const sel = document.getSelection();
-          if (sel && nextNode) {
-            const range = document.createRange();
-            range.setStart(nextNode, extraText.length);
-            range.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(range);
-          }
-        }
-      }
-    } else {
-      const match = /^(#{1,6})/.exec(contentEl.textContent);
-      if (match) hashCount = match[1].length;
-    }
-
-    if (hashCount === 0) {
-      if (prefixSpan) prefixSpan.remove();
-      const curOffset = getCaretOffset(contentEl);
-      const para = convertBlockType(block, 'paragraph');
-      livePreviewActiveBlock = para;
-      const paraContent = getContentEl(para);
-      paraContent.focus();
-      setCaretOffset(paraContent, Math.min(curOffset, paraContent.textContent.length));
-      scheduleSave();
-      return;
-    } else if (hashCount >= 1 && hashCount <= 6) {
-      const targetType = `heading${hashCount}`;
-      if (block.dataset.type !== targetType) {
-        const curOffset = getCaretOffset(contentEl);
-        const novo = convertBlockType(block, targetType);
-        livePreviewActiveBlock = novo;
-        revealBlockSyntax(novo);
-        const novoContent = getContentEl(novo);
-        novoContent.focus();
-        setCaretOffset(novoContent, Math.min(curOffset, novoContent.textContent.length));
-        scheduleSave();
-        return;
-      }
-    }
-  }
-
-  // Live Preview: monitorar edição do callout (> [!...])
-  if (block.dataset.callout && !isCalloutFirst(block)) {
-    // Linha de continuação: o prefixo é só o ">" da citação. Se ele for apagado,
-    // a linha sai do destaque; senão nada muda (não há marcador pra validar).
-    const contentEl = getContentEl(block);
-    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
-    if (prefixSpan && !prefixSpan.textContent.includes('>')) {
-      prefixSpan.remove();
-      delete block.dataset.callout;
-      setBlockQuoted(block, false);
-      markCalloutEdges();
-      scheduleSave();
-    }
-  } else if (block.dataset.callout) {
-    const contentEl = getContentEl(block);
-    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
-    if (prefixSpan) {
-      const mCallText = /^((?:>\s*)?\[!(?:note|tip|important|warning|caution)\][ \t]?)(.*)$/is.exec(prefixSpan.textContent);
-      if (mCallText && mCallText[2]) {
-        const extraText = mCallText[2];
-        prefixSpan.textContent = `> [!${block.dataset.callout.toUpperCase()}]`;
-        let nextNode = prefixSpan.nextSibling;
-        if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
-          nextNode.data = extraText + nextNode.data;
-        } else {
-          const tn = document.createTextNode(extraText);
-          prefixSpan.after(tn);
-          nextNode = tn;
-        }
-        const sel = document.getSelection();
-        if (sel && nextNode) {
-          const range = document.createRange();
-          range.setStart(nextNode, extraText.length);
-          range.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(range);
-        }
-      }
-    }
-    const textToCheck = prefixSpan ? prefixSpan.textContent : contentEl.textContent;
-    const m = />\s*\[!(note|tip|important|warning|caution)\]/i.exec(textToCheck);
-    if (m) {
-      const newType = m[1].toLowerCase();
-      if (block.dataset.callout !== newType) {
-        setBlockCallout(block, newType);
-        markCalloutEdges();
-        scheduleSave();
-      }
-    } else {
-      if (textToCheck.includes('>')) {
-        delete block.dataset.callout;
-        if (prefixSpan) {
-          prefixSpan.dataset.syntaxType = 'quote';
-          prefixSpan.classList.remove('md-syntax-callout');
-        }
-      } else {
-        if (prefixSpan) prefixSpan.remove();
-        delete block.dataset.callout;
-        setBlockQuoted(block, false);
-      }
-      markCalloutEdges();
-      scheduleSave();
-    }
-  }
-
-  // Live Preview: monitorar edição da citação (>)
-  if (isBlockQuoted(block) && !block.dataset.callout) {
-    const contentEl = getContentEl(block);
-    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
-    if (prefixSpan) {
-      const mQuoteText = /^(>[ \t]?)(.*)$/s.exec(prefixSpan.textContent);
-      if (mQuoteText && mQuoteText[2]) {
-        const extraText = mQuoteText[2];
-        prefixSpan.textContent = '> ';
-        let nextNode = prefixSpan.nextSibling;
-        if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
-          nextNode.data = extraText + nextNode.data;
-        } else {
-          const tn = document.createTextNode(extraText);
-          prefixSpan.after(tn);
-          nextNode = tn;
-        }
-        const sel = document.getSelection();
-        if (sel && nextNode) {
-          const range = document.createRange();
-          range.setStart(nextNode, extraText.length);
-          range.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(range);
-        }
-      }
-    }
-    let hasQuote = false;
-    if (prefixSpan) {
-      hasQuote = prefixSpan.textContent.includes('>');
-    } else {
-      hasQuote = contentEl.textContent.startsWith('>');
-    }
-    if (!hasQuote) {
-      if (prefixSpan) prefixSpan.remove();
-      setBlockQuoted(block, false);
-      scheduleSave();
-    }
-  }
-
-  // Live Preview: monitorar edição do marcador de lista não ordenada (+, -, *)
-  if (block.dataset.type === 'bullet' && !isBlockQuoted(block)) {
-    const contentEl = getContentEl(block);
-    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
-    if (prefixSpan) {
-      const texto = prefixSpan.textContent;
-      const mBullet = /^([-*+])[ \t]?(.*)$/s.exec(texto);
-      if (mBullet) {
-        block.dataset.marker = mBullet[1];
-        const extraText = mBullet[2];
-        if (extraText) {
-          prefixSpan.textContent = `${mBullet[1]} `;
-          let nextNode = prefixSpan.nextSibling;
-          if (nextNode && nextNode.nodeType === Node.TEXT_NODE) nextNode.data = extraText + nextNode.data;
-          else { nextNode = document.createTextNode(extraText); prefixSpan.after(nextNode); }
-          const sel = document.getSelection();
-          if (sel) {
-            const r = document.createRange();
-            r.setStart(nextNode, extraText.length);
-            r.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(r);
-          }
-        }
-      } else {
-        const sobra = texto.replaceAll(ANCORA, '');
-        prefixSpan.remove();
-        const para = convertBlockType(block, 'paragraph');
-        const paraContent = getContentEl(para);
-        if (sobra) paraContent.prepend(document.createTextNode(sobra));
-        focusBlockStart(para);
-        if (sobra) setCaretOffset(paraContent, sobra.length);
-        scheduleSave();
-        return;
-      }
-    }
-  }
-
-  // Live Preview: monitorar edição do número da lista ordenada (1., 2., etc)
-  if (block.dataset.type === 'number' && !isBlockQuoted(block)) {
-    const contentEl = getContentEl(block);
-    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
-    if (prefixSpan) {
-      const texto = prefixSpan.textContent;
-      const mNum = /^(\d+)\.[ \t]?(.*)$/s.exec(texto);
-      if (mNum) {
-        const extraText = mNum[2];
-        if (extraText) {
-          prefixSpan.textContent = `${mNum[1]}. `;
-          let nextNode = prefixSpan.nextSibling;
-          if (nextNode && nextNode.nodeType === Node.TEXT_NODE) nextNode.data = extraText + nextNode.data;
-          else { nextNode = document.createTextNode(extraText); prefixSpan.after(nextNode); }
-          const sel = document.getSelection();
-          if (sel) {
-            const r = document.createRange();
-            r.setStart(nextNode, extraText.length);
-            r.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(r);
-          }
-        }
-      } else {
-        const sobra = texto.replaceAll(ANCORA, '');
-        prefixSpan.remove();
-        const para = convertBlockType(block, 'paragraph');
-        const paraContent = getContentEl(para);
-        if (sobra) paraContent.prepend(document.createTextNode(sobra));
-        focusBlockStart(para);
-        if (sobra) setCaretOffset(paraContent, sobra.length);
-        renumberLists();
-        scheduleSave();
-        return;
-      }
-    }
-  }
-
-  // Live Preview: monitorar edição do "- [ ] " / "- [x] " do checklist
-  if (block.dataset.type === 'checklist' && !isBlockQuoted(block)) {
-    const contentEl = getContentEl(block);
-    const prefixSpan = contentEl?.querySelector?.(':scope > .md-syntax-prefix');
-    if (prefixSpan) {
-      const texto = prefixSpan.textContent;
-      const mCheck = /^([-*] \[([ xX]?)\][ \t]?)(.*)$/s.exec(texto);
-      if (mCheck) {
-        // Texto digitado colado ao prefixo volta pro corpo do item.
-        const extraText = mCheck[3];
-        if (extraText) {
-          prefixSpan.textContent = `- [${/[xX]/.test(mCheck[2]) ? 'x' : ' '}] `;
-          let nextNode = prefixSpan.nextSibling;
-          if (nextNode && nextNode.nodeType === Node.TEXT_NODE) nextNode.data = extraText + nextNode.data;
-          else { nextNode = document.createTextNode(extraText); prefixSpan.after(nextNode); }
-          const sel = document.getSelection();
-          if (sel) {
-            const r = document.createRange();
-            r.setStart(nextNode, extraText.length);
-            r.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(r);
-          }
-        }
-        // Trocar o espaço por "x" (ou o contrário) marca/desmarca o item.
-        const marcado = /[xX]/.test(mCheck[2]);
-        if (marcado !== (block.dataset.checked === 'true')) {
-          marcarChecklist(block, marcado);
-          propagarParaBaixo(block, marcado);
-          propagarParaCima(block);
-          scheduleSave();
-        }
-      } else {
-        // Apagaram pedaço do "- [ ]": deixa de ser checklist e o que sobrou
-        // fica como texto comum, pra pessoa ver o que digitou.
-        const sobra = texto.replaceAll(ANCORA, '');
-        prefixSpan.remove();
-        const para = convertBlockType(block, 'paragraph');
-        const paraContent = getContentEl(para);
-        paraContent.prepend(document.createTextNode(sobra));
-        focusBlockStart(para);
-        setCaretOffset(paraContent, sobra.length);
-        scheduleSave();
-        return;
-      }
-    }
-  }
-
-  // Live Preview: monitorar edição de delimitadores inline (** ou ` ou [link](url))
-  if (livePreviewActiveInline) {
-    const inline = livePreviewActiveInline;
-    const openSpan = inline.querySelector(':scope > .md-syntax-open');
-    const closeSpan = inline.querySelector(':scope > .md-syntax-close');
-    if (openSpan && closeSpan) {
-      const isWiki = inline.classList?.contains('note-internal-link');
-      const isStdLink = inline.tagName === 'A' && !isWiki;
-
-      let shouldUnwrap = false;
-      if (isStdLink) {
-        if (!openSpan.textContent.includes('[') || !closeSpan.textContent.includes('](')) {
-          shouldUnwrap = true;
-        }
-      } else {
-        const delimiters = getInlineDelimiters(inline);
-        const expectedOpen = delimiters.openSyntax;
-        const expectedClose = delimiters.closeSyntax;
-        if (openSpan.textContent !== expectedOpen || closeSpan.textContent !== expectedClose) {
-          shouldUnwrap = true;
-        }
-      }
-
-      if (shouldUnwrap) {
-        const blockEl = currentBlock();
-        const content = blockEl ? getContentEl(blockEl) : inline.parentElement;
-        const caretBefore = content ? getCaretOffset(content) : 0;
-        livePreviewActiveInline = null;
-        openSpan.remove();
-        closeSpan.remove();
-        inline.classList.remove('md-token-open');
-        inline.replaceWith(...inline.childNodes);
-        if (content) {
-          content.normalize();
-          setCaretOffset(content, Math.min(caretBefore, content.textContent.length));
-        }
-        scheduleSave();
-      }
-    }
-  }
+  // Célula de tabela só salva: atalho de bloco e menu "/" não fazem sentido
+  // dentro dela, e a detecção varreria o bloco inteiro em vez da célula.
+  if (block.dataset.type === 'table') { scheduleSave(); return; }
 
   if (block.dataset.type === 'paragraph') {
-    // Uma marca de detecção (#tag, data, CPF...) pode ter pego o começo da
-    // linha antes do atalho de bloco rodar — ex.: digitar "#" e fazer uma
-    // pausa deixa o rescan (500ms) marcar "#outra" como tag; ao completar
-    // "# outra" pra virar título, o <mark> sobrevivia dentro do cabeçalho
-    // recém-criado. Desembrulhar aqui garante que o atalho sempre opera em
-    // texto puro.
-    const contentEl = getContentEl(block);
-    const firstNode = contentEl?.firstChild;
-    if (firstNode?.nodeType === Node.ELEMENT_NODE &&
-        firstNode.tagName === 'MARK' &&
-        !firstNode.classList.contains('md-highlight') &&
-        firstNode.getAttribute('data-syntax') !== '==') {
-      // Desembrulhar troca os nós de texto e o navegador joga o cursor para o INÍCIO do bloco (era o bug de
-      // "digitar número + símbolo e o cursor voltar pro começo": o rescan marcava "1+2" como conta e a tecla
-      // seguinte desembrulhava a marca). O cursor volta para onde estava.
-      const sel = document.getSelection();
-      const caret = sel && contentEl.contains(sel.anchorNode) ? getCaretOffset(contentEl) : null;
-      unwrapMarks(contentEl);
-      if (caret !== null) setCaretOffset(contentEl, caret);
-    }
     if (checkDividerShortcut(block)) { scheduleSave(); return; }
     if (checkBlockShortcut(block))   { scheduleSave(); return; }
     checkSlashMenu(block);
-  } else if (block.dataset.type === 'bullet' || block.dataset.type === 'number') {
-    if (checkBlockShortcut(block)) { scheduleSave(); return; }
-    closeSlashMenu();
   } else {
     closeSlashMenu();
   }
@@ -3224,15 +2385,8 @@ root.addEventListener('input', () => {
     return;
   }
 
-  if (block.dataset.type === 'code') {
-    scheduleCodeHighlight(block);
-    scheduleSave();
-    return;
-  }
-
   if (block.dataset.type !== 'code') {
     tryAutoFormatInline(getContentEl(block));
-    checkLinkAutocomplete(block);
   }
 
   scheduleRescan(block);
@@ -3240,16 +2394,7 @@ root.addEventListener('input', () => {
 });
 
 root.addEventListener('keydown', e => {
-  // Painel de estrutura da tabela: é um campo de texto simples. Enter, Tab, Backspace, desfazer… são
-  // do próprio campo — as regras de blocos (dividir bloco, indentar, fundir) não valem ali.
-  if (e.target?.closest?.('.table-source, .image-source')) return;
   const key = e.key.toLowerCase();
-  // Alinhamento do texto (mesmos atalhos do Google Docs): Ctrl+Shift+L esquerda, E centro, R direita, J justificado
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && ['l', 'e', 'r', 'j'].includes(key)) {
-    e.preventDefault();
-    applyTextAlign({ l: 'left', e: 'center', r: 'right', j: 'justify' }[key]);
-    return;
-  }
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
     e.preventDefault();
     performUndo();
@@ -3267,456 +2412,27 @@ root.addEventListener('keydown', e => {
     return;
   }
 
-  // Um bloco sem texto (imagem, tabela, futuro áudio/vídeo/pdf) já está
-  // selecionado (ver mais abaixo, onde a seleção nasce) — a seta continua
-  // andando bloco a bloco a partir dele, e não a partir de onde o cursor de
-  // texto de verdade ficou esquecido.
-  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
-    && getSelectedBlockIds().size === 1) {
-    const atual = findBlockById([...getSelectedBlockIds()][0]);
-    if (atual) {
-      e.preventDefault();
-      const direcao = e.key === 'ArrowDown' ? 1 : -1;
-      const vizinho = direcao === 1 ? atual.nextElementSibling : atual.previousElementSibling;
-      if (vizinho) {
-        if (vizinho.contentEditable === 'false') {
-          chegarNoBlocoSemTexto(vizinho);
-        } else {
-          clearBlockSelection();
-          (direcao === 1 ? focusBlockStart : focusBlockEnd)(vizinho);
-        }
-      }
-      return;
-    }
-  }
-
-  if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-    const sel = document.getSelection();
-    if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      if (root.contains(range.commonAncestorContainer)) {
-        let rawSelected = range.toString();
-        if (rawSelected) {
-          const leadMatch = rawSelected.match(/^\s+/);
-          const leadingSpace = leadMatch ? leadMatch[0] : '';
-          const trailMatch = rawSelected.match(/\s+$/);
-          const trailingSpace = trailMatch ? trailMatch[0] : '';
-          const coreText = rawSelected.slice(leadingSpace.length, rawSelected.length - trailingSpace.length);
-
-          if (coreText) {
-            const block = currentBlock();
-
-            // Intercepta formatação por teclas de atalho Obsidian
-            if (e.key === '#') {
-              e.preventDefault();
-              captureUndoPoint();
-              if (block) {
-                const content = getContentEl(block);
-                const isAtBlockStart = (range.startContainer === content && range.startOffset === 0) ||
-                                      (range.startContainer === content.firstChild && range.startOffset === 0);
-                const isFullBlock = rawSelected.trim() === content.textContent.trim();
-                if (isAtBlockStart || isFullBlock) {
-                  const currentType = block.dataset.type;
-                  let nextType = 'heading1';
-                  if (HEADING_TAGS[currentType]) {
-                    const lvl = Number(currentType.replace('heading', ''));
-                    nextType = lvl < 6 ? `heading${lvl + 1}` : 'heading1';
-                  }
-                  const novo = convertBlockType(block, nextType);
-                  revealBlockSyntax(novo);
-                  focusBlockStart(novo);
-                } else {
-                  range.deleteContents();
-                  const frag = document.createDocumentFragment();
-                  if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
-                  const textNode = document.createTextNode(`#${coreText}`);
-                  frag.appendChild(textNode);
-                  if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
-                  range.insertNode(frag);
-                  const newRange = document.createRange();
-                  newRange.selectNode(textNode);
-                  sel.removeAllRanges();
-                  sel.addRange(newRange);
-                }
-                scheduleSave();
-                return;
-              }
-            }
-
-            if (e.key === '[' || e.key === ']') {
-              e.preventDefault();
-              captureUndoPoint();
-              range.deleteContents();
-
-              const frag = document.createDocumentFragment();
-              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
-
-              let nodeToSelect;
-              // Se já está como [texto], o 2º '[' converte imediatamente para link interno [[texto]]
-              if (/^\[([^\]]+)\]$/.test(coreText)) {
-                const inner = coreText.slice(1, -1);
-                const a = document.createElement('a');
-                a.className = 'note-internal-link';
-                a.setAttribute('href', `nota:${encodeURIComponent(inner)}`);
-                a.dataset.noteTitle = inner;
-                a.title = `Ctrl+clique para abrir nota: ${inner}`;
-                a.textContent = inner;
-                frag.appendChild(a);
-                revealInlineSyntax(a);
-                livePreviewActiveInline = a;
-                nodeToSelect = a;
-                atualizarLinksInternos();
-              } else if (/^\[\[([^\]]+)\]\]$/.test(coreText)) {
-                // Já é [[texto]]: desfaz para texto puro
-                const inner = coreText.slice(2, -2);
-                nodeToSelect = document.createTextNode(inner);
-                frag.appendChild(nodeToSelect);
-              } else {
-                // 1º '[': envolve com [texto]
-                nodeToSelect = document.createTextNode(`[${coreText}]`);
-                frag.appendChild(nodeToSelect);
-              }
-
-              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
-              range.insertNode(frag);
-
-              const newRange = document.createRange();
-              newRange.selectNode(nodeToSelect);
-              sel.removeAllRanges();
-              sel.addRange(newRange);
-              scheduleSave();
-              return;
-            }
-
-            if (e.key === '*') {
-              e.preventDefault();
-              captureUndoPoint();
-              range.deleteContents();
-
-              const frag = document.createDocumentFragment();
-              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
-
-              let nodeToSelect;
-              if (/^\*([^*]+)\*$/.test(coreText)) {
-                // 2º '*': converte para negrito <strong>
-                const inner = coreText.slice(1, -1);
-                const strong = document.createElement('strong');
-                strong.setAttribute('data-syntax', '**');
-                strong.textContent = inner;
-                frag.appendChild(strong);
-                revealInlineSyntax(strong);
-                livePreviewActiveInline = strong;
-                nodeToSelect = strong;
-              } else if (/^\*\*([^*]+)\*\*$/.test(coreText)) {
-                // 3º '*': converte para negrito + itálico ***texto***
-                const inner = coreText.slice(2, -2);
-                const strong = document.createElement('strong');
-                strong.setAttribute('data-syntax', '***');
-                const em = document.createElement('em');
-                em.textContent = inner;
-                strong.appendChild(em);
-                frag.appendChild(strong);
-                revealInlineSyntax(strong);
-                livePreviewActiveInline = strong;
-                nodeToSelect = strong;
-              } else if (/^\*\*\*([^*]+)\*\*\*$/.test(coreText)) {
-                // Já é ***texto***: desfaz para texto puro
-                const inner = coreText.slice(3, -3);
-                nodeToSelect = document.createTextNode(inner);
-                frag.appendChild(nodeToSelect);
-              } else {
-                // 1º '*': envolve com *texto*
-                nodeToSelect = document.createTextNode(`*${coreText}*`);
-                frag.appendChild(nodeToSelect);
-              }
-
-              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
-              range.insertNode(frag);
-
-              const newRange = document.createRange();
-              newRange.selectNode(nodeToSelect);
-              sel.removeAllRanges();
-              sel.addRange(newRange);
-              scheduleSave();
-              return;
-            }
-
-            if (e.key === '_') {
-              e.preventDefault();
-              captureUndoPoint();
-              range.deleteContents();
-
-              const frag = document.createDocumentFragment();
-              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
-
-              let nodeToSelect;
-              if (/^_([^_]+)_$/.test(coreText)) {
-                // 2º '_': converte para negrito __texto__
-                const inner = coreText.slice(1, -1);
-                const strong = document.createElement('strong');
-                strong.setAttribute('data-syntax', '__');
-                strong.textContent = inner;
-                frag.appendChild(strong);
-                revealInlineSyntax(strong);
-                livePreviewActiveInline = strong;
-                nodeToSelect = strong;
-              } else if (/^__([^_]+)__$/.test(coreText)) {
-                // 3º '_': converte para negrito + itálico ___texto___
-                const inner = coreText.slice(2, -2);
-                const strong = document.createElement('strong');
-                strong.setAttribute('data-syntax', '___');
-                const em = document.createElement('em');
-                em.textContent = inner;
-                strong.appendChild(em);
-                frag.appendChild(strong);
-                revealInlineSyntax(strong);
-                livePreviewActiveInline = strong;
-                nodeToSelect = strong;
-              } else if (/^___([^_]+)___$/.test(coreText)) {
-                // Já é ___texto___: desfaz para texto puro
-                const inner = coreText.slice(3, -3);
-                nodeToSelect = document.createTextNode(inner);
-                frag.appendChild(nodeToSelect);
-              } else {
-                // 1º '_': envolve com _texto_
-                nodeToSelect = document.createTextNode(`_${coreText}_`);
-                frag.appendChild(nodeToSelect);
-              }
-
-              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
-              range.insertNode(frag);
-
-              const newRange = document.createRange();
-              newRange.selectNode(nodeToSelect);
-              sel.removeAllRanges();
-              sel.addRange(newRange);
-              scheduleSave();
-              return;
-            }
-
-            if (e.key === '=') {
-              e.preventDefault();
-              captureUndoPoint();
-              range.deleteContents();
-
-              const frag = document.createDocumentFragment();
-              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
-
-              let nodeToSelect;
-              if (/^=([^=]+)=$/.test(coreText)) {
-                // 2º '=': converte para texto destacado ==texto==
-                const inner = coreText.slice(1, -1);
-                const mark = document.createElement('mark');
-                mark.className = 'md-highlight';
-                mark.setAttribute('data-syntax', '==');
-                mark.textContent = inner;
-                frag.appendChild(mark);
-                revealInlineSyntax(mark);
-                livePreviewActiveInline = mark;
-                nodeToSelect = mark;
-              } else if (/^==([^=]+)==$/.test(coreText)) {
-                // Já é ==texto==: desfaz para texto puro
-                const inner = coreText.slice(2, -2);
-                nodeToSelect = document.createTextNode(inner);
-                frag.appendChild(nodeToSelect);
-              } else {
-                // 1º '=': envolve com =texto=
-                nodeToSelect = document.createTextNode(`=${coreText}=`);
-                frag.appendChild(nodeToSelect);
-              }
-
-              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
-              range.insertNode(frag);
-
-              const newRange = document.createRange();
-              newRange.selectNode(nodeToSelect);
-              sel.removeAllRanges();
-              sel.addRange(newRange);
-              scheduleSave();
-              return;
-            }
-
-            if (e.key === '~') {
-              e.preventDefault();
-              captureUndoPoint();
-              range.deleteContents();
-
-              const frag = document.createDocumentFragment();
-              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
-
-              let nodeToSelect;
-              // Se já está como ~texto~, o 2º '~' converte para riscado <s>
-              if (/^~([^~]+)~$/.test(coreText)) {
-                const inner = coreText.slice(1, -1);
-                const s = document.createElement('s');
-                s.textContent = inner;
-                frag.appendChild(s);
-                revealInlineSyntax(s);
-                livePreviewActiveInline = s;
-                nodeToSelect = s;
-              } else if (/^~~([^~]+)~~$/.test(coreText)) {
-                const inner = coreText.slice(2, -2);
-                nodeToSelect = document.createTextNode(inner);
-                frag.appendChild(nodeToSelect);
-              } else {
-                nodeToSelect = document.createTextNode(`~${coreText}~`);
-                frag.appendChild(nodeToSelect);
-              }
-
-              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
-              range.insertNode(frag);
-
-              const newRange = document.createRange();
-              newRange.selectNode(nodeToSelect);
-              sel.removeAllRanges();
-              sel.addRange(newRange);
-              scheduleSave();
-              return;
-            }
-
-            if (e.key === '`') {
-              e.preventDefault();
-              captureUndoPoint();
-              range.deleteContents();
-
-              const frag = document.createDocumentFragment();
-              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
-
-              let nodeToSelect;
-              if (/^`([^`]+)`$/.test(coreText)) {
-                const inner = coreText.slice(1, -1);
-                nodeToSelect = document.createTextNode(inner);
-                frag.appendChild(nodeToSelect);
-              } else {
-                const code = document.createElement('code');
-                code.textContent = coreText;
-                frag.appendChild(code);
-                revealInlineSyntax(code);
-                livePreviewActiveInline = code;
-                nodeToSelect = code;
-              }
-
-              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
-              range.insertNode(frag);
-
-              const newRange = document.createRange();
-              newRange.selectNode(nodeToSelect);
-              sel.removeAllRanges();
-              sel.addRange(newRange);
-              scheduleSave();
-              return;
-            }
-
-            // Pares literais: ", ', (, {, _
-            const PAIRS = {
-              '"': [ '"', '"' ],
-              "'": [ "'", "'" ],
-              '(': [ '(', ')' ],
-              ')': [ '(', ')' ],
-              '{': [ '{', '}' ],
-              '}': [ '{', '}' ],
-            };
-            const pair = PAIRS[e.key];
-            if (pair) {
-              e.preventDefault();
-              captureUndoPoint();
-              range.deleteContents();
-
-              const frag = document.createDocumentFragment();
-              if (leadingSpace) frag.appendChild(document.createTextNode(leadingSpace));
-              const [left, right] = pair;
-              const textNode = document.createTextNode(`${left}${coreText}${right}`);
-              frag.appendChild(textNode);
-              if (trailingSpace) frag.appendChild(document.createTextNode(trailingSpace));
-              range.insertNode(frag);
-
-              const newRange = document.createRange();
-              newRange.selectNode(textNode);
-              sel.removeAllRanges();
-              sel.addRange(newRange);
-              scheduleSave();
-              return;
-            }
-          }
-        }
-      }
-    }
-  }
-
   // Apagar blocos inteiros é o gesto de uma seleção de BLOCOS (alça ou
   // Ctrl+arrastar), onde não existe texto selecionado. Numa seleção espelhada
   // de texto, Backspace tem que apagar o texto marcado e mais nada — selecionar
   // do meio de uma linha até o meio da seguinte e apagar as duas por inteiro
   // seria perder o que ninguém mandou apagar.
   if ((e.key === 'Backspace' || e.key === 'Delete')
-      && getSelectedBlockIds().size > 0 && !isSelecaoEspelhada()) {
+      && selectedBlockIds.size > 0 && !selecaoEspelhada) {
     e.preventDefault();
-    const first = findBlockById([...getSelectedBlockIds()][0]);
+    const first = findBlockById([...selectedBlockIds][0]);
     if (first) deleteBlocksOrOne(first);
     return;
   }
-  if (e.key === 'Escape' && getSelectedBlockIds().size > 0) {
+  if (e.key === 'Escape' && selectedBlockIds.size > 0) {
     e.preventDefault();
     clearBlockSelection();
     return;
   }
 
-  // Obsidian Live Preview: Backspace ou Delete na borda de um elemento com formatação
-  // ativa desfaz a formatação (unwrap) permitindo apagar o delimitador sem toolbar.
-  if ((e.key === 'Backspace' || e.key === 'Delete') && livePreviewActiveInline) {
-    const sel = document.getSelection();
-    if (sel && sel.isCollapsed && sel.rangeCount > 0) {
-      const inline = livePreviewActiveInline;
-      const openSpan = inline.querySelector(':scope > .md-syntax-open');
-      const closeSpan = inline.querySelector(':scope > .md-syntax-close');
-      const r = sel.getRangeAt(0);
-      const isAtStart = (r.startContainer === inline && r.startOffset === 0) ||
-                        (r.startContainer === inline.firstChild && r.startOffset === 0) ||
-                        (openSpan && openSpan.contains(r.startContainer));
-      const isAtEnd = (r.startContainer === inline && r.startOffset === inline.childNodes.length) ||
-                      (r.startContainer === inline.lastChild && r.startOffset === (inline.lastChild.textContent || '').length) ||
-                      (closeSpan && closeSpan.contains(r.startContainer));
-
-      if ((e.key === 'Backspace' && isAtStart) || (e.key === 'Delete' && isAtEnd)) {
-        e.preventDefault();
-        const block = currentBlock();
-        const content = block ? getContentEl(block) : inline.parentElement;
-        inline.classList.remove('md-inline-active', 'md-token-open');
-        livePreviewActiveInline = null;
-        if (openSpan) openSpan.remove();
-        if (closeSpan) closeSpan.remove();
-
-        const fragment = document.createDocumentFragment();
-        while (inline.firstChild) fragment.appendChild(inline.firstChild);
-        const firstNode = fragment.firstChild;
-        inline.replaceWith(fragment);
-        if (content) content.normalize();
-
-        if (firstNode && sel) {
-          const newRange = document.createRange();
-          newRange.setStart(firstNode, 0);
-          newRange.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(newRange);
-        }
-        scheduleSave();
-        return;
-      }
-    }
-  }
-
-  if (isLinkAutocompleteOpen()) {
-    if (e.key === 'ArrowDown')  { e.preventDefault(); moveLinkAutocompleteSelection(1);  return; }
-    if (e.key === 'ArrowUp')    { e.preventDefault(); moveLinkAutocompleteSelection(-1); return; }
-    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); confirmLinkAutocompleteSelection(); return; }
-    if (e.key === 'Escape') { e.preventDefault(); closeLinkAutocomplete(); return; }
-  }
-
-  if (isSlashMenuOpen()) {
-    if (e.key === 'ArrowDown')  { e.preventDefault(); moveSlashRow(1);  return; }
-    if (e.key === 'ArrowUp')    { e.preventDefault(); moveSlashRow(-1); return; }
-    if (e.key === 'ArrowRight') { e.preventDefault(); moveSlashSelection(1);  return; }
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); moveSlashSelection(-1); return; }
+  if (slashMenuEl) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSlashSelection(1);  return; }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); moveSlashSelection(-1); return; }
     if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); confirmSlashSelection(); return; }
     if (e.key === 'Escape') { e.preventDefault(); cancelSlashMenu(); return; }
   }
@@ -3737,74 +2453,15 @@ root.addEventListener('keydown', e => {
       moveCell(cell, e.shiftKey ? -1 : 1);
       return;
     }
-    const block = currentBlock();
-    if (block?.dataset?.type === 'code') {
-      e.preventDefault();
-      if (!e.shiftKey) {
-        captureUndoPoint();
-        document.execCommand('insertText', false, '  ');
-        scheduleCodeHighlight(block);
-        scheduleSave();
-      }
-      return;
-    }
   }
 
   if (e.key === 'Enter' && !e.shiftKey) {
     const block = currentBlock();
-    if (!block) return;
+    if (!block || block.dataset.type === 'code') return;
     e.preventDefault();
     handleEnter(block);
     scheduleSave();
     return;
-  }
-
-  // Seta saindo de texto de verdade rumo a um bloco sem onde pôr o cursor
-  // (imagem, tabela...): o navegador não sabe pousar ali, então ele PULA o
-  // bloco inteiro em vez de parar nele — dava pra sentir que "o cursor não
-  // alcança a imagem". Deixa a seta seguir seu curso normal e, só depois
-  // (setTimeout 0: espera o navegador decidir onde o cursor foi parar),
-  // confere se ele saiu do bloco atual sem pousar no vizinho — se sim, é
-  // porque pulou ele, e a gente troca o cursor perdido por uma seleção de
-  // bloco de verdade (mesma que clique/arrasto usam, que Delete/Esc já tratam).
-  if (e.key === 'ArrowDown' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    const sel = document.getSelection();
-    const anchor = sel?.anchorNode;
-    const block = currentBlock();
-    if (block?.dataset?.type === 'code' && block.querySelector(':scope > .md-syntax-fence-close')?.contains(anchor)) {
-      e.preventDefault();
-      collapseBlockSyntax(block);
-      let next = block.nextElementSibling;
-      if (!next) {
-        next = createBlockEl('paragraph');
-        block.after(next);
-      }
-      focusBlockStart(next);
-      scheduleSave();
-      return;
-    }
-  }
-
-  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    const sel = document.getSelection();
-    if (sel && sel.isCollapsed && !focusedCell()) {
-      const atual = currentBlock();
-      if (atual && atual.contentEditable !== 'false') {
-        const direcao = e.key === 'ArrowDown' ? 1 : -1;
-        const vizinho = direcao === 1 ? atual.nextElementSibling : atual.previousElementSibling;
-        if (vizinho && vizinho.contentEditable === 'false') {
-          const rectAntes = caretViewportRect(sel);
-          setTimeout(() => {
-            const rectDepois = caretViewportRect(document.getSelection());
-            const moveuNaTela = rectAntes && rectDepois && Math.abs(rectDepois.top - rectAntes.top) > 1;
-            const depois = currentBlock();
-            if (!moveuNaTela || (depois !== atual && depois !== vizinho)) {
-              chegarNoBlocoSemTexto(vizinho);
-            }
-          }, 0);
-        }
-      }
-    }
   }
 
   if (e.key === 'Backspace') {
@@ -3815,9 +2472,7 @@ root.addEventListener('keydown', e => {
     const block = currentBlock();
     if (!block) return;
     const content = getContentEl(block);
-    const prefixSpan = content.querySelector(':scope > .md-syntax-prefix');
-    const prefixLen = prefixSpan ? prefixSpan.textContent.length : 0;
-    if (getCaretOffset(content) > prefixLen) return;
+    if (getCaretOffset(content) !== 0) return;
     e.preventDefault();
     handleBackspaceAtStart(block);
     scheduleSave();
@@ -3845,8 +2500,6 @@ root.addEventListener('keydown', e => {
 // trata imagem. `claim()` marca explicitamente o que a nota assumiu, e o que
 // ela não assume continua subindo pra seção Documentos.
 root.addEventListener('paste', e => {
-  // No painel de estrutura da tabela cola texto puro, do jeito nativo do campo (sem virar bloco/tabela)
-  if (e.target?.closest?.('.table-source, .image-source')) return;
   const claim = () => e.stopPropagation();
   e.preventDefault();
   const text = e.clipboardData?.getData('text/plain') ?? '';
@@ -3878,12 +2531,6 @@ root.addEventListener('paste', e => {
     }
   }
 
-  // Texto vindo de Word/Docs/páginas com parágrafos centralizados, à direita ou justificados: mantém o alinhamento
-  if (!focusedCell()) {
-    const comAlinhamento = htmlToAlignedMarkdown(e.clipboardData?.getData('text/html') ?? '');
-    if (comAlinhamento) { claim(); pasteMultilineText(comAlinhamento); return; }
-  }
-
   if (!text) return;   // nada que a nota saiba tratar — segue pros Documentos
   claim();
 
@@ -3903,31 +2550,61 @@ root.addEventListener('paste', e => {
   }
 });
 
-// ── Colar planilha (delegado para note-table.js) ─────────────────────────────
+// ── Colar planilha ────────────────────────────────────────────────────────────
+// Só o texto das células: o HTML do Excel vem cheio de <font>, style inline e
+// atributos próprios, que poluiriam a nota e não acrescentam nada aqui.
+function cellText(el) {
+  return escHtml(el.textContent.replace(/\s+/g, ' ').trim());
+}
 
+// Iguala o número de colunas e garante o mínimo de duas linhas — a primeira é
+// cabeçalho e o markdown exige ao menos uma linha de dados.
+function normalizeGrid(rows) {
+  const cols = Math.max(...rows.map(r => r.length));
+  const out = rows.map(r => [...r, ...Array(cols - r.length).fill('')]);
+  if (out.length === 1) out.push(Array(cols).fill(''));
+  return out;
+}
 
-// O <br> de um bloco vazio (ver clearContent) não está dentro da seleção
-// quando ela só marca "o fim do bloco" — sobra como uma quebra de linha solta
-// antes do que acabou de ser colado. Tira ele do caminho e devolve uma range
-// limpa no mesmo lugar.
-function dropPlaceholderBr(range) {
-  const el = range.commonAncestorContainer;
-  const contentEl = el.nodeType === Node.TEXT_NODE ? el.parentElement : el;
-  if (contentEl?.childNodes.length === 1 && contentEl.firstChild.nodeName === 'BR') {
-    contentEl.removeChild(contentEl.firstChild);
-    const fresh = document.createRange();
-    fresh.selectNodeContents(contentEl);
-    fresh.collapse(false);
-    return fresh;
-  }
-  return range;
+function parseClipboardTable(html) {
+  if (!html || !/<table/i.test(html)) return null;
+  const table = new DOMParser().parseFromString(html, 'text/html').querySelector('table');
+  if (!table) return null;
+  const rows = [...table.rows].map(tr => [...tr.cells].map(cellText));
+  if (!rows.length || !rows[0].length) return null;
+  return normalizeGrid(rows);
+}
+
+function parseTsvTable(text) {
+  if (!text.includes('\t')) return null;
+  const lines = text.replace(/\r\n?/g, '\n').split('\n').filter(l => l.length > 0);
+  if (lines.length < 2) return null;
+  return normalizeGrid(lines.map(l => l.split('\t').map(c => escHtml(c.trim()))));
+}
+
+function insertTableBlock(rows) {
+  const block = currentBlock() ?? root.lastElementChild;
+  if (!block) return;
+
+  captureUndoPoint();
+  const table = createBlockEl('table', '', false, rows);
+
+  // Cola por cima do bloco atual quando ele está vazio, em vez de deixar uma
+  // linha em branco órfã acima da tabela.
+  const empty = block.dataset.type !== 'table' && !getContentEl(block).textContent.trim();
+  if (empty) block.replaceWith(table);
+  else block.after(table);
+
+  if (!table.nextElementSibling) table.after(createBlockEl('paragraph'));
+  focusCell(table.querySelector('.table-cell'));
+  renumberLists();
+  scheduleSave();
 }
 
 function pasteLink(label, href) {
   const sel = document.getSelection();
-  let range = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0) : null;
+  const range = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0) : null;
   if (!range || !root.contains(range.commonAncestorContainer)) { pasteInlineText(label); return; }
-  range = dropPlaceholderBr(range);
 
   captureUndoPoint();
 
@@ -3965,7 +2642,6 @@ function pasteInlineText(text) {
     range.selectNodeContents(c);
     range.collapse(false);
   }
-  range = dropPlaceholderBr(range);
 
   const block = getBlockFromNode(range.commonAncestorContainer);
   captureUndoPoint();
@@ -3979,19 +2655,6 @@ function pasteInlineText(text) {
   after.collapse(true);
   sel.removeAllRanges();
   sel.addRange(after);
-
-  // Colar "# título" ou "[[nota]]" numa linha só caia direto como texto puro
-  // sem isso — só a colagem multilinha (pasteMultilineText) passava pelo
-  // parser de markdown. Um atalho só dispara se o "#"/"[[" ficou mesmo no
-  // início do bloco (as regex são ancoradas em ^), então colar no meio de uma
-  // frase existente não vira título por engano.
-  if (block?.dataset.type === 'paragraph') {
-    if (checkDividerShortcut(block)) { scheduleSave(); return; }
-    if (checkBlockShortcut(block))   { scheduleSave(); return; }
-  }
-  if (block && block.dataset.type !== 'code') {
-    tryAutoFormatInline(getContentEl(block));
-  }
 
   if (block) scheduleRescan(block);
   scheduleSave();
@@ -4028,8 +2691,88 @@ async function pasteMultilineText(text) {
   scheduleSave();
 }
 
-// ── Formatação Markdown / troca de tipo de bloco ─────────────────────────────
-export function execFormat(command) {
+// ── Transformações de texto (maiúsculo, minúsculo, etc.) ─────────────────────
+const EMAIL_RE_GLOBAL = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+
+function applySkipEmails(s, fn) {
+  const segments = [];
+  let pos = 0;
+  EMAIL_RE_GLOBAL.lastIndex = 0;
+  let m;
+  while ((m = EMAIL_RE_GLOBAL.exec(s)) !== null) {
+    if (m.index > pos) segments.push({ text: s.slice(pos, m.index), isEmail: false });
+    segments.push({ text: m[0], isEmail: true });
+    pos = m.index + m[0].length;
+  }
+  if (pos < s.length) segments.push({ text: s.slice(pos), isEmail: false });
+  return segments.map(seg => seg.isEmail ? seg.text : fn(seg.text)).join('');
+}
+
+function ttTitleCase(s)    { return s.replace(/(?<!\p{L})\p{L}/gu, c => c.toUpperCase()); }
+function ttSentenceCase(s) { return s.toLowerCase().replace(/(^|[.!?…]\s+)(\p{L})/gu, (_, p, c) => p + c.toUpperCase()); }
+function ttParaCase(s)     { return s.replace(/(^|\n)([ \t]*)(\p{L})/gu, (_, nl, sp, c) => nl + sp + c.toUpperCase()); }
+function ttInvertCase(s)   { return [...s].map(c => c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()).join(''); }
+function ttNoAccents(s)    { return s.normalize('NFD').replace(/\p{Mn}/gu, ''); }
+function ttCleanSpaces(s)  { return s.replace(/[^\S\n]+/g, ' '); }
+
+function applyTransformToSelection(fn) {
+  const sel = document.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+  const range = sel.getRangeAt(0);
+  if (!root.contains(range.commonAncestorContainer)) return;
+
+  captureUndoPoint();
+  const block = getBlockFromNode(range.commonAncestorContainer);
+  const transformed = applySkipEmails(range.toString(), fn);
+
+  range.deleteContents();
+  const textNode = document.createTextNode(transformed);
+  range.insertNode(textNode);
+
+  const newRange = document.createRange();
+  newRange.selectNode(textNode);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+
+  if (block) scheduleRescan(block);
+  scheduleSave();
+}
+
+const TRANSFORMS = [
+  { label: 'AA', title: 'MAIÚSCULO',                      fn: s => s.toUpperCase() },
+  { label: 'aa', title: 'minúsculo',                      fn: s => s.toLowerCase() },
+  { label: 'Aa', title: 'Primeira letra de cada palavra', fn: ttTitleCase          },
+  null,
+  { label: 'A.', title: 'Após pontuação',                 fn: ttSentenceCase       },
+  { label: '¶A', title: 'Primeira letra do parágrafo',    fn: ttParaCase           },
+  null,
+  { label: 'aA', title: 'Inverter maiúsculas/minúsculas', fn: ttInvertCase         },
+  { label: 'Á',  title: 'Remover acentos',                fn: ttNoAccents          },
+  { label: '⎵',  title: 'Limpar espaços duplicados',      fn: ttCleanSpaces        },
+];
+
+const ttBar = document.createElement('div');
+ttBar.className = 'note-toolbar';
+noteSection.appendChild(ttBar);
+
+for (const t of TRANSFORMS) {
+  if (t === null) {
+    const sep = document.createElement('div');
+    sep.className = 'tt-sep';
+    ttBar.appendChild(sep);
+    continue;
+  }
+  const btn = document.createElement('button');
+  btn.className   = 'tt-btn';
+  btn.title       = t.title;
+  btn.textContent = t.label;
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('click', () => applyTransformToSelection(t.fn));
+  ttBar.appendChild(btn);
+}
+
+// ── Formatação Markdown / troca de tipo de bloco (segunda barra) ─────────────
+function execFormat(command) {
   captureUndoPoint();
   document.execCommand(command, false, null);
   const block = currentBlock();
@@ -4048,32 +2791,86 @@ function currentLinkEl() {
 }
 
 // Menu de link — dentro da extensão, não um prompt() do navegador.
-function closeLinkMenu() {
-  _closeLinkMenu();
-}
+let linkMenuEl = null;
+function closeLinkMenu() { linkMenuEl?.remove(); linkMenuEl = null; }
 
-function openLinkMenu(anchorRect, opts) {
-  _openLinkMenu(anchorRect, opts, positionMenu);
+function openLinkMenu(anchorRect, { href = '', canRemove = false, onApply, onRemove }) {
+  closeLinkMenu();
+  const menu = document.createElement('div');
+  menu.className = 'copy-menu link-menu';
+
+  const header = document.createElement('div');
+  header.className   = 'copy-menu-header';
+  header.textContent = canRemove ? 'Editar link' : 'Novo link';
+
+  const input = document.createElement('input');
+  input.className   = 'link-input';
+  input.type        = 'text';
+  input.value       = href;
+  input.placeholder = 'exemplo.com.br';
+
+  const error = document.createElement('div');
+  error.className   = 'link-error';
+  error.textContent = 'Endereço inválido';
+  error.hidden      = true;
+
+  const apply = () => {
+    const url = safeHref(input.value);
+    if (!url) { error.hidden = false; input.focus(); return; }
+    closeLinkMenu();
+    onApply(url);
+  };
+
+  input.addEventListener('mousedown', e => e.stopPropagation());
+  input.addEventListener('input', () => { error.hidden = true; });
+  input.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter')  { e.preventDefault(); apply(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeLinkMenu(); }
+  });
+
+  const actions = document.createElement('div');
+  actions.className = 'link-actions';
+
+  const okBtn = document.createElement('button');
+  okBtn.className   = 'link-btn link-apply';
+  okBtn.textContent = 'Aplicar';
+  okBtn.addEventListener('mousedown', e => e.preventDefault());
+  okBtn.addEventListener('click', apply);
+  actions.appendChild(okBtn);
+
+  if (canRemove) {
+    const rmBtn = document.createElement('button');
+    rmBtn.className   = 'link-btn link-remove';
+    rmBtn.textContent = 'Remover';
+    rmBtn.addEventListener('mousedown', e => e.preventDefault());
+    rmBtn.addEventListener('click', () => { closeLinkMenu(); onRemove(); });
+    actions.appendChild(rmBtn);
+  }
+
+  menu.append(header, input, error, actions);
+  document.body.appendChild(menu);
+  linkMenuEl = menu;
+  positionMenu(menu, anchorRect);
+  input.focus();
+  input.select();
 }
 
 document.addEventListener('mousedown', e => {
-  if (!isClickInsideLinkMenu(e.target)) closeLinkMenu();
-  closeLinkAutocompleteIfOutside(e.target);
+  if (linkMenuEl && !linkMenuEl.contains(e.target)) closeLinkMenu();
 });
 
-export function applyLink() {
+function applyLink() {
   const sel      = document.getSelection();
   const existing = currentLinkEl();
-  const dentro   = sel && sel.rangeCount > 0 && root.contains(sel.getRangeAt(0).commonAncestorContainer);
-  const hasText  = dentro && !sel.isCollapsed;
+  const hasText  = sel && sel.rangeCount > 0 && !sel.isCollapsed
+                   && root.contains(sel.getRangeAt(0).commonAncestorContainer);
 
-  // Sem seleção e sem link não é mais recusa: agora existe um campo de texto,
-  // então dá pra criar o link inteiro pelo menu.
-  if (!existing && !dentro) { showFeedback('Ponha o cursor na nota primeiro'); return; }
+  if (!existing && !hasText) { showFeedback('Selecione o texto do link'); return; }
 
   // O range e o bloco são guardados agora: abrir o menu tira o foco do editor
   // e a seleção deixa de existir quando o callback roda.
-  const range = dentro ? sel.getRangeAt(0).cloneRange() : null;
+  const range = hasText ? sel.getRangeAt(0).cloneRange() : null;
   const block = getBlockFromNode(existing ?? range.commonAncestorContainer);
   const rect  = (existing ?? range).getBoundingClientRect();
 
@@ -4083,49 +2880,17 @@ export function applyLink() {
   };
 
   openLinkMenu(rect, {
-    href:  existing?.getAttribute('href') ?? '',
-    texto: existing?.textContent ?? (hasText ? range.toString() : ''),
+    href: existing?.getAttribute('href') ?? '',
     canRemove: !!existing,
-    onApply: (url, novoTexto) => {
+    onApply: url => {
       captureUndoPoint();
-      let a;
       if (existing) {
         existing.setAttribute('href', url);
-        // Só reescreve o texto se ele mudou de verdade: um link com negrito
-        // dentro perderia a formatação à toa se fosse refeito a cada ajuste
-        // de endereço.
-        if (novoTexto !== existing.textContent) existing.textContent = novoTexto;
-        a = existing;
       } else {
-        a = document.createElement('a');
+        const a = document.createElement('a');
         a.setAttribute('href', url);
-        if (hasText && novoTexto === range.toString()) {
-          // Texto inalterado: move o conteúdo original pra dentro do link e
-          // preserva o negrito/itálico que já estava lá.
-          a.appendChild(range.extractContents());
-        } else {
-          range.deleteContents();
-          a.textContent = novoTexto;
-        }
+        a.appendChild(range.extractContents());
         range.insertNode(a);
-      }
-      // Endereço "nota:..." digitado (ou colado) direto neste menu genérico,
-      // sem passar pelo atalho de "[[Título]]", saía sem a marca de link
-      // interno — o resultado ficava um link comum, cinza, sem o comportamento
-      // de Ctrl+clique, e ao editar de novo revelava a sintaxe crua
-      // "[Título](nota:T%C3%ADtulo%20...)" em vez de "[[Título]]".
-      const ehNota = /^nota:/i.test(url);
-      a.classList.toggle('note-internal-link', ehNota);
-      if (ehNota) {
-        let titulo;
-        try { titulo = decodeURIComponent(url.replace(/^nota:/i, '')); }
-        catch { titulo = url.replace(/^nota:/i, ''); }
-        a.dataset.noteTitle = titulo;
-        a.title = `Ctrl+clique para abrir nota: ${titulo}`;
-        atualizarLinksInternos();
-      } else {
-        delete a.dataset.noteTitle;
-        a.removeAttribute('title');
       }
       done();
     },
@@ -4137,7 +2902,7 @@ export function applyLink() {
   });
 }
 
-export function wrapSelectionInTag(tag) {
+function wrapSelectionInTag(tag) {
   const sel = document.getSelection();
   if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
   const range = sel.getRangeAt(0);
@@ -4219,7 +2984,7 @@ function convertSelectedBlocks(type) {
   scheduleSave();
 }
 
-export function insertDividerAtCursor() {
+function insertDividerAtCursor() {
   const block = currentBlock();
   if (!block) return;
   captureUndoPoint();
@@ -4232,55 +2997,733 @@ export function insertDividerAtCursor() {
   scheduleSave();
 }
 
-// ── Sumário (bloco): a lista acompanha os títulos da nota ───────────────────────
-initNoteToc({
-  captureUndoPoint,
-  scheduleSave,
-  getHeadings: () => extrairSumarioDaNota().map(h => ({ nivel: h.nivel, texto: (getContentEl(h.el)?.textContent || '').trim() })),
-  goToHeading: irParaTitulo,
-});
-document.addEventListener('quickdock:outline-rendered', () => refreshTocBlocks(root));
+const MD_BUTTONS = [
+  { label: 'B',   title: 'Negrito (selecione o texto)',   action: () => execFormat('bold') },
+  { label: 'I',   title: 'Itálico (selecione o texto)',   action: () => execFormat('italic') },
+  { label: 'S',   title: 'Riscado (selecione o texto)',   action: () => execFormat('strikeThrough') },
+  { label: '</>', title: 'Código (selecione o texto)',     action: () => wrapSelectionInTag('code') },
+  { label: '🔗',  title: 'Link (Ctrl+K)',                  action: () => applyLink() },
+  null,
+  { label: 'T',   title: 'Texto normal (remove a formatação do bloco)', action: () => convertSelectedBlocks('paragraph') },
+  { label: 'H1',  title: 'Título 1',                       action: () => convertSelectedBlocks('heading1') },
+  { label: 'H2',  title: 'Título 2',                       action: () => convertSelectedBlocks('heading2') },
+  { label: 'H3',  title: 'Título 3',                       action: () => convertSelectedBlocks('heading3') },
+  null,
+  { label: '•',   title: 'Lista com marcadores',           action: () => convertSelectedBlocks('bullet') },
+  { label: '1.',  title: 'Lista numerada',                 action: () => convertSelectedBlocks('number') },
+  { label: '☐',   title: 'Checklist',                      action: () => convertSelectedBlocks('checklist') },
+  null,
+  { label: '"',   title: 'Citação (clique de novo pra tirar)', action: toggleQuotedOnSelection },
+  { label: '—',   title: 'Linha horizontal',                action: () => insertDividerAtCursor() },
+];
 
-// ── Controles de bloco e Drag & Drop (touchDragTimer / touchstart delegado para note-drag-drop.js) ─────
-initNoteDragDrop({
-  getRoot: () => root,
-  getNoteEditorEl: () => noteEditorEl,
-  getNoteSection: () => noteSection,
-  captureUndoPoint,
-  scheduleSave,
-  renumberLists,
-  showFeedback,
-  currentBlock,
-  getLastFocusedBlock,
-  getContentEl,
-  createBlockEl,
-  createBlockElFrom,
-  convertBlockType,
-  serializeBlockEl,
-  focusBlockStart,
-  focusBlockEnd,
-  updateLivePreviewState,
-  openSlashMenuForBlock,
-  insertTemplateBlocks,
-  updateMobileToolbarState,
-  isEventInsideMobileToolbar,
-  closeCopyMenu,
-  isBlockUnderlined,
-  setBlockUnderlined,
-  isTextAlignable,
-  setBlockTextAlign,
-  PODE_SUBLINHAR,
-  NO_TEXT_TYPES,
-  INSERTED_TYPES,
-  SLASH_ITEMS,
-  buildTypeGrid,
+const mdBar = document.createElement('div');
+mdBar.className = 'note-toolbar';
+noteSection.appendChild(mdBar);
+
+for (const b of MD_BUTTONS) {
+  if (b === null) {
+    const sep = document.createElement('div');
+    sep.className = 'tt-sep';
+    mdBar.appendChild(sep);
+    continue;
+  }
+  const btn = document.createElement('button');
+  btn.className   = 'tt-btn';
+  btn.title       = b.title;
+  btn.textContent = b.label;
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('click', b.action);
+  mdBar.appendChild(btn);
+}
+
+// ── Menu de cálculo ───────────────────────────────────────────────────────────
+function showMathMenu(parsed, anchorRect) {
+  closeCopyMenu();
+  const { raw, resultFmt, steps } = parsed;
+  const menu = document.createElement('div');
+  menu.className = 'copy-menu math-menu';
+
+  const hdr = document.createElement('div');
+  hdr.className   = 'copy-menu-header';
+  hdr.textContent = 'Cálculo';
+  menu.appendChild(hdr);
+
+  const exprEl = document.createElement('div');
+  exprEl.className   = 'math-expr';
+  exprEl.textContent = raw;
+  menu.appendChild(exprEl);
+
+  if (steps.length > 0) {
+    const sl = document.createElement('div');
+    sl.className   = 'math-section-label';
+    sl.textContent = 'Passo a passo';
+    menu.appendChild(sl);
+    for (const s of steps) {
+      const el = document.createElement('div');
+      el.className   = 'math-step';
+      el.textContent = s;
+      menu.appendChild(el);
+    }
+  }
+
+  const resRow = document.createElement('div');
+  resRow.className = 'math-result-row';
+  resRow.innerHTML =
+    `<span class="math-result-label">Resultado</span>` +
+    `<span class="math-result-value" title="Clique para copiar">${escHtml(resultFmt)}</span>`;
+  resRow.querySelector('.math-result-value').addEventListener('mousedown', e => e.stopPropagation());
+  resRow.querySelector('.math-result-value').addEventListener('click', () => {
+    navigator.clipboard.writeText(resultFmt).then(() => { showFeedback('copiado!'); closeCopyMenu(); });
+  });
+  menu.appendChild(resRow);
+
+  const addDiv = () => menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+  addDiv();
+
+  const calcText = `${raw}\n${steps.join('\n')}\n= ${resultFmt}`;
+  for (const { label, hint, value } of [
+    { label: resultFmt,          hint: 'resultado',    value: resultFmt },
+    { label: raw,                hint: 'expressão',    value: raw       },
+    { label: 'Cálculo completo', hint: 'com passos',   value: calcText  },
+  ]) {
+    const btn = document.createElement('button');
+    btn.className = 'copy-opt';
+    btn.innerHTML =
+      `<span class="copy-opt-value">${escHtml(label)}</span>` +
+      `<span class="copy-opt-hint">${escHtml(hint)}</span>`;
+    btn.addEventListener('mousedown', e => e.stopPropagation());
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(value).then(() => { showFeedback('copiado!'); closeCopyMenu(); });
+    });
+    menu.appendChild(btn);
+  }
+
+  document.body.appendChild(menu);
+  activeMenu = menu;
+  positionMenu(menu, anchorRect);
+}
+
+// ── Controles de bloco ao passar o mouse (＋ / ⠿) ─────────────────────────────
+// Overlay único e flutuante (não embrulha cada bloco) que acompanha o mouse
+// e se posiciona à esquerda do bloco sob o cursor. Fica FORA do editável
+// (`root`), como irmão dele dentro de `.note-editor` — assim não interfere
+// com o `root.children` que o resto do código assume ser só blocos.
+const blockControls = document.createElement('div');
+blockControls.className = 'block-controls';
+blockControls.hidden = true;
+
+const blockAddBtn = document.createElement('button');
+blockAddBtn.className = 'block-add-btn';
+blockAddBtn.textContent = '+';
+blockAddBtn.title = 'Adicionar bloco abaixo (Ctrl+clique: acima)';
+
+const blockHandleBtn = document.createElement('button');
+blockHandleBtn.className = 'block-handle-btn';
+blockHandleBtn.textContent = '⠿';
+blockHandleBtn.title = 'Clique: opções do bloco · Arrastar: mover · Ctrl+arrastar (em qualquer lugar do bloco): selecionar vários';
+
+blockControls.append(blockAddBtn, blockHandleBtn);
+noteEditorEl.appendChild(blockControls);
+
+let hoveredBlock = null;
+
+function positionBlockControls(block) {
+  hoveredBlock = block;
+
+  const blockRect     = block.getBoundingClientRect();
+  const containerRect = noteEditorEl.getBoundingClientRect();
+  const viewRect      = root.getBoundingClientRect();   // área visível do editor (ele rola)
+
+  // Bloco rolou pra fora da vista: esconde, em vez de deixar os ícones
+  // encostados na borda apontando pra nada.
+  if (blockRect.bottom < viewRect.top || blockRect.top > viewRect.bottom) {
+    blockControls.hidden = true;
+    return;
+  }
+
+  blockControls.hidden = false;   // precisa estar visível pra poder ser medido
+
+  // Horizontal: os ícones acompanham a indentação do bloco. Com um `left`
+  // fixo, um item aninhado ganhava ícones lá na margem esquerda, longe do
+  // bloco a que se referem — e dois blocos de níveis diferentes ficavam
+  // indistinguíveis, já que a escolha do bloco é só pela altura do cursor.
+  const largura = blockControls.offsetWidth || 31;
+  const left = Math.max(0, blockRect.left - containerRect.left - largura + 1);
+
+  // Vertical: alinhado com a primeira linha do bloco, mas preso dentro da
+  // área visível. Um bloco alto (imagem) costuma ter o topo fora da tela, e
+  // sem o limite os ícones subiam por cima da barra de abas.
+  const topoVisivel = viewRect.top - containerRect.top;
+  const baseVisivel = viewRect.bottom - containerRect.top - blockControls.offsetHeight;
+  const top = Math.min(
+    Math.max(blockRect.top - containerRect.top, topoVisivel),
+    Math.max(topoVisivel, baseVisivel),
+  );
+
+  blockControls.style.left = `${left}px`;
+  blockControls.style.top  = `${top}px`;
+}
+
+function hideBlockControls() {
+  blockControls.hidden = true;
+  hoveredBlock = null;
+}
+
+root.addEventListener('mousemove', e => {
+  if (pointerDown || ctrlPointerDown) return; // decidindo ou já em arrasto — não reposiciona o overlay de hover
+  // Bloco mais próximo verticalmente do cursor, não o que está exatamente
+  // por baixo — a margem esquerda (onde os ícones aparecem) não pertence a
+  // nenhum .block específico, então hover lá nunca batia em nada antes.
+  const target = blockNearestToY(e.clientY);
+  if (!target) return;
+  // O "&& !hidden" importa: os controles podem ter sido escondidos por outro
+  // caminho (rolagem levou o bloco pra fora da vista) sem que o bloco sob o
+  // cursor tenha mudado. Sem isso, eles não voltavam mais.
+  if (target === hoveredBlock && !blockControls.hidden) return;
+  positionBlockControls(target);
 });
 
+// No container que engloba texto + controles (não só o texto) — senão mover
+// o mouse do bloco até os botões já contava como "saiu" e escondia tudo
+// antes de dar tempo de clicar.
+noteEditorEl.addEventListener('mouseleave', () => {
+  if (!blockMenuEl) hideBlockControls();
+});
+
+// Rolar sem mover o mouse: reposiciona em vez de esconder. Escondendo, os
+// ícones só voltavam quando o cursor passasse por OUTRO bloco (o mousemove
+// sai cedo quando o alvo é o mesmo de antes) — então rolar por cima de um
+// bloco alto fazia os controles sumirem e não voltarem mais.
+root.addEventListener('scroll', () => {
+  if (hoveredBlock && root.contains(hoveredBlock)) positionBlockControls(hoveredBlock);
+  else blockControls.hidden = true;
+}, { passive: true });
+
+blockAddBtn.addEventListener('mousedown', e => e.preventDefault());
+blockAddBtn.addEventListener('click', e => {
+  if (!hoveredBlock) return;
+  captureUndoPoint();
+  const newBlock = createBlockEl('paragraph');
+  if (e.ctrlKey || e.metaKey) hoveredBlock.before(newBlock);
+  else hoveredBlock.after(newBlock);
+  renumberLists();
+  focusBlockStart(newBlock);
+  scheduleSave();
+});
+
+// ── Seleção múltipla de blocos (Shift+clique na alça) ─────────────────────────
+let selectedBlockIds     = new Set();
+let lastHandleClickedId  = null;
+let selecaoEspelhada     = false;   // a seleção de blocos nasceu de uma seleção de texto
+
+function findBlockById(id) {
+  return [...root.children].find(el => el.classList?.contains('block') && el.dataset.id === id) || null;
+}
+
+function orderedBlocks() {
+  return [...root.children].filter(el => el.classList?.contains('block'));
+}
+
+function setBlockSelection(ids) {
+  root.querySelectorAll('.block.block-selected').forEach(b => b.classList.remove('block-selected'));
+  selectedBlockIds = new Set(ids);
+  for (const b of orderedBlocks()) {
+    if (selectedBlockIds.has(b.dataset.id)) b.classList.add('block-selected');
+  }
+  // Com o bloco inteiro realçado, o realce nativo do texto por baixo vira um
+  // borrão duplo. A classe apaga só o desenho dele — a seleção de texto
+  // continua existindo, que é o que a barra de formatação usa.
+  root.classList.toggle('blocks-selected', selectedBlockIds.size > 1);
+}
+
+function clearBlockSelection() {
+  setBlockSelection([]);
+  lastHandleClickedId = null;
+  selecaoEspelhada = false;
+}
+
+function selectBlockRange(fromBlock, toBlock) {
+  const all = orderedBlocks();
+  const a = all.indexOf(fromBlock), b = all.indexOf(toBlock);
+  if (a === -1 || b === -1) return;
+  const [lo, hi] = a < b ? [a, b] : [b, a];
+  setBlockSelection(all.slice(lo, hi + 1).map(el => el.dataset.id));
+}
+
+// Blocos-alvo de uma ação do menu: se o bloco clicado faz parte de uma
+// seleção múltipla ativa, a ação vale pra todos ela; senão, só pra ele.
+function targetBlocksFor(block) {
+  if (selectedBlockIds.size > 1 && selectedBlockIds.has(block.dataset.id)) {
+    return orderedBlocks().filter(el => selectedBlockIds.has(el.dataset.id));
+  }
+  return [block];
+}
+
+document.addEventListener('mousedown', e => {
+  if (selectedBlockIds.size === 0) return;
+  if (blockMenuEl && blockMenuEl.contains(e.target)) return;
+  if (e.target === blockHandleBtn || e.target === blockAddBtn) return;
+  clearBlockSelection();
+});
+
+// ── Menu do bloco (alça): Transformar em / Duplicar / Excluir ────────────────
+let blockMenuEl = null;
+function closeBlockMenu() { blockMenuEl?.remove(); blockMenuEl = null; }
+
+function getTransformTypes() {
+  return SLASH_ITEMS.filter(it => !INSERTED_TYPES.has(it.type));
+}
+
+function openBlockMenu(block, anchorEl) {
+  closeBlockMenu();
+  const menu = document.createElement('div');
+  menu.className = 'copy-menu block-menu';
+
+  const scopeCount = (selectedBlockIds.size > 1 && selectedBlockIds.has(block.dataset.id))
+    ? selectedBlockIds.size : 1;
+
+  // ── Barra de ações rápidas, presa no topo ────────────────────────────────
+  // O que se faz o tempo todo vira ícone e fica sempre à vista, mesmo quando a
+  // lista de "Transformar em" está rolando por baixo. O resto continua escrito
+  // por extenso na lista — ícone sozinho só funciona pro que é óbvio.
+  const barra = document.createElement('div');
+  barra.className = 'block-menu-quickbar';
+
+  const acaoRapida = (icone, titulo, run, extra = '') => {
+    const btn = document.createElement('button');
+    btn.className = `block-menu-quick ${extra}`.trim();
+    btn.title = scopeCount > 1 ? `${titulo} (${scopeCount} blocos)` : titulo;
+    btn.innerHTML = `<span class="material-symbols-rounded">${icone}</span>`;
+    btn.addEventListener('mousedown', e => e.stopPropagation());
+    btn.addEventListener('click', e => { e.stopPropagation(); closeBlockMenu(); run(); });
+    barra.appendChild(btn);
+  };
+
+  acaoRapida('content_copy', 'Copiar como texto', () => copyBlocksAs(block, 'text'));
+  acaoRapida('image',        'Copiar imagem',     () => printBlocks(block, 'clipboard'));
+  acaoRapida('library_add',  'Duplicar',          () => duplicateBlocks(block));
+  acaoRapida('delete',       'Excluir',           () => deleteBlocksOrOne(block), 'is-danger');
+
+  menu.appendChild(barra);
+
+  // Divisor não tem conteúdo e tabela não tem um conteúdo único — converter
+  // qualquer um dos dois em título/lista não teria o que preservar (e, no caso
+  // da tabela, despejaria o HTML dela inteiro dentro de um parágrafo).
+  const canTransform = !INSERTED_TYPES.has(block.dataset.type);
+
+  if (canTransform) {
+    const header = document.createElement('div');
+    header.className   = 'copy-menu-header';
+    header.textContent = scopeCount > 1 ? `Transformar em (${scopeCount} blocos)` : 'Transformar em';
+    menu.appendChild(header);
+
+    for (const it of getTransformTypes()) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-opt';
+      btn.innerHTML = `<span class="copy-opt-value">${escHtml(it.label)}</span><span class="copy-opt-hint">${escHtml(it.hint)}</span>`;
+      btn.addEventListener('mousedown', e => e.stopPropagation());
+      btn.addEventListener('click', () => { closeBlockMenu(); transformBlocks(block, it.type); });
+      menu.appendChild(btn);
+    }
+
+    menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+  }
+
+  // Modelos de bloco: mesma lista do menu "/", aqui pra quem prefere a alça.
+  const tpls = blockTemplates();
+  if (tpls.length > 0) {
+    const tplHead = document.createElement('div');
+    tplHead.className = 'copy-menu-header';
+    tplHead.textContent = 'Inserir modelo';
+    menu.appendChild(tplHead);
+
+    for (const tpl of tpls) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-opt';
+      const span = document.createElement('span');
+      span.className = 'copy-opt-value';
+      span.textContent = tpl.name;
+      btn.appendChild(span);
+      btn.addEventListener('mousedown', e => e.stopPropagation());
+      btn.addEventListener('click', () => {
+        closeBlockMenu();
+        captureUndoPoint();
+        insertTemplateBlocks(tpl.content, block);
+      });
+      menu.appendChild(btn);
+    }
+
+    menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+  }
+
+  const saveTplBtn = document.createElement('button');
+  saveTplBtn.className = 'copy-opt';
+  saveTplBtn.innerHTML = `<span class="copy-opt-value">Salvar como modelo de bloco${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
+  saveTplBtn.addEventListener('mousedown', e => e.stopPropagation());
+  saveTplBtn.addEventListener('click', () => {
+    closeBlockMenu();
+    const markdown = blocksToMarkdown(targetBlocksFor(block).map(serializeBlockEl));
+    if (!markdown.trim()) { showFeedback('Nada para salvar'); return; }
+    openSaveBlockTemplate(anchorEl, markdown, nome => showFeedback(`modelo "${nome}" salvo`));
+  });
+  menu.appendChild(saveTplBtn);
+
+  const copyMdBtn = document.createElement('button');
+  copyMdBtn.className = 'copy-opt';
+  copyMdBtn.innerHTML = `<span class="copy-opt-value">Copiar como Markdown${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
+  copyMdBtn.addEventListener('mousedown', e => e.stopPropagation());
+  copyMdBtn.addEventListener('click', () => { closeBlockMenu(); copyBlocksAs(block, 'markdown'); });
+  menu.appendChild(copyMdBtn);
+
+  // "Copiar como texto" e "Copiar imagem" moraram aqui e subiram pra barra de
+  // ícones do topo — são as duas mais usadas. O que fica na lista é o que
+  // precisa do nome por extenso pra não virar adivinhação.
+  const saveImgBtn = document.createElement('button');
+  saveImgBtn.className = 'copy-opt';
+  saveImgBtn.innerHTML = `<span class="copy-opt-value">Baixar imagem (.png)${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
+  saveImgBtn.addEventListener('mousedown', e => e.stopPropagation());
+  saveImgBtn.addEventListener('click', () => { closeBlockMenu(); printBlocks(block, 'download'); });
+  menu.appendChild(saveImgBtn);
+
+  // Duplicar e Excluir também subiram pra barra de ícones.
+
+  document.body.appendChild(menu);
+  blockMenuEl = menu;
+  positionMenu(menu, anchorEl.getBoundingClientRect());
+}
+
+// Copia o(s) bloco(s)-alvo (o clicado, ou toda a seleção múltipla se ele
+// fizer parte de uma) como Markdown de verdade ou como texto simples —
+// mesma dupla de formatos que já existe pra nota inteira no menu "⋯" da aba.
+// Print dos blocos. A seleção é desfeita antes de desenhar: o realce azul é
+// estado da edição, não conteúdo da nota, e ninguém quer mandar um print com
+// ele. (O snapshot.js também tira, por garantia — aqui é pra que a tela
+// acompanhe o que saiu na imagem.)
+async function printBlocks(block, destino) {
+  const alvos = targetBlocksFor(block);
+  if (alvos.length === 0) return;
+
+  clearBlockSelection();
+  hideBlockControls();
+  closeCopyMenu();
+
+  // Nome do arquivo: o primeiro texto que aparecer no print. É o que a pessoa
+  // reconhece na pasta de downloads — "nota.png" não diz nada.
+  const nome = alvos
+    .filter(b => !NO_TEXT_TYPES.has(b.dataset.type))
+    .map(b => getContentEl(b).textContent.trim())
+    .find(Boolean) ?? 'nota';
+
+  showFeedback('gerando imagem…');
+  try {
+    const ok = destino === 'clipboard'
+      ? await copyBlocksAsImage(alvos)
+      : await downloadBlocksAsImage(alvos, nome);
+    showFeedback(ok
+      ? (destino === 'clipboard' ? 'imagem copiada!' : 'imagem baixada!')
+      : 'não deu pra gerar a imagem');
+  } catch {
+    // Copiar imagem depende de permissão da área de transferência, que o
+    // navegador só concede com o painel em foco. Baixar sempre funciona.
+    showFeedback(destino === 'clipboard'
+      ? 'não deu pra copiar — tente "Baixar imagem"'
+      : 'não deu pra gerar a imagem');
+  }
+}
+
+async function copyBlocksAs(block, format) {
+  const targets = targetBlocksFor(block).map(serializeBlockEl);
+  // Markdown sai pra fora da extensão, então a imagem vai embutida — colar num
+  // editor de markdown qualquer tem que mostrar a imagem, não uma referência
+  // interna que só o QuickDock entende.
+  const text = format === 'markdown'
+    ? await blocksToExportMarkdown(targets)
+    : blocksToPlainText(targets);
+  await navigator.clipboard.writeText(text);
+  showFeedback('copiado!');
+}
+
+function transformBlocks(block, type) {
+  // Divisor e tabela nunca entram como origem de conversão, mesmo dentro de
+  // uma seleção múltipla — não têm conteúdo de linha pra preservar.
+  const targets = targetBlocksFor(block).filter(b => !INSERTED_TYPES.has(b.dataset.type));
+  if (targets.length === 0) return;
+
+  captureUndoPoint();
+  const converted = targets.map(b => convertBlockType(b, type, b.dataset.checked === 'true'));
+  renumberLists();
+  clearBlockSelection();
+  hideBlockControls();
+  const lastContent = getContentEl(converted[converted.length - 1]);
+  lastContent.focus();
+  setCaretOffset(lastContent, lastContent.textContent.length);
+  scheduleSave();
+}
+
+function duplicateBlocks(block) {
+  const targets = targetBlocksFor(block);
+  captureUndoPoint();
+  let anchor = targets[targets.length - 1];
+  for (const b of targets) {
+    // Passa pela serialização em vez de copiar innerHTML na mão: é o que faz
+    // duplicar uma tabela duplicar as células, e não devolver uma tabela vazia.
+    const clone = createBlockElFrom({ ...serializeBlockEl(b), id: null });
+    anchor.after(clone);
+    anchor = clone;
+  }
+  renumberLists();
+  clearBlockSelection();
+  hideBlockControls();
+  scheduleSave();
+}
+
+function deleteBlocksOrOne(block) {
+  const targets = targetBlocksFor(block);
+  captureUndoPoint();
+
+  const prev = targets[0].previousElementSibling;
+  targets.forEach(b => b.remove());
+  if (root.children.length === 0) root.appendChild(createBlockEl('paragraph'));
+
+  renumberLists();
+  clearBlockSelection();
+  hideBlockControls();
+
+  const focusTarget = (prev && document.body.contains(prev)) ? prev : root.firstElementChild;
+  if (focusTarget) {
+    const c = getContentEl(focusTarget);
+    c.focus();
+    setCaretOffset(c, c.textContent.length);
+  }
+  scheduleSave();
+}
+
+// ── Alça "⠿": clique (menu), Ctrl+clique (seleção), arrastar (mover) ─────────
+// Tudo passa por mousedown/mousemove/mouseup — só decide se virou arrasto
+// depois de um deslocamento mínimo; sem movimento, trata como clique normal.
+// Ctrl (não Shift) pra combinar com o "arrastar pra selecionar" do Windows.
+let pointerDown     = null; // { block, startX, startY, ctrl, moved }
+let reorderState    = null; // { targets, indicator, dropTarget, dropBefore }
+let rangeSelectState = null; // { anchorBlock }
+
+function blockNearestToY(y, exclude = []) {
+  let closest = null, closestDist = Infinity;
+  for (const b of orderedBlocks()) {
+    if (exclude.includes(b)) continue;
+    const rect = b.getBoundingClientRect();
+
+    // O bloco que contém o cursor ganha na hora. A conta antiga era pela
+    // distância até o MEIO do bloco, e o meio de uma imagem de 200px fica a
+    // 100px do topo dela — resultado: passar o mouse na metade de cima de uma
+    // imagem trazia os controles do parágrafo de cima, que está mais perto do
+    // próprio meio. Com blocos de uma linha só isso nunca aparecia.
+    if (y >= rect.top && y <= rect.bottom) return b;
+
+    // Fora de qualquer bloco (a margem esquerda, ou acima/abaixo de tudo):
+    // vale a distância até a BORDA mais próxima, não até o meio — de novo,
+    // pelo mesmo motivo.
+    const dist = y < rect.top ? rect.top - y : y - rect.bottom;
+    if (dist < closestDist) { closestDist = dist; closest = b; }
+  }
+  return closest;
+}
+
+function handleHandleClick(block, ctrl) {
+  if (ctrl) {
+    if (lastHandleClickedId) {
+      const anchor = findBlockById(lastHandleClickedId);
+      if (anchor) selectBlockRange(anchor, block);
+      else setBlockSelection([block.dataset.id]);
+    } else {
+      setBlockSelection([block.dataset.id]);
+    }
+    lastHandleClickedId = block.dataset.id;
+    return;
+  }
+
+  if (!(selectedBlockIds.size > 1 && selectedBlockIds.has(block.dataset.id))) {
+    setBlockSelection([block.dataset.id]);
+  }
+  lastHandleClickedId = block.dataset.id;
+  openBlockMenu(block, blockHandleBtn);
+}
+
+// ── Arrastar pra reordenar (um bloco, ou o grupo selecionado) ────────────────
+function startBlockReorderDrag(block) {
+  const targets = targetBlocksFor(block);
+  const indicator = document.createElement('div');
+  indicator.className = 'block-drop-indicator';
+  indicator.hidden = true;
+  noteEditorEl.appendChild(indicator);
+  targets.forEach(b => b.classList.add('block-dragging'));
+  document.body.style.cursor = 'grabbing';
+  reorderState = { targets, indicator, dropTarget: null, dropBefore: true };
+}
+
+function updateBlockReorderDrag(e) {
+  if (!reorderState) return;
+  const { targets, indicator } = reorderState;
+  const closest = blockNearestToY(e.clientY, targets);
+  reorderState.dropTarget = closest;
+
+  if (!closest) { indicator.hidden = true; return; }
+
+  const rect = closest.getBoundingClientRect();
+  const before = e.clientY < rect.top + rect.height / 2;
+  reorderState.dropBefore = before;
+
+  const containerRect = noteEditorEl.getBoundingClientRect();
+  indicator.style.top = `${(before ? rect.top : rect.bottom) - containerRect.top}px`;
+  indicator.hidden = false;
+}
+
+function finishBlockReorderDrag() {
+  if (!reorderState) return;
+  const { targets, indicator, dropTarget, dropBefore } = reorderState;
+
+  targets.forEach(b => b.classList.remove('block-dragging'));
+  indicator.remove();
+  document.body.style.cursor = '';
+
+  if (dropTarget) {
+    captureUndoPoint();
+    if (dropBefore) {
+      targets.forEach(b => dropTarget.before(b));
+    } else {
+      let anchor = dropTarget;
+      for (const b of targets) { anchor.after(b); anchor = b; }
+    }
+    renumberLists();
+    scheduleSave();
+  }
+
+  reorderState = null;
+}
+
+// ── Ctrl+arrastar pra selecionar um intervalo contínuo ────────────────────────
+// Funciona a partir de qualquer ponto do bloco (não só em cima da alça) —
+// como o "arrastar pra selecionar" do Windows Explorer, só que em blocos.
+function startRangeSelectDrag(block) {
+  rangeSelectState = { anchorBlock: block };
+  selecaoEspelhada = false;          // esta veio do Ctrl, não de seleção de texto
+  setBlockSelection([block.dataset.id]);
+}
+
+function updateRangeSelectDrag(e) {
+  if (!rangeSelectState) return;
+  const target = blockNearestToY(e.clientY);
+  if (!target) return;
+  selectBlockRange(rangeSelectState.anchorBlock, target);
+}
+
+function finishRangeSelectDrag() {
+  if (!rangeSelectState) return;
+  lastHandleClickedId = rangeSelectState.anchorBlock.dataset.id;
+  rangeSelectState = null;
+}
+
+blockHandleBtn.addEventListener('mousedown', e => {
+  if (!hoveredBlock) return;
+  e.preventDefault();
+  pointerDown = { block: hoveredBlock, startX: e.clientX, startY: e.clientY, ctrl: e.ctrlKey || e.metaKey, moved: false };
+});
+
+function finishPointerGesture() {
+  if (!pointerDown) return;
+  if (pointerDown.moved) {
+    if (pointerDown.ctrl) finishRangeSelectDrag();
+    else                  finishBlockReorderDrag();
+  } else {
+    handleHandleClick(pointerDown.block, pointerDown.ctrl);
+  }
+  pointerDown = null;
+}
+
+document.addEventListener('mousemove', e => {
+  if (!pointerDown) return;
+
+  // Botão já não está mais pressionado (ex.: soltou fora da janela, que é
+  // bem fácil de acontecer num painel lateral estreito) — o 'mouseup' pode
+  // nunca chegar; encerra o gesto aqui em vez de deixar preso.
+  if (e.buttons === 0) { finishPointerGesture(); return; }
+
+  if (!pointerDown.moved) {
+    const dx = Math.abs(e.clientX - pointerDown.startX);
+    const dy = Math.abs(e.clientY - pointerDown.startY);
+    if (dx < 4 && dy < 4) return;
+    pointerDown.moved = true;
+    hideBlockControls();
+    if (pointerDown.ctrl) startRangeSelectDrag(pointerDown.block);
+    else                  startBlockReorderDrag(pointerDown.block);
+  }
+
+  if (pointerDown.ctrl) updateRangeSelectDrag(e);
+  else                  updateBlockReorderDrag(e);
+});
+
+document.addEventListener('mouseup', finishPointerGesture);
+
+// ── Ctrl+arrastar a partir de qualquer lugar do bloco (não só a alça) ────────
+// Só ativa como seleção quando o mouse realmente se move — um Ctrl+clique
+// parado continua funcionando normalmente pro menu de cópia de CPF/data/etc.
+let ctrlPointerDown = null; // { startX, startY, moved, anchorBlock }
+
+root.addEventListener('mousedown', e => {
+  if (pointerDown) return; // já é um gesto iniciado pela alça
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const target = e.target.closest('.block');
+  if (!target) return;
+  // Evita que o navegador comece a selecionar texto nativamente enquanto
+  // arrasta; não afeta o Ctrl+clique parado em cima de um <mark> (CPF/data/
+  // cálculo) — aquele menu depende do evento 'click', que ainda dispara normalmente.
+  e.preventDefault();
+  ctrlPointerDown = { startX: e.clientX, startY: e.clientY, moved: false, anchorBlock: target };
+});
+
+document.addEventListener('mousemove', e => {
+  if (!ctrlPointerDown) return;
+
+  if (e.buttons === 0) { ctrlPointerDown = null; return; }
+
+  if (!ctrlPointerDown.moved) {
+    const dx = Math.abs(e.clientX - ctrlPointerDown.startX);
+    const dy = Math.abs(e.clientY - ctrlPointerDown.startY);
+    if (dx < 4 && dy < 4) return;
+    ctrlPointerDown.moved = true;
+    hideBlockControls();
+    startRangeSelectDrag(ctrlPointerDown.anchorBlock);
+  }
+
+  updateRangeSelectDrag(e);
+});
+
+document.addEventListener('mouseup', () => {
+  if (!ctrlPointerDown) return;
+  if (ctrlPointerDown.moved) finishRangeSelectDrag();
+  ctrlPointerDown = null;
+});
+
+document.addEventListener('mousedown', e => {
+  if (blockMenuEl && !blockMenuEl.contains(e.target) && e.target !== blockHandleBtn) closeBlockMenu();
+});
+
+// ── Selecionar um grupo de blocos sem tecla nenhuma ───────────────────────────
+// Arrastar o texto por cima de mais de um bloco já quer dizer "é este grupo".
+// Aqui essa seleção de texto passa a valer também como seleção de blocos — e é
+// ela que a alça de arrastar consulta pra mover o grupo inteiro. Então mover
+// vários blocos vira: selecionar por cima e arrastar pela alça de qualquer um
+// deles, sem Ctrl, Shift nem Alt.
+//
+// Mover o grupo já funcionava; o que faltava era poder formar o grupo sem
+// tecla. O Ctrl+arrastar continua existindo — ele é o único jeito de agarrar
+// um bloco que não tem texto pra arrastar por cima, como uma imagem sozinha.
+//
+// A seleção de texto não é desfeita de propósito: é dela que a barra de
+// formatação e o "Transformar em" tiram o alcance da ação.
 document.addEventListener('selectionchange', () => {
-  updateLivePreviewState();
-
   // Gesto de arrastar em andamento tem dono — não mexe na seleção no meio dele.
-  if (isGestureActive()) return;
+  if (pointerDown || ctrlPointerDown || reorderState) return;
 
   const sel = document.getSelection();
   if (!sel || sel.rangeCount === 0) return;
@@ -4290,35 +3733,15 @@ document.addEventListener('selectionchange', () => {
 
   if (blocos.length > 1) {
     const ids = blocos.map(b => b.dataset.id);
-    const sIds = getSelectedBlockIds();
     // selectionchange dispara a cada pixel do arraste; só repinta se mudou.
-    const mudou = ids.length !== sIds.size || ids.some(id => !sIds.has(id));
+    const mudou = ids.length !== selectedBlockIds.size || ids.some(id => !selectedBlockIds.has(id));
     if (mudou) setBlockSelection(ids);
-    setSelecaoEspelhada(true);
+    selecaoEspelhada = true;
     return;
   }
 
   // Voltou a ser um bloco só (ou um cursor): o grupo deixa de existir. Uma
   // seleção feita com Ctrl+arrastar não é espelhada e não se desfaz aqui —
   // ela tem os próprios caminhos de saída (Esc, clique fora).
-  if (isSelecaoEspelhada()) clearBlockSelection();
+  if (selecaoEspelhada) clearBlockSelection();
 });
-
-// ── Controles de bloco sem hover (toque e foco no celular) ───────────────────
-// Em telas de toque (:hover não existe), posiciona os controles (+ / ⠿) ao tocar
-// ou focar em um bloco qualquer, tornando as ações alcançáveis no celular.
-root.addEventListener('focusin', e => {
-  const block = e.target.closest('.block');
-  if (block && root.contains(block)) {
-    positionBlockControls(block);
-  }
-});
-
-root.addEventListener('touchstart', e => {
-  const block = e.target.closest('.block');
-  if (block && root.contains(block)) {
-    positionBlockControls(block);
-  }
-}, { passive: true });
-
-

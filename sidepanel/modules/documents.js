@@ -6,111 +6,6 @@ import { openModal } from './modal.js';
 import { startInject, startInjectMultiple } from './inject.js';
 import { initSelection, clearSelection, getSelectedMetas } from './selection.js';
 import { setActiveArea } from './active-area.js';
-import { podeInserirNaPagina, isExtension, platformStorage, isDesktopMode } from './platform.js';
-import { isTouchSelectionMode } from './note.js';
-import { iconSvg } from './icons.js';
-import { toggleDocsExtension } from './resizer.js';
-import { positionPopover } from './popover.js';
-import { switchView, getCurrentView, isViewFullscreen, toggleViewFullscreen } from './views.js';
-import { toggleDesktopPanel, isDesktopPanelOpen } from './desktop-panels.js';
-
-let auxViewMenuEl = null;
-
-export function closeAuxViewMenu() {
-  auxViewMenuEl?.remove();
-  auxViewMenuEl = null;
-}
-
-export function openAuxViewMenu(anchorEl) {
-  closeAuxViewMenu();
-  if (!anchorEl) return;
-  const menu = document.createElement('div');
-  menu.className = 'copy-menu aux-view-menu aux-view-dropdown';
-  menu.addEventListener('mousedown', e => e.stopPropagation());
-  menu.addEventListener('pointerdown', e => e.stopPropagation());
-
-  const addOpt = (iconName, label, desc, onClick, isActive = false) => {
-    const opt = document.createElement('button');
-    opt.type = 'button';
-    opt.className = 'copy-opt aux-view-opt' + (isActive ? ' is-active' : '');
-    opt.innerHTML = `
-      <span class="aux-view-icon">${iconSvg(iconName)}</span>
-      <span class="aux-view-text">
-        <span class="aux-view-title aux-view-label">${label}</span>
-        ${desc ? `<span class="aux-view-desc">${desc}</span>` : ''}
-      </span>
-    `;
-    opt.addEventListener('mousedown', e => e.stopPropagation());
-    opt.addEventListener('click', async e => {
-      e.stopPropagation();
-      closeAuxViewMenu();
-      await onClick();
-    });
-    menu.appendChild(opt);
-  };
-
-  if (isDesktopMode()) {
-    // No desktop, Quadro/Grafo/Calendário/Documentos são painéis
-    // independentes (ver desktop-panels.js) — este menu vira uma lista de
-    // toggles em vez de "trocar para X", e não existe mais um conceito único
-    // de tela-cheia/dividida pra alternar (por isso a opção de baixo some).
-    addOpt('description', 'Documentos', 'Anexos e arquivos da nota',
-      () => toggleDesktopPanel('docs'), isDesktopPanelOpen('docs'));
-    addOpt('space_dashboard', 'Quadro Infinito', 'Abrir/fechar como painel',
-      () => toggleDesktopPanel('board'), isDesktopPanelOpen('board'));
-    addOpt('hub', 'Constelações', 'Abrir/fechar como painel',
-      () => toggleDesktopPanel('grafo'), isDesktopPanelOpen('grafo'));
-    addOpt('calendar_month', 'Calendário', 'Abrir/fechar como painel',
-      () => toggleDesktopPanel('calendar'), isDesktopPanelOpen('calendar'));
-    addOpt('view_kanban', 'Base', 'Abrir/fechar como painel',
-      () => toggleDesktopPanel('bases'), isDesktopPanelOpen('bases'));
-    addOpt('data_object', 'JSON Studio', 'Abrir/fechar como painel',
-      () => toggleDesktopPanel('json'), isDesktopPanelOpen('json'));
-  } else {
-    addOpt('description', 'Documentos', 'Anexos e arquivos da nota', async () => {
-      switchView('editor');
-      const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
-      if (isExt) {
-        const docsSec = document.querySelector('.docs-section');
-        if (docsSec?.classList.contains('is-minimized')) toggleDocsExtension();
-      } else {
-        if (isDocsCollapsed) toggleDocsCollapsed();
-      }
-    });
-    addOpt('space_dashboard', 'Espaço Infinito', 'Dividir tela com a nota', () => switchView('board', { split: true }));
-    addOpt('hub', 'Constelações', 'Dividir tela com a nota', () => switchView('grafo', { split: true }));
-    addOpt('calendar_month', 'Calendário', 'Dividir tela com a nota', () => switchView('calendar', { split: true }));
-    addOpt('view_kanban', 'Base', 'Dividir tela com a nota', () => switchView('bases', { split: true }));
-    addOpt('data_object', 'JSON Studio', 'Dividir tela com a nota', () => switchView('json', { split: true }));
-
-    const curView = getCurrentView();
-    if (curView !== 'editor') {
-      const isFull = isViewFullscreen();
-      addOpt(
-        isFull ? 'fullscreen_exit' : 'fullscreen',
-        isFull ? 'Dividir tela com a nota' : 'Expandir para tela cheia (100%)',
-        'Alternar modo de exibição',
-        () => toggleViewFullscreen()
-      );
-    }
-  }
-
-  document.body.appendChild(menu);
-  auxViewMenuEl = menu;
-  positionPopover(menu, anchorEl);
-
-  const onDown = e => {
-    if (!auxViewMenuEl) return;
-    if (auxViewMenuEl.contains(e.target) || anchorEl.contains(e.target)) return;
-    closeAuxViewMenu();
-    document.removeEventListener('mousedown', onDown);
-    document.removeEventListener('pointerdown', onDown);
-  };
-  setTimeout(() => {
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('pointerdown', onDown);
-  }, 10);
-}
 
 const grid           = document.getElementById('doc-grid');
 const dropZone       = document.getElementById('drop-zone');
@@ -126,9 +21,6 @@ const btnViewNote    = document.getElementById('btn-view-note');
 const btnViewAll     = document.getElementById('btn-view-all');
 const hiddenHint     = document.getElementById('docs-hidden-hint');
 const docsSection    = document.querySelector('.docs-section');
-const docsHeader     = document.getElementById('docs-header');
-const btnDocsToggle  = document.getElementById('btn-docs-toggle');
-const docsTitle      = document.getElementById('docs-title');
 
 const ALLOWED_TYPES = ['image/', 'application/pdf', 'text/plain'];
 
@@ -140,60 +32,6 @@ let currentNoteId = null;
 let allMetas      = [];
 let viewMode      = 'note';
 let ready         = false;
-let isDocsCollapsed = false;
-
-export function updateDocsHeader() {
-  if (!docsTitle) return;
-  const count = allMetas.filter(isVisible).length;
-  if (isDocsCollapsed) {
-    docsTitle.textContent = `Documentos (${count})`;
-    docsTitle.title = 'Clique para expandir documentos';
-  } else {
-    docsTitle.textContent = 'Documentos';
-    docsTitle.title = '';
-  }
-}
-
-let docsBackdropEl = null;
-
-function updateDocsBackdrop(open) {
-  // Mobile e extensão funcionam como bottom sheet integrado sem scrim/backdrop (sem modal sem scrimm)
-  docsBackdropEl?.remove();
-  docsBackdropEl = null;
-}
-
-export function setDocsCollapsed(collapsed) {
-  const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
-  if (isExt) {
-    // Na extensão, documentos nunca fica em modo recolhido/bottom sheet:
-    // a proporção é sempre controlada pela alça de redimensionamento (drag & drop)
-    isDocsCollapsed = false;
-    docsSection.classList.remove('is-collapsed');
-    const noteSec = document.querySelector('.note-section');
-    if (noteSec) noteSec.classList.remove('docs-collapsed');
-    const resizer = document.getElementById('resize-handle');
-    if (resizer) resizer.classList.remove('docs-collapsed');
-    updateDocsBackdrop(false);
-    updateDocsHeader();
-    return;
-  }
-  isDocsCollapsed = collapsed;
-  docsSection.classList.toggle('is-collapsed', collapsed);
-  const noteSec = document.querySelector('.note-section');
-  if (noteSec) noteSec.classList.toggle('docs-collapsed', collapsed);
-  const resizer = document.getElementById('resize-handle');
-  if (resizer) resizer.classList.toggle('docs-collapsed', collapsed);
-  updateDocsBackdrop(!collapsed);
-  updateDocsHeader();
-}
-
-export async function toggleDocsCollapsed() {
-  const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
-  if (isExt) return;
-  const next = !docsSection.classList.contains('is-collapsed');
-  setDocsCollapsed(next);
-  await platformStorage.set('docs_collapsed', next);
-}
 
 // Imagem colada dentro da nota fica fora da lista de Documentos: ela já está
 // visível dentro da nota, e repeti-la aqui faria a seção encher de recorte a
@@ -221,7 +59,6 @@ async function renderGrid() {
     grid.appendChild(await buildCard(meta));
   }
   paintView();
-  updateDocsHeader();
 }
 
 // O ponto da visão "Nesta nota" é filtrar, mas filtrar em silêncio é como se
@@ -271,9 +108,9 @@ function updateGroupBar() {
   groupCount.textContent = `${metas.length} selecionado${metas.length > 1 ? 's' : ''}`;
 
   const pin = selectionWouldPin();
-  btnScopeSel.hidden    = currentNoteId === null;
-  btnScopeSel.innerHTML = `${iconSvg('push_pin')} ${pin ? 'Vincular' : 'Tornar geral'}`;
-  btnScopeSel.title     = pin
+  btnScopeSel.hidden      = currentNoteId === null;
+  btnScopeSel.textContent = pin ? '📌 Vincular' : '📌 Tornar geral';
+  btnScopeSel.title       = pin
     ? 'Mostrar estes documentos só na nota aberta'
     : 'Mostrar estes documentos em todas as notas';
 }
@@ -299,16 +136,11 @@ btnScopeSel.addEventListener('click', async () => {
   updateGroupBar();
 });
 
-if (podeInserirNaPagina()) {
-  btnInjectSel?.addEventListener('click', async () => {
-    const metas = getSelectedMetas();
-    if (!metas.length) return;
-    await startInjectMultiple(metas);
-  });
-} else {
-  // Na web/PWA a capacidade não existe: o botão deve sumir completamente da interface
-  btnInjectSel?.remove();
-}
+btnInjectSel.addEventListener('click', async () => {
+  const metas = getSelectedMetas();
+  if (!metas.length) return;
+  await startInjectMultiple(metas);
+});
 
 // ── Helpers de renderização ──────────────────────────────────────────────────
 function isAllowed(file) {
@@ -366,7 +198,7 @@ async function buildThumbEl(type, blob) {
   }
   const icon = document.createElement('div');
   icon.className = 'doc-icon';
-  icon.innerHTML = iconSvg(type === 'application/pdf' ? 'picture_as_pdf' : 'description');
+  icon.textContent = type === 'application/pdf' ? '📄' : '📝';
   return icon;
 }
 
@@ -389,7 +221,7 @@ async function buildCard(meta) {
   const delBtn = document.createElement('button');
   delBtn.className   = 'doc-delete';
   delBtn.title       = 'Remover';
-  delBtn.innerHTML   = iconSvg('close');
+  delBtn.textContent = '✕';
   delBtn.addEventListener('click', async e => {
     e.stopPropagation();
     await deleteFile(id);
@@ -399,8 +231,8 @@ async function buildCard(meta) {
   });
 
   const scopeBtn = document.createElement('button');
-  scopeBtn.className = 'doc-scope';
-  scopeBtn.innerHTML = iconSvg('push_pin');
+  scopeBtn.className = 'doc-scope material-symbols-rounded';
+  scopeBtn.textContent = 'push_pin';
   scopeBtn.hidden = currentNoteId === null;
   scopeBtn.addEventListener('click', async e => {
     e.stopPropagation();
@@ -410,26 +242,21 @@ async function buildCard(meta) {
     updateGroupBar();
   });
 
+  const injectBtn = document.createElement('button');
+  injectBtn.className   = 'doc-inject';
+  injectBtn.title       = 'Enviar para campo da página';
+  injectBtn.textContent = '→';
+  injectBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    await startInject(id, name, type);
+  });
+
   // Clique simples abre o preview (sem modificadores)
 
   card.appendChild(thumb);
   card.appendChild(nameEl);
   card.appendChild(delBtn);
-
-  // O botão de injeção em campo da página depende de chrome.tabs e content scripts.
-  // Em um PWA / Web, o botão NÃO é criado (desaparece da interface sem deixar resíduo).
-  if (podeInserirNaPagina()) {
-    const injectBtn = document.createElement('button');
-    injectBtn.className   = 'doc-inject';
-    injectBtn.title       = 'Enviar para campo da página';
-    injectBtn.textContent = '→';
-    injectBtn.addEventListener('click', async e => {
-      e.stopPropagation();
-      await startInject(id, name, type);
-    });
-    card.appendChild(injectBtn);
-  }
-
+  card.appendChild(injectBtn);
   card.appendChild(scopeBtn);
   paintScope(card, meta.noteId ?? null);
 
@@ -462,10 +289,10 @@ export async function initDocuments() {
   ready = true;
   await renderGrid();
 
-  // Clique simples em card abre modal (sem modificadores nem modo toque)
-  // Ctrl/Shift/modo toque são tratados por selection.js via mousedown/touchstart
+  // Clique simples em card abre modal (sem modificadores)
+  // Ctrl/Shift são tratados por selection.js via mousedown
   grid.addEventListener('click', e => {
-    if (e.ctrlKey || e.metaKey || e.shiftKey || isTouchSelectionMode()) return;
+    if (e.ctrlKey || e.metaKey || e.shiftKey) return;
     if (e.target.closest('.doc-delete, .doc-inject')) return;
     const card = e.target.closest('.doc-card');
     if (!card) return;
@@ -476,86 +303,6 @@ export async function initDocuments() {
     const gallery = type.startsWith('image/') ? getImageGalleryMetas() : null;
     openModal(Number(card.dataset.id), card.dataset.name, type, gallery);
   });
-
-  // Estado colapsável da seção de documentos:
-  // Na extensão: sempre aberta com divisão por resize-handle
-  // No PWA (mobile/desktop): respeita preferência salva ou começa recolhido
-  const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
-  const savedCollapsed = await platformStorage.get('docs_collapsed');
-  const initialCollapsed = isExt ? false : (savedCollapsed !== undefined ? !!savedCollapsed : true);
-  setDocsCollapsed(initialCollapsed);
-
-  if (btnDocsToggle) {
-    btnDocsToggle.addEventListener('click', e => {
-      e.stopPropagation();
-      const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
-      if (isExt) {
-        toggleDocsExtension();
-      } else {
-        toggleDocsCollapsed();
-      }
-    });
-  }
-
-  const attachSwitcher = (btnId, wrapId) => {
-    const btn = document.getElementById(btnId);
-    const wrap = wrapId ? document.getElementById(wrapId) : null;
-    if (btn && !btn._switcherBound) {
-      btn._switcherBound = true;
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        if (auxViewMenuEl) closeAuxViewMenu();
-        else openAuxViewMenu(btn);
-      });
-    }
-    if (wrap && !wrap._switcherBound) {
-      wrap._switcherBound = true;
-      wrap.addEventListener('click', e => {
-        if (e.target.closest('.aux-view-switcher-btn')) return;
-        e.stopPropagation();
-        if (auxViewMenuEl) closeAuxViewMenu();
-        else openAuxViewMenu(btn || wrap);
-      });
-    }
-  };
-
-  attachSwitcher('btn-aux-view-switcher', 'docs-title-wrap');
-  attachSwitcher('btn-graph-aux-switcher', 'graph-title-wrap');
-  attachSwitcher('btn-board-aux-switcher', null);
-  attachSwitcher('btn-calendar-aux-switcher', 'calendar-title-wrap');
-  attachSwitcher('btn-bases-aux-switcher', 'bases-title-wrap');
-  attachSwitcher('btn-json-aux-switcher', 'json-title-wrap');
-
-  if (docsHeader) {
-    docsHeader.addEventListener('click', e => {
-      if (e.target.closest('#btn-upload, .docs-view-opt, #file-input, .icon-btn, .docs-title-wrap')) return;
-      const isExt = (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'extension') || isExtension;
-      if (isExt) {
-        const docsSection = document.querySelector('.docs-section');
-        if (docsSection?.classList.contains('is-minimized')) {
-          toggleDocsExtension();
-        }
-      } else {
-        const isMobile = typeof document !== 'undefined' && document.documentElement.dataset.platform === 'mobile';
-        if (isMobile) {
-          toggleDocsCollapsed();
-        }
-      }
-    });
-  }
-
-  if (docsSection) {
-    docsSection.addEventListener('pointerdown', e => {
-      const isMobile = typeof document !== 'undefined' && document.documentElement.dataset.platform === 'mobile';
-      if (!isMobile || docsSection.classList.contains('is-collapsed')) return;
-      const rect = docsSection.getBoundingClientRect();
-      if (e.clientY >= rect.top && e.clientY <= rect.top + 24) {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleDocsCollapsed();
-      }
-    });
-  }
 
   // Seleção centralizada no módulo selection.js
   initSelection(grid, dropZone, updateGroupBar);

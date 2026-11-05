@@ -1,238 +1,44 @@
-﻿import { blocksToPlainText } from './blocks.js';
-import { platformStorage, setPlatformDb } from './platform.js';
-import { extrairLinksDeBlocos, resolverLinks } from './links.js';
-
-// Sinal genérico de "o conjunto de notas mudou" (criação, exclusão ou edição
-// de conteúdo) — quem mantém uma visão derivada de TODAS as notas (o Grafo/
-// Constelações é o único caso hoje) escuta isto pra saber quando reconstruir
-// em vez de exigir que a pessoa reabra cada nota manualmente.
-function dispatchNotesChanged() {
-  if (typeof document !== 'undefined') {
-    document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
-  }
-}
-// O esquema mora numa função (`definirEsquema`, mais abaixo) pra poder ser
-// aplicado a mais de um banco. O de verdade é este; o banco de provas cria um
-// descartável com `criarBancoDeProvas()` e exercita a camada de armazenamento
-// real — Dexie de verdade, IndexedDB de verdade — sem chegar perto das notas de
-// ninguém. Sem isso, o DexieSyncStore seria a única peça sem forma de teste.
-export const db = typeof Dexie !== 'undefined' ? definirEsquema(new Dexie('quickdock')) : null;
-if (db) setPlatformDb(db);
-
-export function criarBancoDeProvas(nome = 'quickdock-provas') {
-  if (typeof Dexie === 'undefined') throw new Error('Dexie não está carregado neste ambiente.');
-  return definirEsquema(new Dexie(nome));
-}
-
-// ── Ordem fracionária ──────────────────────────────────────────
-// O índice fracionário (a0, a0V, a1...) permite inserir e reordenar notas
-// calculando uma chave intermediária pura, sem precisar reescrever nem tocar
-// nas outras notas. Isso elimina a necessidade de um arquivo de índice centralizado,
-// que seria o principal ponto de conflito na sincronização entre aparelhos.
-const DIGITOS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-const ZERO = '0';
-const MID = 'V';
-
-/**
- * Converte um índice numérico inteiro para string fracionária lexicograficamente ordenada.
- * Exemplo: 0 -> "a0", 1 -> "a1", ..., 61 -> "az", 62 -> "b10".
- */
-export function ordemDeIndice(n) {
-  const num = typeof n === 'number' && !isNaN(n) ? Math.floor(n) : 0;
-  if (num < 0) {
-    const neg = -num - 1;
-    if (neg < 62) return 'Z' + DIGITOS[61 - neg];
-    return 'Y' + String(neg).padStart(4, '0');
-  }
-  if (num < 62) {
-    return 'a' + DIGITOS[num];
-  }
-  const d1 = Math.floor(num / 62);
-  const d0 = num % 62;
-  return 'b' + DIGITOS[d1] + DIGITOS[d0];
-}
-
-/**
- * Retorna uma string fracionária lexicograficamente estrita entre `a` e `b`.
- * Para quaisquer `a < b`, garante que `a < ordemEntre(a, b) < b`.
- * Suporta inserção no início (a = null), no fim (b = null) ou lista vazia.
- */
-/**
- * Chave imediatamente maior que `a`, para inserir no fim da lista.
- *
- * Incrementa o dígito mais à direita que ainda não está no teto e descarta o
- * resto. Isso importa porque criar nota é a operação mais frequente do app e
- * cada uma chama esta função: a versão anterior caía num `a + 'V'` que crescia
- * um caractere por nota — a nota 300 chegava a uma chave de 240 caracteres.
- * Aqui a chave só cresce quando a faixa inteira está no teto.
- */
-function proximoDepois(a) {
-  // Formas curtas que `ordemDeIndice` produz continuam subindo dentro da
-  // própria faixa, que é o que mantém a chave com 2 ou 3 caracteres no uso comum.
-  if (a.startsWith('a') && a.length === 2) {
-    const idx = DIGITOS.indexOf(a[1]);
-    if (idx < 61) return 'a' + DIGITOS[idx + 1];
-    return 'b10';
-  }
-  if (a.startsWith('Z') && a.length === 2) {
-    const idx = DIGITOS.indexOf(a[1]);
-    if (idx < 61) return 'Z' + DIGITOS[idx + 1];
-    return 'a0';
-  }
-  // O primeiro caractere é a faixa de magnitude e não entra no incremento —
-  // por isso o laço para em 1.
-  for (let i = a.length - 1; i >= 1; i--) {
-    const idx = DIGITOS.indexOf(a[i]);
-    if (idx >= 0 && idx < DIGITOS.length - 1) return a.slice(0, i) + DIGITOS[idx + 1];
-  }
-  return a + MID;
-}
-
-export function ordemEntre(a, b) {
-  if (!a && !b) return 'a0';
-  if (!b) return proximoDepois(a);
-
-  // Inserir no começo é o caso geral com limite inferior vazio: '' é menor que
-  // qualquer chave, e o algoritmo de ponto médio abaixo já sabe descer a partir
-  // daí. Antes isto era resolvido com casos especiais por prefixo, e era de
-  // onde vinha o bug: ao passar da faixa 'Z' para a faixa de estouro 'Y', o
-  // caso especial caía num `'Z' + b` que ordenava DEPOIS de `b`, não antes.
-  a = a || '';
-
-  if (a >= b) {
-    throw new Error(`ordemEntre requer a < b (recebeu a="${a}", b="${b}")`);
-  }
-
-  let i = 0;
-  while (i < a.length && i < b.length && a[i] === b[i]) {
-    i++;
-  }
-
-  if (i < a.length && i < b.length) {
-    const valA = DIGITOS.indexOf(a[i]);
-    const valB = DIGITOS.indexOf(b[i]);
-    if (valB - valA > 1) {
-      const mid = Math.floor((valA + valB) / 2);
-      return a.slice(0, i) + DIGITOS[mid];
-    }
-    let j = i + 1;
-    while (j < a.length && a[j] === DIGITOS[DIGITOS.length - 1]) {
-      j++;
-    }
-    if (j < a.length) {
-      const v = DIGITOS.indexOf(a[j]);
-      const mid = Math.floor((v + DIGITOS.length) / 2);
-      return a.slice(0, j) + DIGITOS[mid];
-    }
-    return a + MID;
-  }
-
-  // a é prefixo de b
-  let j = i;
-  while (j < b.length && b[j] === ZERO) {
-    j++;
-  }
-  if (j < b.length) {
-    const v = DIGITOS.indexOf(b[j]);
-    const mid = Math.floor(v / 2);
-    if (mid > 0) {
-      return a + ZERO.repeat(j - i) + DIGITOS[mid];
-    }
-    return a + ZERO.repeat(j - i) + ZERO + MID;
-  }
-  return a + MID;
-}
-
-function definirEsquema(db) {
-  db.version(1).stores({
-    files: '++id, name, type, createdAt'
-  });
-  db.version(2).stores({
-    files: '++id, name, type, createdAt',
-    notes: '++id, order, updatedAt'
-  });
-  // noteId indexado só pra conseguir varrer os arquivos de uma nota ao excluí-la.
-  // Arquivos criados antes desta versão não têm o campo e ficam fora do índice —
-  // que é justamente o que queremos: sem noteId = geral.
-  db.version(3).stores({
-    files: '++id, name, type, noteId, createdAt',
-    notes: '++id, order, updatedAt'
-  });
-  // Modelos de nota: markdown guardado como texto, igual ao que sai na
-  // exportação — é o que deixa importar e compartilhar um .md ser a mesma coisa.
-  db.version(4).stores({
-    files: '++id, name, type, noteId, createdAt',
-    notes: '++id, order, updatedAt',
-    templates: '++id, order, name'
-  });
-  // Imagem colada dentro da nota mora na mesma tabela de arquivos: é arquivo de
-  // verdade (um Blob), não base64 no meio do texto. A marca `inline` é o que a
-  // mantém fora da seção Documentos — ela já está visível dentro da nota.
-  //
-  // O valor é 1, não `true`: o IndexedDB não aceita booleano como chave e um
-  // índice de booleano ficaria silenciosamente vazio. Arquivo salvo antes desta
-  // versão não tem o campo e fica fora do índice — ou seja, documento normal,
-  // que é exatamente o que ele era.
-  db.version(5).stores({
-    files: '++id, name, type, noteId, inline, createdAt',
-    notes: '++id, order, updatedAt',
-    templates: '++id, order, name'
-  });
-  // v6: identidade que viaja no arquivo (uid) ao lado do id inteiro (local) e ordem fracionária.
-  // Nunca tocamos na chave primária `++id`, evitando retrabalho em referências locais.
-  db.version(6).stores({
-    files: '++id, name, type, noteId, inline, createdAt',
-    notes: '++id, uid, ordem, order, updatedAt',
-    templates: '++id, uid, ordem, order, name'
-  });
-  // v7: estado de sincronização — local, por aparelho, nunca sobe. É ele que
-  // distingue "arquivo apagado lá" de "arquivo que nunca chegou aqui".
-  db.version(7).stores({
-    files: "++id, name, type, noteId, inline, createdAt",
-    notes: "++id, uid, ordem, order, updatedAt",
-    templates: "++id, uid, ordem, order, name",
-    syncState: "uid, caminho",
-    syncMeta: "chave"
-  });
-  // v8: tabela de preferências locais para uso na web/PWA (fora da extensão)
-  db.version(8).stores({
-    preferences: "chave"
-  });
-  // v9: Pastas para notas e tabela de pastas para permitir pastas vazias.
-  // Índice composto [pasta+ordem] para ordenação por pasta eficiente sem varredura em memória.
-  db.version(9).stores({
-    notes: "++id, uid, pasta, [pasta+ordem], ordem, order, updatedAt",
-    folders: "++id, &caminho, ordem, criadoEm"
-  });
-  // v10: Tabela de links entre notas para busca reversa de backlinks e visualização em grafo
-  db.version(10).stores({
-    notes: "++id, uid, pasta, [pasta+ordem], ordem, order, updatedAt",
-    folders: "++id, &caminho, ordem, criadoEm",
-    links: "++id, uidOrigem, uidDestino, tituloAlvo"
-  });
-  // v11: Tabela de quadros infinitos para ideação espacial livre
-  db.version(11).stores({
-    notes: "++id, uid, pasta, [pasta+ordem], ordem, order, updatedAt",
-    folders: "++id, &caminho, ordem, criadoEm",
-    links: "++id, uidOrigem, uidDestino, tituloAlvo",
-    boards: "++id, uid, title, updatedAt"
-  });
-  setPlatformDb(db);
-  return db;
-}
+const db = new Dexie('quickdock');
+db.version(1).stores({
+  files: '++id, name, type, createdAt'
+});
+db.version(2).stores({
+  files: '++id, name, type, createdAt',
+  notes: '++id, order, updatedAt'
+});
+// noteId indexado só pra conseguir varrer os arquivos de uma nota ao excluí-la.
+// Arquivos criados antes desta versão não têm o campo e ficam fora do índice —
+// que é justamente o que queremos: sem noteId = geral.
+db.version(3).stores({
+  files: '++id, name, type, noteId, createdAt',
+  notes: '++id, order, updatedAt'
+});
+// Modelos de nota: markdown guardado como texto, igual ao que sai na
+// exportação — é o que deixa importar e compartilhar um .md ser a mesma coisa.
+db.version(4).stores({
+  files: '++id, name, type, noteId, createdAt',
+  notes: '++id, order, updatedAt',
+  templates: '++id, order, name'
+});
+// Imagem colada dentro da nota mora na mesma tabela de arquivos: é arquivo de
+// verdade (um Blob), não base64 no meio do texto. A marca `inline` é o que a
+// mantém fora da seção Documentos — ela já está visível dentro da nota.
+//
+// O valor é 1, não `true`: o IndexedDB não aceita booleano como chave e um
+// índice de booleano ficaria silenciosamente vazio. Arquivo salvo antes desta
+// versão não tem o campo e fica fora do índice — ou seja, documento normal,
+// que é exatamente o que ele era.
+db.version(5).stores({
+  files: '++id, name, type, noteId, inline, createdAt',
+  notes: '++id, order, updatedAt',
+  templates: '++id, order, name'
+});
 
 // --- NOTAS ---
-/** Só os ids das notas guardadas (leitura barata, para conferir se a lista em memória ficou desatualizada). */
-export async function loadAllNoteIds() {
-  return db.notes.toCollection().primaryKeys();
-}
-
 export async function loadAllNotesMeta() {
-  const notes = await (db.notes.schema.indexes.some(idx => idx.name === 'ordem')
-    ? db.notes.orderBy('ordem')
-    : db.notes.orderBy('order')).toArray();
-  return notes.map(({ id, uid, title, content, color, icon, iconFilled, titleHidden, font, pasta, properties, propertyTypes, propertySelectOptions, ordem, order, createdAt, updatedAt, coverUrl, coverFileId, coverPosition, coverHeight, iconImage }) => ({
-    id, uid: uid ?? null, title, content: content ?? '', color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, font: font ?? null, coverUrl: coverUrl ?? null, coverFileId: coverFileId ?? null, coverPosition: coverPosition ?? 50, coverHeight: coverHeight ?? null, iconImage: iconImage ?? null, pasta: pasta ?? '', properties: properties ?? {}, propertyTypes: propertyTypes ?? {}, propertySelectOptions: propertySelectOptions ?? {}, ordem: ordem ?? ordemDeIndice(order ?? 0), createdAt: createdAt ?? updatedAt, updatedAt,
+  const notes = await db.notes.orderBy('order').toArray();
+  return notes.map(({ id, title, color, icon, iconFilled, titleHidden, updatedAt }) => ({
+    id, title, color, icon: icon ?? null, iconFilled: !!iconFilled, titleHidden: !!titleHidden, updatedAt,
   }));
 }
 
@@ -240,48 +46,10 @@ export async function getNoteById(id) {
   return db.notes.get(id);
 }
 
-export async function createNoteRecord({ title, content = '', blocks = [], color = null, icon = null, iconFilled = false, titleHidden = false, uid = null, pasta = '', properties = {}, propertyTypes = {}, propertySelectOptions = {}, ordem = null }) {
+export async function createNoteRecord({ title, content = '', blocks = [], color = null, icon = null, iconFilled = false, titleHidden = false }) {
   const count = await db.notes.count();
-  const pastaLimpa = normalizarCaminhoPasta(pasta);
-  let novaOrdem = ordem;
-  if (!novaOrdem) {
-    let lastNote = null;
-    try {
-      if (db.notes.schema.indexes.some(idx => idx.name === 'pasta')) {
-        const naPasta = await db.notes.where('pasta').equals(pastaLimpa).sortBy('ordem');
-        lastNote = naPasta[naPasta.length - 1] ?? null;
-      } else {
-        lastNote = await db.notes.orderBy('ordem').last().catch(() => null);
-      }
-    } catch {
-      lastNote = await db.notes.orderBy('ordem').last().catch(() => null);
-    }
-    novaOrdem = ordemEntre(lastNote?.ordem ?? null, null);
-  }
-  const novoUid = uid ?? ((typeof crypto !== 'undefined' && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`);
   const now = Date.now();
-  const novoId = await db.notes.add({
-    uid: novoUid,
-    title,
-    content,
-    blocks,
-    color,
-    icon,
-    iconFilled,
-    titleHidden,
-    pasta: pastaLimpa,
-    properties: properties ?? {},
-    propertyTypes: propertyTypes ?? {},
-    propertySelectOptions: propertySelectOptions ?? {},
-    ordem: novaOrdem,
-    order: count,
-    createdAt: now,
-    updatedAt: now
-  });
-  dispatchNotesChanged();
-  return novoId;
+  return db.notes.add({ title, content, blocks, color, icon, iconFilled, titleHidden, order: count, createdAt: now, updatedAt: now });
 }
 
 // `blocks` é a fonte de verdade do editor; `content` é uma
@@ -291,308 +59,33 @@ export async function updateNoteBlocksById(id, blocks, content) {
 }
 
 export async function updateNoteMetaById(id, patch) {
-  // Item-quadro da Base do workspace ("board-<id>"): só título e pasta existem no quadro
-  if (typeof id === 'string' && id.startsWith('board-')) {
-    const patchQuadro = {};
-    if (patch.title !== undefined) patchQuadro.title = patch.title;
-    if (patch.pasta !== undefined) patchQuadro.pasta = normalizarCaminhoPasta(patch.pasta);
-    if (db?.boards && Object.keys(patchQuadro).length) await db.boards.update(Number(id.slice(6)), { ...patchQuadro, updatedAt: Date.now() });
-    document.dispatchEvent(new CustomEvent('quickdock:board-changed', { detail: { id } }));
-    dispatchNotesChanged();
-    return 1;
-  }
-  const dados = { ...patch, updatedAt: Date.now() };
-  if (dados.pasta !== undefined) {
-    dados.pasta = normalizarCaminhoPasta(dados.pasta);
-  }
-  const resultado = await db.notes.update(id, dados);
-  // Título/ícone/cor mudam por aqui (cabeçalho, menu "⋯", renomear na aside)
-  // sem passar pelo flushSave() do editor — sem isto, o Grafo/Constelações só
-  // pegava a mudança quando a pessoa trocava de nota (o que aciona o
-  // flushSave e dispara este mesmo aviso por outro caminho).
-  dispatchNotesChanged();
-  return resultado;
+  return db.notes.update(id, { ...patch, updatedAt: Date.now() });
 }
 
 export async function deleteNoteRecordById(id) {
-  if (db && db.links) {
-    try {
-      const note = await db.notes.get(id);
-      if (note?.uid) {
-        await db.links.where('uidOrigem').equals(note.uid).or('uidDestino').equals(note.uid).delete();
-      }
-    } catch (err) {
-      console.warn('Erro ao limpar links da nota excluída:', err);
-    }
-  }
-  const resultado = await db.notes.delete(id);
-  dispatchNotesChanged();
-  return resultado;
+  return db.notes.delete(id);
 }
 
-// --- LINKS ENTRE NOTAS ---
-export async function salvarLinksDaNota(uidOrigem, links = []) {
-  if (!db || !db.links || !uidOrigem) return;
-  await db.transaction('rw', db.links, async () => {
-    await db.links.where('uidOrigem').equals(uidOrigem).delete();
-    if (links && links.length > 0) {
-      const registros = links.map(l => ({
-        uidOrigem,
-        uidDestino: l.uidDestino || null,
-        tituloAlvo: (l.tituloAlvo || '').trim()
-      }));
-      await db.links.bulkAdd(registros);
-    }
-  });
-}
-
-export async function obterBacklinks(uidDestino, tituloAlvo) {
-  if (!db || !db.links) return [];
-  const encontrados = [];
-  if (uidDestino) {
-    const porUid = await db.links.where('uidDestino').equals(uidDestino).toArray();
-    encontrados.push(...porUid);
-  }
-  if (tituloAlvo) {
-    const limpo = tituloAlvo.trim().toLowerCase();
-    const porTitulo = await db.links.filter(l => (l.tituloAlvo || '').trim().toLowerCase() === limpo).toArray();
-    encontrados.push(...porTitulo);
-  }
-  const uidsOrigem = [...new Set(encontrados.map(l => l.uidOrigem).filter(Boolean))];
-  return uidsOrigem;
-}
-
-export async function obterTodosLinks() {
-  if (!db || !db.links) return [];
-  return db.links.toArray();
-}
-
-export async function removerLinksDaNota(uid) {
-  if (!db || !db.links || !uid) return;
-  return db.links.where('uidOrigem').equals(uid).or('uidDestino').equals(uid).delete();
-}
-
-// --- QUADROS INFINITOS (BOARDS) ---
-export async function loadAllBoards() {
-  if (!db || !db.boards) return [];
-  return db.boards.orderBy('updatedAt').reverse().toArray();
-}
-
-export async function getBoardById(id) {
-  if (!db || !db.boards) return null;
-  return db.boards.get(Number(id));
-}
-
-export async function getBoardByUid(uid) {
-  if (!db || !db.boards) return null;
-  return (await db.boards.where('uid').equals(uid).first()) ?? null;
-}
-
-export async function saveBoardRecord(board) {
-  if (!db || !db.boards) return null;
-  const now = Date.now();
-  const uid = board.uid || ((typeof crypto !== 'undefined' && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`);
-
-  const dados = {
-    ...board,
-    uid,
-    title: board.title || 'Quadro Sem Título',
-    pasta: board.pasta || '',
-    viewport: board.viewport || { x: 0, y: 0, zoom: 1 },
-    cards: board.cards || [],
-    arrows: board.arrows || [],
-    updatedAt: now
-  };
-
-  if (board.id) {
-    await db.boards.put(dados);
-    return board.id;
-  } else {
-    // `id: null` chega aqui pelo espalhamento de `board` acima — precisa
-    // sumir antes do `add()`, senão o IndexedDB recusa a chave (a tabela é
-    // de auto-incremento e só aceita ausente, nunca `null`).
-    delete dados.id;
-    dados.createdAt = now;
-    return db.boards.add(dados);
-  }
-}
-
-export async function deleteBoardRecord(id) {
-  if (!db || !db.boards) return;
-  return db.boards.delete(Number(id));
-}
-
-// Renumera a lista inteira. Passou a ser caminho de REPARO, não o caminho
-// comum: reescrever todas as notas é exatamente o que a ordem fracionária
-// existe pra evitar. Sob sincronização, arrastar uma nota sujaria os N
-// arquivos e cada um viraria um conflito em potencial.
-// Devolve as ordens atribuídas, na mesma sequência dos ids recebidos.
 export async function reorderNoteRecords(orderedIds) {
-  const ordens = orderedIds.map((_, i) => ordemDeIndice(i));
-  await Promise.all(orderedIds.map((id, i) => db.notes.update(id, { order: i, ordem: ordens[i] })));
-  return ordens;
+  await Promise.all(orderedIds.map((id, i) => db.notes.update(id, { order: i })));
 }
 
-// Mover uma nota reescreve só ELA, calculando uma chave entre os dois vizinhos
-// novos. `null` em qualquer lado significa ponta da lista.
-//
-// Não mexe em `updatedAt`: reordenar não é editar, e a lista mostra essa data
-// pra pessoa. A sincronização percebe a mudança pelo hash do arquivo.
-//
-// Devolve a ordem nova, ou `null` quando os vizinhos estão inconsistentes
-// (ordens iguais ou invertidas, resquício de banco remendado) — nesse caso quem
-// chamou renumera a lista com `reorderNoteRecords`.
-export async function moveNoteRecord(id, ordemAnterior, ordemSeguinte) {
-  let ordem;
-  try {
-    ordem = ordemEntre(ordemAnterior ?? null, ordemSeguinte ?? null);
-  } catch {
-    return null;
-  }
-  await db.notes.update(id, { ordem });
-  return ordem;
-}
+// Migra a nota única antiga (chrome.storage.local) para a primeira nota do Dexie.
+// Executa apenas uma vez: se já existir alguma nota no Dexie, não faz nada.
+// Se não houver conteúdo legado nenhum (instalação nova de verdade), não cria
+// nota nenhuma — quem decide o que mostrar pra um primeiro acesso é o
+// initNotesTabs() (nota-tutorial), não esta migração.
+export async function migrateLegacyNoteIfNeeded() {
+  const count = await db.notes.count();
+  if (count > 0) return;
 
-// --- PASTAS ---
-export function normalizarCaminhoPasta(caminho) {
-  if (!caminho || typeof caminho !== 'string') return '';
-  const partes = caminho
-    .replace(/\\/g, '/')
-    .split('/')
-    .map(p => p.trim().replace(/[\\/:*?"<>|]/g, ''))
-    .filter(Boolean);
-  if (partes.length > 3) {
-    throw new Error('Profundidade máxima de 3 níveis excedida');
-  }
-  return partes.join('/');
-}
-
-export async function listarPastas() {
-  if (!db || !db.folders) return [];
-  try {
-    return await db.folders.orderBy('caminho').toArray();
-  } catch {
-    return await db.folders.toArray().catch(() => []);
-  }
-}
-
-export async function criarPasta(caminho) {
-  if (!db || !db.folders) return null;
-  const normalizado = normalizarCaminhoPasta(caminho);
-  if (!normalizado) return null;
-
-  const existente = await db.folders.where('caminho').equals(normalizado).first().catch(() => null);
-  if (existente) return existente.id;
-
-  // Garante que todas as pastas ancestrais existam na tabela
-  const partes = normalizado.split('/');
-  for (let i = 1; i < partes.length; i++) {
-    const pai = partes.slice(0, i).join('/');
-    const jaTemPai = await db.folders.where('caminho').equals(pai).first().catch(() => null);
-    if (!jaTemPai) {
-      await db.folders.add({ caminho: pai, ordem: 'a0', criadoEm: Date.now() }).catch(() => null);
-    }
-  }
-
-  return db.folders.add({ caminho: normalizado, ordem: 'a0', criadoEm: Date.now() });
-}
-
-export async function renomearPasta(caminhoAntigo, caminhoNovo) {
-  if (!db || !db.folders) return false;
-  const antigo = normalizarCaminhoPasta(caminhoAntigo);
-  const novo = normalizarCaminhoPasta(caminhoNovo);
-  if (!antigo || !novo || antigo === novo) return false;
-
-  return db.transaction('rw', [db.folders, db.notes], async () => {
-    // 1. Renomear na tabela folders
-    const pastas = await db.folders.toArray();
-    for (const f of pastas) {
-      if (f.caminho === antigo) {
-        await db.folders.update(f.id, { caminho: novo });
-      } else if (f.caminho.startsWith(antigo + '/')) {
-        const sub = novo + f.caminho.slice(antigo.length);
-        await db.folders.update(f.id, { caminho: sub });
-      }
-    }
-
-    // 2. Atualizar todas as notas afetadas (preserva delimitador de pasta para não pegar prefixo falso)
-    const notas = await db.notes.toArray();
-    const agora = Date.now();
-    for (const n of notas) {
-      const pastaAtual = n.pasta || '';
-      if (pastaAtual === antigo) {
-        await db.notes.update(n.id, { pasta: novo, updatedAt: agora });
-      } else if (pastaAtual.startsWith(antigo + '/')) {
-        const sub = novo + pastaAtual.slice(antigo.length);
-        await db.notes.update(n.id, { pasta: sub, updatedAt: agora });
-      }
-    }
-    return true;
+  const legacy = await new Promise(resolve => {
+    chrome.storage.local.get('note_content', ({ note_content }) => resolve(note_content || ''));
   });
-}
+  if (!legacy) return;
 
-export async function excluirPasta(caminho, { manterNotas = true } = {}) {
-  if (!db || !db.folders) return false;
-  const pasta = normalizarCaminhoPasta(caminho);
-  if (!pasta) return false;
-
-  return db.transaction('rw', [db.folders, db.notes, db.files], async () => {
-    const notas = await db.notes.toArray();
-    for (const n of notas) {
-      const pastaAtual = n.pasta || '';
-      const ehDestaPasta = pastaAtual === pasta || pastaAtual.startsWith(pasta + '/');
-      if (ehDestaPasta) {
-        if (manterNotas) {
-          await db.notes.update(n.id, { pasta: '', updatedAt: Date.now() });
-        } else {
-          await detachFilesFromNote(n.id);
-          await db.notes.delete(n.id);
-        }
-      }
-    }
-
-    // Exclui a pasta e quaisquer subpastas
-    const pastas = await db.folders.toArray();
-    for (const f of pastas) {
-      if (f.caminho === pasta || f.caminho.startsWith(pasta + '/')) {
-        await db.folders.delete(f.id);
-      }
-    }
-    return true;
-  });
-}
-
-export async function moverNotaParaPasta(notaId, novaPasta) {
-  if (!db || !db.notes) return false;
-  const idNum = Number(notaId);
-  const id = !isNaN(idNum) ? idNum : notaId;
-  const pasta = normalizarCaminhoPasta(novaPasta);
-  if (pasta) {
-    await criarPasta(pasta);
-  }
-  const note = await db.notes.get(id);
-  if (!note) return false;
-
-  const updates = { pasta, updatedAt: Date.now() };
-  if (note.properties && typeof note.properties === 'object') {
-    if (pasta) note.properties.folder = pasta;
-    else delete note.properties.folder;
-    updates.properties = { ...note.properties };
-  }
-
-  await db.notes.update(id, updates);
-
-  if (typeof document !== 'undefined') {
-    document.dispatchEvent(new CustomEvent('quickdock:note-updated', {
-      detail: { id, note: { ...note, ...updates } }
-    }));
-    document.dispatchEvent(new CustomEvent('quickdock:note-folder-changed', {
-      detail: { id, pasta }
-    }));
-  }
-  return true;
+  await createNoteRecord({ title: 'Nota 1', content: legacy });
+  await new Promise(resolve => chrome.storage.local.remove('note_content', resolve));
 }
 
 // --- MODELOS DE NOTA ---
@@ -600,33 +93,15 @@ export async function moverNotaParaPasta(notaId, novaPasta) {
 // gravados antes do modelo de bloco existir não têm o campo — o `?? 'note'`
 // mantém todos eles como modelo de nota, que é o que eram.
 export async function loadAllTemplates() {
-  const rows = await (db.templates.schema.indexes.some(idx => idx.name === 'ordem')
-    ? db.templates.orderBy('ordem')
-    : db.templates.orderBy('order')).toArray();
-  return rows.map(({ id, uid, name, content, kind, ordem, order, createdAt }) => ({
-    id, uid: uid ?? null, name, content, kind: kind ?? 'note', ordem: ordem ?? ordemDeIndice(order ?? 0), createdAt,
+  const rows = await db.templates.orderBy('order').toArray();
+  return rows.map(({ id, name, content, kind, createdAt }) => ({
+    id, name, content, kind: kind ?? 'note', createdAt,
   }));
 }
 
-export async function createTemplateRecord({ name, content, kind = 'note', uid = null, ordem = null }) {
+export async function createTemplateRecord({ name, content, kind = 'note' }) {
   const count = await db.templates.count();
-  let novaOrdem = ordem;
-  if (!novaOrdem) {
-    const lastTpl = await db.templates.orderBy('ordem').last().catch(() => null);
-    novaOrdem = ordemEntre(lastTpl?.ordem ?? null, null);
-  }
-  const novoUid = uid ?? ((typeof crypto !== 'undefined' && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`);
-  return db.templates.add({
-    uid: novoUid,
-    name,
-    content,
-    kind,
-    ordem: novaOrdem,
-    order: count,
-    createdAt: Date.now()
-  });
+  return db.templates.add({ name, content, kind, order: count, createdAt: Date.now() });
 }
 
 export async function updateTemplateById(id, patch) {
@@ -641,71 +116,67 @@ export async function deleteTemplateById(id) {
 // o exemplo não o traz de volta na próxima abertura. A chave é por exemplo:
 // quem já tem o modelo de nota instalado ainda recebe o de bloco.
 export async function wasSeeded(key) {
-  return !!(await platformStorage.get(key));
+  return new Promise(resolve => {
+    chrome.storage.local.get(key, obj => resolve(!!obj[key]));
+  });
 }
 
 export async function markSeeded(key) {
-  return platformStorage.set(key, true);
+  return new Promise(resolve => chrome.storage.local.set({ [key]: true }, resolve));
 }
 
 // --- NOTA ATIVA ---
 export async function loadActiveNoteId() {
-  const active_note_id = await platformStorage.get('active_note_id');
-  return active_note_id ?? null;
+  return new Promise(resolve => {
+    chrome.storage.local.get('active_note_id', ({ active_note_id }) => resolve(active_note_id ?? null));
+  });
 }
 
 export async function saveActiveNoteId(id) {
-  return platformStorage.set('active_note_id', id);
+  return new Promise(resolve => {
+    chrome.storage.local.set({ active_note_id: id }, resolve);
+  });
 }
 
 // --- FILTRO DE DOCUMENTOS ('note' | 'all') ---
 export async function loadDocsView() {
-  const docs_view = await platformStorage.get('docs_view');
-  return docs_view === 'all' ? 'all' : 'note';
+  return new Promise(resolve => {
+    chrome.storage.local.get('docs_view', ({ docs_view }) => resolve(docs_view === 'all' ? 'all' : 'note'));
+  });
 }
 
 export async function saveDocsView(view) {
-  return platformStorage.set('docs_view', view);
+  return new Promise(resolve => {
+    chrome.storage.local.set({ docs_view: view }, resolve);
+  });
 }
 
 // --- LAYOUT (área redimensionável) ---
 export async function loadSplitRatio() {
-  const split_ratio = await platformStorage.get('split_ratio');
-  return split_ratio ?? 0.7;
+  return new Promise(resolve => {
+    chrome.storage.local.get('split_ratio', ({ split_ratio }) => resolve(split_ratio ?? 0.7));
+  });
 }
 
 export async function saveSplitRatio(ratio) {
-  return platformStorage.set('split_ratio', ratio);
-}
-
-// --- LAYOUT DE PAINÉIS DO DESKTOP (Quadro/Grafo/Calendário/Documentos simultâneos) ---
-export async function loadDesktopPanelLayout() {
-  const layout = await platformStorage.get('desktop_panel_layout');
-  return (layout && typeof layout === 'object')
-    ? {
-      open: Array.isArray(layout.open) ? layout.open : [],
-      widths: layout.widths || {},
-      // stackParent/heights não existiam antes de empilhar painéis virar possível —
-      // registros salvos de antes simplesmente não têm essas chaves, o que já
-      // significa "nenhum empilhamento", sem precisar de migração.
-      stackParent: layout.stackParent || {},
-      heights: layout.heights || {},
-    }
-    : { open: [], widths: {}, stackParent: {}, heights: {} };
-}
-
-export async function saveDesktopPanelLayout(layout) {
-  return platformStorage.set('desktop_panel_layout', layout);
+  return new Promise(resolve => {
+    chrome.storage.local.set({ split_ratio: ratio }, resolve);
+  });
 }
 
 // --- TEMA ---
 export async function loadTheme() {
-  const theme = await platformStorage.get('theme');
-  return theme || null;
+  return new Promise(resolve => {
+    chrome.storage.local.get('theme', ({ theme }) => {
+      resolve(theme || null);
+    });
+  });
 }
 
 export async function saveTheme(theme) {
-  return platformStorage.set('theme', theme);
+  return new Promise(resolve => {
+    chrome.storage.local.set({ theme }, resolve);
+  });
 }
 
 // --- ARQUIVOS ---
@@ -772,10 +243,6 @@ export async function gcInlineFiles() {
     for (const b of note.blocks ?? []) {
       if (b.type === 'image' && b.fileId != null) usados.add(b.fileId);
     }
-    // A capa enviada também é um arquivo inline, mas não é um bloco da nota.
-    if (note.coverFileId != null) usados.add(note.coverFileId);
-    // O ícone com imagem enviada também é um arquivo inline fora dos blocos.
-    if (note.iconImage?.fileId != null) usados.add(note.iconImage.fileId);
   });
 
   const lixo = inlines.filter(id => !usados.has(id));
@@ -794,261 +261,15 @@ export async function deleteFile(id) {
 
 // --- HISTÓRICO DE CÁLCULOS ---
 export async function loadMathHistory() {
-  const math_history = await platformStorage.get('math_history');
-  return math_history ?? [];
+  return new Promise(resolve => {
+    chrome.storage.local.get('math_history', ({ math_history }) => {
+      resolve(math_history ?? []);
+    });
+  });
 }
 
 export async function saveMathHistory(history) {
-  return platformStorage.set('math_history', history);
-}
-
-// --- PONTE ENTRE O MOTOR DE SINCRONIZAÇÃO E O BANCO ---
-// O SyncEngine foi escrito contra um contrato de `store` de 11 métodos, e até
-// aqui só existia a implementação de mentira (test/memory-store.mjs). Esta é a
-// de verdade.
-//
-// Recebe o banco no construtor em vez de usar o global: é o que permite o banco
-// de provas rodar esta mesma classe contra um banco descartável.
-//
-// Duas traduções acontecem aqui, e são a razão de a ponte existir em vez de o
-// motor falar direto com o Dexie:
-//
-//   `uid` x `id` — o motor só conhece `uid`, que é a identidade que viaja no
-//   arquivo. O `id` inteiro é local e nunca sai daqui, então é esta classe que
-//   resolve um pelo outro.
-//
-//   `content` — o motor manda blocos, que são a verdade do editor. O `content`
-//   é a versão em texto simples derivada deles, e quem mantém essa derivação é
-//   o armazenamento. Deixá-la a cargo do motor espalharia a regra.
-export class DexieSyncStore {
-  constructor(banco = db) {
-    this.db = banco;
-  }
-
-  async listarNotasLocais() {
-    return this.db.notes.toArray();
-  }
-
-  async obterNotaPorUid(uid) {
-    return (await this.db.notes.where('uid').equals(uid).first()) ?? null;
-  }
-
-  async salvarNotaLocal(nota) {
-    const content = blocksToPlainText(nota.blocks ?? []);
-    const existente = await this.obterNotaPorUid(nota.uid);
-    const pasta = nota.pasta !== undefined ? normalizarCaminhoPasta(nota.pasta) : (existente?.pasta ?? '');
-    let novoId;
-    if (existente) {
-      await this.db.notes.update(existente.id, { ...nota, pasta, content });
-      novoId = existente.id;
-    } else {
-      // `id` vem do auto-incremento; mandar o do outro aparelho colidiria.
-      const { id, ...semId } = nota;
-      novoId = await this.db.notes.add({ ...semId, pasta, content });
-    }
-    await this._reindexarLinksLocal(nota);
-    return novoId;
-  }
-
-  // Uma nota que chega por sincronização nunca passa pelo `flushSave()` do
-  // editor (só quem a abre localmente aciona aquele caminho) — sem isto, os
-  // links de uma nota sincronizada só apareciam no Grafo depois que a pessoa
-  // abria cada nota manualmente pra "ativar" a indexação. `uidDestino` pode
-  // ficar nulo aqui se o alvo ainda não chegou nesta rodada — sem problema,
-  // construirGrafo() (links.js) resolve de novo por título contra a lista
-  // completa de notas no momento de montar o grafo.
-  async _reindexarLinksLocal(nota) {
-    if (!this.db?.links || !nota?.uid) return;
-    try {
-      const refs = extrairLinksDeBlocos(nota.blocks ?? []);
-      const todasNotas = await this.db.notes.toArray();
-      const resolvidos = resolverLinks(refs, nota.uid, todasNotas);
-      await this.db.transaction('rw', this.db.links, async () => {
-        await this.db.links.where('uidOrigem').equals(nota.uid).delete();
-        if (resolvidos.length > 0) {
-          await this.db.links.bulkAdd(resolvidos.map(l => ({
-            uidOrigem: nota.uid,
-            uidDestino: l.uidDestino || null,
-            tituloAlvo: (l.tituloAlvo || '').trim()
-          })));
-        }
-      });
-    } catch (err) {
-      console.warn('Falha ao reindexar links da nota sincronizada:', err);
-    }
-  }
-
-  async excluirNotaLocal(uid) {
-    const nota = await this.obterNotaPorUid(uid);
-    if (!nota) return;
-    // Os documentos da nota viram gerais em vez de sumirem junto — mesma regra
-    // de quando a pessoa exclui a nota pela interface.
-    await detachFilesFromNote(nota.id);
-    if (this.db && this.db.links) {
-      await this.db.links.where('uidOrigem').equals(uid).or('uidDestino').equals(uid).delete().catch(() => {});
-    }
-    await this.db.notes.delete(nota.id);
-  }
-
-  async obterEstadoSync(uid) {
-    return (await this.db.syncState.get(uid)) ?? null;
-  }
-
-  async obterEstadoSyncPorCaminho(caminho) {
-    return (await this.db.syncState.where('caminho').equals(caminho).first()) ?? null;
-  }
-
-  async salvarEstadoSync(estado) {
-    await this.db.syncState.put({ ...estado });
-  }
-
-  async excluirEstadoSync(uid) {
-    await this.db.syncState.delete(uid);
-  }
-
-  async listarTodosEstadosSync() {
-    return this.db.syncState.toArray();
-  }
-
-  // O cursor mora em tabela própria, não numa linha reservada do `syncState`:
-  // o motor varre `listarTodosEstadosSync()` pra descobrir o que foi apagado lá,
-  // e uma linha que não corresponde a nota nenhuma seria lida como exclusão.
-  async obterCursorSync() {
-    return (await this.db.syncMeta.get('cursor'))?.valor ?? null;
-  }
-
-  async salvarCursorSync(valor) {
-    await this.db.syncMeta.put({ chave: 'cursor', valor });
-  }
-
-  /**
-   * Esquece o vínculo de sincronização (o que cada nota "já enviou" e onde parou), SEM tocar nas
-   * notas. Necessário ao trocar de destino (pasta → Drive): o histórico é do destino antigo e, se
-   * ficasse, o motor acharia as notas já sincronizadas e não enviaria nenhuma ao destino novo — e o
-   * cursor da pasta seria lido como cursor do Drive.
-   */
-  async reiniciarEstadoSync() {
-    await this.db.syncState.clear();
-    await this.db.syncMeta.delete('cursor');
-    await this.db.syncMeta.delete('workspaceBaseSyncedHash');   // META_HASH_WORKSPACE (workspace-base-sync.js)
-  }
-
-  async obterMeta(chave) {
-    return (await this.db.syncMeta.get(chave))?.valor ?? null;
-  }
-
-  async salvarMeta(chave, valor) {
-    await this.db.syncMeta.put({ chave, valor });
-  }
-
-  async excluirMeta(chave) {
-    await this.db.syncMeta.delete(chave);
-  }
-
-  async obterArquivo(id) {
-    return (await this.db.files.get(Number(id))) ?? null;
-  }
-
-  async obterBlobArquivo(id) {
-    const file = await this.db.files.get(Number(id));
-    return file ? file.blob : null;
-  }
-
-  async salvarArquivo({ name, type, blob, inline = false, noteId = null }) {
-    const registro = {
-      name,
-      type,
-      blob,
-      noteId,
-      createdAt: Date.now(),
-    };
-    if (inline) registro.inline = 1;
-    return this.db.files.add(registro);
-  }
-
-  // Imagem sincronizada se chama `<hash>.<ext>`, e o nome vem do conteúdo — então
-  // procurar pelo nome é procurar pela imagem, com certeza e não por semelhança.
-  // É isso que evita baixar de novo e guardar uma segunda cópia da mesma imagem
-  // quando o painel é reaberto: o cache do motor vive só em memória, mas o banco
-  // não. A tabela `files` já indexa `name` desde a v3, então não custa nada.
-  async obterArquivoPorNome(name) {
-    if (!name) return null;
-    return (await this.db.files.where('name').equals(name).first()) ?? null;
-  }
-
-  async listarModelosLocais() {
-    return this.db.templates.toArray();
-  }
-
-  async obterModeloPorUid(uid) {
-    return (await this.db.templates.where('uid').equals(uid).first()) ?? null;
-  }
-
-  async salvarModeloLocal(tpl) {
-    const existente = await this.obterModeloPorUid(tpl.uid);
-    if (existente) {
-      await this.db.templates.update(existente.id, { ...tpl });
-      return existente.id;
-    }
-    const { id, ...semId } = tpl;
-    return this.db.templates.add({ ...semId });
-  }
-
-  async excluirModeloLocal(uid) {
-    const tpl = await this.obterModeloPorUid(uid);
-    if (!tpl) return;
-    await this.db.templates.delete(tpl.id);
-  }
-
-  async listarQuadrosLocais() {
-    if (!this.db || !this.db.boards) return [];
-    return this.db.boards.toArray();
-  }
-
-  async obterQuadroPorUid(uid) {
-    if (!this.db || !this.db.boards) return null;
-    return (await this.db.boards.where('uid').equals(uid).first()) ?? null;
-  }
-
-  async salvarQuadroLocal(quadro) {
-    if (!this.db || !this.db.boards) return null;
-    const existente = await this.obterQuadroPorUid(quadro.uid);
-    if (existente) {
-      await this.db.boards.update(existente.id, {
-        ...quadro,
-        updatedAt: quadro.updatedAt || Date.now()
-      });
-      return existente.id;
-    }
-    const { id, ...semId } = quadro;
-    return this.db.boards.add({
-      ...semId,
-      createdAt: quadro.createdAt || Date.now(),
-      updatedAt: quadro.updatedAt || Date.now()
-    });
-  }
-
-  async excluirQuadroLocal(uid) {
-    if (!this.db || !this.db.boards) return;
-    const existente = await this.obterQuadroPorUid(uid);
-    if (existente) {
-      await this.db.boards.delete(existente.id);
-    }
-  }
-}
-
-// Helpers diretos para acessar metadados de sincronização do banco padrão (db)
-export async function getSyncMeta(chave) {
-  if (!db) return null;
-  return (await db.syncMeta.get(chave))?.valor ?? null;
-}
-
-export async function setSyncMeta(chave, valor) {
-  if (!db) return;
-  await db.syncMeta.put({ chave, valor });
-}
-
-export async function deleteSyncMeta(chave) {
-  if (!db) return;
-  await db.syncMeta.delete(chave);
+  return new Promise(resolve => {
+    chrome.storage.local.set({ math_history: history }, resolve);
+  });
 }

@@ -1,65 +1,14 @@
-import { initNotesTabs, createTutorialNote, downloadAllNotes, refreshNotesList, getActiveNoteUid, getActiveId, getNotesMeta } from './modules/notes-tabs.js';
-import { iniciarIndicadorDeSincronizacao } from './modules/sync-indicator.js';
-import { iniciarTravaDeAbertura } from './modules/sync-gate.js';
+import { initNotesTabs, createTutorialNote, downloadAllNotes } from './modules/notes-tabs.js';
 import { positionPopover } from './modules/popover.js';
-import { initDocuments, toggleDocsCollapsed } from './modules/documents.js';
-import { loadTheme, saveTheme, loadAllNotesMeta } from './modules/storage.js';
-import { initResizer, toggleDocsExtension } from './modules/resizer.js';
-import { SyncController, SYNC_STATE } from './modules/sync-controller.js';
-import { canSafelyReloadCurrentNote, switchToNote, flushSave, isEditingTemplate, setImageResolver } from './modules/note.js';
-import { conectarPainel, applyPlatform } from './modules/platform.js';
-
-import { iconSvg } from './modules/icons.js';
-import { switchView } from './modules/views.js';
-import { initTemplatesGallery } from './modules/templates-gallery.js';
-import { initGraphView } from './modules/graph-view.js';
-import { initBoardView, abrirQuadroInfinitoEmAba } from './modules/board-view.js';
-import { flushBoardSave, setBoardFileResolver } from './modules/board-engine.js';
-import { initCalendarView } from './modules/calendar-view.js';
-import { initBasesView } from './modules/bases-view.js';
-import { initJsonView } from './modules/json-view.js';
-import { initResponsiveHeaders } from './modules/responsive-header.js';
-import { initSpatialShell } from './modules/spatial-shell.js';
-import { initReminderRunner } from './modules/reminders/reminder-runner.js';
-import { initMobileInspector, switchInspectorTab } from './modules/note-mobile-inspector.js';
-
-if (typeof window !== 'undefined') {
-  window.quickdockSwitchInspectorTab = switchInspectorTab;
-}
-
-// Aplica a identificação de plataforma (extension, mobile, desktop) imediatamente
-applyPlatform();
+import { initDocuments } from './modules/documents.js';
+import { loadTheme, saveTheme } from './modules/storage.js';
+import { initResizer } from './modules/resizer.js';
 
 const btnAppMenu = document.getElementById('btn-app-menu');
-const btnSync    = document.getElementById('btn-sync');
 const html       = document.documentElement;
-
-let syncController = null;
-
-function updateStatusBar(theme) {
-  const isDark = theme === 'dark';
-  const color = isDark ? '#191919' : '#ffffff';
-
-  let metaTheme = document.querySelector('meta[name="theme-color"]');
-  if (!metaTheme) {
-    metaTheme = document.createElement('meta');
-    metaTheme.setAttribute('name', 'theme-color');
-    document.head.appendChild(metaTheme);
-  }
-  metaTheme.setAttribute('content', color);
-
-  let appleStatus = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-  if (!appleStatus) {
-    appleStatus = document.createElement('meta');
-    appleStatus.setAttribute('name', 'apple-mobile-web-app-status-bar-style');
-    document.head.appendChild(appleStatus);
-  }
-  appleStatus.setAttribute('content', isDark ? 'black-translucent' : 'default');
-}
 
 function applyTheme(theme) {
   html.setAttribute('data-theme', theme);
-  updateStatusBar(theme);
 }
 
 async function initTheme() {
@@ -70,55 +19,10 @@ async function initTheme() {
   applyTheme(theme);
 }
 
-export async function toggleTheme() {
+async function toggleTheme() {
   const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   await saveTheme(next);
   applyTheme(next);
-}
-
-export function abrirQuadroInfinito(boardId = null) {
-  // Abre o quadro dedicado em aba cheia: board/index.html
-  abrirQuadroInfinitoEmAba(boardId);
-}
-
-async function abrirNotaPorUid(uid) {
-  if (!uid) return;
-  const notas = await loadAllNotesMeta();
-  const alvo = notas.find(n => n.uid === uid);
-  if (alvo) await switchToNote(alvo.id);
-}
-
-// Um cartão de nota no quadro infinito (aba/painel separado) pede pra abrir a
-// nota de verdade aqui. Duas pontes coexistem porque o painel lateral, ao
-// contrário de uma aba comum, pode já estar rodando quando o pedido chega:
-//   - Painel já aberto: mensagem via chrome.runtime, entregue na hora.
-//   - Painel fechado ou PWA: uma pista deixada antes de abrir (storage.local
-//     na extensão, ?abrirNota= na URL no navegador comum), lida uma vez no boot.
-if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-  chrome.runtime.onMessage.addListener(msg => {
-    if (msg?.type === 'quickdock:abrir-nota' && msg.uid) abrirNotaPorUid(msg.uid);
-  });
-}
-
-async function abrirNotaDaUrlOuStorageSeHouver() {
-  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-    try {
-      const { quickdockAbrirNotaUid } = await chrome.storage.local.get('quickdockAbrirNotaUid');
-      if (quickdockAbrirNotaUid) {
-        await chrome.storage.local.remove('quickdockAbrirNotaUid');
-        await abrirNotaPorUid(quickdockAbrirNotaUid);
-      }
-    } catch {}
-  }
-
-  const params = new URLSearchParams(location.search);
-  const uidDaUrl = params.get('abrirNota');
-  if (uidDaUrl) {
-    const url = new URL(location.href);
-    url.searchParams.delete('abrirNota');
-    history.replaceState(null, '', url);
-    await abrirNotaPorUid(uidDaUrl);
-  }
 }
 
 // ── Menu "⋯" ──────────────────────────────────────────────────────────────────
@@ -137,16 +41,10 @@ function openAppMenu() {
   const menu = document.createElement('div');
   menu.className = 'copy-menu app-menu';
 
-  const addOpt = (iconName, label, onClick, className = '') => {
+  const addOpt = (label, onClick, className = '') => {
     const opt = document.createElement('button');
     opt.className = `copy-opt ${className}`.trim();
-    const icon = document.createElement('span');
-    icon.style.marginRight = '8px';
-    icon.style.display = 'inline-flex';
-    icon.innerHTML = iconSvg(iconName);
-    const span = document.createElement('span');
-    span.textContent = label;
-    opt.append(icon, span);
+    opt.textContent = label;
     opt.addEventListener('click', async () => {
       closeAppMenu();
       await onClick();
@@ -155,50 +53,21 @@ function openAppMenu() {
   };
 
   const dark = html.getAttribute('data-theme') === 'dark';
-  addOpt('description', 'Documentos', async () => {
-    const isMobile = html.getAttribute('data-platform') === 'mobile' || html.dataset.platform === 'mobile';
-    if (isMobile) {
-      await toggleDocsCollapsed();
-    } else {
-      toggleDocsExtension();
-    }
-  });
-  addOpt('auto_stories', 'Galeria de modelos', () => switchView('templates'));
-  addOpt('hub', 'Constelações', () => switchView('grafo'));
-  addOpt('space_dashboard', 'Espaço Infinito', () => switchView('board')); // Quadro Infinito
-  addOpt('calendar_month', 'Calendário', () => switchView('calendar'));
-  addOpt('data_object', 'JSON Studio', () => switchView('json'));
-  addOpt('menu_book', 'Ver tutorial', createTutorialNote);
-  addOpt(dark ? 'light_mode' : 'dark_mode', dark ? 'Tema claro' : 'Tema escuro', toggleTheme);
-  addOpt('sync', 'Sincronização…', () => syncController?.abrirPopover(btnAppMenu));
+  addOpt('📘  Ver tutorial', createTutorialNote);
+  addOpt(dark ? '☀️  Tema claro' : '🌙  Tema escuro', toggleTheme);
 
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
   // Um arquivo com tudo dentro. Existe pra que atualizar a extensão nunca
   // dependa de confiança: dá pra guardar as notas antes e conferir depois.
-  addOpt('download', 'Baixar todas as notas', downloadAllNotes);
+  addOpt('💾  Baixar todas as notas', downloadAllNotes);
 
   document.body.appendChild(menu);
   appMenuEl = menu;
-  if (btnAppMenu) positionPopover(menu, btnAppMenu);
+  positionPopover(menu, btnAppMenu);
 }
 
-
-document.addEventListener('quickdock:toggle-theme', () => toggleTheme());
-document.addEventListener('quickdock:open-sync', (e) => {
-  const anchor = e.detail?.anchor || btnSync || document.body;
-  syncController?.abrirPopover(anchor);
-});
-document.addEventListener('quickdock:toggle-docs', async () => {
-  const isMobile = html.getAttribute('data-platform') === 'mobile' || html.dataset.platform === 'mobile';
-  if (isMobile) {
-    await toggleDocsCollapsed();
-  } else {
-    toggleDocsExtension();
-  }
-});
-
-btnAppMenu?.addEventListener('click', e => {
+btnAppMenu.addEventListener('click', e => {
   e.stopPropagation();
   if (appMenuEl) closeAppMenu();
   else openAppMenu();
@@ -208,7 +77,7 @@ btnAppMenu?.addEventListener('click', e => {
 // aqui faria o clique seguinte reabrir o menu que se acabou de fechar.
 document.addEventListener('mousedown', e => {
   if (!appMenuEl) return;
-  if (appMenuEl.contains(e.target) || (btnAppMenu && btnAppMenu.contains(e.target))) return;
+  if (appMenuEl.contains(e.target) || btnAppMenu.contains(e.target)) return;
   closeAppMenu();
 });
 
@@ -230,122 +99,8 @@ async function init() {
   try {
     await initTheme();
     await initNotesTabs();
-    await abrirNotaDaUrlOuStorageSeHouver();
     await initDocuments();
     await initResizer();
-    initTemplatesGallery();
-    initGraphView();
-    await initBoardView();
-    initCalendarView();
-    initBasesView();
-    initJsonView();
-    // initDesktopPanels() (sistema antigo de 5 painéis, pré-Spatial Shell)
-    // não roda mais no desktop — o mosaico de spatial-shell.js substitui essa
-    // função por completo, e os dois brigavam pelo mesmo espaço em #app (o
-    // painel antigo não tinha grid-area, caía numa linha implícita fora do
-    // grid). As funções toggleDesktopPanel/isDesktopPanelOpen continuam
-    // existindo (outros módulos ainda importam), só não há mais nada
-    // desenhando/restaurando o layout de painéis de verdade.
-    initResponsiveHeaders();
-    initSpatialShell();
-    initReminderRunner();
-    initMobileInspector();
-
-    const btnHeaderTheme = document.getElementById('btn-header-theme');
-    if (btnHeaderTheme) {
-      btnHeaderTheme.addEventListener('click', () => toggleTheme());
-    }
-
-    const btnHeaderSync = document.getElementById('btn-header-sync');
-    if (btnHeaderSync) {
-      btnHeaderSync.addEventListener('click', () => syncController?.abrirPopover(btnHeaderSync));
-    }
-
-    const btnNavTemplates = document.getElementById('btn-nav-templates');
-    if (btnNavTemplates) {
-      btnNavTemplates.addEventListener('click', () => switchView('templates'));
-    }
-
-    const btnNavBoard = document.getElementById('btn-nav-board');
-    if (btnNavBoard) {
-      btnNavBoard.addEventListener('click', () => switchView('board'));
-    }
-
-    syncController = new SyncController({
-      onNotesChanged: refreshNotesList,
-      obterNotaAbertaUid: getActiveNoteUid,
-      podeRecarregarNotaAberta: canSafelyReloadCurrentNote,
-      recarregarNotaAberta: async id => {
-        // `descartarDom` é obrigatório aqui: a sincronização já gravou a versão
-        // nova no banco, e salvar o editor antes de recarregar escreveria o
-        // texto antigo por cima dela.
-        if (id != null) await switchToNote(id, { descartarDom: true });
-      },
-      antesDeSincronizar: async () => {
-        if (typeof flushSave === 'function') await flushSave();
-        if (typeof flushBoardSave === 'function') await flushBoardSave();
-      },
-      emModoModelo: isEditingTemplate,
-    });
-    await syncController.inicializar();
-    // Indicador sempre visível e trava ao abrir nota (esperar sincronizar antes de editar)
-    iniciarIndicadorDeSincronizacao(syncController);
-    iniciarTravaDeAbertura({
-      obterControlador: () => syncController,
-      obterIdAtivo: getActiveId,
-      obterCriacao: id => getNotesMeta().find(n => n.id === id)?.createdAt ?? null,
-    });
-    setImageResolver((caminho, noteId) => syncController?.resolverImagem(caminho, noteId));
-    // Imagens/vídeos/áudios de cartões do Espaço vindos de outro aparelho: baixa de imagens/ sob demanda
-    setBoardFileResolver(caminho => syncController?.resolverImagem(caminho, null));
-
-    // Atualiza estado visual do botão de sincronização
-    syncController.adicionarListener(resumo => {
-      if (!btnSync) return;
-      btnSync.classList.toggle('spinning', resumo.state === SYNC_STATE.SYNCING);
-      btnSync.classList.toggle('has-error', resumo.state === SYNC_STATE.ERROR);
-      btnSync.classList.toggle('needs-reauth', resumo.state === SYNC_STATE.NEEDS_REAUTH);
-      btnSync.classList.toggle('has-conflict', (resumo.totalConflitos || 0) > 0);
-
-      if (resumo.state === SYNC_STATE.SYNCING) {
-        btnSync.title = 'Sincronizando notas e quadros…';
-      } else if (resumo.totalConflitos > 0) {
-        btnSync.title = `Sincronização: ${resumo.totalConflitos} conflito(s) detectado(s) — clique para detalhes`;
-      } else if (resumo.state === SYNC_STATE.ERROR) {
-        btnSync.title = `Erro de sincronização: ${resumo.lastSyncError || 'Falha ao sincronizar'}`;
-      } else if (resumo.state === SYNC_STATE.NEEDS_REAUTH) {
-        btnSync.title = 'Acesso à pasta precisa ser reautorizado';
-      } else if (resumo.folderName) {
-        btnSync.title = `Sincronização ativa (${resumo.folderName})`;
-      } else {
-        btnSync.title = 'Sincronização (desconectado)';
-      }
-    });
-
-    btnSync?.addEventListener('click', e => {
-      e.stopPropagation();
-      syncController.abrirPopover(btnSync);
-    });
-
-    // Tarefa 5: Debounce de ~20s após parar de digitar (nunca a cada tecla)
-    document.getElementById('note-editor-blocks')?.addEventListener('input', () => {
-      syncController?.notificarAtividadeEditor();
-    });
-
-    document.addEventListener('quickdock:board-changed', () => {
-      syncController?.notificarAtividadeEditor();
-    });
-
-    // Ao SAIR (fechar/trocar de nota, mudar de tela, esconder o app) envia na hora o que foi escrito,
-    // sem esperar os 20 s de pausa: quando a pessoa abre a nota no outro aparelho ela já está lá.
-    document.addEventListener('quickdock:active-note-changed', () => syncController?.sincronizarAoSair());
-    document.addEventListener('quickdock:shell-focus', () => syncController?.sincronizarAoSair());
-    document.addEventListener('visibilitychange', () => { if (document.hidden) syncController?.sincronizarAoSair({ imediato: true }); });
-    window.addEventListener('pagehide', () => syncController?.sincronizarAoSair({ imediato: true }));
-    // Views da Base do workspace salvas (Salvar no rascunho ou ação da aside): sobem na próxima rodada
-    document.addEventListener('quickdock:workspace-base-saved', () => {
-      syncController?.notificarAtividadeEditor();
-    });
   } finally {
     // no finally: se um init falhar, o painel ainda aparece em vez de travar no véu
     revealApp();
@@ -354,5 +109,8 @@ async function init() {
 
 init();
 
-// ── Registra este painel no background (necessário para o toggle Ctrl+Q na extensão) ──
-conectarPainel();
+// ── Registra este painel no background (necessário para o toggle Ctrl+Q) ───────
+const _panelPort = chrome.runtime.connect({ name: 'sidepanel' });
+_panelPort.onMessage.addListener(msg => {
+  if (msg.type === 'close') window.close();
+});

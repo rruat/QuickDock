@@ -8,8 +8,6 @@
 //   Clique em espaço vazio        → limpa seleção
 //   Escape                        → limpa seleção
 
-import { isTouchSelectionMode } from './note.js';
-
 const DRAG_THRESHOLD = 5;
 
 // ── Estado ───────────────────────────────────────────────────────────────────
@@ -36,7 +34,6 @@ export function initSelection(grid, dropZone, onChange) {
   _onChange = onChange;
 
   _dropZone.addEventListener('mousedown', _onMouseDown);
-  _grid.addEventListener('touchstart', _onTouchStart, { passive: false });
   document.addEventListener('mousemove',  _onMouseMove);
   document.addEventListener('mouseup',    _onMouseUp);
   document.addEventListener('keydown',    _onKeyDown);
@@ -109,7 +106,7 @@ function _onMouseDown(e) {
   if (card) {
     const id = Number(card.dataset.id);
 
-    if (e.ctrlKey || e.metaKey || isTouchSelectionMode()) {
+    if (e.ctrlKey || e.metaKey) {
       selectedIds.has(id) ? _deselect(id) : _select(id);
       if (selectedIds.has(id)) lastClickedId = id;
       _onChange?.();
@@ -135,18 +132,6 @@ function _onMouseDown(e) {
   rb.startY     = e.clientY;
   rb.targetCard = null;
   rb.el         = null;
-}
-
-function _onTouchStart(e) {
-  if (!isTouchSelectionMode()) return;
-  const card = e.target.closest('.doc-card');
-  if (!card) return;
-  if (e.target.closest('.doc-delete, .doc-inject')) return;
-  const id = Number(card.dataset.id);
-  selectedIds.has(id) ? _deselect(id) : _select(id);
-  if (selectedIds.has(id)) lastClickedId = id;
-  _onChange?.();
-  e.preventDefault();
 }
 
 function _onMouseMove(e) {

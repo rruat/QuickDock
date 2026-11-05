@@ -1,53 +1,22 @@
-﻿import {
-  loadAllNotesMeta, loadAllNoteIds, createNoteRecord, updateNoteMetaById, deleteNoteRecordById,
-  reorderNoteRecords, moveNoteRecord, loadActiveNoteId, saveActiveNoteId,
+import {
+  loadAllNotesMeta, createNoteRecord, updateNoteMetaById, deleteNoteRecordById,
+  reorderNoteRecords, migrateLegacyNoteIfNeeded, loadActiveNoteId, saveActiveNoteId,
   getNoteById, detachFilesFromNote, updateNoteBlocksById,
-  gcInlineFiles,
-  listarPastas, criarPasta, renomearPasta, excluirPasta, moverNotaParaPasta, normalizarCaminhoPasta,
+  updateTemplateById, gcInlineFiles,
 } from './storage.js';
-import { aplicarFonteDaNota } from './note-font.js';
-import { closeMobileLeftDrawer } from './shell/shell-mobile.js';
 import { setDocumentsNote, refreshDocuments } from './documents.js';
 import { positionPopover } from './popover.js';
 import {
   initTemplates, getTemplates, noteTemplates, openTemplatesManager,
+  refreshTemplates, closeTemplatesManager,
 } from './templates.js';
 import {
   switchToNote, flushSave, getCurrentBlocks, clearCurrentNote,
+  openTemplateInEditor, currentTemplateMarkdown, clearTemplateEditing,
   blocksToExportMarkdown, absorbDataUrls,
 } from './note.js';
-import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks, blocksOfNote } from './blocks.js';
+import { blocksToMarkdown, blocksToPlainText, parseMarkdownToBlocks } from './blocks.js';
 import { buildBackup, parseBackup } from './backup.js';
-import { iconSvg, createIcon } from './icons.js';
-import { hasIconImage, buildIconImageNode } from './note-icon-image.js';
-import { switchView, getCurrentView } from './views.js';
-import { createTutorialNote } from './notes-tutorial.js';
-export { createTutorialNote };
-import {
-  renderAppearanceContent, openAppearancePopover, closeAppearancePopoverIfOutside,
-} from './notes-appearance.js';
-export { renderAppearanceContent, openAppearancePopover };
-import { currentNoteAsMarkdown } from './notes-template-mode.js';
-import {
-  hideEmptyDashboard, showEmptyDashboard, renderEmptyDashboardContent,
-} from './notes-dashboard.js';
-export { hideEmptyDashboard, showEmptyDashboard, renderEmptyDashboardContent };
-import {
-  closeFolderModal as _closeFolderModal,
-  promptExcluirPastaModal,
-} from './tabs/notes-folder-modals.js';
-import {
-  openTabMenu as _openTabMenu,
-  closeTabMenu as _closeTabMenu,
-  getTabMenuElement,
-} from './tabs/notes-tab-menu.js';
-import {
-  renderNotesListRowsCore,
-} from './tabs/notes-drawer.js';
-import { buildAsideHeader, refreshAsideBadge } from './tabs/notes-aside-header.js';
-
-
-
 
 const tabsEl        = document.getElementById('notes-tabs');
 const btnNew        = document.getElementById('btn-new-note');
@@ -58,28 +27,392 @@ const noteSection   = document.querySelector('.note-section');
 
 // A tira de abas só rola na horizontal, mas a roda do mouse manda scroll
 // vertical por padrão (só vira horizontal segurando Shift) — aqui a gente
-// já converte deltaY em scrollLeft direto, sem precisar da tecla. Vale pra
-// todas as plataformas: no desktop o #notes-tabs também é uma tira horizontal
-// (fica no topo do .note-section, ver initDesktopNotesAsideDrawer).
+// já converte deltaY em scrollLeft direto, sem precisar da tecla.
 tabsEl.addEventListener('wheel', e => {
   if (e.deltaY === 0) return;
   e.preventDefault();
   tabsEl.scrollLeft += e.deltaY;
 }, { passive: false });
 
+// As 7 cores do arco-íris, na ordem — "Nenhuma" fica à parte, sempre primeiro
+// na lista do popover.
+const COLORS = [
+  { name: 'Vermelho', hex: '#ef4444' },
+  { name: 'Laranja',  hex: '#f97316' },
+  { name: 'Amarelo',  hex: '#eab308' },
+  { name: 'Verde',    hex: '#22c55e' },
+  { name: 'Azul',     hex: '#3b82f6' },
+  { name: 'Anil',     hex: '#6366f1' },
+  { name: 'Violeta',  hex: '#a855f7' },
+];
 
+// Ícones comuns (Material Symbols) — qualquer outro nome do catálogo
+// (fonts.google.com/icons) também funciona via o campo de texto livre.
+// Onze: com o "nenhum" na frente fecham duas fileiras de seis na grade.
+const COMMON_ICONS = [
+  'note', 'edit_note', 'checklist', 'star', 'flag', 'bookmark',
+  'folder', 'lightbulb', 'push_pin', 'label', 'event',
+];
+
+// ── Nota-tutorial ──────────────────────────────────────────────────────────
+// Texto em markdown puro — vira blocos de verdade (títulos, listas, citação,
+// checklist, divisores, negrito/itálico/riscado) pelo mesmo parser usado na
+// importação de arquivo .md. Sem crase nenhuma aqui de propósito: qualquer
+// crase no meio do texto seria interpretada como código em linha pelo
+// próprio parser, então os exemplos de sintaxe são descritos por extenso.
+const TUTORIAL_MARKDOWN = `# Bem-vindo ao QuickDock 👋
+
+Esta nota foi criada automaticamente pra te mostrar como usar cada parte do QuickDock. Pode editar ou apagar à vontade — sempre que quiser vê-la de novo, abra o menu ⋯ no fim da barra de abas e escolha "Ver tutorial".
+
+## Formatação de texto
+
+- Colocar **duplo asterisco** dos dois lados vira **negrito**
+- Colocar *um asterisco* de cada lado vira *itálico*
+- Colocar ~~til duplo~~ dos dois lados vira ~~riscado~~
+- Colocar o texto entre um par de crases vira código em linha
+
+Tudo junto, numa linha de verdade:
+
+**Protocolo 88123** — reembolso *em análise*, prazo ~~15/09~~ 22/09.
+
+## Links
+
+Selecione um texto e aperte Ctrl+K pra transformar em link. Com o cursor dentro de um link já existente, Ctrl+K reabre o menu pra trocar o endereço ou remover.
+
+Colar uma URL também funciona: sem nada selecionado ela entra como link, e com texto selecionado o endereço envolve a seleção.
+
+Pra abrir um link, segure Ctrl e clique — o mesmo gesto da detecção inteligente. Clique normal só posiciona o cursor, senão não daria pra editar o texto. Experimente neste: [catálogo de ícones do Google](https://fonts.google.com/icons)
+
+Na prática, serve pra deixar o caminho de volta salvo junto do caso: o portal da operadora, o formulário que você sempre preenche, a consulta do protocolo.
+
+Digitar também funciona: escreva o texto entre colchetes seguido do endereço entre parênteses e, ao fechar o parêntese, vira link sozinho.
+
+## Indentação
+
+Tab indenta o bloco e Shift+Tab desindenta — até cinco níveis, que é o que cabe num painel estreito. Vale pra qualquer bloco, não só lista: parágrafo, título e até tabela.
+
+- Fruta
+  - Maçã
+    - Fuji
+  - Pera
+- Legume
+
+Repare em três coisas: o marcador muda a cada nível, a lista numerada recomeça a contagem dentro de cada nível, e indentar um item leva os itens de dentro dele junto.
+
+1. Abrir o protocolo
+  1. Anexar o relatório
+  2. Conferir o prazo
+2. Registrar o retorno
+
+Pra sair de um nível sem usar Shift+Tab: Enter numa linha vazia ou Backspace no começo da linha.
+
+## Tipos de bloco
+
+Digite uma barra "/" no começo de uma linha vazia pra abrir o menu e escolher o tipo de bloco. Ou use os atalhos abaixo, digitando o símbolo seguido de espaço no início da linha:
+
+- Cerquilha (#), repetida até seis vezes, + espaço → Título 1 a Título 6
+- Hífen ou asterisco + espaço → lista com marcadores
+- "1." + espaço → lista numerada
+- Hífen, espaço e colchetes "[ ]" → checklist
+- Maior-que (>) + espaço → citação
+- Colchete, exclamação, o tipo e colchete + espaço → destaque colorido
+- Três hífens sozinhos na linha → divisor
+- Três crases sozinhas na linha → bloco de código
+
+O menu do "/" também traz o que não tem atalho de teclado: Tabela, Imagem, os cinco destaques e os seus modelos de bloco. Setas pra escolher, Enter pra confirmar.
+
+### Exemplos ao vivo
+
+Citação — boa pra guardar a fala de alguém sem misturar com a sua anotação:
+
+> A beneficiária afirma que enviou a documentação em 02/09. Conferir no protocolo antes de responder.
+
+A citação não é um tipo de bloco e sim uma marca: qualquer bloco pode ser citado e continua sendo o que era. Por isso título, lista e checklist funcionam dentro dela:
+
+> #### Retorno da operadora
+>
+> - Protocolo aceito
+> - Prazo de 5 dias úteis
+>
+> - [ ] Conferir no dia 22
+
+Pra tirar a citação: Backspace no começo da linha, ou o botão de aspas na barra que aparece ao selecionar texto.
+
+### Destaques
+
+Aquela caixa colorida de aviso que todo manual tem. São cinco tipos, cada um com sua cor:
+
+> [!NOTE]
+> Um recado que a pessoa precisa ler, sem urgência nenhuma.
+
+> [!TIP]
+> Um atalho que economiza tempo.
+
+> [!IMPORTANT]
+> Algo que muda o resultado se for ignorado.
+
+> [!WARNING]
+> Um cuidado a tomar antes de seguir.
+
+> [!CAUTION]
+> Um risco de verdade — dá pra perder trabalho aqui.
+
+Pra criar: digite "/" e procure por Destaque, ou escreva o marcador direto no início da linha — colchete, exclamação, o nome do tipo em inglês, colchete e espaço. O rótulo colorido aparece sozinho; ele não é texto da nota, então não dá pra apagar sem querer.
+
+O destaque é uma citação com um marcador — por isso tudo que funciona dentro de uma citação funciona dentro dele, e a caixa cresce conforme você aperta Enter:
+
+> [!WARNING]
+> **Antes de enviar o protocolo**
+>
+> - [ ] CPF confere com o do titular
+> - [ ] Documentação dentro da validade
+
+Isso é markdown de verdade, o mesmo que o GitHub usa. Baixe a nota como .md, abra lá, e a caixa aparece colorida do mesmo jeito.
+
+Checklist — clique nas caixas, elas ficam marcadas:
+
+- [x] Solicitar segunda via do boleto
+- [ ] Conferir elegibilidade no portal
+- [ ] Retornar a ligação
+
+Checklist aninhada conversa entre si: marcar um item marca tudo que está dentro dele, e completar os itens de dentro completa o de fora. Enquanto só uma parte está feita, o item de fora mostra um tracinho em vez do visto. Experimente marcar os dois itens de dentro:
+
+- [ ] Documentação do beneficiário
+  - [ ] Documento com foto
+  - [ ] Comprovante de residência
+- [ ] Enviar para análise
+
+Lista numerada — pro passo a passo de um procedimento:
+
+1. Abrir o protocolo no portal da operadora
+2. Anexar o relatório do mês
+3. Registrar o número de retorno nesta nota
+
+---
+
+## Tabelas
+
+Digite "/" e escolha Tabela pra inserir uma. A primeira linha é sempre o cabeçalho.
+
+| Beneficiário | CPF | Status |
+| --- | --- | --- |
+| Ana Souza | 111.444.777-35 | Ativo |
+| João Lima | 11.222.333/0001-81 | Pendente |
+
+- Tab pula pra próxima célula e Shift+Tab volta. Tab na última célula cria uma linha nova.
+- Com o cursor dentro da tabela aparece uma barra com "+ linha", "+ coluna", "− linha" e "− coluna" — as ações valem pra linha e a coluna onde o cursor está.
+- Enter dentro de uma célula quebra linha ali dentro, sem sair da tabela.
+- Em painel estreito a tabela rola na horizontal em vez de espremer as colunas.
+- A detecção inteligente (CPF, data, cálculo) ainda não roda dentro das células — por isso os números da tabela acima não ficam sublinhados.
+
+### Colar do Excel ou do Google Sheets
+
+Selecione as células lá, copie, e cole aqui: vira uma tabela de verdade, com as colunas separadas. Vale pro Excel, pro Google Sheets e pra qualquer coisa que copie em colunas separadas por tabulação.
+
+Na prática: recorte do relatório só as linhas que interessam ao caso e cole aqui, em vez de deixar a planilha inteira aberta numa aba ao lado.
+
+---
+
+## Cálculo
+
+Digite "/" e escolha Cálculo pra abrir uma folha de conta. Cada linha calcula sozinha e mostra o resultado ao lado, enquanto você digita.
+
+\`\`\`calc
+boleto = R$ 1.000,00
+imposto = 15%
+calculo = boleto - imposto
+\`\`\`
+
+Repare no que acontece ali: **porcentagem é sempre relativa ao valor da esquerda**. "boleto menos imposto" tira 15% de mil e dá R$ 850,00 — não subtrai quinze centavos.
+
+O "R$" é pra valer: ele acompanha a conta e volta formatado no fim. Some com número puro, multiplique, divida — o resultado continua em reais. Só dividir dinheiro por dinheiro vira número, porque aí é uma razão.
+
+- Escrever "let" na frente é opcional: "boleto = 1000" funciona igual
+- Uma linha que não é conta fica lá como texto, sem resultado e sem reclamação. Serve pra anotar no meio da folha
+- Começar com duas barras também é comentário
+- Enter numa linha vazia sai da folha, como numa lista
+
+### Somar uma coluna
+
+A palavra "acima" vale por tudo que está logo em cima, até a primeira linha sem valor:
+
+\`\`\`calc
+R$ 480,00
+R$ 120,50
+R$ 89,90
+total = acima
+\`\`\`
+
+Também existem soma, média e arredondar. Os argumentos vão separados por ponto e vírgula, porque a vírgula aqui é decimal: soma(10; 20; 30).
+
+### O resultado não fica guardado
+
+O que a nota grava é só a conta — o valor é recalculado toda vez que a folha aparece. Guardar o número criaria a chance de ele discordar da conta, e não haveria como saber qual dos dois está certo.
+
+Na hora de baixar a nota ou copiar como texto, aí sim o resultado vai junto, ao lado de cada linha. Quem recebe vê os valores sem precisar do QuickDock.
+
+---
+
+## Imagens
+
+Três jeitos de colocar uma imagem dentro da nota:
+
+- Cole com Ctrl+V depois de clicar na nota — um print recém-tirado entra direto. O que decide o destino é onde você clicou por último: clicou na nota, a imagem entra no texto; clicou na seção Documentos, ela vai pra lá.
+- Arraste o arquivo de imagem pra dentro do editor
+- Digite "/" e escolha Imagem
+
+Passe o mouse na imagem pra ver a barra de botões:
+
+- **Mover p/ Documentos** — tira a imagem do meio do texto e guarda na seção de baixo, vinculada a esta nota. Serve pra quando o arquivo importa mas não precisa ocupar espaço na leitura.
+- **Trocar** — troca por outro arquivo, mantendo o lugar dela na nota.
+- **Texto** — a descrição da imagem. Serve pra quem usa leitor de tela e é o que aparece caso o arquivo se perca.
+- **Remover** — tira a imagem da nota.
+
+Clique na imagem pra abrir o visualizador, com zoom, girar e setas pra passar pelas outras imagens da nota.
+
+A imagem é guardada como arquivo de verdade, não embutida no texto da nota. Isso é o que mantém a nota leve por mais prints que ela tenha. Quando você baixa a nota como .md, aí sim ela vai embutida — o arquivo abre em qualquer editor, com as imagens dentro.
+
+Imagem colada na nota não aparece na seção Documentos: ela já está visível aqui. E imagem com endereço da internet não é exibida de propósito — abrir a nota avisaria o site de onde ela veio que você abriu, e quando. Nesses casos o endereço vira um link, e você decide se quer abrir.
+
+---
+
+## Controles de cada bloco
+
+Passe o mouse na margem esquerda de qualquer bloco (inclusive este) pra ver dois ícones aparecerem:
+
+- O símbolo "+" adiciona um bloco novo logo abaixo. Segure Ctrl e clique nele pra adicionar acima.
+- A alça de arrastar (os pontinhos): clique nela pra abrir o menu do bloco, ou arraste pra reordenar sem perder a formatação.
+- No topo do menu fica uma fileira de ícones com o que mais se usa: copiar como texto, copiar imagem, duplicar e excluir. Ela não sai do lugar enquanto você rola o resto do menu.
+- Pra mexer em vários blocos de uma vez: selecione por cima deles arrastando o texto normalmente, sem tecla nenhuma. Os blocos inteiros ficam marcados, e a partir daí a alça de qualquer um deles move o grupo todo — e o menu da alça passa a valer pros três ("Transformar em (3 blocos)").
+- Ctrl e arrastar também seleciona, a partir de qualquer ponto do bloco. Serve pros casos em que não há texto pra arrastar por cima, como um bloco de imagem sozinho.
+
+### Mandar um pedaço da nota como imagem
+
+No menu da alça tem "Copiar imagem" e "Baixar imagem (.png)". Vale pro bloco sozinho ou pro grupo selecionado, e serve pra mandar um trecho num aplicativo de conversa sem ter que explicar o que é markdown.
+
+A imagem sai exatamente como está na tela — com as cores da nota, os destaques e as checklists —, mas sem nada que seja controle: sem o realce de seleção, sem os ícones da margem e sem a barra de botões da tabela. E com a mesma margem do editor em volta, pra que o texto não fique colado na borda.
+- Ctrl+Z desfaz e Ctrl+Shift+Z refaz — inclusive troca de tipo de bloco.
+
+Experimente agora nesta linha: passe o mouse na margem, clique na alça, escolha "Transformar em" e depois "Citação". Ctrl+Z traz de volta.
+
+## Detecção inteligente (a parte de "cálculo")
+
+Segure Ctrl e clique em cima de qualquer valor sublinhado abaixo pra ver um menu com opções de cópia (ou o cálculo, no último caso):
+
+- CPF: 111.444.777-35
+- CNPJ: 11.222.333/0001-81
+- CEP: 01310-100
+- Telefone: (11) 98765-4321
+- E-mail: contato@quickdock.com
+- Data: 25/12/2026
+- Cálculo: 150 + 25 * 2 - 10%
+
+No cálculo, o menu mostra o passo a passo e o resultado, com um botão pra copiar. CPF e CNPJ também mostram se o número é válido.
+
+Na prática, é o que evita redigitar: cole o CPF do beneficiário na nota, Ctrl+clique e copie já sem pontuação direto pro campo do sistema. O cálculo confere um repasse sem abrir a calculadora, e a data já traz a idade calculada junto, pronta pra copiar.
+
+---
+
+## Várias notas
+
+- As abas da nota ficam no topo desta seção. Clique no ☰ pra ver a lista completa (útil quando há muitas abas abertas).
+- O botão ＋ abre um menu: nota em branco, importar um .md ou .txt, criar a partir de um modelo, e gerenciar os modelos.
+- Dê um duplo clique numa aba pra abrir o menu dela: Renomear, Ícone e cor, Copiar como Markdown, Copiar como texto, Baixar .md, Baixar .txt, Limpar conteúdo e Excluir. Pela lista do ☰ o mesmo menu abre no botão de editar de cada linha.
+- "Limpar conteúdo" esvazia só o texto daquela nota — o nome, a cor e os documentos dela continuam onde estão. "Excluir" some com a nota inteira.
+- Em "Ícone e cor" dá pra escolher um ícone comum ou digitar o nome de qualquer ícone do catálogo do Google Fonts e clicar no botão ao lado do campo pra aplicar. Também dá pra alternar entre contorno e preenchido e escolher a cor — a última bolinha, com arco-íris, abre o seletor de cor livre.
+
+Uma forma de organizar: uma nota por cliente, por caso ou por dia. Dê nome, cor e ícone a cada aba e ela fica reconhecível de relance mesmo com dez abertas. Se o espaço apertar, marque "Ocultar nome na aba" nas que já têm ícone — a aba encolhe pro ícone colorido e cabe muito mais coisa na barra.
+
+### Backup de tudo
+
+No menu ⋯ tem "Baixar todas as notas": gera um arquivo só, com todas as notas dentro e as imagens embutidas. Fora daqui ele é um markdown comum, que abre em qualquer editor.
+
+Pra restaurar, use Importar e escolha esse arquivo — o QuickDock reconhece que é um backup e recria as notas separadas, uma a uma, com os nomes originais. Restaurar sempre adiciona notas novas: nada do que já existe é alterado, então importar um backup antigo por engano não apaga o trabalho de hoje.
+
+## Modelos
+
+Quando a mesma sequência de conferências se repete todo dia, vale virar modelo. Existem dois tipos, e a diferença é só o tamanho do que eles trazem.
+
+### Modelo de nota — cria a nota inteira
+
+No menu do ＋ aparece a seção "A partir de um modelo": clicar num deles já cria a nota com a estrutura montada, checkbox por checkbox.
+
+Já vem um de exemplo chamado **Atendimento**, com campos de identificação, uma lista de validações e outra de ações. Abra o ＋ e crie uma nota com ele pra ver como fica.
+
+### Modelo de bloco — entra no meio da nota
+
+Esse não cria nota nenhuma: insere um pedaço onde o cursor está. Duas formas de chamar:
+
+- Digite "/" numa linha vazia e comece a escrever o nome do modelo — ele aparece na lista junto com os tipos de bloco, marcado como "modelo".
+- Ou abra o menu da alça do bloco: os modelos ficam na seção "Inserir modelo", logo abaixo de "Transformar em".
+
+Numa linha vazia o modelo ocupa o lugar dela; com texto na linha, ele entra logo abaixo.
+
+Vem um de exemplo chamado **Conferência** — um subtítulo, três checkboxes e o campo de quem conferiu.
+
+Pra criar o seu: selecione os blocos que quer guardar (basta arrastar por cima deles), abra o menu da alça e escolha "Salvar como modelo de bloco". Aparece um campo com um nome sugerido a partir da primeira linha — confirme e pronto. Você continua na nota, no mesmo lugar: salvar um modelo não mexe no que está escrito.
+
+### Criar e editar um modelo
+
+Você não escreve modelo em lugar nenhum diferente: **o modelo abre no editor normal**, este mesmo. Checkbox clicável, menu "/", tabela, negrito — tudo igual a editar uma nota, porque é o mesmo editor.
+
+O que muda é uma barra azul que aparece no topo, com a etiqueta **MODELO**. Nela ficam o nome, o tipo e os botões Salvar e Cancelar.
+
+Três formas de chegar lá, todas no menu do ＋ → "Gerenciar modelos…":
+
+- No ✎ de um modelo que já existe (passe o mouse na linha pra ver os botões).
+- Em "Criar modelo do zero", pra começar em branco.
+- Em "Salvar a nota atual como modelo", que leva o conteúdo da nota aberta pro modelo novo.
+
+O **tipo** na barra converte um modelo de nota em modelo de bloco e vice-versa — serve quando a importação entrou no tipo errado.
+
+Duas coisas pra não tomar susto: enquanto um modelo está aberto **não existe salvamento automático**, ele só grava no botão Salvar. E **trocar de aba sai sem salvar**, como se você tivesse clicado em Cancelar.
+
+### Compartilhar
+
+O modelo é markdown puro, o mesmo formato da exportação. Então compartilhar é só isso:
+
+- **↓** baixa o modelo como .md — mande o arquivo pro colega.
+- Quem recebe usa **"Importar como modelo de nota"** ou **"...de bloco"**. São dois botões porque o .md sozinho não diz qual dos dois ele é.
+- **✕** exclui.
+
+Na prática: se todo pedido de reembolso passa pelas mesmas seis conferências, faça uma nota com elas e salve como modelo de nota "Reembolso". Já um trecho que você cola no meio de qualquer atendimento — o bloco de conferência, o de encerramento — vale guardar como modelo de bloco, pra chamar com "/" sem sair da nota.
+
+## Documentos
+
+Na parte de baixo do painel dá pra guardar arquivos e imagens:
+
+- Clique no ＋ da seção Documentos, arraste arquivos pra dentro da área, ou cole uma imagem direto com Ctrl+V.
+- Clique em uma imagem pra abrir o visualizador — zoom, girar, navegar entre várias com as setas.
+- Selecione vários arquivos pra injetar direto na página que você está usando ou apagar em lote.
+
+### Documento de uma nota ou de todas
+
+Todo arquivo novo entra vinculado à nota aberta. O alfinete no canto do arquivo alterna entre duas situações:
+
+- **Vinculado** (alfinete azul, sempre visível): aparece só nesta nota.
+- **Geral** (alfinete some quando o mouse sai): aparece em todas as notas. Bom pra modelo, logo, formulário em branco — coisas que você usa o tempo todo.
+
+No cabeçalho da seção, "Nesta nota" mostra os desta nota mais os gerais, e "Todos" mostra o acervo inteiro, com os de outras notas em tom apagado. Sempre que o filtro esconder alguma coisa, aparece um rodapé dizendo quantos arquivos ficaram de fora, com um clique pra ver todos — nenhum arquivo some sem aviso.
+
+Pra mover vários de uma vez, selecione e use "📌 Vincular" ou "📌 Tornar geral" na barra azul.
+
+Excluir uma nota **não apaga** os arquivos dela: eles viram gerais.
+
+Na prática: abra a nota do caso e arraste pra dentro o PDF da carteirinha e o print do protocolo — eles ficam vinculados àquela nota e somem da vista quando você troca de aba. Já o modelo de e-mail que você usa em todo atendimento vale deixar geral, pra ter à mão em qualquer nota.
+
+---
+
+Pronto — isso cobre praticamente tudo. Bom uso 🚀`;
+
+function buildTutorialNoteFields() {
+  const blocks  = parseMarkdownToBlocks(TUTORIAL_MARKDOWN);
+  const content = blocksToMarkdown(blocks);
+  return { title: 'Tutorial', content, blocks, icon: 'school', color: '#3b82f6' };
+}
 
 let notesMeta = [];
 let activeId  = null;
-
-// Getters/setter expostos pros módulos extraídos de notes-tabs.js (notes-tutorial.js,
-// notes-appearance.js, etc.) — notesMeta/activeId continuam vivendo aqui porque são
-// lidos/escritos de quase todo canto do arquivo; mover o estado em si exigiria tocar
-// dezenas de pontos de reatribuição de uma vez, então por enquanto só o acesso é
-// exposto por função (mesmo padrão usado no split de note.js).
-export function getNotesMeta() { return notesMeta; }
-export function setNotesMeta(arr) { notesMeta = arr; }
-export function getActiveId() { return activeId; }
 
 // ── Reordenar notas por arraste (abas e lista do "☰") ─────────────────────────
 // Mesma lógica de mover-dentro-do-array pros dois lugares; cada um só monta
@@ -103,143 +436,27 @@ async function reorderNotes(srcId, targetId, before) {
   if (to === -1) to = notesMeta.length;
   else if (!before) to += 1;
   notesMeta.splice(to, 0, moved);
-
-  // Só a nota arrastada é regravada — os vizinhos dizem onde ela cai. É o
-  // ganho concreto da ordem fracionária: arrastar toca 1 registro, não N.
-  const anterior = notesMeta[to - 1]?.ordem ?? null;
-  const seguinte = notesMeta[to + 1]?.ordem ?? null;
-  const novaOrdem = await moveNoteRecord(moved.id, anterior, seguinte);
-
-  if (novaOrdem) {
-    moved.ordem = novaOrdem;
-  } else {
-    // Vizinhança inconsistente: renumera a lista uma vez e segue. Caro, mas é
-    // reparo — e deixa o banco são pro próximo arrasto ser barato de novo.
-    const ordens = await reorderNoteRecords(notesMeta.map(n => n.id));
-    notesMeta.forEach((n, i) => { n.ordem = ordens[i]; });
-  }
+  await reorderNoteRecords(notesMeta.map(n => n.id));
   return true;
 }
 
 // Sem cor definida: remove a variável (não seta "transparent") pra que os
 // elementos temáticos (citação, marcadores, checkbox) caiam de volta no
 // var(--accent) padrão em vez de ficarem invisíveis.
-export function setAccent(color, font) {
-  aplicarFonteDaNota(font);
-  if (color) {
-    noteEditorEl?.style.setProperty('--note-accent', color);
-    document.documentElement.style.setProperty('--note-accent', color);
-  } else {
-    noteEditorEl?.style.removeProperty('--note-accent');
-    document.documentElement.style.removeProperty('--note-accent');
-  }
+function setAccent(color) {
+  if (color) noteEditorEl.style.setProperty('--note-accent', color);
+  else noteEditorEl.style.removeProperty('--note-accent');
 }
 
-// ── Gestão de Abas Abertas (Prevenção de Abas Infinitas) ──────────────────────
-const OPEN_TABS_KEY = 'quickdock:open_tabs';
-
-function getOpenTabIds() {
-  try {
-    const raw = localStorage.getItem(OPEN_TABS_KEY);
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr) && arr.length > 0) return arr.map(Number);
-    }
-  } catch {}
-  return null;
-}
-
-function saveOpenTabIds(ids) {
-  try {
-    localStorage.setItem(OPEN_TABS_KEY, JSON.stringify(ids));
-  } catch {}
-}
-
-let openTabIds = getOpenTabIds() || [];
-
-
-export async function deactivateActiveNote() {
-  activeId = null;
-  await saveActiveNoteId(null);
-  await switchToNote(null);
-  await setDocumentsNote(null);
-  setAccent(null);
-  updateNoteFolderBar(null);
-  showEmptyDashboard();
-}
-
-export async function closeTab(noteId) {
-  const idNum = Number(noteId);
-  const idx = openTabIds.indexOf(idNum);
-  if (idx === -1) return;
-
-  openTabIds.splice(idx, 1);
-  saveOpenTabIds(openTabIds);
-
-  if (idNum === activeId) {
-    if (openTabIds.length > 0) {
-      const nextIdx = Math.min(idx, openTabIds.length - 1);
-      await activateNote(openTabIds[nextIdx]);
-    } else {
-      await deactivateActiveNote();
-    }
-  }
-
-  renderTabs();
-  if (activeId) scrollTabIntoView(activeId);
-}
-
-export function renderTabs() {
+function renderTabs() {
   tabsEl.innerHTML = '';
-  let validOpenIds = (openTabIds || []).filter(id => notesMeta.some(n => n.id === id));
-  openTabIds = validOpenIds;
-  saveOpenTabIds(openTabIds);
-
-  for (const id of openTabIds) {
-    const meta = notesMeta.find(n => n.id === id);
-    if (meta) tabsEl.appendChild(buildTab(meta));
-  }
-
-  if (openTabIds.length === 0) {
-    showEmptyDashboard();
-  } else {
-    hideEmptyDashboard();
-  }
-
-  if (notesAsideDrawer) {
-    notesAsideDrawer.querySelectorAll('.notes-list-item').forEach(el => {
-      const isCur = Number(el.dataset.id) === activeId;
-      el.classList.toggle('current', isCur);
-    });
-    const badge = notesAsideDrawer.querySelector('.notes-aside-badge');
-    if (badge) badge.textContent = String(notesMeta.length);
-  }
-
-  // Notifica o Spatial Shell (spatial-shell.js) pra sincronizar uma tile por
-  // nota aberta no mosaico — cada nota vira sua própria view (design-pattern),
-  // não só uma aba. Ver também getOpenTabsSnapshot() pro estado inicial.
-  document.dispatchEvent(new CustomEvent('quickdock:notes-open-tabs-changed', {
-    detail: getOpenTabsSnapshot()
-  }));
-}
-
-// Estado atual de abas abertas, pro Spatial Shell montar as tiles de notas no
-// mosaico sem precisar duplicar o acesso a notesMeta/openTabIds (privados
-// deste módulo). Usado tanto no listener do evento acima quanto na leitura
-// inicial de spatial-shell.js (initSpatialShell roda depois de initNotesTabs,
-// então o primeiro evento já teria disparado antes do listener existir).
-export function getOpenTabsSnapshot() {
-  return {
-    openIds: [...openTabIds],
-    activeId,
-    notes: openTabIds.map(id => notesMeta.find(n => n.id === id)).filter(Boolean)
-  };
+  for (const meta of notesMeta) tabsEl.appendChild(buildTab(meta));
 }
 
 // A tira de abas rola só na horizontal — trocar de nota por um caminho que
 // não seja clicar na própria aba (menu "☰", carregamento inicial) pode
 // deixar a aba ativa fora da área visível.
-export function scrollTabIntoView(id) {
+function scrollTabIntoView(id) {
   const tab = tabsEl.querySelector(`.note-tab[data-id="${id}"]`);
   tab?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
 }
@@ -249,15 +466,13 @@ export function scrollTabIntoView(id) {
 // "modo" separado — é só o que estiver de fato preenchido. Não tem clique
 // próprio: o duplo clique em qualquer parte da aba (texto, ícone ou cor)
 // é tratado no nível da própria aba, em buildTab.
-export function buildTabIndicator(meta) {
-  if (hasIconImage(meta)) {
-    return buildIconImageNode(meta.iconImage, 'note-tab-icon note-tab-icon-img');
-  }
-
+function buildTabIndicator(meta) {
   if (meta.icon) {
-    const ico = createIcon(meta.icon, 'note-tab-icon' + (meta.iconFilled ? ' icon-filled' : ''));
-    ico.style.color = meta.color || 'var(--text-muted)';
-    return ico;
+    const span = document.createElement('span');
+    span.className = 'note-tab-icon material-symbols-rounded' + (meta.iconFilled ? ' icon-filled' : '');
+    span.textContent = meta.icon;
+    span.style.color = meta.color || 'var(--text-muted)';
+    return span;
   }
 
   if (meta.color) {
@@ -271,89 +486,36 @@ export function buildTabIndicator(meta) {
 }
 
 function buildTab(meta) {
-  const isConflict = /conflito/i.test(meta.title ?? '');
-  const isActive = meta.id === activeId;
   const tab = document.createElement('div');
-  tab.className = 'note-tab' + (isActive ? ' active' : '') + (isConflict ? ' is-conflict' : '');
+  tab.className = 'note-tab' + (meta.id === activeId ? ' active' : '');
   tab.draggable = true;
   tab.dataset.id = String(meta.id);
-  tab.title = meta.pasta
-    ? `${meta.title || 'Sem título'} (📁 ${meta.pasta})`
-    : (meta.title || 'Sem título');
-
-  // Se a aba estiver ativa: se tiver cor definida, usa essa cor na borda; senão cai no cinza mais escuro do CSS
-  if (isActive) {
-    if (meta.color) {
-      tab.style.setProperty('--active-accent', meta.color);
-      tab.style.borderColor = meta.color;
-    } else {
-      tab.style.removeProperty('--active-accent');
-      tab.style.removeProperty('border-color');
-    }
-  }
+  tab.title = meta.title || 'Sem título';
 
   const indicator = buildTabIndicator(meta);
 
   // Só oculta o nome se sobrar ícone ou cor pra identificar a aba — nunca os
   // três (ícone, cor e nome) somem ao mesmo tempo.
-  const titleHidden = !!meta.titleHidden && !!(meta.icon || meta.color || hasIconImage(meta));
-
-  const titleGroup = document.createElement('div');
-  titleGroup.className = 'note-tab-title-group';
-  if (titleHidden) titleGroup.hidden = true;
+  const titleHidden = !!meta.titleHidden && !!(meta.icon || meta.color);
 
   const title = document.createElement('span');
   title.className   = 'note-tab-title';
   title.textContent = meta.title || 'Sem título';
-  titleGroup.appendChild(title);
-
-  if (meta.pasta) {
-    const folderEl = document.createElement('span');
-    folderEl.className = 'note-tab-folder note-tab-folder-badge';
-    folderEl.textContent = meta.pasta;
-    folderEl.title = `Pasta: ${meta.pasta}`;
-    titleGroup.appendChild(folderEl);
-    tab.classList.add('has-folder');
-  }
+  title.hidden       = titleHidden;
 
   if (indicator) tab.appendChild(indicator);
-  tab.appendChild(titleGroup);
-
-  // Botão de fechar aba
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'note-tab-close icon-btn';
-  closeBtn.title = 'Fechar aba';
-  closeBtn.setAttribute('aria-label', 'Fechar aba');
-  closeBtn.innerHTML = iconSvg('close');
-  closeBtn.addEventListener('mousedown', e => e.stopPropagation());
-  closeBtn.addEventListener('click', async e => {
-    e.stopPropagation();
-    e.preventDefault();
-    await closeTab(meta.id);
-  });
-  tab.appendChild(closeBtn);
-
-  // Clique com botão do meio fecha a aba
-  tab.addEventListener('auxclick', async e => {
-    if (e.button === 1) {
-      e.preventDefault();
-      e.stopPropagation();
-      await closeTab(meta.id);
-    }
-  });
+  tab.appendChild(title);
 
   // Um clique só troca de nota (nunca abre menu, pra não abrir sem querer).
-  // O clique duplo ou clique com botão direito abre o menu da nota (Mover para pasta, Renomear, etc.)
+  // O clique duplo — em qualquer parte da aba: texto, ícone ou cor — abre o
+  // mesmo menu de sempre (Renomear / Ícone e cor / Copiar / Baixar / Excluir),
+  // sem precisar mais do botão "⋯" só pra isso, deixando a aba mais compacta.
   tab.addEventListener('click', async () => {
     if (meta.id === activeId) return;
     await activateNote(meta.id);
     renderTabs();
   });
   tab.addEventListener('dblclick', e => {
-    e.preventDefault();
-    openTabMenu(meta, tab);
-  });
-  tab.addEventListener('contextmenu', e => {
     e.preventDefault();
     openTabMenu(meta, tab);
   });
@@ -378,14 +540,6 @@ function buildTab(meta) {
     const before = e.clientX < rect.left + rect.width / 2;
     const srcId = noteDragSrcId;
     cleanupTabDrag();
-    const srcIdx = openTabIds.indexOf(srcId);
-    const targetIdx = openTabIds.indexOf(meta.id);
-    if (srcIdx !== -1 && targetIdx !== -1) {
-      openTabIds.splice(srcIdx, 1);
-      const insertIdx = openTabIds.indexOf(meta.id) + (before ? 0 : 1);
-      openTabIds.splice(insertIdx, 0, srcId);
-      saveOpenTabIds(openTabIds);
-    }
     const moved = await reorderNotes(srcId, meta.id, before);
     if (moved) { renderTabs(); scrollTabIntoView(srcId); }
   });
@@ -394,18 +548,209 @@ function buildTab(meta) {
   return tab;
 }
 
+// ── Conteúdo de ícone + cor (embutido dentro do menu "⋯", ver openTabMenu) ───
+// Escolher um ícone ou uma cor não fecha o menu, só re-renderiza este bloco
+// no lugar, pra dar pra ajustar os dois sem reabrir nada.
+function renderAppearanceContent(pop, meta) {
+  pop.innerHTML = '';
+
+  const iconHeader = document.createElement('div');
+  iconHeader.className = 'copy-menu-header';
+  iconHeader.textContent = 'Ícone';
+  pop.appendChild(iconHeader);
+
+  const iconGrid = document.createElement('div');
+  iconGrid.className = 'icon-grid';
+
+  const pickIcon = async (name) => {
+    await updateNoteMetaById(meta.id, { icon: name });
+    meta.icon = name;
+    renderTabs();
+    renderAppearanceContent(pop, meta);
+  };
+
+  const noneIconBtn = document.createElement('button');
+  noneIconBtn.className = 'icon-swatch icon-swatch-none' + (!meta.icon ? ' active' : '');
+  noneIconBtn.textContent = '—';
+  noneIconBtn.title = 'Nenhum ícone';
+  noneIconBtn.addEventListener('mousedown', e => e.stopPropagation());
+  noneIconBtn.addEventListener('click', e => { e.stopPropagation(); pickIcon(null); });
+  iconGrid.appendChild(noneIconBtn);
+
+  const filledClass = meta.iconFilled ? ' icon-filled' : '';
+  for (const name of COMMON_ICONS) {
+    const btn = document.createElement('button');
+    btn.className = 'icon-swatch material-symbols-rounded' + filledClass + (meta.icon === name ? ' active' : '');
+    btn.textContent = name;
+    btn.title = name;
+    btn.addEventListener('mousedown', e => e.stopPropagation());
+    btn.addEventListener('click', e => { e.stopPropagation(); pickIcon(name); });
+    iconGrid.appendChild(btn);
+  }
+  pop.appendChild(iconGrid);
+
+  // Alterna entre o estilo "contorno" (padrão) e "preenchido" do ícone —
+  // usa o eixo FILL da própria fonte variável, não precisa carregar outra.
+  const fillRow = document.createElement('label');
+  fillRow.className = 'icon-fill-row';
+  const fillCheckbox = document.createElement('input');
+  fillCheckbox.type = 'checkbox';
+  fillCheckbox.checked = !!meta.iconFilled;
+  fillCheckbox.addEventListener('mousedown', e => e.stopPropagation());
+  fillCheckbox.addEventListener('change', async e => {
+    e.stopPropagation();
+    await updateNoteMetaById(meta.id, { iconFilled: e.target.checked });
+    meta.iconFilled = e.target.checked;
+    renderTabs();
+    renderAppearanceContent(pop, meta);
+  });
+  const fillLabel = document.createElement('span');
+  fillLabel.textContent = 'Ícone preenchido';
+  fillRow.append(fillCheckbox, fillLabel);
+  pop.appendChild(fillRow);
+
+  const iconCustomRow = document.createElement('div');
+  iconCustomRow.className = 'icon-custom-row';
+  const iconInput = document.createElement('input');
+  iconInput.type = 'text';
+  iconInput.className = 'icon-custom-input';
+  iconInput.placeholder = 'nome_do_ícone';
+  const initialCustomName = (meta.icon && !COMMON_ICONS.includes(meta.icon)) ? meta.icon : '';
+  iconInput.value = initialCustomName;
+
+  // O preview é o próprio botão de aplicar: antes era um <span> e não dava pra
+  // confirmar o ícone personalizado a não ser apertando Enter.
+  const iconApply = document.createElement('button');
+  iconApply.className = 'icon-custom-apply material-symbols-rounded' + filledClass;
+  iconApply.title = 'Usar este ícone';
+
+  const syncApply = () => {
+    const name = iconInput.value.trim();
+    iconApply.textContent = name || 'add';
+    iconApply.disabled = !name || name === meta.icon;
+    iconApply.classList.toggle('is-empty', !name);
+  };
+  syncApply();
+
+  const applyCustomIcon = () => {
+    const name = iconInput.value.trim();
+    if (name) pickIcon(name);
+  };
+
+  iconInput.addEventListener('mousedown', e => e.stopPropagation());
+  iconInput.addEventListener('input', syncApply);
+  iconInput.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    applyCustomIcon();
+  });
+
+  iconApply.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
+  iconApply.addEventListener('click', e => { e.stopPropagation(); applyCustomIcon(); });
+
+  iconCustomRow.append(iconInput, iconApply);
+  pop.appendChild(iconCustomRow);
+
+  const hint = document.createElement('a');
+  hint.className = 'icon-hint-link';
+  hint.href = 'https://fonts.google.com/icons';
+  hint.target = '_blank';
+  hint.rel = 'noopener noreferrer';
+  hint.textContent = 'Ver todos os ícones →';
+  hint.addEventListener('mousedown', e => e.stopPropagation());
+  pop.appendChild(hint);
+
+  pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+
+  const colorHeader = document.createElement('div');
+  colorHeader.className = 'copy-menu-header';
+  colorHeader.textContent = 'Cor';
+  pop.appendChild(colorHeader);
+
+  const colorGrid = document.createElement('div');
+  colorGrid.className = 'color-grid';
+
+  const pickColor = async (hex) => {
+    await updateNoteMetaById(meta.id, { color: hex });
+    meta.color = hex;
+    if (meta.id === activeId) setAccent(hex);
+    renderTabs();
+    renderAppearanceContent(pop, meta);
+  };
+
+  const noneColorBtn = document.createElement('button');
+  noneColorBtn.className = 'color-swatch color-swatch-none' + (!meta.color ? ' active' : '');
+  noneColorBtn.title = 'Nenhuma cor';
+  noneColorBtn.addEventListener('mousedown', e => e.stopPropagation());
+  noneColorBtn.addEventListener('click', e => { e.stopPropagation(); pickColor(null); });
+  colorGrid.appendChild(noneColorBtn);
+
+  for (const { name, hex } of COLORS) {
+    const sw = document.createElement('button');
+    sw.className = 'color-swatch' + (meta.color === hex ? ' active' : '');
+    sw.style.background = hex;
+    sw.title = name;
+    sw.addEventListener('mousedown', e => e.stopPropagation());
+    sw.addEventListener('click', e => { e.stopPropagation(); pickColor(hex); });
+    colorGrid.appendChild(sw);
+  }
+  // "Outra cor" entra como a última bolinha da própria grade, em vez de uma
+  // linha solta embaixo — é o que deixava a seção desalinhada.
+  const isCustomColor = !!meta.color && !COLORS.some(c => c.hex === meta.color);
+  const customSwatch = document.createElement('label');
+  customSwatch.className = 'color-swatch color-swatch-custom' + (isCustomColor ? ' active' : '');
+  customSwatch.title = 'Outra cor…';
+  if (isCustomColor) customSwatch.style.background = meta.color;
+
+  const colorInput = document.createElement('input');
+  colorInput.type  = 'color';
+  colorInput.className = 'color-custom-input';
+  colorInput.value = (meta.color && /^#[0-9a-f]{6}$/i.test(meta.color)) ? meta.color : '#888888';
+  colorInput.addEventListener('mousedown', e => e.stopPropagation());
+  colorInput.addEventListener('input',  e => { e.target.closest('.color-swatch').style.background = e.target.value; });
+  colorInput.addEventListener('change', e => { e.stopPropagation(); pickColor(e.target.value); });
+
+  customSwatch.appendChild(colorInput);
+  colorGrid.appendChild(customSwatch);
+  pop.appendChild(colorGrid);
+
+  // Ocultar o nome só faz sentido se sobrar ícone ou cor pra identificar a
+  // aba — sem isso a aba ficaria completamente vazia, então a opção nem
+  // aparece nesse caso (a nota volta a mostrar o nome automaticamente).
+  if (meta.icon || meta.color) {
+    pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+
+    const hideRow = document.createElement('label');
+    hideRow.className = 'icon-fill-row';
+    const hideCheckbox = document.createElement('input');
+    hideCheckbox.type = 'checkbox';
+    hideCheckbox.checked = !!meta.titleHidden;
+    hideCheckbox.addEventListener('mousedown', e => e.stopPropagation());
+    hideCheckbox.addEventListener('change', async e => {
+      e.stopPropagation();
+      await updateNoteMetaById(meta.id, { titleHidden: e.target.checked });
+      meta.titleHidden = e.target.checked;
+      renderTabs();
+    });
+    const hideLabel = document.createElement('span');
+    hideLabel.textContent = 'Ocultar nome na aba';
+    hideRow.append(hideCheckbox, hideLabel);
+    pop.appendChild(hideRow);
+  }
+}
 
 // ── Menu "⋯" (nome / ícone / cor / copiar / baixar / excluir) ────────────────
 // Pega os blocos da nota pedida: se for a nota aberta na tela, lê o DOM ao
 // vivo (depois de garantir que está salvo); se for outra aba, lê do banco —
 // mesma lógica de fallback usada ao trocar de nota.
-export async function getBlocksForNote(meta) {
+async function getBlocksForNote(meta) {
   if (meta.id === activeId) {
     await flushSave();
     return getCurrentBlocks();
   }
   const note = await getNoteById(meta.id);
-  return blocksOfNote(note);
+  return (note?.blocks?.length) ? note.blocks : parseMarkdownToBlocks(note?.content ?? '');
 }
 
 // Cria uma nota a partir de markdown de fora (.md importado, backup).
@@ -454,496 +799,146 @@ export async function downloadAllNotes() {
   downloadText(`quickdock-backup-${carimbo}.md`, buildBackup(notas));
 }
 
+let tabMenuEl = null;
+let tabMenuAppearanceOpen = false;
+
 function closeTabMenu() {
-  _closeTabMenu();
+  tabMenuEl?.remove();
+  tabMenuEl = null;
+  tabMenuAppearanceOpen = false;
 }
 
-function openTabMenu(meta, anchorEl) {
-  _openTabMenu({
-    meta,
-    anchorEl,
-    hasMultipleTabs: openTabIds.length > 1,
-    renderAppearanceContent,
-    onRename: async (newTitle) => {
-      if (newTitle === meta.title) return;
-      await updateNoteMetaById(meta.id, { title: newTitle });
-      meta.title = newTitle;
-      renderTabs();
-      refreshOpenAsideRows();
-      document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
-    },
-    onCopyMarkdown: async () => {
-      const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
-      await navigator.clipboard.writeText(text);
-    },
-    onCopyText: async () => {
-      const text = blocksToPlainText(await getBlocksForNote(meta));
-      await navigator.clipboard.writeText(text);
-    },
-    onDownloadMarkdown: async () => {
-      const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
-      downloadText(`${safeFilename(meta.title)}.md`, text);
-    },
-    onDownloadText: async () => {
-      const text = blocksToPlainText(await getBlocksForNote(meta));
-      downloadText(`${safeFilename(meta.title)}.txt`, text);
-    },
-    onMoveToFolder: async () => {
-      // Menu de contexto inclui a opção 'Mover para pasta...'
-      await promptMoverNotaParaPasta(meta, anchorEl, () => {
-        renderTabs();
-      });
-    },
-    onCloseTab: async () => {
-      // addOpt('Fechar aba'
-      await closeTab(meta.id);
-    },
-    onCloseOtherTabs: async () => {
-      // addOpt('Fechar outras abas'
-      openTabIds = [meta.id];
-      saveOpenTabIds(openTabIds);
-      if (activeId !== meta.id) await activateNote(meta.id);
-      renderTabs();
-    },
-    onClearContent: async () => {
-      if (!confirm(`Limpar o conteúdo de "${meta.title}"?\n\nO nome, a cor e os documentos da nota não mudam.`)) return;
-      if (meta.id === activeId) await clearCurrentNote();
-      else await updateNoteBlocksById(meta.id, [], '');
-    },
-    onDeleteNote: () => deleteNoteById(meta.id),
-  });
-}
+function renderTabMenu(meta, anchorEl) {
+  const menu = tabMenuEl ?? document.createElement('div');
+  menu.className = 'copy-menu tab-menu';
+  menu.innerHTML = '';
 
-/** Exclui a nota (com confirmação) e arruma abas/ativa. Devolve true se foi excluída. */
-let excluindoNota = false;   // deleteNoteById já arruma a lista sozinha: a conferência abaixo espera
-export async function deleteNoteById(id) {
-  const meta = notesMeta.find(n => n.id === id);
-  if (!meta) return false;
-  if (!confirm(`Excluir a nota "${meta.title}"?`)) return false;
-  excluindoNota = true;
-  try {
-  await detachFilesFromNote(meta.id);
-  await deleteNoteRecordById(meta.id);
-  await gcInlineFiles();
-  notesMeta = notesMeta.filter(n => n.id !== meta.id);
-  openTabIds = openTabIds.filter(i => i !== meta.id);
-  saveOpenTabIds(openTabIds);
-  if (activeId === meta.id) {
-    const nextId = openTabIds[0] ?? notesMeta[0]?.id;
-    if (nextId) await activateNote(nextId); else await deactivateActiveNote();   // era a última: tela 'nenhuma nota aberta'
-  }
-  await refreshDocuments();
-  renderTabs();
-  document.dispatchEvent(new CustomEvent('quickdock:notes-changed'));
-  return true;
-  } finally { excluindoNota = false; }
-}
-
-document.addEventListener('mousedown', e => {
-  const menuEl = getTabMenuElement();
-  if (menuEl && !menuEl.contains(e.target)) closeTabMenu();
-  closeAppearancePopoverIfOutside(e.target);
-});
-
-// Título editado direto no cabeçalho da nota (note.js) atualiza a aba na
-// hora, a cada tecla — só o texto visível, sem gravar nada: gravar de
-// verdade (e reescrever links de quem aponta pra esta nota) espera o
-// debounce lá do cabeçalho, essa atualização aqui é só cosmética.
-document.addEventListener('quickdock:note-title-preview', e => {
-  const { noteId, title } = e.detail || {};
-  if (noteId == null) return;
-  const tabTitleEl = tabsEl.querySelector(`.note-tab[data-id="${noteId}"] .note-tab-title`);
-  if (tabTitleEl) tabTitleEl.textContent = title || 'Sem título';
-});
-
-// ── Gestão e Árvore de Pastas (Fase 2) ─────────────────────────────────────────
-const FOLDERS_OPEN_KEY = 'quickdock:folders:open';
-
-function getOpenFolders() {
-  try {
-    const raw = localStorage.getItem(FOLDERS_OPEN_KEY);
-    if (raw) return new Set(JSON.parse(raw));
-  } catch {}
-  return null;
-}
-
-function saveOpenFolders(set) {
-  try {
-    localStorage.setItem(FOLDERS_OPEN_KEY, JSON.stringify([...set]));
-  } catch {}
-}
-
-export function buildFolderTree(pastas, notes) {
-  const root = {
-    caminho: '',
-    nome: '',
-    nivel: 0,
-    subpastas: new Map(),
-    notas: [],
-  };
-
-  const todosCaminhos = new Set();
-  for (const p of (pastas || [])) if (p.caminho) todosCaminhos.add(p.caminho);
-  for (const n of (notes || [])) if (n.pasta) todosCaminhos.add(n.pasta);
-
-  for (const c of [...todosCaminhos]) {
-    const partes = c.split('/');
-    for (let i = 1; i <= partes.length; i++) {
-      todosCaminhos.add(partes.slice(0, i).join('/'));
-    }
-  }
-
-  const caminhosOrdenados = [...todosCaminhos].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-
-  function getNode(caminho) {
-    if (!caminho) return root;
-    const partes = caminho.split('/');
-    let cur = root;
-    for (let i = 0; i < partes.length; i++) {
-      const subCaminho = partes.slice(0, i + 1).join('/');
-      if (!cur.subpastas.has(partes[i])) {
-        cur.subpastas.set(partes[i], {
-          caminho: subCaminho,
-          nome: partes[i],
-          nivel: i + 1,
-          subpastas: new Map(),
-          notas: [],
-        });
-      }
-      cur = cur.subpastas.get(partes[i]);
-    }
-    return cur;
-  }
-
-  for (const c of caminhosOrdenados) getNode(c);
-
-  for (const n of notes) {
-    const node = getNode(n.pasta || '');
-    node.notas.push(n);
-  }
-
-  return root;
-}
-
-function contarNotasTotal(node) {
-  let count = node.notas.length;
-  for (const sub of node.subpastas.values()) {
-    count += contarNotasTotal(sub);
-  }
-  return count;
-}
-
-let folderModalEl = null;
-function closeFolderModal() { folderModalEl?.remove(); folderModalEl = null; }
-
-export let renamingFolderPath = null;
-
-export async function startCreateFolderInline(parentPath = '', onDone = null) {
-  closeFolderModal();
-  closeFolderMenu();
-  const pastas = await listarPastas();
-  const existentes = new Set(pastas.map(p => p.caminho));
-  for (const n of notesMeta) if (n.pasta) existentes.add(n.pasta);
-
-  const baseName = parentPath ? 'Nova subpasta' : 'Nova pasta';
-  let candidate = parentPath ? `${parentPath}/${baseName}` : baseName;
-  let counter = 2;
-  while (existentes.has(candidate)) {
-    candidate = parentPath ? `${parentPath}/${baseName} ${counter}` : `${baseName} ${counter}`;
-    counter++;
-  }
-
-  try {
-    normalizarCaminhoPasta(candidate);
-  } catch (err) {
-    alert(err.message || 'Caminho excede 3 níveis de profundidade.');
-    return;
-  }
-
-  await criarPasta(candidate);
-  const openSet = getOpenFolders() || new Set();
-  openSet.add(candidate);
-  if (parentPath) {
-    const partes = parentPath.split('/');
-    for (let i = 1; i <= partes.length; i++) {
-      openSet.add(partes.slice(0, i).join('/'));
-    }
-  }
-  saveOpenFolders(openSet);
-
-  renamingFolderPath = candidate;
-
-  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
-    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
-    const input = notesAsideDrawer.querySelector('.notes-search-input');
-    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
-    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
-    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
-  } else {
-    openNotesAsideDrawer();
-  }
-  if (onDone) await onDone();
-}
-
-export async function startRenameFolderInline(caminho, onDone = null) {
-  closeFolderModal();
-  closeFolderMenu();
-  renamingFolderPath = caminho;
-  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
-    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
-    const input = notesAsideDrawer.querySelector('.notes-search-input');
-    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
-    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
-    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
-  }
-  if (onDone) await onDone();
-}
-
-export function promptNovaPasta(parentPath = '', onDone = null) {
-  startCreateFolderInline(parentPath, onDone);
-}
-
-export function promptRenomearPasta(caminhoAntigo, onDone = null) {
-  startRenameFolderInline(caminhoAntigo, onDone);
-}
-
-function promptExcluirPasta(caminho, totalNotas, onDone = null) {
-  // Exclusão segura com opções de manter notas ou mover para raiz:
-  // "Mover notas para a raiz" e excluir pasta (delegado para tabs/notes-folder-modals.js)
-  return promptExcluirPastaModal({
-    caminho,
-    totalNotas,
-    onExcluirSucesso: async ({ manterNotas }) => {
-      notesMeta = await loadAllNotesMeta();
-      openTabIds = openTabIds.filter(id => notesMeta.some(n => n.id === id));
-      saveOpenTabIds(openTabIds);
-      if (!manterNotas && !notesMeta.some(n => n.id === activeId) && notesMeta.length > 0) {
-        await activateNote(openTabIds[0] ?? notesMeta[0].id);
-      }
-      renderTabs();
-    },
-    onDone
-  });
-}
-
-let moveMenuEl = null;
-function closeMoveMenu() { moveMenuEl?.remove(); moveMenuEl = null; }
-
-export async function promptMoverNotaParaPasta(meta, anchorEl, onDone = null) {
-  closeMoveMenu();
-  const pop = document.createElement('div');
-  pop.className = 'copy-menu folder-picker-popover';
-
-  const head = document.createElement('div');
-  head.className = 'copy-menu-header';
-  head.textContent = 'Mover para pasta';
-  pop.appendChild(head);
-
-  const pastas = await listarPastas();
-  const todosCaminhos = new Set();
-  for (const p of pastas) if (p.caminho) todosCaminhos.add(p.caminho);
-  for (const n of notesMeta) if (n.pasta) todosCaminhos.add(n.pasta);
-  const ordenados = [...todosCaminhos].sort();
-
-  const optRaiz = document.createElement('button');
-  optRaiz.className = 'copy-opt' + (!meta.pasta ? ' current' : '');
-  optRaiz.innerHTML = `<span class="copy-opt-value">📁 Raiz (sem pasta)</span>${!meta.pasta ? '<span class="copy-opt-hint">✓</span>' : ''}`;
-  optRaiz.addEventListener('click', async e => {
+  // Nome — o próprio input já dentro do menu, sem botão "Renomear" separado.
+  const renameInput = document.createElement('input');
+  renameInput.className = 'tab-menu-rename';
+  renameInput.value = meta.title;
+  renameInput.placeholder = 'Sem título';
+  renameInput.addEventListener('mousedown', e => e.stopPropagation());
+  renameInput.addEventListener('keydown', e => {
     e.stopPropagation();
-    closeMoveMenu();
-    await moverNotaParaPasta(meta.id, '');
-    meta.pasta = '';
-    notesMeta = await loadAllNotesMeta();
+    if (e.key === 'Enter')  renameInput.blur();
+    if (e.key === 'Escape') { renameInput.value = meta.title; renameInput.blur(); }
+  });
+  renameInput.addEventListener('blur', async () => {
+    const val = renameInput.value.trim() || 'Sem título';
+    if (val === meta.title) return;
+    await updateNoteMetaById(meta.id, { title: val });
+    meta.title = val;
     renderTabs();
-    if (meta.id === activeId) updateNoteFolderBar(meta);
-    if (onDone) await onDone();
   });
-  pop.appendChild(optRaiz);
-
-  for (const cam of ordenados) {
-    const isCurrent = meta.pasta === cam;
-    const parts = cam.split('/');
-    const indent = '&nbsp;&nbsp;'.repeat(parts.length - 1);
-    const opt = document.createElement('button');
-    opt.className = 'copy-opt' + (isCurrent ? ' current' : '');
-    opt.innerHTML = `<span class="copy-opt-value">${indent}📁 ${parts[parts.length - 1]}</span>${isCurrent ? '<span class="copy-opt-hint">✓</span>' : ''}`;
-    opt.title = cam;
-    opt.addEventListener('click', async e => {
-      e.stopPropagation();
-      closeMoveMenu();
-      await moverNotaParaPasta(meta.id, cam);
-      meta.pasta = cam;
-      notesMeta = await loadAllNotesMeta();
-      renderTabs();
-      if (meta.id === activeId) updateNoteFolderBar(meta);
-      if (onDone) await onDone();
-    });
-    pop.appendChild(opt);
-  }
-
-  pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-
-  const optNova = document.createElement('button');
-  optNova.className = 'copy-opt';
-  optNova.innerHTML = '<span class="copy-opt-value">＋ Nova pasta...</span>';
-  optNova.addEventListener('click', e => {
-    e.stopPropagation();
-    closeMoveMenu();
-    promptNovaPasta('', async () => {
-      await promptMoverNotaParaPasta(meta, anchorEl, onDone);
-    });
-  });
-  pop.appendChild(optNova);
-
-  pop.addEventListener('mousedown', e => e.stopPropagation());
-  document.body.appendChild(pop);
-  moveMenuEl = pop;
-
-  if (anchorEl) {
-    positionPopover(pop, anchorEl);
-  } else {
-    pop.style.position = 'fixed';
-    pop.style.top = '50%';
-    pop.style.left = '50%';
-    pop.style.transform = 'translate(-50%, -50%)';
-    pop.style.zIndex = '2500';
-  }
-}
-
-let folderMenuEl = null;
-function closeFolderMenu() { folderMenuEl?.remove(); folderMenuEl = null; }
-
-function openFolderMenu(caminho, nivel, totalNotas, anchorEl, onRefresh) {
-  closeFolderMenu();
-  const menu = document.createElement('div');
-  menu.className = 'copy-menu folder-context-menu';
-
-  const head = document.createElement('div');
-  head.className = 'copy-menu-header';
-  head.textContent = caminho;
-  menu.appendChild(head);
-
-  const btnNota = document.createElement('button');
-  btnNota.className = 'copy-opt';
-  btnNota.innerHTML = '<span class="copy-opt-value">＋ Nova nota nesta pasta</span>';
-  btnNota.addEventListener('click', async e => {
-    e.stopPropagation();
-    closeFolderMenu();
-    await createNoteInFolder(caminho, false);
-    if (onRefresh) await onRefresh();
-  });
-  menu.appendChild(btnNota);
-
-  const btnBase = document.createElement('button');
-  btnBase.className = 'copy-opt';
-  btnBase.innerHTML = '<span class="copy-opt-value">🗃️ Nova Base nesta pasta</span>';
-  btnBase.addEventListener('click', async e => {
-    e.stopPropagation();
-    closeFolderMenu();
-    await createNoteInFolder(caminho, true);
-    if (onRefresh) await onRefresh();
-  });
-  menu.appendChild(btnBase);
+  menu.appendChild(renameInput);
 
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
-  if (nivel < 3) {
-    const btnSub = document.createElement('button');
-    btnSub.className = 'copy-opt';
-    btnSub.innerHTML = '<span class="copy-opt-value">＋ Nova subpasta</span>';
-    btnSub.addEventListener('click', async e => {
-      e.stopPropagation();
-      closeFolderMenu();
-      await startCreateFolderInline(caminho, onRefresh);
-    });
-    menu.appendChild(btnSub);
+  // Ícone e cor — dropdown embutido no mesmo menu, em vez de abrir outro
+  // popover por cima. Expande/recolhe sem fechar o menu.
+  const appearanceToggle = document.createElement('button');
+  appearanceToggle.className = 'copy-opt tab-menu-appearance-toggle';
+  appearanceToggle.innerHTML =
+    `<span class="copy-opt-value">Ícone e cor</span><span class="copy-opt-hint">${tabMenuAppearanceOpen ? '▲' : '▼'}</span>`;
+  appearanceToggle.addEventListener('mousedown', e => e.stopPropagation());
+  appearanceToggle.addEventListener('click', e => {
+    e.stopPropagation();
+    tabMenuAppearanceOpen = !tabMenuAppearanceOpen;
+    renderTabMenu(meta, anchorEl);
+  });
+  menu.appendChild(appearanceToggle);
+
+  if (tabMenuAppearanceOpen) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tab-menu-appearance';
+    renderAppearanceContent(wrap, meta);
+    menu.appendChild(wrap);
   }
 
-  const btnRenomear = document.createElement('button');
-  btnRenomear.className = 'copy-opt';
-  btnRenomear.innerHTML = '<span class="copy-opt-value">✎ Renomear pasta</span>';
-  btnRenomear.addEventListener('click', async e => {
-    e.stopPropagation();
-    closeFolderMenu();
-    await startRenameFolderInline(caminho, onRefresh);
-  });
-  menu.appendChild(btnRenomear);
+  menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
-  const btnExcluir = document.createElement('button');
-  btnExcluir.className = 'copy-opt folder-action-danger';
-  btnExcluir.innerHTML = '<span class="copy-opt-value">🗑 Excluir pasta</span>';
-  btnExcluir.addEventListener('click', e => {
-    e.stopPropagation();
-    closeFolderMenu();
-    promptExcluirPasta(caminho, totalNotas, onRefresh);
-  });
-  menu.appendChild(btnExcluir);
+  const addOpt = (label, run) => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-opt';
+    btn.innerHTML = `<span class="copy-opt-value">${label}</span>`;
+    btn.addEventListener('mousedown', e => e.stopPropagation());
+    btn.addEventListener('click', async e => { e.stopPropagation(); closeTabMenu(); await run(); });
+    menu.appendChild(btn);
+  };
 
-  menu.addEventListener('mousedown', e => e.stopPropagation());
-  document.body.appendChild(menu);
-  folderMenuEl = menu;
+  addOpt('Copiar como Markdown', async () => {
+    const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
+    await navigator.clipboard.writeText(text);
+  });
+  addOpt('Copiar como texto', async () => {
+    const text = blocksToPlainText(await getBlocksForNote(meta));
+    await navigator.clipboard.writeText(text);
+  });
+  addOpt('Baixar .md', async () => {
+    const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
+    downloadText(`${safeFilename(meta.title)}.md`, text);
+  });
+  addOpt('Baixar .txt', async () => {
+    const text = blocksToPlainText(await getBlocksForNote(meta));
+    downloadText(`${safeFilename(meta.title)}.txt`, text);
+  });
+
+  menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
+
+  addOpt('Limpar conteúdo', async () => {
+    if (!confirm(`Limpar o conteúdo de "${meta.title}"?\n\nO nome, a cor e os documentos da nota não mudam.`)) return;
+    if (meta.id === activeId) await clearCurrentNote();
+    else await updateNoteBlocksById(meta.id, [], '');
+  });
+
+  addOpt('Excluir', async () => {
+    if (notesMeta.length <= 1) { alert('Deve existir ao menos uma nota.'); return; }
+    if (!confirm(`Excluir a nota "${meta.title}"?`)) return;
+    // Os documentos vinculados viram gerais: some a nota, não os arquivos.
+    await detachFilesFromNote(meta.id);
+    await deleteNoteRecordById(meta.id);
+    // Imagem inline só existe dentro daquela nota: sem a nota, é lixo.
+    await gcInlineFiles();
+    notesMeta = notesMeta.filter(n => n.id !== meta.id);
+    if (activeId === meta.id) await activateNote(notesMeta[0].id);
+    await refreshDocuments();
+    renderTabs();
+  });
+
+  if (!tabMenuEl) {
+    document.body.appendChild(menu);
+    tabMenuEl = menu;
+  }
   positionPopover(menu, anchorEl);
 }
 
-// ── Lista de notas / Painel Lateral Aside ("☰") ──────────────────────────────
-let notesAsideDrawer = null;
-let notesAsideBackdrop = null;
-
-function isDesktopMode() {
-  return document.documentElement.dataset.platform === 'desktop'
-      || document.documentElement.classList.contains('platform-desktop');
+function openTabMenu(meta, anchorEl) {
+  closeTabMenu();
+  renderTabMenu(meta, anchorEl);
+  const renameInput = tabMenuEl.querySelector('.tab-menu-rename');
+  renameInput?.focus();
+  renameInput?.select();
 }
 
-export function closeNotesAsideDrawer() {
-  // No desktop o drawer é permanente — nunca fechar nem remover.
-  if (isDesktopMode()) return;
+document.addEventListener('mousedown', e => {
+  if (tabMenuEl && !tabMenuEl.contains(e.target)) closeTabMenu();
+});
 
-  const mAside = document.getElementById('mAside');
-  if (mAside) {
-    // Fechar só a classe deixava body.has-left-drawer-open ligado e o conteúdo
-    // empurrado 320px depois de escolher uma view (fecha tudo de uma vez).
-    closeMobileLeftDrawer();
-    document.getElementById('mobileDrawerScrim')?.classList.remove('is-active');
-    return;
-  }
+// ── Lista de notas ("☰") ──────────────────────────────────────────────────────
+let notesListPopover = null;
+function closeNotesListPopover() { notesListPopover?.remove(); notesListPopover = null; }
 
-  if (notesAsideDrawer) {
-    notesAsideDrawer.classList.remove('open');
-    notesAsideDrawer.classList.add('closing');
-    const drawerEl = notesAsideDrawer;
-    setTimeout(() => {
-      drawerEl?.remove();
-    }, 240);
-    notesAsideDrawer = null;
-  }
-  if (notesAsideBackdrop) {
-    notesAsideBackdrop.classList.remove('open');
-    const backdropEl = notesAsideBackdrop;
-    setTimeout(() => {
-      backdropEl?.remove();
-    }, 240);
-    notesAsideBackdrop = null;
-  }
-  closeFolderModal();
-  closeMoveMenu();
-  closeFolderMenu();
-}
-
-export function closeNotesListPopover() {
-  closeNotesAsideDrawer();
-}
-
+// Abre o mesmo menu "⋯" de sempre, mas ancorado na aba de verdade — assim
+// não precisa duplicar a lógica de renomear/ícone/cor/excluir pra dentro
+// da lista. A aba de qualquer nota sempre existe no DOM (só pode estar fora
+// da área visível pela rolagem horizontal).
 function openTabMenuForNote(meta) {
-  if (isDesktopMode()) {
-    // No desktop, o menu abre ancorado no próprio item da lista no drawer
-    const listItem = notesAsideDrawer?.querySelector(`.notes-list-item[data-id="${meta.id}"]`);
-    const anchor = listItem?.querySelector('.notes-list-edit-btn') || listItem;
-    if (anchor) openTabMenu(meta, anchor);
-    return;
-  }
-  closeNotesAsideDrawer();
+  closeNotesListPopover();
   const tabEl = tabsEl.querySelector(`.note-tab[data-id="${meta.id}"]`);
   if (!tabEl) return;
+  // Sem "smooth" aqui: o menu abre logo em seguida e precisa da posição
+  // final da aba, não de uma posição no meio de uma animação de rolagem.
   tabEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   openTabMenu(meta, tabEl);
 }
@@ -954,685 +949,108 @@ function cleanupListDrag() {
   listDropIndicatorEl?.remove();
   listDropIndicatorEl = null;
   noteDragSrcId = null;
-  document.querySelectorAll('.folder-header.drag-over, .folder-children.drag-over').forEach(el => el.classList.remove('drag-over'));
 }
 
-// Renderiza árvore de pastas e lista de notas (delegado para tabs/notes-drawer.js)
-// Botão de adicionar nota na pasta e no menu: folder-add-note-btn, 'Nova nota nesta pasta'
-// Suporte a renomeação inline de pastas e criação de subpastas:
-// inputRename.className = 'folder-inline-rename-input'
-// inputRename.addEventListener('keydown'
-// await renomearPasta(sub.caminho, novoCaminho)
-// folder-add-subfolder-btn, addRootFolderBtn.title = 'Nova pasta na raiz', addSubBtn.title = 'Nova subpasta'
-// Linha-guia de indentação na árvore aside: --guide-left
-async function renderNotesListRows(container, filterQuery = '', countEl = null, clearBtn = null) {
-  return renderNotesListRowsCore({
-    container,
-    filterQuery,
-    countEl,
-    clearBtn,
-    notesMeta,
-    activeId,
-    buildTabIndicator,
-    openTabMenuForNote,
-    activateNote,
-    renderTabs,
-    scrollTabIntoView,
-    createNoteInFolder,
-    updateNoteFolderBar,
-    loadAllNotesMeta,
-    promptExcluirPasta,
-    closeNotesAsideDrawer
-  });
-}
+function renderNotesListRows(pop) {
+  pop.querySelectorAll('.notes-list-item').forEach(el => el.remove());
 
-// Painel que expande sob o cabeçalho do Explorador: tudo de criar/importar num só lugar.
-function asideQuickActions(refresh, closeAfter) {
-  return [
-    { icon: 'description', label: 'Nota', run: async () => { await createBlankNote(); await refresh(); } },
-    { icon: 'view_kanban', label: 'Base', run: async () => { await createNewBaseNote(); await refresh(); } },
-    {
-      icon: 'space_dashboard', label: 'Espaço', run: async () => {
-        const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
-        if (titulo === null) return;
-        const { createBlankBoard } = await import('./board-engine.js');
-        await createBlankBoard(titulo.trim() || 'Novo Espaço');
-        switchView('board');
-        closeAfter?.();
-        await refresh();
-      },
-    },
-    { icon: 'upload_file', label: 'Importar .md', run: () => importInput.click() },
-    {
-      icon: 'data_object', label: 'Importar .json', run: () => {
-        switchView('json', { fullscreen: true });
-        closeAfter?.();
-        setTimeout(() => document.getElementById('btn-json-import')?.click(), 0);
-      },
-    },
-  ];
-}
+  for (const meta of notesMeta) {
+    const row = document.createElement('div');
+    row.className = 'copy-opt notes-list-item' + (meta.id === activeId ? ' current' : '');
+    row.draggable = true;
+    row.dataset.id = String(meta.id);
 
-export function openNotesAsideDrawer() {
-  // No desktop o drawer já está permanentemente montado em #app
-  if (isDesktopMode()) return;
+    const indicator = buildTabIndicator(meta);
+    const label = document.createElement('span');
+    label.className = 'copy-opt-value';
+    label.textContent = meta.title || 'Sem título';
+    if (indicator) row.appendChild(indicator);
+    row.appendChild(label);
 
-  const mAside = document.getElementById('mAside');
-  if (mAside) {
-    mAside.classList.add('is-open-mobile');
-    return;
-  }
+    const editBtn = document.createElement('button');
+    editBtn.className   = 'notes-list-edit-btn';
+    editBtn.textContent = '⋯';
+    editBtn.title       = 'Opções da nota';
+    editBtn.addEventListener('mousedown', e => e.stopPropagation());
+    editBtn.addEventListener('click', e => { e.stopPropagation(); openTabMenuForNote(meta); });
+    row.appendChild(editBtn);
 
-  closeNotesAsideDrawer();
-
-  const backdrop = document.createElement('div');
-  backdrop.className = 'notes-drawer-backdrop';
-  document.body.appendChild(backdrop);
-  notesAsideBackdrop = backdrop;
-  requestAnimationFrame(() => backdrop.classList.add('open'));
-  backdrop.addEventListener('click', () => closeNotesAsideDrawer());
-
-  const drawer = document.createElement('aside');
-  drawer.className = 'notes-aside-drawer notes-list-popover';
-
-  const btnClose = document.createElement('button');
-  btnClose.className = 'icon-btn notes-aside-close-btn';
-  btnClose.innerHTML = iconSvg('close');
-  btnClose.title = 'Fechar painel';
-  btnClose.setAttribute('aria-label', 'Fechar painel');
-  btnClose.addEventListener('click', e => {
-    e.stopPropagation();
-    closeNotesAsideDrawer();
-  });
-  // Cabeçalho do Drawer Aside: pasta + arquivo (o "arquivo" expande o painel de criar/importar)
-  const refreshList = async () => {
-    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-    await refreshAsideBadge(drawer, notesMeta.length);
-  };
-  const { header: asideHeader, panel: quickPanel } = buildAsideHeader({
-    count: notesMeta.length,
-    onNewFolder: () => startCreateFolderInline('', refreshList),
-    quickActions: asideQuickActions(refreshList, () => closeNotesAsideDrawer()),
-    trailing: [btnClose],
-  });
-  drawer.append(asideHeader, quickPanel);
-  refreshAsideBadge(drawer, notesMeta.length);
-
-  // Barra de busca
-  const searchBar = document.createElement('div');
-  searchBar.className = 'notes-search-bar';
-
-  const searchIcon = document.createElement('span');
-  searchIcon.className = 'search-icon';
-  searchIcon.innerHTML = iconSvg('search');
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'notes-search-input';
-  input.placeholder = 'Buscar por título ou conteúdo...';
-  input.setAttribute('aria-label', 'Buscar por título ou conteúdo');
-
-  const clearBtn = document.createElement('button');
-  clearBtn.className = 'notes-search-clear icon-btn';
-  clearBtn.innerHTML = iconSvg('close');
-  clearBtn.title = 'Limpar busca';
-  clearBtn.setAttribute('aria-label', 'Limpar busca');
-  clearBtn.hidden = true;
-
-  searchBar.append(searchIcon, input, clearBtn);
-  drawer.appendChild(searchBar);
-
-  // Barra de ferramentas
-  const toolbar = document.createElement('div');
-  toolbar.className = 'notes-list-toolbar';
-
-  const btnToggleAll = document.createElement('button');
-  btnToggleAll.className = 'notes-list-action-btn';
-  btnToggleAll.title = 'Expandir ou recolher todas as pastas';
-  const openSet = getOpenFolders();
-  const hasClosed = !openSet || openSet.size === 0;
-  btnToggleAll.innerHTML = `${iconSvg(hasClosed ? 'expand_more' : 'unfold_less')}<span>${hasClosed ? 'Expandir' : 'Recolher'}</span>`;
-  btnToggleAll.addEventListener('click', async e => {
-    e.stopPropagation();
-    const pastas = await listarPastas();
-    const curOpen = getOpenFolders() || new Set();
-    if (curOpen.size > 0) {
-      saveOpenFolders(new Set());
-    } else {
-      const allPaths = new Set();
-      for (const p of pastas) if (p.caminho) allPaths.add(p.caminho);
-      for (const n of notesMeta) if (n.pasta) allPaths.add(n.pasta);
-      saveOpenFolders(allPaths);
-    }
-    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-    const newOpen = getOpenFolders() || new Set();
-    btnToggleAll.innerHTML = `${iconSvg(newOpen.size === 0 ? 'expand_more' : 'unfold_less')}<span>${newOpen.size === 0 ? 'Expandir' : 'Recolher'}</span>`;
-  });
-  toolbar.appendChild(btnToggleAll);
-
-  drawer.appendChild(toolbar);
-
-  const countEl = document.createElement('div');
-  countEl.className = 'notes-search-count';
-  countEl.hidden = true;
-  drawer.appendChild(countEl);
-
-  const scrollArea = document.createElement('div');
-  scrollArea.className = 'notes-list-scroll';
-  drawer.appendChild(scrollArea);
-
-  // Rodapé do Drawer Aside com Visões e Ações
-  const footer = document.createElement('div');
-  footer.className = 'notes-aside-footer';
-
-  // 1. Visões
-  const secViews = document.createElement('div');
-  secViews.className = 'aside-footer-section';
-
-  const titleViews = document.createElement('div');
-  titleViews.className = 'aside-footer-title';
-  titleViews.textContent = 'Visões';
-  secViews.appendChild(titleViews);
-
-  const gridViews = document.createElement('div');
-  gridViews.className = 'aside-footer-grid';
-
-  const createFooterBtn = (iconName, label, onClick) => {
-    const b = document.createElement('button');
-    b.className = 'aside-footer-btn';
-    b.innerHTML = `${iconSvg(iconName)}<span>${label}</span>`;
-    b.addEventListener('click', async e => {
-      e.stopPropagation();
-      closeNotesAsideDrawer();
-      await onClick();
+    row.addEventListener('mousedown', e => e.stopPropagation());
+    row.addEventListener('click', async () => {
+      closeNotesListPopover();
+      if (meta.id !== activeId) { await activateNote(meta.id); renderTabs(); }
+      scrollTabIntoView(meta.id);
     });
-    return b;
-  };
 
-  gridViews.appendChild(createFooterBtn('description', 'Documentos', () => {
-    document.dispatchEvent(new CustomEvent('quickdock:toggle-docs'));
-  }));
-  gridViews.appendChild(createFooterBtn('space_dashboard', 'Espaço', () => switchView('board', { fullscreen: true })));
-  gridViews.appendChild(createFooterBtn('hub', 'Constelações', () => switchView('grafo', { fullscreen: true })));
-  gridViews.appendChild(createFooterBtn('calendar_month', 'Calendário', () => switchView('calendar', { fullscreen: true })));
-  gridViews.appendChild(createFooterBtn('view_kanban', 'Base', () => switchView('bases', { fullscreen: true })));
-  gridViews.appendChild(createFooterBtn('auto_stories', 'Modelos', () => switchView('templates')));
-  gridViews.appendChild(createFooterBtn('data_object', 'JSON', () => switchView('json', { fullscreen: true })));
-
-  secViews.appendChild(gridViews);
-  footer.appendChild(secViews);
-
-  // 2. Ações & Ajustes
-  const secActions = document.createElement('div');
-  secActions.className = 'aside-footer-section';
-
-  const titleActions = document.createElement('div');
-  titleActions.className = 'aside-footer-title';
-  titleActions.textContent = 'Ações';
-  secActions.appendChild(titleActions);
-
-  const gridActions = document.createElement('div');
-  gridActions.className = 'aside-footer-grid';
-
-  gridActions.appendChild(createFooterBtn('sync', 'Sincronização', () => {
-    document.dispatchEvent(new CustomEvent('quickdock:open-sync'));
-  }));
-  gridActions.appendChild(createFooterBtn('light_mode', 'Alternar Tema', () => {
-    document.dispatchEvent(new CustomEvent('quickdock:toggle-theme'));
-  }));
-  gridActions.appendChild(createFooterBtn('download', 'Exportar Notas', () => downloadAllNotes()));
-  gridActions.appendChild(createFooterBtn('menu_book', 'Tutorial', () => createTutorialNote()));
-
-  secActions.appendChild(gridActions);
-  footer.appendChild(secActions);
-
-  drawer.appendChild(footer);
-
-  const doUpdate = () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-
-  input.addEventListener('input', doUpdate);
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      if (input.value) {
-        e.stopPropagation();
-        input.value = '';
-        doUpdate();
-      } else {
-        closeNotesAsideDrawer();
-      }
-    }
-  });
-
-  clearBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    input.value = '';
-    doUpdate();
-    input.focus();
-  });
-
-  renderNotesListRows(scrollArea, '', countEl, clearBtn);
-  document.body.appendChild(drawer);
-  notesAsideDrawer = drawer;
-
-  requestAnimationFrame(() => drawer.classList.add('open'));
-  setTimeout(() => input.focus(), 80);
-}
-
-export function openNotesListPopover() {
-  openNotesAsideDrawer();
-}
-
-// Reflete uma mudança de metadado (título, ícone, cor...) na lista de "Todas
-// as notas" já aberta — sem isto, a linha da aside ficava com o valor antigo
-// até a pessoa fechar e reabrir a busca/pasta que a redesenha do zero. No
-// desktop o drawer fica sempre `.open` (é o nav permanente), então isto roda
-// toda vez; nas outras plataformas só faz algo se o popover estiver na tela.
-export async function refreshOpenAsideRows() {
-  if (!notesAsideDrawer || !notesAsideDrawer.classList.contains('open')) return;
-  const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
-  if (!scroll) return;
-  const input = notesAsideDrawer.querySelector('.notes-search-input');
-  const countEl = notesAsideDrawer.querySelector('.notes-search-count');
-  const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
-  await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
-  await refreshAsideBadge(notesAsideDrawer, notesMeta.length);
-}
-
-// Quadros (Espaços) aparecem na mesma árvore: recria a lista quando um quadro
-// é criado/salvo/excluído ou quando a view muda (destaque do quadro aberto).
-document.addEventListener('quickdock:board-changed', () => { refreshOpenAsideRows(); });
-document.addEventListener('quickdock:view-changed', () => { refreshOpenAsideRows(); });
-
-// Renomear com 2 cliques direto na linha da aside, sem passar pelo menu "⋯".
-// Troca o <span> do título por um <input> no lugar; Enter/perder foco grava,
-// Escape cancela. `refreshOpenAsideRows()` no fim resolve os dois casos: ele
-// reconstrói a linha a partir do notesMeta (já atualizado ou não), então tanto
-// faz gravar quanto cancelar, o <input> sempre volta a ser um <span> normal.
-function iniciarRenomeacaoInlineNaAside(label, meta) {
-  const input = document.createElement('input');
-  input.className = 'notes-list-rename-input';
-  input.value = meta.title || '';
-  input.placeholder = 'Sem título';
-  label.replaceWith(input);
-  input.focus();
-  input.select();
-
-  const commit = async () => {
-    input.removeEventListener('blur', commit);
-    const val = input.value.trim() || 'Sem título';
-    if (val !== meta.title) {
-      await updateNoteMetaById(meta.id, { title: val });
-      meta.title = val;
-      renderTabs();
-      if (meta.id === activeId) {
-        document.dispatchEvent(new CustomEvent('quickdock:note-appearance-updated', { detail: { noteId: meta.id } }));
-      }
-    }
-    await refreshOpenAsideRows();
-  };
-
-  input.addEventListener('mousedown', e => e.stopPropagation());
-  input.addEventListener('click', e => e.stopPropagation());
-  input.addEventListener('dblclick', e => e.stopPropagation());
-  input.addEventListener('keydown', e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-    if (e.key === 'Escape') { input.value = meta.title; input.blur(); }
-  });
-  input.addEventListener('blur', commit);
-}
-
-// Distingue clique único (abre a nota) de duplo clique (renomeia) no mesmo
-// elemento: o único jeito confiável é atrasar a ação do clique único e
-// cancelá-la se um segundo clique chegar antes do tempo — dblclick nativo
-// dispara à parte, depois do 2º click, então continua funcionando normal.
-function ligarCliqueEDuploCliqueNaLinha(row, label, meta, aoAtivar) {
-  let timerClique = null;
-  row.addEventListener('click', () => {
-    if (timerClique) {
-      clearTimeout(timerClique);
-      timerClique = null;
-      return;
-    }
-    timerClique = setTimeout(() => {
-      timerClique = null;
-      aoAtivar();
-    }, 220);
-  });
-  label.addEventListener('dblclick', e => {
-    e.stopPropagation();
-    iniciarRenomeacaoInlineNaAside(label, meta);
-  });
-}
-
-// ── Drawer permanente para Desktop ──────────────────────────────────────────
-// No modo desktop o drawer fica fixo dentro do #mAside do Spatial Shell, como
-// o conteúdo do item "Explorador" da Activity Bar (#mNav) — ver setAsideMode
-// em spatial-shell.js, que alterna este drawer com #asideSectionList (lista
-// de views). Sem backdrop nem botão de fechar. Usa a mesma estrutura DOM do
-// drawer overlay (mobile/extensão) mas montado estaticamente.
-function initDesktopNotesAsideDrawer() {
-  if (notesAsideDrawer) return; // Já montado
-
-  const drawer = document.createElement('aside');
-  drawer.className = 'notes-aside-drawer notes-list-popover open';
-
-  // Cabeçalho do Drawer Aside: pasta + arquivo (o "arquivo" expande o painel de criar/importar)
-  const refreshList = async () => {
-    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-    await refreshAsideBadge(drawer, notesMeta.length);
-  };
-  const { header: asideHeader, panel: quickPanel } = buildAsideHeader({
-    count: notesMeta.length,
-    onNewFolder: () => startCreateFolderInline('', refreshList),
-    quickActions: asideQuickActions(refreshList, () => closeNotesAsideDrawer()),
-      });
-  drawer.append(asideHeader, quickPanel);
-  refreshAsideBadge(drawer, notesMeta.length);
-
-  // Barra de busca
-  const searchBar = document.createElement('div');
-  searchBar.className = 'notes-search-bar';
-
-  const searchIconEl = document.createElement('span');
-  searchIconEl.className = 'search-icon';
-  searchIconEl.innerHTML = iconSvg('search');
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'notes-search-input';
-  input.placeholder = 'Buscar por título ou conteúdo...';
-  input.setAttribute('aria-label', 'Buscar por título ou conteúdo');
-
-  const clearBtn = document.createElement('button');
-  clearBtn.className = 'notes-search-clear icon-btn';
-  clearBtn.innerHTML = iconSvg('close');
-  clearBtn.title = 'Limpar busca';
-  clearBtn.setAttribute('aria-label', 'Limpar busca');
-  clearBtn.hidden = true;
-
-  searchBar.append(searchIconEl, input, clearBtn);
-  drawer.appendChild(searchBar);
-
-  // Barra de ferramentas
-  const toolbar = document.createElement('div');
-  toolbar.className = 'notes-list-toolbar';
-
-  const btnToggleAll = document.createElement('button');
-  btnToggleAll.className = 'notes-list-action-btn';
-  btnToggleAll.title = 'Expandir ou recolher todas as pastas';
-  const openSet = getOpenFolders();
-  const hasClosed = !openSet || openSet.size === 0;
-  btnToggleAll.innerHTML = `${iconSvg(hasClosed ? 'expand_more' : 'unfold_less')}<span>${hasClosed ? 'Expandir' : 'Recolher'}</span>`;
-  btnToggleAll.addEventListener('click', async e => {
-    e.stopPropagation();
-    const pastas = await listarPastas();
-    const curOpen = getOpenFolders() || new Set();
-    if (curOpen.size > 0) {
-      saveOpenFolders(new Set());
-    } else {
-      const allPaths = new Set();
-      for (const p of pastas) if (p.caminho) allPaths.add(p.caminho);
-      for (const n of notesMeta) if (n.pasta) allPaths.add(n.pasta);
-      saveOpenFolders(allPaths);
-    }
-    await renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-    const newOpen = getOpenFolders() || new Set();
-    btnToggleAll.innerHTML = `${iconSvg(newOpen.size === 0 ? 'expand_more' : 'unfold_less')}<span>${newOpen.size === 0 ? 'Expandir' : 'Recolher'}</span>`;
-  });
-  toolbar.appendChild(btnToggleAll);
-
-  drawer.appendChild(toolbar);
-
-  const countEl = document.createElement('div');
-  countEl.className = 'notes-search-count';
-  countEl.hidden = true;
-  drawer.appendChild(countEl);
-
-  const scrollArea = document.createElement('div');
-  scrollArea.className = 'notes-list-scroll';
-  drawer.appendChild(scrollArea);
-
-  // Rodapé do Drawer Aside com Ações (o grid de "Visões" que existia aqui foi
-  // removido — duplicava as views do mosaico do Spatial Shell, que já tem
-  // seus próprios pontos de entrada: #mNav, #mMenu, "+" e a lista de views
-  // do #mAside. Manter os dois inflava "Documentos" pra 3+ botões diferentes
-  // e ainda abria o painel antigo de desktop-panels.js por fora do mosaico,
-  // sem grid-area — nunca fechava de verdade pelo botão da view.)
-  const footer = document.createElement('div');
-  footer.className = 'notes-aside-footer';
-
-  const createFooterBtn = (iconNameF, label, onClick) => {
-    const b = document.createElement('button');
-    b.className = 'aside-footer-btn';
-    b.innerHTML = `${iconSvg(iconNameF)}<span>${label}</span>`;
-    b.addEventListener('click', async e => {
+    row.addEventListener('dragstart', e => {
       e.stopPropagation();
-      await onClick();
+      noteDragSrcId = meta.id;
+      e.dataTransfer.effectAllowed = 'move';
+      listDropIndicatorEl = document.createElement('div');
+      listDropIndicatorEl.className = 'notes-list-drop-indicator';
     });
-    return b;
-  };
+    row.addEventListener('dragover', e => {
+      if (noteDragSrcId == null || noteDragSrcId === meta.id || !listDropIndicatorEl) return;
+      e.preventDefault();
+      const rect = row.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      row[before ? 'before' : 'after'](listDropIndicatorEl);
+    });
+    row.addEventListener('drop', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (noteDragSrcId == null) return;
+      const rect = row.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      const srcId = noteDragSrcId;
+      cleanupListDrag();
+      const moved = await reorderNotes(srcId, meta.id, before);
+      if (moved) { renderNotesListRows(pop); renderTabs(); }
+    });
+    row.addEventListener('dragend', e => { e.stopPropagation(); cleanupListDrag(); });
 
-  // 1. Visões do Espaço (visível no mobile para navegação entre views)
-  const secViews = document.createElement('div');
-  secViews.className = 'aside-footer-section aside-footer-views';
-
-  const titleViews = document.createElement('div');
-  titleViews.className = 'aside-footer-title';
-  titleViews.textContent = 'Visões';
-  secViews.appendChild(titleViews);
-
-  const gridViews = document.createElement('div');
-  gridViews.className = 'aside-footer-grid';
-
-  const viewItems = [
-    { id: 'notes', icon: 'description', label: 'Notas' },
-    { id: 'bases', icon: 'table_rows', label: 'Bases' },
-    { id: 'board', icon: 'space_dashboard', label: 'Espaço' },
-    { id: 'graph', icon: 'hub', label: 'Constelações' },
-    { id: 'calendar', icon: 'calendar_today', label: 'Calendário' },
-    { id: 'docs', icon: 'attach_file', label: 'Documentos' },
-    { id: 'templates', icon: 'auto_stories', label: 'Modelos' },
-    { id: 'json', icon: 'data_object', label: 'JSON Studio' },
-  ];
-
-  viewItems.forEach(v => {
-    gridViews.appendChild(createFooterBtn(v.icon, v.label, () => {
-      closeNotesAsideDrawer();
-      document.dispatchEvent(new CustomEvent('quickdock:open-view', { detail: { view: v.id } }));
-    }));
-  });
-
-  secViews.appendChild(gridViews);
-  footer.appendChild(secViews);
-
-  // 2. Ações & Ajustes
-  const secActions = document.createElement('div');
-  secActions.className = 'aside-footer-section';
-
-  const titleActions = document.createElement('div');
-  titleActions.className = 'aside-footer-title';
-  titleActions.textContent = 'Ações';
-  secActions.appendChild(titleActions);
-
-  const gridActions = document.createElement('div');
-  gridActions.className = 'aside-footer-grid';
-
-  gridActions.appendChild(createFooterBtn('sync', 'Sincronização', () => {
-    document.dispatchEvent(new CustomEvent('quickdock:open-sync'));
-  }));
-  gridActions.appendChild(createFooterBtn('light_mode', 'Alternar Tema', () => {
-    document.dispatchEvent(new CustomEvent('quickdock:toggle-theme'));
-  }));
-  gridActions.appendChild(createFooterBtn('download', 'Exportar Notas', () => downloadAllNotes()));
-  gridActions.appendChild(createFooterBtn('menu_book', 'Tutorial', () => createTutorialNote()));
-
-  secActions.appendChild(gridActions);
-  footer.appendChild(secActions);
-
-  drawer.appendChild(footer);
-
-  const doUpdate = () => renderNotesListRows(scrollArea, input.value, countEl, clearBtn);
-
-  input.addEventListener('input', doUpdate);
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      if (input.value) {
-        e.stopPropagation();
-        input.value = '';
-        doUpdate();
-      }
-      // No desktop, Escape não fecha o drawer
-    }
-  });
-
-  clearBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    input.value = '';
-    doUpdate();
-    input.focus();
-  });
-
-  renderNotesListRows(scrollArea, '', countEl, clearBtn);
-
-  // Monta dentro do #mAside (Spatial Shell) — #mAside.mode-notes/.mode-views
-  // decide se este drawer ou a lista de views fica visível (spatial-shell.js).
-  const mAsideEl = document.getElementById('mAside');
-  if (mAsideEl) {
-    mAsideEl.appendChild(drawer);
-  } else {
-    document.body.prepend(drawer);
+    pop.appendChild(row);
   }
-
-  notesAsideDrawer = drawer;
-
-  // #notes-tabs (a tira horizontal de abas abertas) NÃO é movida pra dentro
-  // de .note-section no desktop — cada nota aberta já é sua própria view no
-  // mosaico do Spatial Shell, com cabeçalho independente (ícone, título,
-  // fechar, mover — ver syncNoteSectionDOM em spatial-shell.js). Uma tira de
-  // abas por cima disso duplicaria essa navegação e tirava espaço da view,
-  // que deve preencher tudo que tem disponível como no design-pattern. O
-  // elemento fica onde nasceu (.app-aside, escondido no desktop) — inerte,
-  // sem afetar o mobile/extensão, que ainda usa a tira de verdade.
 }
 
-btnNotesList.addEventListener('click', e => {
-  e.stopPropagation();
-  if (notesAsideDrawer) {
-    closeNotesAsideDrawer();
-  } else {
-    openNotesAsideDrawer();
-  }
-});
+function openNotesListPopover() {
+  closeNotesListPopover();
+  const pop = document.createElement('div');
+  pop.className = 'copy-menu notes-list-popover';
+  renderNotesListRows(pop);
+  document.body.appendChild(pop);
+  notesListPopover = pop;
+  positionPopover(pop, btnNotesList);
+}
 
+btnNotesList.addEventListener('click', e => { e.stopPropagation(); openNotesListPopover(); });
 document.addEventListener('mousedown', e => {
-  if (folderModalEl && !folderModalEl.contains(e.target)) closeFolderModal();
-  if (moveMenuEl && !moveMenuEl.contains(e.target)) closeMoveMenu();
-  if (folderMenuEl && !folderMenuEl.contains(e.target)) closeFolderMenu();
-});
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    if (folderModalEl) { closeFolderModal(); return; }
-    if (moveMenuEl) { closeMoveMenu(); return; }
-    if (folderMenuEl) { closeFolderMenu(); return; }
-    if (notesAsideDrawer) closeNotesAsideDrawer();
-  }
+  if (notesListPopover && !notesListPopover.contains(e.target)) closeNotesListPopover();
 });
 
 // ── "Nova nota" / "Importar" (botão combinado) ────────────────────────────────
 let newMenuPopover = null;
 function closeNewMenu() { newMenuPopover?.remove(); newMenuPopover = null; }
 
-export async function createNoteInFolder(pasta = '', isBase = false) {
+async function createBlankNote() {
   await flushSave();
-  const pastaLimpa = normalizarCaminhoPasta(pasta || '');
-  const title = isBase ? `Base ${notesMeta.length + 1}` : `Nota ${notesMeta.length + 1}`;
-  let id;
-  if (isBase) {
-    const baseContent = `\`\`\`base
-name: Nova Base
-source:
-  folder: ${pastaLimpa || '/'}
-views:
-  - type: table
-    name: Tabela Geral
-    columns: [title, folder, tags, updatedAt]
-  - type: board
-    name: Quadro
-    groupBy: status
-  - type: gallery
-    name: Galeria
-    cardSize: medium
-    properties: [title, tags, updatedAt]
-\`\`\``;
-    const blocks = parseMarkdownToBlocks(baseContent);
-    id = await createNoteRecord({
-      title,
-      pasta: pastaLimpa,
-      content: baseContent,
-      blocks,
-      icon: 'view_kanban',
-      properties: { folder: pastaLimpa },
-    });
-    notesMeta.push({
-      id,
-      title,
-      pasta: pastaLimpa,
-      color: null,
-      icon: 'view_kanban',
-      properties: { folder: pastaLimpa },
-      updatedAt: Date.now()
-    });
-  } else {
-    id = await createNoteRecord({
-      title,
-      pasta: pastaLimpa,
-      content: '',
-      properties: { folder: pastaLimpa },
-    });
-    notesMeta.push({
-      id,
-      title,
-      pasta: pastaLimpa,
-      color: null,
-      icon: null,
-      properties: { folder: pastaLimpa },
-      updatedAt: Date.now()
-    });
-  }
+  const title = `Nota ${notesMeta.length + 1}`;
+  const id = await createNoteRecord({ title, content: '' });
+  notesMeta.push({ id, title, color: null, icon: null, updatedAt: Date.now() });
+  await activateNote(id);
+  renderTabs();
+}
 
-  if (pastaLimpa) {
-    const openSet = getOpenFolders() || new Set();
-    const partes = pastaLimpa.split('/');
-    for (let i = 1; i <= partes.length; i++) {
-      openSet.add(partes.slice(0, i).join('/'));
-    }
-    saveOpenFolders(openSet);
-  }
-
+// Cria uma nova nota com o mesmo conteúdo do tutorial — usado pelo botão 📘
+// do cabeçalho, pra quem já tem notas e quer ver o tutorial de novo.
+export async function createTutorialNote() {
+  await flushSave();
+  const fields = buildTutorialNoteFields();
+  const id = await createNoteRecord(fields);
+  notesMeta.push({ id, title: fields.title, color: fields.color, icon: fields.icon, updatedAt: Date.now() });
   await activateNote(id);
   renderTabs();
   scrollTabIntoView(id);
-
-  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
-    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
-    const input = notesAsideDrawer.querySelector('.notes-search-input');
-    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
-    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
-    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
-    const badge = notesAsideDrawer.querySelector('.notes-aside-badge');
-    if (badge) badge.textContent = String(notesMeta.length);
-  }
-  return id;
-}
-
-export async function createBlankNote() {
-  return createNoteInFolder('', false);
-}
-
-export async function createNewBaseNote() {
-  return createNoteInFolder('', true);
 }
 
 // Nota a partir de um modelo: o markdown do modelo passa pelo mesmo parser da
@@ -1646,6 +1064,80 @@ async function createNoteFromTemplate(tpl) {
   await activateNote(id);
   renderTabs();
   scrollTabIntoView(id);
+}
+
+// ── Modo modelo ───────────────────────────────────────────────────────────────
+// O editor de blocos é um só, ligado a #note-editor-blocks. Em vez de construir
+// um segundo editor, ele empresta: carrega o modelo, mostra esta barra e o que
+// for digitado volta pro modelo em vez de pra uma nota.
+const templateBar    = document.getElementById('template-bar');
+const templateName   = document.getElementById('template-bar-name');
+const templateKind   = document.getElementById('template-bar-kind');
+const templateCancel = document.getElementById('template-bar-cancel');
+const templateSave   = document.getElementById('template-bar-save');
+
+let editingTpl  = null;   // {id, name, kind} do modelo aberto
+let returnNoteId = null;  // nota pra onde voltar ao sair
+
+export async function editTemplate(tpl) {
+  closeTemplatesManager();
+  returnNoteId = activeId;
+  editingTpl = { id: tpl.id, name: tpl.name, kind: tpl.kind };
+
+  await openTemplateInEditor(tpl);
+
+  templateName.value = tpl.name;
+  templateKind.value = tpl.kind;
+  templateBar.hidden = false;
+  noteSection.classList.add('template-mode');
+}
+
+async function exitTemplate(salvar) {
+  if (!editingTpl) return;
+
+  if (salvar) {
+    const nome = templateName.value.trim() || editingTpl.name;
+    await updateTemplateById(editingTpl.id, {
+      name: nome,
+      kind: templateKind.value,
+      content: currentTemplateMarkdown(),
+    });
+    await refreshTemplates();
+  }
+
+  editingTpl = null;
+  templateBar.hidden = true;
+  noteSection.classList.remove('template-mode');
+
+  const voltarPara = notesMeta.some(n => n.id === returnNoteId) ? returnNoteId : notesMeta[0]?.id;
+
+  // O modo modelo só é desligado DEPOIS de a nota voltar pra tela.
+  //
+  // Desligar antes era perda de nota: switchToNote começa com um flushSave, e
+  // esse save é justamente o que o modo modelo existe pra bloquear. Com a
+  // marca já limpa, ele serializava o que estava na tela — os blocos do
+  // MODELO — e gravava por cima da nota que estava aberta. Valia pra toda
+  // saída, inclusive pelo "Cancelar".
+  if (voltarPara != null) await activateNote(voltarPara);
+  clearTemplateEditing();
+  renderTabs();
+}
+
+// Evento em vez de import: templates.js e note.js precisam pedir "abre este
+// modelo no editor", e os dois seriam import circular com este módulo.
+document.addEventListener('quickdock:edit-template', e => { editTemplate(e.detail); });
+
+templateSave.addEventListener('click', () => exitTemplate(true));
+templateCancel.addEventListener('click', () => exitTemplate(false));
+templateName.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter') { e.preventDefault(); exitTemplate(true); }
+});
+
+async function currentNoteAsMarkdown() {
+  const meta = notesMeta.find(n => n.id === activeId);
+  if (!meta) return null;
+  return { title: meta.title, markdown: blocksToMarkdown(await getBlocksForNote(meta)) };
 }
 
 // textContent, não innerHTML: nome de modelo é texto que o usuário escreveu.
@@ -1667,16 +1159,6 @@ async function openNewMenu() {
   pop.className = 'copy-menu new-menu';
 
   newMenuOpt(pop, 'Nota em branco', createBlankNote);
-  newMenuOpt(pop, 'Nova Base de dados', createNewBaseNote);
-  newMenuOpt(pop, 'Novo Espaço Infinito', async () => {
-    const titulo = prompt('Título do novo espaço:', 'Novo Espaço');
-    if (titulo !== null) {
-      const { createBlankBoard } = await import('./board-engine.js');
-      const { switchView } = await import('./views.js');
-      await createBlankBoard(titulo.trim() || 'Novo Espaço');
-      switchView('board');
-    }
-  });
   newMenuOpt(pop, 'Importar (.md/.txt)', () => importInput.click());
 
   await getTemplates();               // atualiza o cache antes de listar
@@ -1691,8 +1173,7 @@ async function openNewMenu() {
   }
 
   pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-  newMenuOpt(pop, 'Galeria de modelos…', () => switchView('templates'));
-  newMenuOpt(pop, 'Gerenciar modelos (menu rápido)…', () => openTemplatesManager(btnNew, {
+  newMenuOpt(pop, 'Gerenciar modelos…', () => openTemplatesManager(btnNew, {
     onUse: createNoteFromTemplate,
     getCurrentNote: currentNoteAsMarkdown,
   }));
@@ -1735,154 +1216,17 @@ importInput.addEventListener('change', async () => {
 });
 
 // ── Ciclo de vida ──────────────────────────────────────────────────────────────
-export function updateNoteFolderBar(meta) {
-  const btn = document.getElementById('btn-note-folder');
-  const nameEl = document.getElementById('note-folder-name');
-  if (!btn || !nameEl) return;
-  const pasta = meta?.pasta || '';
-  if (pasta) {
-    nameEl.textContent = pasta;
-    btn.classList.add('has-folder');
-    btn.title = `Pasta: ${pasta} (clique para mover ou alterar pasta)`;
-  } else {
-    nameEl.textContent = 'Sem pasta';
-    btn.classList.remove('has-folder');
-    btn.title = 'Mover esta nota para uma pasta';
-  }
-}
-
-export async function activateNote(id) {
-  hideEmptyDashboard();
+async function activateNote(id) {
   activeId = id;
-  const numId = Number(id);
-  if (!openTabIds.includes(numId)) {
-    openTabIds.push(numId);
-    saveOpenTabIds(openTabIds);
-  }
   const meta = notesMeta.find(n => n.id === id);
-  setAccent(meta?.color, meta?.font);
+  setAccent(meta?.color);
   await switchToNote(id);
   await setDocumentsNote(id);
   await saveActiveNoteId(id);
-  updateNoteFolderBar(meta);
-  renderTabs();
-  if (getCurrentView() === 'templates') {
-    switchView('editor');
-  }
-  document.dispatchEvent(new CustomEvent('quickdock:active-note-changed', { detail: { id } }));
 }
 
-// Nem toda troca de nota passa por activateNote() acima — o painel de Base
-// (bases-view-container.js handleCreateNewNote) chama switchToNote() direto
-// ao criar uma nota pelo botão "+ Nova Nota". Sem isto, `activeId` ficava
-// preso na nota antiga: um clique na aside pra voltar pra ela era ignorado,
-// porque o guard "meta.id !== activeId" (ver ligarCliqueEDuploCliqueNaLinha)
-// achava, errado, que já era a nota atual.
-document.addEventListener('quickdock:active-note-changed', e => {
-  const { id } = e.detail ?? {};
-  if (id === activeId) return; // já veio daqui mesmo, activateNote() já fez tudo
-  activeId = id;
-  if (id != null) {
-    hideEmptyDashboard();
-    const numId = Number(id);
-    if (!openTabIds.includes(numId)) {
-      openTabIds.push(numId);
-      saveOpenTabIds(openTabIds);
-    }
-    const meta = notesMeta.find(n => n.id === id);
-    setAccent(meta?.color, meta?.font);
-    updateNoteFolderBar(meta);
-  } else {
-    setAccent(null);
-    updateNoteFolderBar(null);
-    showEmptyDashboard();
-  }
-  saveActiveNoteId(id);
-  setDocumentsNote(id);
-  renderTabs();
-});
-
-document.addEventListener('quickdock:use-template-note', async e => {
-  const { template } = e.detail || {};
-  if (template) await createNoteFromTemplate(template);
-});
-
-document.addEventListener('quickdock:activate-note', async e => {
-  const { id, uid, title, path, createIfMissing } = e.detail || {};
-  let target = null;
-  if (id != null) {
-    target = notesMeta.find(n => n.id === id);
-  } else if (uid) {
-    target = notesMeta.find(n => n.uid === uid);
-  } else {
-    const queryPath = (path || (title && title.includes('/') ? title : '')).trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
-    if (queryPath) {
-      target = notesMeta.find(n => {
-        const p = (n.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-        const t = (n.title || '').trim();
-        const full = (p ? `${p}/${t}` : t).toLowerCase();
-        return full === queryPath;
-      });
-    }
-
-    if (!target && title) {
-      const titleLower = title.trim().toLowerCase();
-      const candidatos = notesMeta.filter(n => (n.title || '').trim().toLowerCase() === titleLower);
-      if (candidatos.length === 1) {
-        target = candidatos[0];
-      } else if (candidatos.length > 1) {
-        // Proximidade com a nota ativa
-        const activeMeta = notesMeta.find(n => n.id === activeId);
-        const activePasta = (activeMeta?.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
-        if (activePasta) {
-          target = candidatos.find(n => {
-            const p = (n.pasta || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').toLowerCase();
-            return p === activePasta;
-          });
-        }
-        if (!target) target = candidatos[0];
-      }
-    }
-  }
-
-  // Nota recém-criada fora daqui (ex.: "Nova nota" da Base): ainda não está em
-  // notesMeta. Sem recarregar a lista, nada abria e seguia a nota aberta antes.
-  if (!target && (id != null || uid)) {
-    await refreshNotesList();
-    target = id != null ? notesMeta.find(n => n.id === id) : notesMeta.find(n => n.uid === uid);
-  }
-
-  if (target) {
-    await activateNote(target.id);
-    renderTabs();
-    scrollTabIntoView(target.id);
-    if (typeof window !== 'undefined' && typeof window.quickdockOpenView === 'function') {
-      window.quickdockOpenView('notes');
-    }
-    return;
-  }
-
-  if (createIfMissing && (title || path)) {
-    const raw = (path || title).trim();
-    let pasta = '';
-    let nomeNota = raw;
-    if (raw.includes('/')) {
-      const idx = raw.lastIndexOf('/');
-      pasta = raw.slice(0, idx).trim();
-      nomeNota = raw.slice(idx + 1).trim();
-    }
-    const novoId = await createNoteRecord({ title: nomeNota, pasta: pasta || undefined });
-    await refreshNotesList();
-    await activateNote(novoId);
-    renderTabs();
-    scrollTabIntoView(novoId);
-    if (typeof window !== 'undefined' && typeof window.quickdockOpenView === 'function') {
-      window.quickdockOpenView('notes');
-    }
-  }
-});
-
 export async function initNotesTabs() {
+  await migrateLegacyNoteIfNeeded();
   // Faxina de imagem órfã. Roda na abertura de propósito: é o único momento em
   // que não existe histórico de desfazer que pudesse trazer de volta um bloco
   // cujo arquivo acabou de ser apagado.
@@ -1890,112 +1234,17 @@ export async function initNotesTabs() {
   await initTemplates();
   notesMeta = await loadAllNotesMeta();
 
-  // Evento do botão de pasta no cabeçalho do editor
-  document.getElementById('btn-note-folder')?.addEventListener('click', e => {
-    e.stopPropagation();
-    const meta = notesMeta.find(n => n.id === activeId);
-    if (!meta) return;
-    promptMoverNotaParaPasta(meta, e.currentTarget, () => {
-      updateNoteFolderBar(meta);
-      renderTabs();
-    });
-  });
-
-  // No desktop e mobile com spatial shell, monta o drawer permanente em #mAside
-  if (isDesktopMode() || document.getElementById('mAside')) {
-    initDesktopNotesAsideDrawer();
+  // Primeira vez que a extensão é aberta (nenhuma nota, nem legado migrado):
+  // cria a nota-tutorial em vez de uma nota em branco.
+  if (notesMeta.length === 0) {
+    const fields = buildTutorialNoteFields();
+    const id = await createNoteRecord(fields);
+    notesMeta = [{ id, title: fields.title, color: fields.color, icon: fields.icon, updatedAt: Date.now() }];
   }
 
   const savedActiveId = await loadActiveNoteId();
-  if (openTabIds.length > 0) {
-    const initial = notesMeta.find(n => n.id === savedActiveId && openTabIds.includes(n.id))
-      ?? notesMeta.find(n => n.id === openTabIds[0])
-      ?? notesMeta[0];
-    await activateNote(initial.id);
-    renderTabs();
-    scrollTabIntoView(initial.id);
-  } else {
-    await deactivateActiveNote();
-    renderTabs();
-  }
-}
-
-document.addEventListener('quickdock:note-folder-changed', async e => {
-  const { notaId, pasta } = e.detail || {};
-  const meta = notesMeta.find(n => n.id === Number(notaId));
-  if (meta) {
-    meta.pasta = pasta || '';
-    if (meta.properties) meta.properties.folder = pasta || '';
-  }
-  if (Number(notaId) === activeId && meta) {
-    updateNoteFolderBar(meta);
-  }
+  const initial = notesMeta.find(n => n.id === savedActiveId) ?? notesMeta[0];
+  await activateNote(initial.id);
   renderTabs();
-  await refreshOpenAsideRows();
-});
-
-// Título editado direto no cabeçalho da nota (note.js) — diferente do preview
-// a cada tecla (só cosmético, só a aba), este dispara já com o valor gravado
-// no banco, então é aqui que o notesMeta de verdade (usado pela busca e pela
-// lista "Todas as notas") fica sincronizado.
-document.addEventListener('quickdock:note-title-committed', async e => {
-  const { noteId, title } = e.detail || {};
-  const meta = notesMeta.find(n => n.id === Number(noteId));
-  if (!meta || meta.title === title) return;
-  meta.title = title;
-  renderTabs();
-  await refreshOpenAsideRows();
-});
-
-// ── Lista em memória x banco ───────────────────────────────────────────────────
-// Notas apagadas (ou criadas) por outro caminho — seleção em lote na tabela, calendário, sincronização —
-// não passavam por aqui: a nota seguia na aba e nas listas até recarregar a página (F5). Quando o conjunto
-// de notas muda, a lista em memória é conferida e, se estiver diferente, refeita; abas de notas que
-// sumiram fecham e, se era a aberta, vai para outra aba ou para a tela "nenhuma nota aberta".
-let conferirTimer = null;
-document.addEventListener('quickdock:notes-changed', () => {
-  clearTimeout(conferirTimer);
-  conferirTimer = setTimeout(conferirListaDeNotas, 150);
-});
-
-async function conferirListaDeNotas() {
-  if (excluindoNota) { conferirTimer = setTimeout(conferirListaDeNotas, 300); return; }   // deleteNoteById arruma sozinha
-  let ids;
-  try { ids = new Set(await loadAllNoteIds()); } catch { return; }
-  const atuais = new Set(notesMeta.map(n => n.id));
-  if (ids.size === atuais.size && [...ids].every(i => atuais.has(i))) return;
-
-  notesMeta = await loadAllNotesMeta();
-  const abertasAntes = openTabIds.length;
-  openTabIds = openTabIds.filter(i => ids.has(i));
-  if (openTabIds.length !== abertasAntes) saveOpenTabIds(openTabIds);
-  if (activeId != null && !ids.has(activeId)) {
-    const proxima = openTabIds[0];
-    if (proxima != null) await activateNote(proxima); else await deactivateActiveNote();
-  }
-  renderTabs();
-  await refreshOpenAsideRows();
-}
-export async function refreshNotesList() {
-  notesMeta = await loadAllNotesMeta();
-  renderTabs();
-  const current = notesMeta.find(n => n.id === activeId);
-  if (!current && notesMeta.length > 0) {
-    await activateNote(notesMeta[0].id);
-    renderTabs();
-    scrollTabIntoView(notesMeta[0].id);
-  }
-  if (notesAsideDrawer && notesAsideDrawer.classList.contains('open')) {
-    const scroll = notesAsideDrawer.querySelector('.notes-list-scroll');
-    const input = notesAsideDrawer.querySelector('.notes-search-input');
-    const countEl = notesAsideDrawer.querySelector('.notes-search-count');
-    const clearBtn = notesAsideDrawer.querySelector('.notes-search-clear');
-    if (scroll) await renderNotesListRows(scroll, input?.value || '', countEl, clearBtn);
-    const badge = notesAsideDrawer.querySelector('.notes-aside-badge');
-    if (badge) badge.textContent = String(notesMeta.length);
-  }
-}
-
-export function getActiveNoteUid() {
-  return notesMeta.find(n => n.id === activeId)?.uid ?? null;
+  scrollTabIntoView(initial.id);
 }
