@@ -5,6 +5,8 @@
 // Textos com {nome} / {n} recebem o valor por tr(texto, { nome: ... }).
 
 const LISTA = [
+  ["Botões compactos", "Compact buttons", "Botones compactos", "Botões compactos"],
+  ["Botões normais", "Normal buttons", "Botones normales", "Botões normais"],
   ["Sem título", "Untitled", "Sin título", "Sem título"],
   ["Novo modelo", "New template", "Nueva plantilla", "Novo modelo"],
   ["Modelo importado", "Imported template", "Plantilla importada", "Modelo importado"],

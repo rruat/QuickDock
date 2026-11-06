@@ -40,6 +40,25 @@ async function toggleDocs() {
   await new Promise(resolve => chrome.storage.local.set({ [DOCS_HIDDEN_KEY]: next }, resolve));
 }
 
+// Densidade: "compact" reduz os botões do cabeçalho e as abas (CSS em tabbar.css).
+const DENSITY_KEY = 'button_density';
+
+function applyDensity(compact) {
+  html.dataset.density = compact ? 'compact' : 'normal';
+}
+
+async function loadDensity() {
+  return new Promise(resolve => {
+    chrome.storage.local.get(DENSITY_KEY, obj => resolve(!!obj[DENSITY_KEY]));
+  });
+}
+
+async function toggleDensity() {
+  const next = html.dataset.density !== 'compact';
+  applyDensity(next);
+  await new Promise(resolve => chrome.storage.local.set({ [DENSITY_KEY]: next }, resolve));
+}
+
 async function toggleTheme() {
   const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   await saveTheme(next);
@@ -107,6 +126,9 @@ function renderAsideFoot() {
   const escolha = escolhaIdioma();
   const visivel = escolha ?? idiomaAtual();
   addFootOpt(bandeiraDoIdioma(visivel) ?? 'translate', t('aside.idioma') + ': ' + (escolha ? t('idioma.' + escolha) : t('idioma.auto')), () => { idiomaAberto = true; });
+  // Densidade dos botões do cabeçalho e das abas: o item mostra a ação (trocar).
+  const compacto = html.dataset.density === 'compact';
+  addFootOpt(compacto ? 'density_medium' : 'density_small', compacto ? t('Botões normais') : t('Botões compactos'), toggleDensity);
   addFootOpt('download', t('aside.baixarTudo'), downloadAllNotes);
 }
 
@@ -127,6 +149,7 @@ async function init() {
     aplicarRotulosDestaque();
     await initTheme();
     applyDocsHidden(await loadDocsHidden());
+    applyDensity(await loadDensity());
     await initNotesTabs();
     await initDocuments();
     await initResizer();

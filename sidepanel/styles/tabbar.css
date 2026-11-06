@@ -311,3 +311,31 @@
   --icon-opsz: 18;
 }
 
+/* ===== DENSIDADE COMPACTA =====
+   Escolhida na aside (app.js). Reduz os botões do cabeçalho e a altura das abas.
+   O left da faixa de abas acompanha a largura da pílula de botões. */
+html[data-density="compact"] .notes-tabbar {
+  --tabbar-h: 34px;
+}
+html[data-density="compact"] .notes-tabbar .icon-btn {
+  width: 30px;
+  height: 30px;
+}
+html[data-density="compact"] .notes-tabbar svg {
+  width: 16px;
+  height: 16px;
+}
+html[data-density="compact"] .notes-tabs {
+  left: 52px;
+  padding-left: 20px;
+}
+html[data-density="compact"] .note-tab {
+  height: 30px;
+  min-width: 56px;
+  padding: 0 10px;
+  gap: 4px;
+}
+html[data-density="compact"] .note-tab-icon {
+  font-size: 16px;
+}
+
