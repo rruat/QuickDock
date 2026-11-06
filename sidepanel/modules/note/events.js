@@ -1,12 +1,12 @@
 import { isNoteActive, setActiveArea } from '../active-area.js';
 import { safeHref } from '../blocks.js';
 import { deleteBlocksOrOne } from './block-menu.js';
-import { currentBlock, recalcCalcSheets, renumberLists } from './block-ops.js';
-import { clearBlockSelection, findBlockById } from './block-selection.js';
+import { currentBlock, focusBlockStart, recalcCalcSheets, renumberLists } from './block-ops.js';
+import { clearBlockSelection, findBlockById, setBlockSelection } from './block-selection.js';
 import { blocksForIndent, getContentEl, indentBlocks } from './block-structure.js';
 import { getCaretOffset } from './caret.js';
 import { handleBackspaceAtStart, handleEnter } from './enter-backspace.js';
-import { insertImageFile } from './images.js';
+import { focusBlockEnd, insertImageFile } from './images.js';
 import { applyLink } from './links.js';
 import { insertTableBlock, parseClipboardTable, parseTsvTable, pasteInlineText, pasteLink, pasteMultilineText } from './paste.js';
 import { scheduleRescan } from './rescan.js';
@@ -43,6 +43,10 @@ root.addEventListener('input', () => {
     if (checkBlockShortcut(block))   { scheduleSave(); return; }
     checkSlashMenu(block);
   } else {
+    // "- " já virou item de lista ao digitar o espaço; "[] " ou "[x] " digitados
+    // depois ainda precisam virar checklist.
+    const lista = block.dataset.type === 'bullet' || block.dataset.type === 'number';
+    if (lista && checkBlockShortcut(block, { apenasChecklist: true })) { scheduleSave(); return; }
     closeSlashMenu();
   }
 
@@ -104,6 +108,11 @@ root.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp')   { e.preventDefault(); moveSlashSelection(-1); return; }
     if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); confirmSlashSelection(); return; }
     if (e.key === 'Escape') { e.preventDefault(); cancelSlashMenu(); return; }
+  }
+
+  // Setas para cima e para baixo alcançam imagens (e outros blocos que não são texto).
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+    if (navegarAtomos(e.key === 'ArrowDown' ? 1 : -1)) { e.preventDefault(); return; }
   }
 
   // Numa célula de tabela, Enter quebra linha dentro da célula — nunca cria um
@@ -253,3 +262,49 @@ root.addEventListener('paste', e => {
     pasteInlineText(text);
   }
 });
+
+// ── Setas e blocos que não são texto (imagem, áudio, vídeo, quebra, sumário) ──
+// Esses blocos não recebem o cursor de texto. Na borda de um texto, a seta
+// seleciona o bloco vizinho; a seta seguinte segue adiante (ou volta ao texto).
+const BLOCOS_ATOMICOS = new Set(['image', 'audio', 'video', 'pagebreak', 'toc']);
+
+function vizinhoDoBloco(bloco, dir) {
+  let el = dir > 0 ? bloco.nextElementSibling : bloco.previousElementSibling;
+  while (el && !el.classList?.contains('block')) el = dir > 0 ? el.nextElementSibling : el.previousElementSibling;
+  return el;
+}
+
+// O cursor está na última (dir > 0) ou na primeira (dir < 0) linha do texto?
+function caretNaBordaDoTexto(bloco, dir) {
+  const conteudo = getContentEl(bloco);
+  const sel = document.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const caixa = conteudo.getBoundingClientRect();
+  const r = sel.getRangeAt(0).getBoundingClientRect();
+  const linha = parseFloat(getComputedStyle(conteudo).lineHeight) || 20;
+  return dir > 0
+    ? r.bottom >= caixa.bottom - linha * 0.6
+    : r.top <= caixa.top + linha * 0.6;
+}
+
+// Devolve true quando a seta foi tratada aqui.
+function navegarAtomos(dir) {
+  if (S.selectedBlockIds.size === 1) {
+    const atual = findBlockById([...S.selectedBlockIds][0]);
+    if (!atual || !BLOCOS_ATOMICOS.has(atual.dataset.type)) return false;
+    const prox = vizinhoDoBloco(atual, dir);
+    if (!prox) return true;                       // fim da nota: fica no bloco
+    if (BLOCOS_ATOMICOS.has(prox.dataset.type)) { setBlockSelection([prox.dataset.id]); return true; }
+    clearBlockSelection();
+    if (dir > 0) focusBlockStart(prox); else focusBlockEnd(prox);
+    return true;
+  }
+  if (S.selectedBlockIds.size > 0) return false;
+  if (focusedCell()) return false;                // dentro de tabela, a seta é da tabela
+  const bloco = currentBlock();
+  if (!bloco || !caretNaBordaDoTexto(bloco, dir)) return false;
+  const prox = vizinhoDoBloco(bloco, dir);
+  if (!prox || !BLOCOS_ATOMICOS.has(prox.dataset.type)) return false;
+  setBlockSelection([prox.dataset.id]);
+  return true;
+}

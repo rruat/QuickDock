@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { createBlockEl } from './block-model.js';
 import { convertBlockType, currentBlock, focusBlockStart, getBlockFromNode, renumberLists } from './block-ops.js';
 import { getContentEl, isBlockQuoted, setBlockQuoted } from './block-structure.js';
@@ -104,24 +105,41 @@ export function insertDividerAtCursor() {
   scheduleSave();
 }
 
+// Ícones no estilo SF Symbols: traço fino e arredondado (24x24).
+const ICONE = {
+  bold:      "<path d='M6 4h7a4 4 0 0 1 0 8H6z'/><path d='M6 12h8a4 4 0 0 1 0 8H6z'/>",
+  italic:    "<path d='M14 4h-4'/><path d='M14 20h-4'/><path d='M15 4L9 20'/>",
+  strike:    "<path d='M4 12h16'/><path d='M16 7.5C16 5.6 14.2 4.5 12 4.5S8 5.6 8 7.6c0 4.4 8 3.2 8 7.4 0 2-1.8 3.5-4 3.5s-4-1.2-4-3.5'/>",
+  code:      "<path d='M8 8l-4 4 4 4'/><path d='M16 8l4 4-4 4'/><path d='M13.5 5l-3 14'/>",
+  link:      "<path d='M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1'/><path d='M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1'/>",
+  paragraph: "<path d='M5 6h14'/><path d='M5 10h14'/><path d='M5 14h9'/>",
+  quote:     "<path d='M6 17h3l2-4V7H5v6h3z'/><path d='M14 17h3l2-4V7h-6v6h3z'/>",
+  bullets:   "<path d='M9 6h11'/><path d='M9 12h11'/><path d='M9 18h11'/><path d='M4.5 6h.01'/><path d='M4.5 12h.01'/><path d='M4.5 18h.01'/>",
+  numbers:   "<path d='M10 6h11'/><path d='M10 12h11'/><path d='M10 18h11'/><path d='M3.5 5.5L5 4.5v5'/><path d='M3.5 14.5h3l-3 3.5h3'/>",
+  checklist: "<rect x='3.5' y='4' width='7' height='7' rx='2'/><path d='M5 7.5l1.5 1.5 2.5-2.5'/><path d='M13 7.5h8'/><path d='M3.5 15.5h7'/><path d='M13 17.5h8'/>",
+  divider:   "<path d='M4 12h16'/>",
+};
+
+const svgDe = corpo => `<svg viewBox='0 0 24 24' aria-hidden='true'>${corpo}</svg>`;
+
 export const MD_BUTTONS = [
-  { label: 'B',   title: 'Negrito (selecione o texto)',   action: () => execFormat('bold') },
-  { label: 'I',   title: 'Itálico (selecione o texto)',   action: () => execFormat('italic') },
-  { label: 'S',   title: 'Riscado (selecione o texto)',   action: () => execFormat('strikeThrough') },
-  { label: '</>', title: 'Código (selecione o texto)',     action: () => wrapSelectionInTag('code') },
-  { label: '🔗',  title: 'Link (Ctrl+K)',                  action: () => applyLink() },
+  { icon: svgDe(ICONE.bold),   title: tr('Negrito (selecione o texto)'),   action: () => execFormat('bold') },
+  { icon: svgDe(ICONE.italic), title: tr('Itálico (selecione o texto)'),   action: () => execFormat('italic') },
+  { icon: svgDe(ICONE.strike), title: tr('Riscado (selecione o texto)'),   action: () => execFormat('strikeThrough') },
+  { icon: svgDe(ICONE.code),   title: tr('Código (selecione o texto)'),     action: () => wrapSelectionInTag('code') },
+  { icon: svgDe(ICONE.link),   title: tr('Link (Ctrl+K)'),                  action: () => applyLink() },
   null,
-  { label: 'T',   title: 'Texto normal (remove a formatação do bloco)', action: () => convertSelectedBlocks('paragraph') },
-  { label: 'H1',  title: 'Título 1',                       action: () => convertSelectedBlocks('heading1') },
-  { label: 'H2',  title: 'Título 2',                       action: () => convertSelectedBlocks('heading2') },
-  { label: 'H3',  title: 'Título 3',                       action: () => convertSelectedBlocks('heading3') },
+  { icon: svgDe(ICONE.paragraph), title: tr('Texto normal (remove a formatação do bloco)'), action: () => convertSelectedBlocks('paragraph') },
+  { label: 'H1',  title: tr('Título 1'),                       action: () => convertSelectedBlocks('heading1') },
+  { label: 'H2',  title: tr('Título 2'),                       action: () => convertSelectedBlocks('heading2') },
+  { label: 'H3',  title: tr('Título 3'),                       action: () => convertSelectedBlocks('heading3') },
   null,
-  { label: '•',   title: 'Lista com marcadores',           action: () => convertSelectedBlocks('bullet') },
-  { label: '1.',  title: 'Lista numerada',                 action: () => convertSelectedBlocks('number') },
-  { label: '☐',   title: 'Checklist',                      action: () => convertSelectedBlocks('checklist') },
+  { icon: svgDe(ICONE.bullets),   title: tr('Lista com marcadores'),           action: () => convertSelectedBlocks('bullet') },
+  { icon: svgDe(ICONE.numbers),   title: tr('Lista numerada'),                 action: () => convertSelectedBlocks('number') },
+  { icon: svgDe(ICONE.checklist), title: tr('Checklist'),                      action: () => convertSelectedBlocks('checklist') },
   null,
-  { label: '"',   title: 'Citação (clique de novo pra tirar)', action: toggleQuotedOnSelection },
-  { label: '—',   title: 'Linha horizontal',                action: () => insertDividerAtCursor() },
+  { icon: svgDe(ICONE.quote),     title: tr('Citação (clique de novo pra tirar)'), action: toggleQuotedOnSelection },
+  { icon: svgDe(ICONE.divider),   title: tr('Linha horizontal'),                action: () => insertDividerAtCursor() },
 ];
 
 export const mdBar = ttBar;
@@ -140,9 +158,10 @@ for (const b of MD_BUTTONS) {
     continue;
   }
   const btn = document.createElement('button');
-  btn.className   = 'tt-btn';
+  btn.className   = 'tt-btn' + (b.icon ? ' tt-btn-icon' : '');
   btn.title       = b.title;
-  btn.textContent = b.label;
+  if (b.icon) btn.innerHTML = b.icon;
+  else btn.textContent = b.label;
   btn.addEventListener('mousedown', e => e.preventDefault());
   btn.addEventListener('click', b.action);
   mdBar.appendChild(btn);

@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { activateNote } from './lifecycle.js';
 import { S, btnNotesList, tabsEl } from './state.js';
 import { openTabMenu } from './tab-menu.js';
@@ -43,14 +44,14 @@ export function renderNotesListRows(pop) {
     const indicator = buildTabIndicator(meta);
     const label = document.createElement('span');
     label.className = 'copy-opt-value';
-    label.textContent = meta.title || 'Sem título';
+    label.textContent = meta.title || tr('Sem título');
     if (indicator) row.appendChild(indicator);
     row.appendChild(label);
 
     const editBtn = document.createElement('button');
     editBtn.className   = 'notes-list-edit-btn';
     editBtn.textContent = '⋯';
-    editBtn.title       = 'Opções da nota';
+    editBtn.title       = tr('Opções da nota');
     editBtn.addEventListener('mousedown', e => e.stopPropagation());
     editBtn.addEventListener('click', e => { e.stopPropagation(); openTabMenuForNote(meta); });
     row.appendChild(editBtn);

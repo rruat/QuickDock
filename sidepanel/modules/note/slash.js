@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { CALLOUT_LABELS, CALLOUT_TYPES, escHtml, parseMarkdownToBlocks } from '../blocks.js';
 import { blockTemplates } from '../templates.js';
 import { NO_DETECTION, createBlockEl, createBlockElFrom, setPageBreakBlank } from './block-model.js';
@@ -14,30 +15,30 @@ import { scheduleSave } from './template-mode.js';
 import { captureUndoPoint } from './undo.js';
 
 export const SLASH_ITEMS = [
-  { key: 'texto',      label: 'Texto',                 hint: 'parágrafo',  type: 'paragraph' },
-  { key: 'titulo1',    label: 'Título 1',               hint: '#',          type: 'heading1'  },
-  { key: 'titulo2',    label: 'Título 2',               hint: '##',         type: 'heading2'  },
-  { key: 'titulo3',    label: 'Título 3',               hint: '###',        type: 'heading3'  },
-  { key: 'lista',      label: 'Lista com marcadores',   hint: '-',          type: 'bullet'    },
-  { key: 'numerada',   label: 'Lista numerada',         hint: '1.',         type: 'number'    },
-  { key: 'checklist',  label: 'Checklist',              hint: '[ ]',        type: 'checklist' },
-  { key: 'citacao',    label: 'Citação',                hint: '>',          type: 'quote'     },
+  { key: 'texto',      label: tr('Texto'),                 hint: tr('parágrafo'),  type: 'paragraph' },
+  { key: 'titulo1',    label: tr('Título 1'),               hint: '#',          type: 'heading1'  },
+  { key: 'titulo2',    label: tr('Título 2'),               hint: '##',         type: 'heading2'  },
+  { key: 'titulo3',    label: tr('Título 3'),               hint: '###',        type: 'heading3'  },
+  { key: 'lista',      label: tr('Lista com marcadores'),   hint: '-',          type: 'bullet'    },
+  { key: 'numerada',   label: tr('Lista numerada'),         hint: '1.',         type: 'number'    },
+  { key: 'checklist',  label: tr('Checklist'),              hint: '[ ]',        type: 'checklist' },
+  { key: 'citacao',    label: tr('Citação'),                hint: '>',          type: 'quote'     },
   ...CALLOUT_TYPES.map(t => ({
     key:   CALLOUT_LABELS[t].toLowerCase(),
-    label: `Destaque · ${CALLOUT_LABELS[t]}`,
+    label: `${tr('Destaque')} · ${tr(CALLOUT_LABELS[t])}`,
     hint:  `> [!${t}]`,
     type:  `callout:${t}`,
   })),
-  { key: 'codigo',     label: 'Código',                 hint: '```',        type: 'code'      },
-  { key: 'calculo',    label: 'Cálculo',                hint: '= ao vivo',  type: 'calc'      },
-  { key: 'tabela',     label: 'Tabela',                 hint: '| |',        type: 'table'     },
-  { key: 'imagem',     label: 'Imagem',                 hint: 'arquivo',    type: 'image'     },
-  { key: 'audio',      label: 'Áudio',                  hint: 'arquivo',    type: 'audio'     },
-  { key: 'video',      label: 'Vídeo',                  hint: 'arquivo',    type: 'video'     },
-  { key: 'divisor',    label: 'Divisor',                hint: '---',        type: 'divider'   },
-  { key: 'sumario',    label: 'Sumário',                hint: 'toc',        type: 'toc'       },
-  { key: 'quebra',     label: 'Quebra de página',       hint: 'nova pág.',  type: 'pagebreak' },
-  { key: 'pagbranco',  label: 'Página em branco',       hint: 'pág. vazia', type: 'pagebreak', blank: true },
+  { key: 'codigo',     label: tr('Código'),                 hint: '```',        type: 'code'      },
+  { key: 'calculo',    label: tr('Cálculo'),                hint: tr('= ao vivo'),  type: 'calc'      },
+  { key: 'tabela',     label: tr('Tabela'),                 hint: '| |',        type: 'table'     },
+  { key: 'imagem',     label: tr('Imagem'),                 hint: tr('arquivo'),    type: 'image'     },
+  { key: 'audio',      label: tr('Áudio'),                  hint: tr('arquivo'),    type: 'audio'     },
+  { key: 'video',      label: tr('Vídeo'),                  hint: tr('arquivo'),    type: 'video'     },
+  { key: 'divisor',    label: tr('Divisor'),                hint: '---',        type: 'divider'   },
+  { key: 'sumario',    label: tr('Sumário'),                hint: 'toc',        type: 'toc'       },
+  { key: 'quebra',     label: tr('Quebra de página'),       hint: tr('nova pág.'),  type: 'pagebreak' },
+  { key: 'pagbranco',  label: tr('Página em branco'),       hint: tr('pág. vazia'), type: 'pagebreak', blank: true },
 ];
 
 export const INSERTED_TYPES = new Set(['divider', 'table', 'image', 'pagebreak', 'toc']);
@@ -74,7 +75,7 @@ export function slashItemsWithTemplates() {
     ...blockTemplates().map(t => ({
       key: t.name.toLowerCase(),
       label: t.name,
-      hint: 'modelo',
+      hint: tr('modelo'),
       template: t.content,
     })),
   ];

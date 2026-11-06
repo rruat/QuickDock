@@ -166,7 +166,7 @@ export async function blocksToPngBlob(blocos) {
 
   const caixa = document.createElement('div');
   caixa.className = 'note-editor-blocks snapshot-blocks';
-  caixa.style.cssText = `width:${largura}px`;
+  caixa.style.cssText = `width:${largura}px;font-family:${estiloEditor.fontFamily}`;
   for (const b of blocos) caixa.appendChild(b.cloneNode(true));
   embrulho.appendChild(caixa);
 

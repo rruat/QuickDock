@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { getBlockFromNode } from './block-ops.js';
 import { scheduleRescan } from './rescan.js';
 import { root } from './state.js';
@@ -56,16 +57,16 @@ export function applyTransformToSelection(fn) {
 }
 
 export const TRANSFORMS = [
-  { label: 'AA', title: 'MAIÚSCULO',                      fn: s => s.toUpperCase() },
-  { label: 'aa', title: 'minúsculo',                      fn: s => s.toLowerCase() },
-  { label: 'Aa', title: 'Primeira letra de cada palavra', fn: ttTitleCase          },
+  { label: 'AA', title: tr('MAIÚSCULO'),                      fn: s => s.toUpperCase() },
+  { label: 'aa', title: tr('minúsculo'),                      fn: s => s.toLowerCase() },
+  { label: 'Aa', title: tr('Primeira letra de cada palavra'), fn: ttTitleCase          },
   null,
-  { label: 'A.', title: 'Após pontuação',                 fn: ttSentenceCase       },
-  { label: '¶A', title: 'Primeira letra do parágrafo',    fn: ttParaCase           },
+  { label: 'A.', title: tr('Após pontuação'),                 fn: ttSentenceCase       },
+  { label: '¶A', title: tr('Primeira letra do parágrafo'),    fn: ttParaCase           },
   null,
-  { label: 'aA', title: 'Inverter maiúsculas/minúsculas', fn: ttInvertCase         },
-  { label: 'Á',  title: 'Remover acentos',                fn: ttNoAccents          },
-  { label: '⎵',  title: 'Limpar espaços duplicados',      fn: ttCleanSpaces        },
+  { label: 'aA', title: tr('Inverter maiúsculas/minúsculas'), fn: ttInvertCase         },
+  { label: 'Á',  title: tr('Remover acentos'),                fn: ttNoAccents          },
+  { label: '⎵',  title: tr('Limpar espaços duplicados'),      fn: ttCleanSpaces        },
 ];
 
 export const ttBar = document.createElement('div');

@@ -1,3 +1,4 @@
+import { t as tr } from './i18n.js';
 // ── templates.js ───────────────────────────────────────────────────────────
 // Modelos de nota: markdown guardado como texto puro, exatamente o formato que
 // sai na exportação. É isso que faz "compartilhar um modelo" e "baixar um .md"
@@ -131,7 +132,7 @@ function nomeSugerido(markdown) {
     .replace(/^\[[ xX]\]\s*/, '')         // caixa de checklist
     .replace(/[*`~]/g, '')                // ênfase inline
     .trim();
-  return limpo.slice(0, 40) || 'Novo modelo';
+  return limpo.slice(0, 40) || tr('Novo modelo');
 }
 
 let nameMenuEl = null;
@@ -153,16 +154,16 @@ export function openSaveBlockTemplate(anchorEl, markdown, onSaved) {
 
   const head = document.createElement('div');
   head.className = 'copy-menu-header';
-  head.textContent = 'Salvar como modelo de bloco';
+  head.textContent = tr('Salvar como modelo de bloco');
 
   const campo = document.createElement('input');
   campo.className = 'link-input';
   campo.type = 'text';
   campo.value = nomeSugerido(markdown);
-  campo.placeholder = 'Nome do modelo';
+  campo.placeholder = tr('Nome do modelo');
 
   const salvar = async () => {
-    const nome = campo.value.trim() || 'Novo modelo';
+    const nome = campo.value.trim() || tr('Novo modelo');
     closeNameMenu();
     await createTemplateRecord({ name: nome, content: markdown, kind: 'block' });
     await refreshTemplates();
@@ -178,7 +179,7 @@ export function openSaveBlockTemplate(anchorEl, markdown, onSaved) {
 
   const ok = document.createElement('button');
   ok.className = 'copy-opt';
-  ok.innerHTML = '<span class="copy-opt-value">Salvar</span>';
+  ok.innerHTML = `<span class="copy-opt-value">${tr('Salvar')}</span>`;
   ok.addEventListener('mousedown', e => e.stopPropagation());
   ok.addEventListener('click', salvar);
 

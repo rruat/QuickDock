@@ -2,7 +2,7 @@ import { blocksToMarkdown, parseMarkdownToBlocks } from '../blocks.js';
 
 export const TUTORIAL_MARKDOWN = `# Bem-vindo ao QuickDock 👋
 
-Esta nota foi criada automaticamente pra te mostrar como usar cada parte do QuickDock. Pode editar ou apagar à vontade — sempre que quiser vê-la de novo, abra o menu ⋯ no fim da barra de abas e escolha "Ver tutorial".
+Esta nota foi criada automaticamente pra te mostrar como usar cada parte do QuickDock. Pode editar ou apagar à vontade — sempre que quiser vê-la de novo, abra a lista de notas (☰) e escolha "Ver tutorial" no rodapé.
 
 ## Formatação de texto
 
@@ -265,7 +265,7 @@ Uma forma de organizar: uma nota por cliente, por caso ou por dia. Dê nome, cor
 
 ### Backup de tudo
 
-No menu ⋯ tem "Baixar todas as notas": gera um arquivo só, com todas as notas dentro e as imagens embutidas. Fora daqui ele é um markdown comum, que abre em qualquer editor.
+No rodapé da lista de notas (☰) tem "Baixar todas as notas": gera um arquivo só, com todas as notas dentro e as imagens embutidas. Fora daqui ele é um markdown comum, que abre em qualquer editor.
 
 Pra restaurar, use Importar e escolha esse arquivo — o QuickDock reconhece que é um backup e recria as notas separadas, uma a uma, com os nomes originais. Restaurar sempre adiciona notas novas: nada do que já existe é alterado, então importar um backup antigo por engano não apaga o trabalho de hoje.
 

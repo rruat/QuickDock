@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { normalizeBlock, uid } from '../blocks.js';
 import { getContentEl, setBlockCallout, setBlockDepth, setBlockQuoted } from './block-structure.js';
 import { buildImageTools, setImageData } from './images.js';
@@ -118,7 +119,7 @@ export function createBlockEl(type, innerHTML = '', checked = false, rows = null
     el.className = 'block block-pagebreak';
     el.contentEditable = 'false';
     el.innerHTML = '<span class="pagebreak-line" aria-hidden="true"></span>'
-      + '<span class="pagebreak-label">Quebra de página</span>'
+      + '<span class="pagebreak-label">' + tr('Quebra de página') + '</span>'
       + '<span class="pagebreak-line" aria-hidden="true"></span>';
 
   } else if (type === 'audio' || type === 'video') {
@@ -157,7 +158,7 @@ export function setPageBreakBlank(el, blank) {
   if (blank) el.dataset.blank = 'true';
   else delete el.dataset.blank;
   const rotulo = el.querySelector('.pagebreak-label');
-  if (rotulo) rotulo.textContent = blank ? 'Página em branco' : 'Quebra de página';
+  if (rotulo) rotulo.textContent = blank ? tr('Página em branco') : tr('Quebra de página');
 }
 
 /** Alinhamento do texto (left / center / right / justify), gravado no próprio bloco. */

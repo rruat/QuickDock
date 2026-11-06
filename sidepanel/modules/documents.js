@@ -1,3 +1,4 @@
+import { t as tr } from './i18n.js';
 import {
   saveFile, loadAllFilesMeta, deleteFile, loadFileBlob, setFileNoteId,
   loadDocsView, saveDocsView,
@@ -111,8 +112,8 @@ function updateGroupBar() {
   btnScopeSel.hidden      = currentNoteId === null;
   btnScopeSel.textContent = pin ? '📌 Vincular' : '📌 Tornar geral';
   btnScopeSel.title       = pin
-    ? 'Mostrar estes documentos só na nota aberta'
-    : 'Mostrar estes documentos em todas as notas';
+    ? tr('Mostrar estes documentos só na nota aberta')
+    : tr('Mostrar estes documentos em todas as notas');
 }
 
 // ── Ações da group bar ───────────────────────────────────────────────────────
@@ -165,9 +166,9 @@ async function applyScope(id, noteId) {
 }
 
 const SCOPE_TITLE = {
-  nota:  'Só nesta nota — clique para mostrar em todas',
-  geral: 'Em todas as notas — clique para vincular só a esta',
-  outra: 'De outra nota — clique para trazer para esta',
+  nota:  tr('Só nesta nota — clique para mostrar em todas'),
+  geral: tr('Em todas as notas — clique para vincular só a esta'),
+  outra: tr('De outra nota — clique para trazer para esta'),
 };
 
 function paintScope(card, noteId) {
@@ -220,7 +221,7 @@ async function buildCard(meta) {
 
   const delBtn = document.createElement('button');
   delBtn.className   = 'doc-delete';
-  delBtn.title       = 'Remover';
+  delBtn.title       = tr('Remover');
   delBtn.textContent = '✕';
   delBtn.addEventListener('click', async e => {
     e.stopPropagation();
@@ -244,7 +245,7 @@ async function buildCard(meta) {
 
   const injectBtn = document.createElement('button');
   injectBtn.className   = 'doc-inject';
-  injectBtn.title       = 'Enviar para campo da página';
+  injectBtn.title       = tr('Enviar para campo da página');
   injectBtn.textContent = '→';
   injectBtn.addEventListener('click', async e => {
     e.stopPropagation();

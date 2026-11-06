@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { loadFileBlob, saveFile } from '../storage.js';
 import { NO_TEXT_TYPES, createBlockEl, createBlockElFrom } from './block-model.js';
 import { currentBlock, renumberLists } from './block-ops.js';
@@ -49,10 +50,10 @@ export function buildImageTools() {
   bar.className = 'image-tools';
   bar.contentEditable = 'false';
   const acts = [
-    ['to-docs', 'Mover p/ Documentos', 'Tirar da nota e guardar na seção Documentos', 'image-btn-accent'],
-    ['replace', 'Trocar',  'Trocar por outra imagem'],
-    ['alt',     'Texto',   'Descrever a imagem (texto alternativo)'],
-    ['remove',  'Remover', 'Remover a imagem da nota'],
+    ['to-docs', tr('Mover p/ Documentos'), tr('Tirar da nota e guardar na seção Documentos'), 'image-btn-accent'],
+    ['replace', tr('Trocar'),  tr('Trocar por outra imagem')],
+    ['alt',     tr('Texto'),   tr('Descrever a imagem (texto alternativo)')],
+    ['remove',  tr('Remover'), tr('Remover a imagem da nota')],
   ];
   for (const [act, label, title, extra] of acts) {
     const btn = document.createElement('button');

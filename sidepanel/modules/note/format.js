@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 export function parseDate(raw) {
   const s = raw.trim();
   let day, month, year;
@@ -140,4 +141,4 @@ export function maskPhone(n) {
   return n;
 }
 
-export const TYPE_LABELS = { cpf: 'CPF', cnpj: 'CNPJ', phone: 'Telefone', date: 'Data', daterange: 'Período', timerange: 'Intervalo de horas', datetimerange: 'Período com hora', cep: 'CEP', email: 'E-mail', math: 'Cálculo' };
+export const TYPE_LABELS = { cpf: 'CPF', cnpj: 'CNPJ', phone: tr('Telefone'), date: tr('Data'), daterange: tr('Período'), timerange: tr('Intervalo de horas'), datetimerange: tr('Período com hora'), cep: 'CEP', email: tr('E-mail'), math: tr('Cálculo') };

@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 // Sumário (bloco "toc"): lista automática dos títulos da nota, com até o nível 3.
 // As entradas vêm de tocEntries() do blocks.js (mesma regra da versão desktop).
 // Não é editável: o sumário acompanha os títulos e é reconstruído ao salvar e
@@ -16,7 +17,7 @@ export function renderToc(el, lista = serializeBlocks()) {
   if (!entradas.length) {
     const vazio = document.createElement('div');
     vazio.className = 'block-toc-empty';
-    vazio.textContent = 'Sumário: os títulos da nota aparecem aqui.';
+    vazio.textContent = tr('Sumário: os títulos da nota aparecem aqui.');
     el.appendChild(vazio);
     return;
   }

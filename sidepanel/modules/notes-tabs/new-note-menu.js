@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { parseBackup } from '../backup.js';
 import { blocksToMarkdown } from '../blocks.js';
 import { flushSave } from '../note.js';
@@ -66,8 +67,8 @@ export async function openNewMenu(anchor = btnNew) {
   const pop = document.createElement('div');
   pop.className = 'copy-menu new-menu';
 
-  newMenuOpt(pop, 'Nota em branco', createBlankNote);
-  newMenuOpt(pop, 'Importar (.md/.txt)', () => importInput.click());
+  newMenuOpt(pop, tr('Nota em branco'), createBlankNote);
+  newMenuOpt(pop, tr('Importar (.md/.txt)'), () => importInput.click());
 
   await getTemplates();               // atualiza o cache antes de listar
   const templates = noteTemplates();  // o menu do ＋ cria notas, não insere blocos
@@ -75,13 +76,13 @@ export async function openNewMenu(anchor = btnNew) {
     pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
     const head = document.createElement('div');
     head.className = 'copy-menu-header';
-    head.textContent = 'A partir de um modelo';
+    head.textContent = tr('A partir de um modelo');
     pop.appendChild(head);
     for (const tpl of templates) newMenuOpt(pop, tpl.name, () => createNoteFromTemplate(tpl));
   }
 
   pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-  newMenuOpt(pop, 'Modelos…', () => openTemplatesPage());
+  newMenuOpt(pop, tr('Modelos…'), () => openTemplatesPage());
 
   document.body.appendChild(pop);
   S.newMenuPopover = pop;
@@ -107,7 +108,7 @@ importInput.addEventListener('change', async () => {
   // um backup antigo apagaria o trabalho de quem o importou por engano.
   const backup = parseBackup(text);
   if (backup) {
-    if (!confirm(`Este arquivo é um backup com ${backup.length} nota(s).\n\nElas serão adicionadas como notas novas — nada do que já existe é alterado.`)) return;
+    if (!confirm(tr('Este arquivo é um backup com {n} nota(s).\n\nElas serão adicionadas como notas novas — nada do que já existe é alterado.', { n: backup.length }))) return;
     let ultimoId = null;
     for (const { title, md } of backup) ultimoId = await createNoteFromMarkdown(title, md);
     if (ultimoId != null) await activateNote(ultimoId);
@@ -115,7 +116,7 @@ importInput.addEventListener('change', async () => {
     return;
   }
 
-  const title = file.name.replace(/\.(md|txt)$/i, '') || 'Nota importada';
+  const title = file.name.replace(/\.(md|txt)$/i, '') || tr('Nota importada');
   const id = await createNoteFromMarkdown(title, text);
   await activateNote(id);
   renderTabs();

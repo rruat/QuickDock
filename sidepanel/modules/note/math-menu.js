@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { escHtml } from '../blocks.js';
 import { showFeedback } from './feedback-ctrl.js';
 import { closeCopyMenu, positionMenu } from './menus.js';
@@ -11,7 +12,7 @@ export function showMathMenu(parsed, anchorRect) {
 
   const hdr = document.createElement('div');
   hdr.className   = 'copy-menu-header';
-  hdr.textContent = 'Cálculo';
+  hdr.textContent = tr('Cálculo');
   menu.appendChild(hdr);
 
   const exprEl = document.createElement('div');
@@ -22,7 +23,7 @@ export function showMathMenu(parsed, anchorRect) {
   if (steps.length > 0) {
     const sl = document.createElement('div');
     sl.className   = 'math-section-label';
-    sl.textContent = 'Passo a passo';
+    sl.textContent = tr('Passo a passo');
     menu.appendChild(sl);
     for (const s of steps) {
       const el = document.createElement('div');
@@ -36,7 +37,7 @@ export function showMathMenu(parsed, anchorRect) {
   resRow.className = 'math-result-row';
   resRow.innerHTML =
     `<span class="math-result-label">Resultado</span>` +
-    `<span class="math-result-value" title="Clique para copiar">${escHtml(resultFmt)}</span>`;
+    `<span class="math-result-value" title="${tr('Clique para copiar')}">${escHtml(resultFmt)}</span>`;
   resRow.querySelector('.math-result-value').addEventListener('mousedown', e => e.stopPropagation());
   resRow.querySelector('.math-result-value').addEventListener('click', () => {
     navigator.clipboard.writeText(resultFmt).then(() => { showFeedback('copiado!'); closeCopyMenu(); });
@@ -49,8 +50,8 @@ export function showMathMenu(parsed, anchorRect) {
   const calcText = `${raw}\n${steps.join('\n')}\n= ${resultFmt}`;
   for (const { label, hint, value } of [
     { label: resultFmt,          hint: 'resultado',    value: resultFmt },
-    { label: raw,                hint: 'expressão',    value: raw       },
-    { label: 'Cálculo completo', hint: 'com passos',   value: calcText  },
+    { label: raw,                hint: tr('expressão'),    value: raw       },
+    { label: tr('Cálculo completo'), hint: tr('com passos'),   value: calcText  },
   ]) {
     const btn = document.createElement('button');
     btn.className = 'copy-opt';

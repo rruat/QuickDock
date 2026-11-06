@@ -28,7 +28,8 @@ export function blockPrefix(block) {
   if (block.dataset.callout) {
     return block.dataset.calloutFirst === 'true' ? '' : '> ';
   }
-  if (tipo === 'checklist') return `- [${block.dataset.checked === 'true' ? 'x' : ' '}] `;
+  // Forma que a pessoa digita: "- [] " desmarcado e "- [x] " marcado.
+  if (tipo === 'checklist') return `- [${block.dataset.checked === 'true' ? 'x' : ''}] `;
   if (tipo === 'bullet') return '- ';
   if (tipo === 'number') {
     const numero = block.querySelector(':scope > .block-marker')?.textContent.trim() || '1.';

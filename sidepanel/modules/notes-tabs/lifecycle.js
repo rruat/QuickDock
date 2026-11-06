@@ -4,11 +4,13 @@ import { createNoteRecord, gcInlineFiles, loadActiveNoteId, loadAllNotesMeta, mi
 import { initTemplates } from '../templates.js';
 import { S } from './state.js';
 import { renderTabs, scrollTabIntoView, setAccent } from './tab-strip.js';
+import { setNoteFont } from './font-picker.js';
 
 export async function activateNote(id) {
   S.activeId = id;
   const meta = S.notesMeta.find(n => n.id === id);
   setAccent(meta?.color);
+  setNoteFont(meta?.font);
   await switchToNote(id);
   await setDocumentsNote(id);
   await saveActiveNoteId(id);

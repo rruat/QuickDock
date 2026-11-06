@@ -1,9 +1,11 @@
+import { t as tr } from '../i18n.js';
 import { blocksToPlainText } from '../blocks.js';
 import { refreshDocuments } from '../documents.js';
 import { blocksToExportMarkdown, clearCurrentNote } from '../note.js';
 import { positionPopover } from '../popover.js';
 import { deleteNoteRecordById, detachFilesFromNote, gcInlineFiles, updateNoteBlocksById, updateNoteMetaById } from '../storage.js';
 import { renderAppearanceContent } from './appearance.js';
+import { renderFontSection } from './font-picker.js';
 import { activateNote } from './lifecycle.js';
 import { downloadText, getBlocksForNote, safeFilename } from './note-io.js';
 import { S } from './state.js';
@@ -13,6 +15,7 @@ export function closeTabMenu() {
   S.tabMenuEl?.remove();
   S.tabMenuEl = null;
   S.tabMenuAppearanceOpen = false;
+  S.tabMenuFontOpen = false;
 }
 
 export function renderTabMenu(meta, anchorEl) {
@@ -24,7 +27,7 @@ export function renderTabMenu(meta, anchorEl) {
   const renameInput = document.createElement('input');
   renameInput.className = 'tab-menu-rename';
   renameInput.value = meta.title;
-  renameInput.placeholder = 'Sem título';
+  renameInput.placeholder = tr('Sem título');
   renameInput.addEventListener('mousedown', e => e.stopPropagation());
   renameInput.addEventListener('keydown', e => {
     e.stopPropagation();
@@ -32,7 +35,7 @@ export function renderTabMenu(meta, anchorEl) {
     if (e.key === 'Escape') { renameInput.value = meta.title; renameInput.blur(); }
   });
   renameInput.addEventListener('blur', async () => {
-    const val = renameInput.value.trim() || 'Sem título';
+    const val = renameInput.value.trim() || tr('Sem título');
     if (val === meta.title) return;
     await updateNoteMetaById(meta.id, { title: val });
     meta.title = val;
@@ -52,7 +55,7 @@ export function renderTabMenu(meta, anchorEl) {
   const appearanceToggle = document.createElement('button');
   appearanceToggle.className = 'copy-opt tab-menu-appearance-toggle';
   appearanceToggle.innerHTML =
-    `<span class="copy-opt-icon material-symbols-rounded">palette</span><span class="copy-opt-value">Ícone e cor</span><span class="copy-opt-hint">${S.tabMenuAppearanceOpen ? '▲' : '▼'}</span>`;
+    `<span class="copy-opt-icon material-symbols-rounded">palette</span><span class="copy-opt-value">${tr('Ícone e cor')}</span><span class="copy-opt-hint">${S.tabMenuAppearanceOpen ? '▲' : '▼'}</span>`;
   appearanceToggle.addEventListener('mousedown', e => e.stopPropagation());
   appearanceToggle.addEventListener('click', e => {
     e.stopPropagation();
@@ -68,6 +71,26 @@ export function renderTabMenu(meta, anchorEl) {
     menu.appendChild(wrap);
   }
 
+  // Fonte — item próprio, igual a "Ícone e cor": expande a seção sem fechar o menu.
+  const fontToggle = document.createElement('button');
+  fontToggle.className = 'copy-opt tab-menu-font-toggle';
+  fontToggle.innerHTML =
+    `<span class="copy-opt-icon material-symbols-rounded">text_fields</span><span class="copy-opt-value">${tr('Fonte')}</span><span class="copy-opt-hint">${S.tabMenuFontOpen ? '▲' : '▼'}</span>`;
+  fontToggle.addEventListener('mousedown', e => e.stopPropagation());
+  fontToggle.addEventListener('click', e => {
+    e.stopPropagation();
+    S.tabMenuFontOpen = !S.tabMenuFontOpen;
+    renderTabMenu(meta, anchorEl);
+  });
+  menu.appendChild(fontToggle);
+
+  if (S.tabMenuFontOpen) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tab-menu-appearance tab-menu-font';
+    renderFontSection(wrap, meta);
+    menu.appendChild(wrap);
+  }
+
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
   // Ícone à esquerda (Material Symbols), como nos menus da Apple.
@@ -80,34 +103,34 @@ export function renderTabMenu(meta, anchorEl) {
     menu.appendChild(btn);
   };
 
-  addOpt('code', 'Copiar como Markdown', async () => {
+  addOpt('code', tr('Copiar como Markdown'), async () => {
     const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
     await navigator.clipboard.writeText(text);
   });
-  addOpt('content_copy', 'Copiar como texto', async () => {
+  addOpt('content_copy', tr('Copiar como texto'), async () => {
     const text = blocksToPlainText(await getBlocksForNote(meta));
     await navigator.clipboard.writeText(text);
   });
-  addOpt('download', 'Baixar .md', async () => {
+  addOpt('download', tr('Baixar .md'), async () => {
     const text = await blocksToExportMarkdown(await getBlocksForNote(meta));
     downloadText(`${safeFilename(meta.title)}.md`, text);
   });
-  addOpt('description', 'Baixar .txt', async () => {
+  addOpt('description', tr('Baixar .txt'), async () => {
     const text = blocksToPlainText(await getBlocksForNote(meta));
     downloadText(`${safeFilename(meta.title)}.txt`, text);
   });
 
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
-  addOpt('ink_eraser', 'Limpar conteúdo', async () => {
-    if (!confirm(`Limpar o conteúdo de "${meta.title}"?\n\nO nome, a cor e os documentos da nota não mudam.`)) return;
+  addOpt('ink_eraser', tr('Limpar conteúdo'), async () => {
+    if (!confirm(tr('Limpar o conteúdo de "{nome}"?\n\nO nome, a cor e os documentos da nota não mudam.', { nome: meta.title }))) return;
     if (meta.id === S.activeId) await clearCurrentNote();
     else await updateNoteBlocksById(meta.id, [], '');
   });
 
-  addOpt('delete', 'Excluir', async () => {
-    if (S.notesMeta.length <= 1) { alert('Deve existir ao menos uma nota.'); return; }
-    if (!confirm(`Excluir a nota "${meta.title}"?`)) return;
+  addOpt('delete', tr('Excluir'), async () => {
+    if (S.notesMeta.length <= 1) { alert(tr('Deve existir ao menos uma nota.')); return; }
+    if (!confirm(tr('Excluir a nota "{nome}"?', { nome: meta.title }))) return;
     // Os documentos vinculados viram gerais: some a nota, não os arquivos.
     await detachFilesFromNote(meta.id);
     await deleteNoteRecordById(meta.id);

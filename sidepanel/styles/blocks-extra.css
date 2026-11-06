@@ -125,3 +125,11 @@ html[data-theme="dark"] .note-section .note-editor-blocks mark.md-highlight {
 }
 .note-editor-blocks .calc-result:hover { background: var(--bg-hover); }
 .note-editor-blocks .calc-result:active { background: var(--bar-active); }
+/* Rolagem vertical da nota: barra de largura fixa (4px); só a cor muda no hover */
+.note-editor-blocks::-webkit-scrollbar { width: 4px; }
+.note-editor-blocks::-webkit-scrollbar-track { background: transparent; }
+.note-editor-blocks::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+.note-editor-blocks:hover::-webkit-scrollbar-thumb { background: var(--text-muted); }

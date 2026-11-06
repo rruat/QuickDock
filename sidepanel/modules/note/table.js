@@ -1,3 +1,4 @@
+import { t as traduzir } from '../i18n.js';
 import { root } from './state.js';
 import { scheduleSave } from './template-mode.js';
 import { captureUndoPoint } from './undo.js';
@@ -33,10 +34,10 @@ export function buildTableTools() {
   bar.className = 'table-tools';
   bar.contentEditable = 'false';
   const acts = [
-    ['add-row', '+ linha',  'Adicionar linha abaixo da atual'],
-    ['add-col', '+ coluna', 'Adicionar coluna à direita da atual'],
-    ['del-row', '− linha',  'Remover a linha do cursor'],
-    ['del-col', '− coluna', 'Remover a coluna do cursor'],
+    ['add-row', traduzir('+ linha'),  traduzir('Adicionar linha abaixo da atual')],
+    ['add-col', traduzir('+ coluna'), traduzir('Adicionar coluna à direita da atual')],
+    ['del-row', traduzir('− linha'),  traduzir('Remover a linha do cursor')],
+    ['del-col', traduzir('− coluna'), traduzir('Remover a coluna do cursor')],
   ];
   for (const [act, label, title] of acts) {
     const btn = document.createElement('button');

@@ -1,3 +1,4 @@
+import { t as traduzir } from '../i18n.js';
 import { safeHref } from '../blocks.js';
 import { ANCORA } from './block-model.js';
 import { blockDepth, getContentEl, isBlockQuoted } from './block-structure.js';
@@ -86,7 +87,7 @@ export function getCurrentBlocks() {
 }
 
 export function showSaved() {
-  indicator.textContent = 'salvo ✓';
+  indicator.textContent = traduzir('salvo ✓');
   indicator.classList.add('visible');
   clearTimeout(S.indicatorTimer);
   S.indicatorTimer = setTimeout(() => indicator.classList.remove('visible'), 2200);

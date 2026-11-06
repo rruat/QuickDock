@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { safeHref } from '../blocks.js';
 import { getBlockFromNode } from './block-ops.js';
 import { showFeedback } from './feedback-ctrl.js';
@@ -25,7 +26,7 @@ export function openLinkMenu(anchorRect, { href = '', canRemove = false, onApply
 
   const header = document.createElement('div');
   header.className   = 'copy-menu-header';
-  header.textContent = canRemove ? 'Editar link' : 'Novo link';
+  header.textContent = canRemove ? tr('Editar link') : tr('Novo link');
 
   const input = document.createElement('input');
   input.className   = 'link-input';
@@ -35,7 +36,7 @@ export function openLinkMenu(anchorRect, { href = '', canRemove = false, onApply
 
   const error = document.createElement('div');
   error.className   = 'link-error';
-  error.textContent = 'Endereço inválido';
+  error.textContent = tr('Endereço inválido');
   error.hidden      = true;
 
   const apply = () => {
@@ -58,7 +59,7 @@ export function openLinkMenu(anchorRect, { href = '', canRemove = false, onApply
 
   const okBtn = document.createElement('button');
   okBtn.className   = 'link-btn link-apply';
-  okBtn.textContent = 'Aplicar';
+  okBtn.textContent = tr('Aplicar');
   okBtn.addEventListener('mousedown', e => e.preventDefault());
   okBtn.addEventListener('click', apply);
   actions.appendChild(okBtn);
@@ -66,7 +67,7 @@ export function openLinkMenu(anchorRect, { href = '', canRemove = false, onApply
   if (canRemove) {
     const rmBtn = document.createElement('button');
     rmBtn.className   = 'link-btn link-remove';
-    rmBtn.textContent = 'Remover';
+    rmBtn.textContent = tr('Remover');
     rmBtn.addEventListener('mousedown', e => e.preventDefault());
     rmBtn.addEventListener('click', () => { closeLinkMenu(); onRemove(); });
     actions.appendChild(rmBtn);
@@ -90,7 +91,7 @@ export function applyLink() {
   const hasText  = sel && sel.rangeCount > 0 && !sel.isCollapsed
                    && root.contains(sel.getRangeAt(0).commonAncestorContainer);
 
-  if (!existing && !hasText) { showFeedback('Selecione o texto do link'); return; }
+  if (!existing && !hasText) { showFeedback(tr('Selecione o texto do link')); return; }
 
   // O range e o bloco são guardados agora: abrir o menu tira o foco do editor
   // e a seleção deixa de existir quando o callback roda.

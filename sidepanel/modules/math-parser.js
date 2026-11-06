@@ -1,3 +1,4 @@
+import { t as tr } from './i18n.js';
 // ── math-parser.js ────────────────────────────────────────────────────────────
 // Parser aritmético seguro — sem eval(), sem Function().
 //
@@ -140,10 +141,10 @@ class MathParser {
     }
     let s = '';
     if (this.src[this.pos] === '-') { s = '-'; this.pos++; }
-    if (!/\d/.test(this.src[this.pos] ?? '')) throw new Error('Esperava um número');
+    if (!/\d/.test(this.src[this.pos] ?? '')) throw new Error(tr('Esperava um número'));
     while (/[\d.]/.test(this.src[this.pos] ?? '')) s += this.src[this.pos++];
     const v = parseFloat(s);
-    if (isNaN(v)) throw new Error('Número inválido');
+    if (isNaN(v)) throw new Error(tr('Número inválido'));
     return { n: v, moeda, pct: false };
   }
 
@@ -182,7 +183,7 @@ class MathParser {
 
       if (this.src[this.pos] === '(') {
         const fn = FUNCOES[nome] ?? FUNCOES[nome.toLowerCase()];
-        if (!fn) throw new Error(`Não conheço a função ${nome}()`);
+        if (!fn) throw new Error(tr('Não conheço a função {nome}()', { nome }));
         this.pos++;
         const args = [];
         this.ws();
@@ -198,7 +199,7 @@ class MathParser {
         return fn(args);
       }
 
-      if (!this.resolve) throw new Error(`Não esperava "${nome}" aqui`);
+      if (!this.resolve) throw new Error(tr('Não esperava "{nome}" aqui', { nome }));
       return this.resolve(nome);
     }
 
@@ -281,7 +282,7 @@ class MathParser {
   run() {
     const res = collapse(this.expr());
     this.ws();
-    if (this.pos < this.src.length) throw new Error(`Não entendi "${this.src[this.pos]}"`);
+    if (this.pos < this.src.length) throw new Error(tr('Não entendi "{nome}"', { nome: this.src[this.pos] }));
     return { value: res, steps: this.steps };
   }
 }

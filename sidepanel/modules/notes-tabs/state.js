@@ -17,6 +17,7 @@ export const S = {
   tabDropIndicatorEl: null,
   tabMenuEl: null,
   tabMenuAppearanceOpen: false,
+  tabMenuFontOpen: false,
   listDropIndicatorEl: null,
   newMenuPopover: null,
   editingTpl: null,

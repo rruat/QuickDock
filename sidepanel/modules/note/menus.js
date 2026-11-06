@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { escHtml } from '../blocks.js';
 import { buildCopyOptions } from './copy-options.js';
 import { showFeedback } from './feedback-ctrl.js';
@@ -39,14 +40,14 @@ export function showCopyMenu(type, raw, anchorRect) {
 
   const header = document.createElement('div');
   header.className   = 'copy-menu-header';
-  header.textContent = TYPE_LABELS[type] || 'Valor detectado';
+  header.textContent = TYPE_LABELS[type] || tr('Valor detectado');
   menu.appendChild(header);
 
   if (type === 'cpf' || type === 'cnpj') {
     const valid  = type === 'cpf' ? validateCPF(raw) : validateCNPJ(raw);
     const badge  = document.createElement('div');
     badge.className   = `copy-menu-badge ${valid ? 'valid' : 'invalid'}`;
-    badge.textContent = valid ? '✓ Válido' : '✗ Inválido';
+    badge.textContent = valid ? tr('✓ Válido') : tr('✗ Inválido');
     menu.appendChild(badge);
   }
 

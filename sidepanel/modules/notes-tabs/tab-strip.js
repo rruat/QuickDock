@@ -1,3 +1,4 @@
+import { t as traduzir } from '../i18n.js';
 import { reorderNoteRecords } from '../storage.js';
 import { activateNote } from './lifecycle.js';
 import { asideEl, asideListEl, renderNotesListRows } from './notes-list.js';
@@ -72,7 +73,7 @@ export function buildTab(meta) {
   tab.className = 'note-tab' + (meta.id === S.activeId ? ' active' : '');
   tab.draggable = true;
   tab.dataset.id = String(meta.id);
-  tab.title = meta.title || 'Sem título';
+  tab.title = meta.title || traduzir('Sem título');
 
   const indicator = buildTabIndicator(meta);
 
@@ -82,7 +83,7 @@ export function buildTab(meta) {
 
   const title = document.createElement('span');
   title.className   = 'note-tab-title';
-  title.textContent = meta.title || 'Sem título';
+  title.textContent = meta.title || traduzir('Sem título');
   title.hidden       = titleHidden;
 
   if (indicator) tab.appendChild(indicator);

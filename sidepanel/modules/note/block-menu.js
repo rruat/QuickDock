@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { blocksToMarkdown, blocksToPlainText, escHtml } from '../blocks.js';
 import { copyBlocksAsImage, downloadBlocksAsImage } from '../snapshot.js';
 import { blockTemplates, openSaveBlockTemplate } from '../templates.js';
@@ -46,10 +47,10 @@ export function openBlockMenu(block, anchorEl) {
     barra.appendChild(btn);
   };
 
-  acaoRapida('content_copy', 'Copiar como texto', () => copyBlocksAs(block, 'text'));
-  acaoRapida('image',        'Copiar imagem',     () => printBlocks(block, 'clipboard'));
-  acaoRapida('library_add',  'Duplicar',          () => duplicateBlocks(block));
-  acaoRapida('delete',       'Excluir',           () => deleteBlocksOrOne(block), 'is-danger');
+  acaoRapida('content_copy', tr('Copiar como texto'), () => copyBlocksAs(block, 'text'));
+  acaoRapida('image',        tr('Copiar imagem'),     () => printBlocks(block, 'clipboard'));
+  acaoRapida('library_add',  tr('Duplicar'),          () => duplicateBlocks(block));
+  acaoRapida('delete',       tr('Excluir'),           () => deleteBlocksOrOne(block), 'is-danger');
 
   menu.appendChild(barra);
 
@@ -61,7 +62,7 @@ export function openBlockMenu(block, anchorEl) {
   if (canTransform) {
     const header = document.createElement('div');
     header.className   = 'copy-menu-header';
-    header.textContent = scopeCount > 1 ? `Transformar em (${scopeCount} blocos)` : 'Transformar em';
+    header.textContent = scopeCount > 1 ? tr('Transformar em ({n} blocos)', { n: scopeCount }) : tr('Transformar em');
     menu.appendChild(header);
 
     for (const it of getTransformTypes()) {
@@ -81,7 +82,7 @@ export function openBlockMenu(block, anchorEl) {
   if (tpls.length > 0) {
     const tplHead = document.createElement('div');
     tplHead.className = 'copy-menu-header';
-    tplHead.textContent = 'Inserir modelo';
+    tplHead.textContent = tr('Inserir modelo');
     menu.appendChild(tplHead);
 
     for (const tpl of tpls) {
@@ -105,21 +106,21 @@ export function openBlockMenu(block, anchorEl) {
 
   const saveTplBtn = document.createElement('button');
   saveTplBtn.className = 'copy-opt';
-  saveTplBtn.innerHTML = `<span class="copy-opt-value">Salvar como modelo de bloco${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
+  saveTplBtn.innerHTML = `<span class="copy-opt-value">${tr('Salvar como modelo de bloco')}${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
   saveTplBtn.addEventListener('mousedown', e => e.stopPropagation());
   saveTplBtn.addEventListener('click', () => {
     closeBlockMenu();
     // Uma linha de cálculo sem as outras da folha não tem as variáveis que usa: o
     // modelo leva a folha inteira (todas as linhas de cálculo seguidas).
     const markdown = blocksToMarkdown(expandirFolhas(targetBlocksFor(block)).map(serializeBlockEl));
-    if (!markdown.trim()) { showFeedback('Nada para salvar'); return; }
+    if (!markdown.trim()) { showFeedback(tr('Nada para salvar')); return; }
     openSaveBlockTemplate(anchorEl, markdown, nome => showFeedback(`modelo "${nome}" salvo`));
   });
   menu.appendChild(saveTplBtn);
 
   const copyMdBtn = document.createElement('button');
   copyMdBtn.className = 'copy-opt';
-  copyMdBtn.innerHTML = `<span class="copy-opt-value">Copiar como Markdown${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
+  copyMdBtn.innerHTML = `<span class="copy-opt-value">${tr('Copiar como Markdown')}${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
   copyMdBtn.addEventListener('mousedown', e => e.stopPropagation());
   copyMdBtn.addEventListener('click', () => { closeBlockMenu(); copyBlocksAs(block, 'markdown'); });
   menu.appendChild(copyMdBtn);
@@ -129,7 +130,7 @@ export function openBlockMenu(block, anchorEl) {
   // precisa do nome por extenso pra não virar adivinhação.
   const saveImgBtn = document.createElement('button');
   saveImgBtn.className = 'copy-opt';
-  saveImgBtn.innerHTML = `<span class="copy-opt-value">Baixar imagem (.png)${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
+  saveImgBtn.innerHTML = `<span class="copy-opt-value">${tr('Baixar imagem (.png)')}${scopeCount > 1 ? ` (${scopeCount})` : ''}</span>`;
   saveImgBtn.addEventListener('mousedown', e => e.stopPropagation());
   saveImgBtn.addEventListener('click', () => { closeBlockMenu(); printBlocks(block, 'download'); });
   menu.appendChild(saveImgBtn);
@@ -156,20 +157,20 @@ export async function printBlocks(block, destino) {
     .map(b => getContentEl(b).textContent.trim())
     .find(Boolean) ?? 'nota';
 
-  showFeedback('gerando imagem…');
+  showFeedback(tr('gerando imagem…'));
   try {
     const ok = destino === 'clipboard'
       ? await copyBlocksAsImage(alvos)
       : await downloadBlocksAsImage(alvos, nome);
     showFeedback(ok
-      ? (destino === 'clipboard' ? 'imagem copiada!' : 'imagem baixada!')
-      : 'não deu pra gerar a imagem');
+      ? (destino === 'clipboard' ? tr('imagem copiada!') : tr('imagem baixada!'))
+      : tr('não deu pra gerar a imagem'));
   } catch {
     // Copiar imagem depende de permissão da área de transferência, que o
     // navegador só concede com o painel em foco. Baixar sempre funciona.
     showFeedback(destino === 'clipboard'
-      ? 'não deu pra copiar — tente "Baixar imagem"'
-      : 'não deu pra gerar a imagem');
+      ? tr('não deu pra copiar — tente "Baixar imagem"')
+      : tr('não deu pra gerar a imagem'));
   }
 }
 

@@ -24,7 +24,8 @@
 
 /* Aside "Todas as notas": 75% da largura (máx. 300px), desliza da esquerda */
 .notes-aside {
-  position: absolute;
+  /* fixa na altura do painel inteiro (não na seção de notas, que tem 70%) */
+  position: fixed;
   top: 0;
   bottom: 0;
   left: 0;
@@ -46,7 +47,8 @@
 /* Fade sobre toda a largura do painel, por trás da aside (que fica por cima).
    Não se move: só aparece e some com transparência. Clicar nele fecha a aside. */
 .note-dim {
-  position: absolute;
+  /* fixo na altura do painel inteiro, igual à aside (fica por baixo dela) */
+  position: fixed;
   top: 0;
   bottom: 0;
   left: 0;
@@ -114,6 +116,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  /* altura fixa: a lista rola e o item nunca encolhe com muitas notas */
+  flex: 0 0 40px;
   height: 40px;
   padding: 0 12px;
   border-radius: 20px;
@@ -212,10 +216,12 @@
   margin: -6px 0;
   padding: 6px 2px;
   overflow-x: auto;
-  scrollbar-width: none;
+  overflow-y: hidden;
   flex: 1;
   min-width: 0;
 }
+/* A faixa de abas não mostra barra de rolagem: a rolagem é só pelo gesto/roda */
+.notes-tabs { scrollbar-width: none; }
 .notes-tabs::-webkit-scrollbar { display: none; }
 
 /* A faixa de abas passa por baixo dos containers do topo: começa no meio do
@@ -229,16 +235,17 @@
   top: 0;
   bottom: 0;
   left: 62px;
-  right: 22px;
+  /* o contêiner vai até a borda do painel (a barra tem 10px de margem): a rolagem
+     encosta na borda, sem uma faixa vazia que faça a aba parecer cortada */
+  right: -10px;
   z-index: 1;
   height: auto;
   margin: 0;
   flex: none;
   min-width: 0;
   align-items: center;
-  /* 26px à esquerda e 28px à direita: no início e no fim da rolagem as abas
-     param logo após o botão de criar e antes do ⋯ */
-  padding: 0 28px 0 26px;
+  /* 26px à esquerda, depois do botão de criar; à direita a faixa vai até a borda */
+  padding: 0 0 0 26px;
 }
 
 

@@ -124,3 +124,120 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* Linhas de modelo: itens de lista de 40px; ao passar o mouse, o vidro dos botões */
+.templates-page .template-row {
+  height: 40px;
+  padding: 0 6px 0 0;
+  border-radius: 20px;
+  background: transparent;
+  transition: background 0.12s, backdrop-filter 0.12s;
+}
+.templates-page .template-row:hover {
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.templates-page .template-use {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  line-height: 40px;
+  background: transparent;
+}
+.templates-page .template-actions {
+  gap: 4px;
+  padding-right: 4px;
+}
+.templates-page .template-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.templates-page .template-btn:hover {
+  background: var(--bar-active);
+}
+/* Ícones no estilo SF Symbols: traço fino e arredondado, com o texto ao lado */
+.templates-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.templates-page-btn svg,
+.templates-page .template-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.templates-page .template-btn svg { width: 15px; height: 15px; }
+/* Ações da linha ficam ocultas até passar o mouse (ou focar) no item */
+.templates-page .template-row .template-actions { opacity: 0; transition: opacity 0.15s; }
+.templates-page .template-row:hover .template-actions,
+.templates-page .template-row:focus-within .template-actions { opacity: 1; }
+
+/* Ícone do tipo na frente do nome do modelo */
+.templates-page .template-use {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.templates-page .template-kind {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--text-muted);
+}
+.templates-page .template-kind svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.templates-page .template-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Rodapé da aside: ações globais, abaixo da lista de notas, separadas por um divisor */
+.notes-aside-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+.notes-aside-foot .notes-aside-item { width: 100%; }
+/* Rodapé da aside: botões de vidro, sempre de 40px (não encolhem) */
+.notes-aside-foot .notes-aside-item {
+  flex: 0 0 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.notes-aside-foot .notes-aside-item:hover {
+  background: var(--bar-active);
+}
+.notes-aside-menu .notes-aside-item { flex: 0 0 40px; }
+/* Bandeiras dos idiomas (rodapé da aside) */
+.copy-opt-flag { width: 22px; height: 15px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.lang-flag { width: 22px; height: 15px; border-radius: 3px; display: block; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.18); }
+.notes-aside-foot .copy-opt.is-active .copy-opt-value { font-weight: 600; color: var(--accent); }

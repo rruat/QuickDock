@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 // Áudio e vídeo na nota (blocos "audio" e "video"). Segue o mesmo caminho da
 // imagem: o arquivo fica no banco de arquivos (saveFile / loadFileBlob) e o bloco
 // guarda só o fileId. Na versão desktop o formato do arquivo é quickdock:audio/<id>
@@ -58,8 +59,8 @@ export function buildMediaTools() {
   const btn = document.createElement('button');
   btn.className = 'image-btn';
   btn.dataset.act = 'remove-media';
-  btn.textContent = 'Remover';
-  btn.title = 'Remover da nota';
+  btn.textContent = tr('Remover');
+  btn.title = tr('Remover da nota');
   bar.appendChild(btn);
   return bar;
 }

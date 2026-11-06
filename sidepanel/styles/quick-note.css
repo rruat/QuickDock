@@ -1,19 +1,45 @@
 /* ===== QUICK NOTE BAR (barra de transformações e de blocos) =====
    Mesmo design da barra de cima: cápsula translúcida com blur, rolagem
    horizontal pela roda do mouse (ligada em note.js). */
+/* Flutua sobre a nota, em vidro: o texto rola por baixo dela (o editor tem espaço
+   extra embaixo para a última linha ficar acima da barra). */
 .quick-note-bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 2px;
-  margin: 6px 10px 8px;
-  padding: 2px 6px;
+  margin: 0;
+  padding: 3px 6px;
   border-radius: 999px;
   background: var(--bar);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  flex-shrink: 0;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+/* Botões com ícone: maiores, com o traço do mesmo estilo dos outros ícones */
+.quick-note-bar .tt-btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+.quick-note-bar .tt-btn-icon svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .quick-note-bar::-webkit-scrollbar { display: none; }

@@ -7,7 +7,8 @@ import { closeSlashMenu } from './slash.js';
 
 export const BLOCK_SHORTCUTS = [
   { re: /^(#{1,6}) $/, type: m => `heading${m[1].length}` },
-  { re: /^([-*]) \[([ xX])\] $/, type: () => 'checklist', checked: m => /[xX]/.test(m[2]) },
+  // Checklist: "[] ", "[ ] " ou "[x] " — com ou sem o marcador de lista na frente.
+  { re: /^(?:[-*] )?\[([ xX]?)\] $/, type: () => 'checklist', checked: m => /[xX]/.test(m[1]), checklist: true },
   { re: /^[-*] $/, type: () => 'bullet' },
   { re: /^\d+\. $/, type: () => 'number' },
   { re: /^> $/, type: () => 'quote' },
@@ -32,9 +33,12 @@ export function checkDividerShortcut(block) {
   return true;
 }
 
-export function checkBlockShortcut(block) {
+// apenasChecklist: usado em item de lista, onde "- " já virou lista e o resto
+// ("[] ", "[x] ") ainda precisa virar checklist.
+export function checkBlockShortcut(block, { apenasChecklist = false } = {}) {
   const text = textoVisivel(getContentEl(block));
   for (const s of BLOCK_SHORTCUTS) {
+    if (apenasChecklist && !s.checklist) continue;
     if (s.soCitacao && block.dataset.quoted !== 'true') continue;
     const m = s.re.exec(text);
     if (!m) continue;

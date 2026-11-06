@@ -1,22 +1,25 @@
 import { MATERIAL_ICONS } from '../material-icons-list.js';
 import { updateNoteMetaById } from '../storage.js';
+import { t, idiomaAtual } from '../i18n.js';
 import { COLORS, COMMON_ICONS } from './constants.js';
 import { S } from './state.js';
 import { renderTabs, setAccent } from './tab-strip.js';
 
 export function renderAppearanceContent(pop, meta) {
+  // A grade de ícones é refeita a cada escolha: guarda a rolagem para voltar ao mesmo lugar.
+  const posicaoIcones = pop.querySelector('.icon-grid')?.scrollTop ?? 0;
   pop.innerHTML = '';
 
   const iconHeader = document.createElement('div');
   iconHeader.className = 'copy-menu-header';
-  iconHeader.textContent = 'Ícone';
+  iconHeader.textContent = t('icone.titulo');
   pop.appendChild(iconHeader);
 
   // Busca no catálogo completo de ícones (MATERIAL_ICONS)
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
   searchInput.className = 'icon-search-input';
-  searchInput.placeholder = `Buscar entre ${MATERIAL_ICONS.length.toLocaleString('pt-BR')} ícones...`;
+  searchInput.placeholder = t('icone.buscar', { n: MATERIAL_ICONS.length.toLocaleString(idiomaAtual()) });
   searchInput.addEventListener('mousedown', e => e.stopPropagation());
   searchInput.addEventListener('keydown', e => e.stopPropagation());
   pop.appendChild(searchInput);
@@ -34,7 +37,7 @@ export function renderAppearanceContent(pop, meta) {
   const noneIconBtn = document.createElement('button');
   noneIconBtn.className = 'icon-swatch icon-swatch-none' + (!meta.icon ? ' active' : '');
   noneIconBtn.textContent = '—';
-  noneIconBtn.title = 'Nenhum ícone';
+  noneIconBtn.title = t('icone.nenhum');
   noneIconBtn.addEventListener('mousedown', e => e.stopPropagation());
   noneIconBtn.addEventListener('click', e => { e.stopPropagation(); pickIcon(null); });
 
@@ -81,6 +84,9 @@ export function renderAppearanceContent(pop, meta) {
   searchInput.addEventListener('input', rebuildGrid);
   rebuildGrid();
   pop.appendChild(iconGrid);
+  // carrega lotes até alcançar a posição anterior e restaura a rolagem
+  while (iconGrid.scrollHeight < posicaoIcones + iconGrid.clientHeight && shown < list.length) appendBatch();
+  iconGrid.scrollTop = posicaoIcones;
 
   // Alterna entre o estilo "contorno" (padrão) e "preenchido" do ícone —
   // usa o eixo FILL da própria fonte variável, não precisa carregar outra.
@@ -88,7 +94,7 @@ export function renderAppearanceContent(pop, meta) {
   const fillRow = document.createElement('label');
   fillRow.className = 'ios-switch-row';
   const fillLabel = document.createElement('span');
-  fillLabel.textContent = 'Ícone preenchido';
+  fillLabel.textContent = t('icone.preenchido');
   const fillSwitch = document.createElement('span');
   fillSwitch.className = 'apple-check';
   const fillCheckbox = document.createElement('input');
@@ -114,7 +120,7 @@ export function renderAppearanceContent(pop, meta) {
     const hideRow = document.createElement('label');
     hideRow.className = 'ios-switch-row';
     const hideLabel = document.createElement('span');
-    hideLabel.textContent = 'Ocultar nome na aba';
+    hideLabel.textContent = t('icone.ocultarNome');
     const hideBox = document.createElement('span');
     hideBox.className = 'apple-check';
     const hideCheckbox = document.createElement('input');
@@ -138,7 +144,7 @@ export function renderAppearanceContent(pop, meta) {
 
   const colorHeader = document.createElement('div');
   colorHeader.className = 'copy-menu-header';
-  colorHeader.textContent = 'Cor';
+  colorHeader.textContent = t('icone.cor');
   pop.appendChild(colorHeader);
 
   const colorGrid = document.createElement('div');
@@ -154,7 +160,7 @@ export function renderAppearanceContent(pop, meta) {
 
   const noneColorBtn = document.createElement('button');
   noneColorBtn.className = 'color-swatch color-swatch-none' + (!meta.color ? ' active' : '');
-  noneColorBtn.title = 'Nenhuma cor';
+  noneColorBtn.title = t('icone.nenhumaCor');
   noneColorBtn.addEventListener('mousedown', e => e.stopPropagation());
   noneColorBtn.addEventListener('click', e => { e.stopPropagation(); pickColor(null); });
   colorGrid.appendChild(noneColorBtn);
@@ -163,7 +169,7 @@ export function renderAppearanceContent(pop, meta) {
     const sw = document.createElement('button');
     sw.className = 'color-swatch' + (meta.color === hex ? ' active' : '');
     sw.style.background = hex;
-    sw.title = name;
+    sw.title = t(name);
     sw.addEventListener('mousedown', e => e.stopPropagation());
     sw.addEventListener('click', e => { e.stopPropagation(); pickColor(hex); });
     colorGrid.appendChild(sw);
@@ -173,7 +179,7 @@ export function renderAppearanceContent(pop, meta) {
   const isCustomColor = !!meta.color && !COLORS.some(c => c.hex === meta.color);
   const customSwatch = document.createElement('label');
   customSwatch.className = 'color-swatch color-swatch-custom' + (isCustomColor ? ' active' : '');
-  customSwatch.title = 'Outra cor…';
+  customSwatch.title = t('icone.outraCor');
   if (isCustomColor) customSwatch.style.background = meta.color;
 
   const colorInput = document.createElement('input');

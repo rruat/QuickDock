@@ -1,3 +1,4 @@
+import { t as tr } from './i18n.js';
 import { loadFileBlob } from './storage.js';
 
 // ArrayBuffer → base64 em chunks para não estourar a call stack
@@ -48,7 +49,7 @@ export async function startInject(id, name, type) {
 
   const blob = await loadFileBlob(id);
   if (!blob) {
-    showToast('⚠️ Arquivo não encontrado.');
+    showToast(tr('⚠️ Arquivo não encontrado.'));
     setTimeout(hideToast, 3000);
     return;
   }
@@ -62,19 +63,19 @@ export async function startInject(id, name, type) {
       file: { base64, name, type },
     });
   } catch {
-    showToast('⚠️ Extensão não ativa nesta aba. Recarregue a página e tente novamente.');
+    showToast(tr('⚠️ Extensão não ativa nesta aba. Recarregue a página e tente novamente.'));
     setTimeout(hideToast, 4000);
     return;
   }
 
   if (response?.found === 0) {
-    showToast('⚠️ Nenhum campo de upload encontrado nesta página.');
+    showToast(tr('⚠️ Nenhum campo de upload encontrado nesta página.'));
     setTimeout(hideToast, 3500);
     return;
   }
 
   const count = response?.found ?? '?';
-  showToast(`📥 ${count} campo(s) encontrado(s) — clique no azul na página. Esc para cancelar.`);
+  showToast(tr('📥 {n} campo(s) encontrado(s) — clique no azul na página. Esc para cancelar.', { n: count }));
 }
 
 export async function startInjectMultiple(metas) {
@@ -108,19 +109,19 @@ export async function startInjectMultiple(metas) {
       files,
     });
   } catch {
-    showToast('⚠️ Extensão não ativa nesta aba. Recarregue a página e tente novamente.');
+    showToast(tr('⚠️ Extensão não ativa nesta aba. Recarregue a página e tente novamente.'));
     setTimeout(hideToast, 4000);
     return;
   }
 
   if (response?.found === 0) {
-    showToast('⚠️ Nenhum campo de upload encontrado nesta página.');
+    showToast(tr('⚠️ Nenhum campo de upload encontrado nesta página.'));
     setTimeout(hideToast, 3500);
     return;
   }
 
   const count = response?.found ?? '?';
-  showToast(`📥 ${count} campo(s) encontrado(s) — clique no azul na página. Esc para cancelar.`);
+  showToast(tr('📥 {n} campo(s) encontrado(s) — clique no azul na página. Esc para cancelar.', { n: count }));
 }
 
 export async function cancelInject() {
@@ -140,7 +141,7 @@ chrome.runtime.onMessage.addListener(msg => {
     if (msg.ok) {
       showToast('✅ Arquivo enviado com sucesso!');
     } else {
-      showToast('⚠️ Não foi possível injetar o arquivo neste elemento.');
+      showToast(tr('⚠️ Não foi possível injetar o arquivo neste elemento.'));
     }
     setTimeout(hideToast, 3000);
   }

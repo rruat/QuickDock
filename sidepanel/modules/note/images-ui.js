@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { refreshDocuments } from '../documents.js';
 import { openModal } from '../modal.js';
 import { moveInlineFileToDocuments, saveFile } from '../storage.js';
@@ -94,10 +95,10 @@ root.addEventListener('click', e => {
   if (!Number.isFinite(fileId)) return;
 
   const galeria = [...root.querySelectorAll('.block-image')]
-    .map(el => ({ id: Number(el.dataset.fileId), name: el.dataset.alt || 'Imagem', type: 'image/*' }))
+    .map(el => ({ id: Number(el.dataset.fileId), name: el.dataset.alt || tr('Imagem'), type: 'image/*' }))
     .filter(g => Number.isFinite(g.id));
 
-  openModal(fileId, bloco.dataset.alt || 'Imagem', 'image/*', galeria);
+  openModal(fileId, bloco.dataset.alt || tr('Imagem'), 'image/*', galeria);
 });
 
 export async function moverImagemParaDocumentos(bloco) {
@@ -105,7 +106,7 @@ export async function moverImagemParaDocumentos(bloco) {
   if (!Number.isFinite(fileId)) return;
 
   const movido = await moveInlineFileToDocuments(fileId);
-  if (!movido) { showFeedback('não achei o arquivo desta imagem'); return; }
+  if (!movido) { showFeedback(tr('não achei o arquivo desta imagem')); return; }
 
   // O arquivo deixa de ser inline ANTES do bloco sair, pra que a faxina de
   // imagem órfã (gcInlineFiles) nunca o veja sem dono. Um Ctrl+Z aqui traz o
@@ -120,7 +121,7 @@ export async function moverImagemParaDocumentos(bloco) {
   await flushSave();
 
   await refreshDocuments();
-  showFeedback('imagem movida para Documentos');
+  showFeedback(tr('imagem movida para Documentos'));
 }
 
 export function closeAltMenu() { S.altMenuEl?.remove(); S.altMenuEl = null; }
@@ -132,17 +133,17 @@ export function openAltMenu(bloco, anchorRect) {
 
   const head = document.createElement('div');
   head.className = 'copy-menu-header';
-  head.textContent = 'Texto alternativo';
+  head.textContent = tr('Texto alternativo');
 
   const dica = document.createElement('div');
   dica.className = 'alt-menu-hint';
-  dica.textContent = 'Descreve a imagem pra quem usa leitor de tela — e é o que aparece se o arquivo se perder.';
+  dica.textContent = tr('Descreve a imagem pra quem usa leitor de tela — e é o que aparece se o arquivo se perder.');
 
   const campo = document.createElement('input');
   campo.className = 'link-input';
   campo.type = 'text';
   campo.value = bloco.dataset.alt ?? '';
-  campo.placeholder = 'Ex.: print do protocolo aberto';
+  campo.placeholder = tr('Ex.: print do protocolo aberto');
 
   const aplicar = () => {
     captureUndoPoint();
@@ -159,7 +160,7 @@ export function openAltMenu(bloco, anchorRect) {
 
   const ok = document.createElement('button');
   ok.className = 'copy-opt';
-  ok.innerHTML = '<span class="copy-opt-value">Salvar</span>';
+  ok.innerHTML = `<span class="copy-opt-value">${tr('Salvar')}</span>`;
   ok.addEventListener('mousedown', e => e.stopPropagation());
   ok.addEventListener('click', aplicar);
 

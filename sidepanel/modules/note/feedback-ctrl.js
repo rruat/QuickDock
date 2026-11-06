@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { safeHref } from '../blocks.js';
 import { showMathMenu } from './math-menu.js';
 import { closeCopyMenu, showCopyMenu } from './menus.js';
@@ -10,7 +11,7 @@ export function showFeedback(msg) {
   S.indicatorTimer = setTimeout(() => {
     indicator.classList.remove('visible');
     if (S.isCtrlHeld) {
-      indicator.textContent = 'Ctrl+clique para abrir link';
+      indicator.textContent = tr('Ctrl+clique para abrir link');
       indicator.classList.add('visible');
     }
   }, 1400);
@@ -22,7 +23,7 @@ export function setCtrl(active) {
   noteSection.classList.toggle('ctrl-active', active);
 
   if (active) {
-    showFeedback('Ctrl+clique para abrir link');
+    showFeedback(tr('Ctrl+clique para abrir link'));
   } else {
     if (!S.activeMenu) indicator.classList.remove('visible');
   }

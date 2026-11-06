@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n.js';
 import { createBlockEl } from './block-model.js';
 import { focusBlockStart, renumberLists } from './block-ops.js';
 import { blockNearestToY } from './handle.js';
@@ -17,7 +18,7 @@ blockAddBtn.className = 'block-add-btn';
 
 blockAddBtn.textContent = '+';
 
-blockAddBtn.title = 'Adicionar bloco abaixo (Ctrl+clique: acima)';
+blockAddBtn.title = tr('Adicionar bloco abaixo (Ctrl+clique: acima)');
 
 export const blockHandleBtn = document.createElement('button');
 
@@ -25,7 +26,7 @@ blockHandleBtn.className = 'block-handle-btn';
 
 blockHandleBtn.textContent = '⠿';
 
-blockHandleBtn.title = 'Clique: opções do bloco · Arrastar: mover · Ctrl+arrastar (em qualquer lugar do bloco): selecionar vários';
+blockHandleBtn.title = tr('Clique: opções do bloco · Arrastar: mover · Ctrl+arrastar (em qualquer lugar do bloco): selecionar vários');
 
 blockControls.append(blockAddBtn, blockHandleBtn);
 

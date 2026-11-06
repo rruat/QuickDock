@@ -1,3 +1,4 @@
+import { t as tr } from './i18n.js';
 // ── calc.js ────────────────────────────────────────────────────────────────
 // A folha de cálculo: um punhado de linhas avaliadas de cima pra baixo,
 // carregando as variáveis de uma pra outra.
@@ -48,7 +49,7 @@ export function evaluateSheet(linhas) {
   const resolve = nome => {
     if (nome === 'acima') return acima();
     const chave = nome.toLowerCase();
-    if (!vars.has(chave)) throw new Error(`"${nome}" ainda não foi definido`);
+    if (!vars.has(chave)) throw new Error(tr('"{nome}" ainda não foi definido', { nome }));
     return vars.get(chave);
   };
 
@@ -65,7 +66,7 @@ export function evaluateSheet(linhas) {
     if (atribuicao) {
       const [, nome, expressao] = atribuicao;
       if (NOMES_RESERVADOS.has(nome.toLowerCase())) {
-        saida.push({ tipo: 'erro', erro: `"${nome}" é uma palavra reservada` });
+        saida.push({ tipo: 'erro', erro: tr('"{nome}" é uma palavra reservada', { nome }) });
         continue;
       }
       try {
@@ -94,7 +95,7 @@ export function evaluateSheet(linhas) {
 
 function mensagem(e) {
   const txt = (e?.message ?? '').trim();
-  return txt || 'não consegui calcular';
+  return txt || tr('não consegui calcular');
 }
 
 /** As variáveis no fim da folha — pra quem quiser mostrar um resumo. */
