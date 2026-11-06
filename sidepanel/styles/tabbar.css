@@ -1,0 +1,306 @@
+/* ===== ABAS DE NOTAS ===== */
+/* Barra de abas no topo: cápsula translúcida com blur, como no modelo */
+/* Linha do topo, no padrão do modelo: botões agrupados num container
+   arredondado (.notes-pill, 2px de respiro, botões transparentes de 40px).
+   A faixa de abas tem a mesma altura do container (--tabbar-h). */
+/* Linha da seção de notas. O bloco da nota mantém a largura total: ao abrir a
+   aside ele só é deslocado para a direita, então o texto não reflui. */
+.note-row {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.note-main {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease;
+}
+
+/* Aside "Todas as notas": 75% da largura (máx. 300px), desliza da esquerda */
+.notes-aside {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(75%, 300px);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+.notes-aside.open { transform: none; }
+
+/* Com a aside aberta, a nota é empurrada pela mesma largura da aside */
+.notes-aside.open ~ .note-main { transform: translateX(min(75%, 300px)); }
+
+/* Fade sobre toda a largura do painel, por trás da aside (que fica por cima).
+   Não se move: só aparece e some com transparência. Clicar nele fecha a aside. */
+.note-dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  cursor: pointer;
+}
+.notes-aside.open ~ .note-dim { opacity: 1; pointer-events: auto; }
+
+.notes-aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-muted);
+  padding: 8px 8px 6px 14px;
+}
+
+/* botão de fechar da aside: 40px como os outros botões, cápsula translúcida com
+   blur, e o X grosso de pontas arredondadas (estilo do ícone de fechar da Apple) */
+.notes-aside-close {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+.notes-aside-close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.notes-aside-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 6px 10px;
+  scrollbar-width: none;
+}
+.notes-aside-list::-webkit-scrollbar { display: none; }
+
+.notes-aside-list .notes-list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.notes-aside-list .notes-list-item:hover { background: var(--bg-hover); }
+.notes-aside-list .notes-list-item.current { background: var(--bar-active); }
+
+.notes-aside-list .copy-opt-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-aside-list .notes-list-edit-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+/* modo modelo: a barra do modelo entra abaixo do cabeçalho flutuante */
+.template-bar:not([hidden]) { margin-top: 56px; }
+
+.notes-tabbar {
+  --tabbar-h: 44px;
+  /* flutua sobre a nota: o texto rola por trás do cabeçalho */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 10px 4px;
+  flex-shrink: 0;
+}
+
+
+.notes-pill {
+  display: flex;
+  align-items: center;
+  height: var(--tabbar-h);
+  padding: 2px;
+  gap: 0;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.notes-tabbar .icon-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+
+/* ☰ com a aside aberta: só a faixa esquerda do ícone é pintada (como o ícone
+   "sidebar" preenchido da Apple), na cor do texto — sem cor de destaque */
+.notes-tabbar .sidebar-fill { fill: none; stroke: none; }
+.notes-tabbar .icon-btn.active .sidebar-fill { fill: currentColor; }
+
+.notes-tabbar svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Faixa de abas: mesma altura dos botões, cápsula translúcida, rola na horizontal */
+.notes-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* folga em volta das abas: a rolagem do contêiner cortaria a sombra de cada
+     aba. O contêiner não tem fundo nem sombra — só as abas têm. A margem negativa
+     mantém a altura do cabeçalho. */
+  height: calc(var(--tabbar-h) + 12px);
+  margin: -6px 0;
+  padding: 6px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+}
+.notes-tabs::-webkit-scrollbar { display: none; }
+
+/* A faixa de abas passa por baixo dos containers do topo: começa no meio do
+   botão de criar (à esquerda) e termina no meio do ⋯ (à direita). Os containers
+   são translúcidos e ficam por cima, então as abas aparecem por trás deles. */
+.notes-tabbar .notes-pill { position: relative; z-index: 2; }
+.notes-tabbar .notes-pill:last-child { margin-left: auto; }
+
+.notes-tabs {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 62px;
+  right: 22px;
+  z-index: 1;
+  height: auto;
+  margin: 0;
+  flex: none;
+  min-width: 0;
+  align-items: center;
+  /* 26px à esquerda e 28px à direita: no início e no fim da rolagem as abas
+     param logo após o botão de criar e antes do ⋯ */
+  padding: 0 28px 0 26px;
+}
+
+
+/* Barra indicadora de onde a aba vai cair ao arrastar (mesma ideia da linha
+   dos blocos, só que vertical porque as abas ficam lado a lado) */
+.tab-drop-indicator {
+  width: 2px;
+  height: calc(var(--tabbar-h) - 8px);
+  flex-shrink: 0;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.note-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 40px;
+  min-width: 70px;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+  flex-shrink: 0;
+  max-width: 130px;
+  border: 1px solid transparent;
+  user-select: none;
+  transition: background 0.12s, border-color 0.12s;
+}
+.note-tab:hover  { background: var(--bg-hover); }
+/* aba selecionada: tom pastel da cor da nota (ou do accent escurecido, sem cor) */
+.note-tab.active {
+  background: color-mix(in srgb, var(--note-accent, var(--accent)) 28%, var(--bg));
+  border-color: transparent;
+}
+
+.note-tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.note-tab-title {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 84px;
+}
+
+.note-tab-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+  --icon-opsz: 18;
+}
+

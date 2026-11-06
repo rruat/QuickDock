@@ -1,0 +1,5 @@
+/* ===== MENU "/" (trocar tipo de bloco) ===== */
+/* A altura real é calculada em positionMenu() conforme o espaço disponível —
+   isto aqui é só o teto quando sobra janela de sobra. */
+.slash-menu { max-height: 280px; overflow-y: auto; }
+

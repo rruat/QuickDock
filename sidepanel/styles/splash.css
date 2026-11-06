@@ -1,0 +1,69 @@
+/* ===== SPLASH DE CARREGAMENTO + MARCA D'ÁGUA =====
+   São o mesmo elemento: a marca já nasce na posição final, por cima do véu e
+   em opacidade quase cheia. Quando o app fica pronto o véu dissolve e ela cai
+   pra opacidade de marca d'água — sem se mover um pixel.
+   Fica antes de .note-editor no DOM: os dois são posicionados com z-index
+   auto, então a ordem do DOM sozinha já deixa a marca atrás do texto. */
+.note-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--text);
+  opacity: 0.045;
+  transition: opacity 0.38s ease 0.08s;
+}
+
+.note-watermark svg {
+  width: min(46%, 148px);
+  height: auto;
+  fill: currentColor;
+}
+
+.boot-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+  /* a cor também transiciona: initTheme() troca o tema por baixo do véu */
+  transition: opacity 0.22s ease, background-color 0.2s;
+}
+
+body.booting .boot-veil { opacity: 1; }
+body.booting .note-watermark { opacity: 0.9; z-index: 61; }
+
+body.booting .note-editor-blocks {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* O conteúdo só entra depois que o véu já saiu. Subindo junto, ele aparece
+   através do véu meio transparente e dá a impressão de que já estava lá. */
+body:not(.booting) .note-editor-blocks {
+  transition: opacity 0.26s ease 0.18s,
+              transform 0.3s cubic-bezier(0.2, 0.7, 0.3, 1) 0.18s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-veil,
+  .note-watermark,
+  body:not(.booting) .note-editor-blocks {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+  body.booting .note-editor-blocks { transform: none; }
+}
+
+/* Container do editor */
+.note-editor {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  display: flex;
+  transition: border-color 0.15s;
+}
+

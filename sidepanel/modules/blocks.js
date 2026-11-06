@@ -1,6 +1,6 @@
-// ── blocks.js ──────────────────────────────────────────────────────────────
-// Modelo de blocos do editor de notas e conversão a partir do
-// markdown de texto puro que as versões anteriores salvavam (migração).
+﻿// ── blocks.js ──────────────────────────────────────────────────────────────
+// Modelo de blocos do editor de notas e conversão de/para markdown (importação, colagem,
+// sincronização e exportação).
 
 import { evaluateSheet } from './calc.js';
 
@@ -12,7 +12,8 @@ export function uid() {
 }
 
 export function escHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // Só http(s) e mailto. Vale tanto pro que o usuário digita quanto pro que vem
@@ -22,11 +23,50 @@ export function safeHref(raw) {
   const url = (raw ?? '').trim();
   if (!url) return null;
   if (/^(https?:|mailto:)/i.test(url)) return url;
+  // Âncora pra um título da própria nota. Não sai da nota e não executa nada,
+  // então entra na lista — quem resolve pra onde ela leva é o editor.
+  if (/^#\S/.test(url)) return url;
+  // Link para outra nota interna do QuickDock: nota:uid ou nota:titulo
+  if (/^nota:/i.test(url)) return url;
   if (/^[\w.-]+\.\w{2,}([/?#]|$)/.test(url)) return `https://${url}`;  // digitou só o domínio
   return null;
 }
 
-// ── Markdown inline → HTML real (usado só na migração de notas antigas) ──────
+// ── Âncoras de título ─────────────────────────────────────────────────────────
+// O apelido de um título, pra que "[ir](#minha-seção)" saiba aonde ir. Mesma
+// ideia do markdown de sites de documentação: minúsculas, pontuação fora,
+// espaço vira hífen.
+//
+// A comparação na hora de resolver é sem acento e sem caixa, porque cada
+// gerador de markdown trata acento e alfabeto grego de um jeito — e errar o
+// destino por causa de um "ç" seria pior que não linkar.
+export function headingSlug(texto) {
+  return (texto ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD').replace(/\p{Mn}/gu, '')       // tira acento
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')              // tira pontuação
+    .replace(/\s+/g, '-')                           // espaço (inclusive duplo) vira hífen
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Apelido de cada título, na ordem em que aparecem. Títulos repetidos ganham
+ * sufixo — é o que faz o segundo "Observações" da nota ser alcançável.
+ * @param textos string[] — o texto de cada título
+ */
+export function headingSlugs(textos) {
+  const vistos = new Map();
+  return (textos ?? []).map(t => {
+    const base = headingSlug(t);
+    const n = vistos.get(base) ?? 0;
+    vistos.set(base, n + 1);
+    return n === 0 ? base : `${base}-${n}`;
+  });
+}
+
+// ── Markdown inline → HTML real (colagem, importação e sincronização) ──────
 // Mesma regra do itálico de antes: sem espaço colado no asterisco, pra não
 // colidir com "*" de multiplicação.
 // `code` vem primeiro pra que uma marcação dentro de crase continue literal.
@@ -35,21 +75,37 @@ export function safeHref(raw) {
 // limitação dos outros.
 const INLINE_MD = [
   { re: /`([^`\n]+?)`/g, tag: 'code' },
-  { re: /\[([^\]\n]+)\]\(([^)\s]+)\)/g, tag: 'a' },
-  { re: /\*\*([^\n]+?)\*\*/g, tag: 'strong' },
+  { re: /\[\[([^\]\n|]+)(?:\|([^\]\n]+))?\]\]/g, tag: 'wikilink' },
+  // O "!" opcional é consumido: imagem por endereço remoto vira link (decisão de privacidade, ver
+  // abaixo), e sem isto sobraria um "!" solto na frente — o mesmo que o atalho de digitação faz.
+  { re: /!?\[([^\]\n]+)\]\(([^)\s]+)\)/g, tag: 'a' },
+  { re: /==([^=\n]+?)==/g, tag: 'mark', syntax: '==' },
+  { re: /\*\*\*([^\n]+?)\*\*\*/g, tag: 'bolditalic', syntax: '***' },
+  { re: /___([^\n]+?)___/g, tag: 'bolditalic', syntax: '___' },
+  { re: /\*\*([^\n]+?)\*\*/g, tag: 'strong', syntax: '**' },
+  { re: /__([^\n]+?)__/g, tag: 'strong', syntax: '__' },
   { re: /~~([^\n]+?)~~/g, tag: 's' },
-  { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?!\*)/g, tag: 'em' },
+  { re: /(?<!\*)\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?!\*)/g, tag: 'em', syntax: '*' },
+  { re: /(?<![a-zA-Z0-9_])_(?![\s_])([^_\n]+?)(?<![\s_])_(?![a-zA-Z0-9_])/g, tag: 'em', syntax: '_' },
+  { re: /(?:^|(?<=[\s,.:;!?'"([{<]))#([a-zA-Z\u00C0-\u017F0-9_\-]+(?:\/[a-zA-Z\u00C0-\u017F0-9_\-]+)*)(?=$|[\s,.:;!?'")\]}>])/g, tag: 'tag' },
 ];
 
-function parseInlineMarkdown(text) {
+export function parseInlineMarkdown(text) {
   const matches = [];
-  for (const { re, tag } of INLINE_MD) {
+  for (const item of INLINE_MD) {
+    const { re, tag, syntax } = item;
     re.lastIndex = 0;
     let m;
     while ((m = re.exec(text)) !== null) {
       const start = m.index, end = start + m[0].length;
       if (matches.some(e => e.start < end && e.end > start)) continue;
-      matches.push({ start, end, tag, content: m[1], href: m[2] });
+      if (tag === 'wikilink') {
+        matches.push({ start, end, tag, content: m[1], alias: m[2] });
+      } else if (tag === 'a') {
+        matches.push({ start, end, tag, content: m[1], href: m[2] });
+      } else {
+        matches.push({ start, end, tag, content: m[1] ?? m[0], syntax });
+      }
     }
   }
   matches.sort((a, b) => a.start - b.start);
@@ -57,15 +113,38 @@ function parseInlineMarkdown(text) {
   let html = '', pos = 0;
   for (const m of matches) {
     html += escHtml(text.slice(pos, m.start));
-    if (m.tag === 'a') {
+    if (m.tag === 'wikilink') {
+      const target = (m.content || '').trim().replace(/\\/g, '/');
+      const display = (m.alias || target).trim();
+      html += `<a href="nota:${escHtml(target)}" class="note-internal-link" data-note-title="${escHtml(target)}" data-note-path="${escHtml(target)}">${escHtml(display)}</a>`;
+    } else if (m.tag === 'a') {
       const href = safeHref(m.href);
-      // Endereço recusado: mantém o texto original visível em vez de descartar
-      // silenciosamente o que a pessoa escreveu.
-      html += href
-        ? `<a href="${escHtml(href)}">${escHtml(m.content)}</a>`
-        : escHtml(text.slice(m.start, m.end));
+      if (href && /^nota:/i.test(href)) {
+        let target = href.replace(/^nota:/i, '');
+        try { target = decodeURIComponent(target); } catch {}
+        html += `<a href="${escHtml(href)}" class="note-internal-link" data-note-format="md" data-note-title="${escHtml(target)}">${escHtml(m.content)}</a>`;
+      } else {
+        // Endereço recusado: mantém o texto original visível em vez de descartar
+        // silenciosamente o que a pessoa escreveu.
+        html += href
+          ? `<a href="${escHtml(href)}">${escHtml(m.content)}</a>`
+          : escHtml(text.slice(m.start, m.end));
+      }
+    } else if (m.tag === 'tag') {
+      const rawTag = (m.content || '').trim();
+      if (!/^\d+$/.test(rawTag)) {
+        html += `<span class="note-tag" data-tag="${escHtml(rawTag)}">#${escHtml(rawTag)}</span>`;
+      } else {
+        html += `#${escHtml(rawTag)}`;
+      }
+    } else if (m.tag === 'bolditalic') {
+      html += `<strong data-syntax="${m.syntax || '***'}"><em>${parseInlineMarkdown(m.content)}</em></strong>`;
+    } else if (m.tag === 'mark') {
+      html += `<mark class="md-highlight" data-syntax="==">${parseInlineMarkdown(m.content)}</mark>`;
+    } else if (m.syntax && m.syntax !== '**' && m.syntax !== '*') {
+      html += `<${m.tag} data-syntax="${m.syntax}">${parseInlineMarkdown(m.content)}</${m.tag}>`;
     } else {
-      html += `<${m.tag}>${escHtml(m.content)}</${m.tag}>`;
+      html += `<${m.tag}>${parseInlineMarkdown(m.content)}</${m.tag}>`;
     }
     pos = m.end;
   }
@@ -84,14 +163,84 @@ function splitTableRow(line) {
     .map(cell => parseInlineMarkdown(cell.trim().replace(/\\\|/g, '|')));
 }
 
-function tableToMarkdown(rows, pad = '') {
+// Alinhamento de cada coluna, lido da linha separadora: `:---` esquerda, `:---:` centro, `---:` direita.
+// null = sem marcação (o padrão do markdown).
+export function parseTableAligns(sepLine) {
+  return String(sepLine).trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => {
+    const t = c.trim();
+    const ini = t.startsWith(':'), fim = t.endsWith(':');
+    return ini && fim ? 'center' : ini ? 'left' : fim ? 'right' : null;
+  });
+}
+
+// `largura` é a largura TOTAL da célula separadora (com os dois pontos); o mínimo deixa três hifens
+// (`:---:`, `:---`, `---:`), que é como se escreve à mão.
+function sepDaColuna(alinhamento, largura = 0) {
+  const minimo = alinhamento === 'center' ? 5 : alinhamento ? 4 : 3;
+  const w = Math.max(minimo, largura);
+  if (alinhamento === 'center') return `:${'-'.repeat(w - 2)}:`;
+  if (alinhamento === 'left')   return `:${'-'.repeat(w - 1)}`;
+  if (alinhamento === 'right')  return `${'-'.repeat(w - 1)}:`;
+  return '-'.repeat(w);
+}
+
+/**
+ * @param align  alinhamento por coluna (`'left' | 'center' | 'right' | null`)
+ * @param opts.pretty  colunas alinhadas com espaços, como no markdown que a pessoa escreveria à mão —
+ *        é o texto do painel de estrutura da tabela. O arquivo da nota continua compacto (sem espaços de
+ *        enfeite), para as notas existentes não mudarem de conteúdo.
+ */
+function tableToMarkdown(rows, pad = '', align = null, { pretty = false } = {}) {
   if (!rows?.length) return '';
   const cells = rows.map(row => row.map(html =>
     htmlToMarkdownInline(html).replace(/\|/g, '\\|').replace(/\n/g, ' ').trim()));
   const cols = Math.max(...cells.map(r => r.length));
-  const line = row => `${pad}| ${[...row, ...Array(cols - row.length).fill('')].join(' | ')} |`;
-  const sep  = `${pad}| ${Array(cols).fill('---').join(' | ')} |`;
+  const completa = row => [...row, ...Array(cols - row.length).fill('')];
+  const alinhamentoDe = i => align?.[i] ?? null;
+
+  if (!pretty) {
+    const line = row => `${pad}| ${completa(row).join(' | ')} |`;
+    const sep  = `${pad}| ${Array.from({ length: cols }, (_, i) => sepDaColuna(alinhamentoDe(i))).join(' | ')} |`;
+    return [line(cells[0]), sep, ...cells.slice(1).map(line)].join('\n');
+  }
+
+  // a coluna nunca é mais estreita que a própria linha de alinhamento (`:---:` tem 5)
+  const larguras = Array.from({ length: cols }, (_, i) =>
+    Math.max(sepDaColuna(alinhamentoDe(i)).length, ...cells.map(r => (r[i] ?? '').length)));
+  const encaixa = (texto, i) => {
+    const falta = larguras[i] - texto.length;
+    const a = alinhamentoDe(i);
+    if (a === 'right') return ' '.repeat(falta) + texto;
+    if (a === 'center') { const esq = Math.floor(falta / 2); return ' '.repeat(esq) + texto + ' '.repeat(falta - esq); }
+    return texto + ' '.repeat(falta);
+  };
+  const line = row => `${pad}| ${completa(row).map(encaixa).join(' | ')} |`;
+  const sep  = `${pad}| ${larguras.map((w, i) => sepDaColuna(alinhamentoDe(i), w)).join(' | ')} |`;
   return [line(cells[0]), sep, ...cells.slice(1).map(line)].join('\n');
+}
+
+/** Texto da estrutura da tabela (colunas alinhadas) — o que o painel mostra com o cursor na tabela. */
+export function tableToSourceText(rows, align = null) {
+  return tableToMarkdown(rows, '', align, { pretty: true });
+}
+
+/**
+ * Lê o markdown de uma tabela editado à mão. Devolve `{ rows, align }` (células já em HTML) ou null
+ * se o texto deixou de ser uma tabela — quem chamou decide o que fazer (nunca perder o que foi digitado).
+ */
+export function parseTableMarkdown(text) {
+  const linhas = String(text ?? '').replace(/\r\n?/g, '\n').split('\n').map(l => l.trim()).filter(Boolean);
+  if (linhas.length < 2 || !TABLE_ROW_RE.test(linhas[0]) || !TABLE_SEP_RE.test(linhas[1])) return null;
+  const rows = [splitTableRow(linhas[0])];
+  for (const l of linhas.slice(2)) {
+    if (!TABLE_ROW_RE.test(l)) return null;
+    rows.push(splitTableRow(l));
+  }
+  const cols = Math.max(...rows.map(r => r.length));
+  const cheias = rows.map(r => [...r, ...Array(cols - r.length).fill('')]);
+  if (cheias.length === 1) cheias.push(Array(cols).fill(''));
+  const aligns = parseTableAligns(linhas[1]);
+  return { rows: cheias, align: Array.from({ length: cols }, (_, i) => aligns[i] ?? null) };
 }
 
 // ── Indentação → profundidade ─────────────────────────────────────────────────
@@ -130,13 +279,42 @@ function makeDepthTracker() {
 //
 // O endereço `quickdock:file/12` é a referência interna. Ela aparece no campo
 // `content` (a rede de recuperação da nota) e é lida de volta aqui. Na
-// exportação ela é trocada por base64 de verdade, pra que o .md abra em
-// qualquer lugar — ver blocksToMarkdownForExport.
+// O endereço `quickdock:file/12` é a referência interna local do IndexedDB.
+// Ela aparece no campo `content` rápido, mas NUNCA pode viajar para outros
+// aparelhos na sincronização: o arquivo 12 em outra máquina é outra imagem qualquer.
+// Para sincronizar, grava-se o marcador neutro `quickdock:nao-sincronizado`.
 const FILE_REF_RE = /^quickdock:file\/(\d+)$/;
+// Áudio/vídeo local usam o mesmo "![]()" da imagem — só o esquema do endereço
+// muda, pra o parser saber que tipo de bloco reconstruir (ver parseEmbedLine).
+// Sem download preguiçoso nem pasta de sincronização própria: "local" aqui é
+// só o Blob desta máquina, mesma simplicidade do dataUrl de imagem.
+const AUDIO_REF_RE = /^quickdock:audio\/(\d+)$/;
+const VIDEO_REF_RE = /^quickdock:video\/(\d+)$/;
+const UNSYNCED_IMAGE_RE = /^quickdock:(?:nao-sincronizado|unsynced|imagem-local)$/;
+export const SYNC_IMAGE_RE = /^(?:\.\.\/)*imagens\/([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9]+)?)$/;
 const IMAGE_MD_RE = /^!\[([^\]]*)\]\(([^)\s]+)\)$/;
 
-export function imageSrcOf(b) {
+export function imageSrcOf(b, opts = {}) {
   if (b.dataUrl) return b.dataUrl;
+  // Se houver mapa de tradução fornecido pelo motor de sync (fileId -> ../imagens/<hash>.ext)
+  if (opts.mapaImagens && b.fileId != null && opts.mapaImagens.has(b.fileId)) {
+    return opts.mapaImagens.get(b.fileId);
+  }
+  // Se o bloco já traz o caminho relativo de uma imagem sincronizada baixada
+  if (b.imagePath && SYNC_IMAGE_RE.test(b.imagePath)) {
+    return b.imagePath;
+  }
+  if (b.src && SYNC_IMAGE_RE.test(b.src)) {
+    return b.src;
+  }
+  // Ao serializar para sincronização, a chave primária local não viaja.
+  // Se ainda não tem arquivo de hash associado, grava o marcador neutro de espera.
+  if (opts.sync || opts.paraSync) {
+    if (b.fileId != null || b.unsynced || b.missing) return 'quickdock:nao-sincronizado';
+  }
+  if (b.unsynced || b.missing || b.src === 'quickdock:nao-sincronizado') {
+    return 'quickdock:nao-sincronizado';
+  }
   if (b.fileId != null) return `quickdock:file/${b.fileId}`;
   return b.src ?? '';
 }
@@ -145,10 +323,60 @@ export function imageSrcOf(b) {
 // arquivo no servidor de terceiro, entregando o IP e o momento exato da
 // leitura a quem hospedou. Vira link — o endereço continua ali, clicável, e
 // quem quiser a imagem decide baixá-la.
-function parseImageLine(alt, src) {
+// Imagens não-sincronizadas preservam o texto alternativo mas nunca recebem fileId.
+// Imagens com caminho relativo na pasta imagens/ guardam o imagePath para download preguiçoso.
+// Tamanho ao lado do texto alternativo, "|320" (só largura) ou "|320x240"
+// (largura x altura) — mesma convenção do Obsidian pra redimensionar imagem
+// em markdown puro, sem precisar de nenhuma extensão de sintaxe nova.
+const IMAGE_SIZE_SUFFIX_RE = /\|(\d+)(?:x(\d+))?$/;
+
+// Linha de imagem mostrada com o cursor nela: `![alt](endereço|300)` ou `![alt](endereço|300x200)`.
+const LINHA_IMAGEM_RE = /^!\[([^\]]*)\]\(\s*([^)\s|]+)\s*(?:\|\s*(\d+)\s*(?:[x×]\s*(\d+))?\s*)?\)$/;
+const TAMANHO_NO_ALT_RE = /\|\s*(\d+)\s*(?:[x×]\s*(\d+))?\s*$/;
+
+/**
+ * Lê a linha de imagem. Aceita o tamanho depois do endereço (`(url|300)`) e, como no Obsidian, no
+ * texto alternativo (`![alt|300](url)`). Devolve `{ alt, src, width, height }` ou null.
+ */
+export function parseImageMarkdownLine(texto) {
+  const m = LINHA_IMAGEM_RE.exec(String(texto ?? '').replace(/\s*\n\s*/g, ' ').trim());
+  if (!m) return null;
+  let alt = m[1].trim();
+  let width = m[3] ? Number(m[3]) : null;
+  let height = m[4] ? Number(m[4]) : null;
+  if (width === null) {
+    const noAlt = TAMANHO_NO_ALT_RE.exec(alt);
+    if (noAlt) { width = Number(noAlt[1]); height = noAlt[2] ? Number(noAlt[2]) : null; alt = alt.slice(0, noAlt.index).trim(); }
+  }
+  return { alt, src: m[2], width, height };
+}
+
+/** `![alt](endereço|300)` / `![alt](endereço|300x200)` — o inverso de parseImageMarkdownLine. */
+export function imageMarkdownLine({ alt = '', src = '', width = null, height = null }) {
+  const tamanho = width ? `|${width}${height ? `x${height}` : ''}` : '';
+  return `![${String(alt).replace(/[\[\]]/g, '')}](${src}${tamanho})`;
+}
+
+function parseEmbedLine(altBruto, src) {
+  let alt = altBruto;
+  const tamanho = IMAGE_SIZE_SUFFIX_RE.exec(altBruto);
+  const extra = {};
+  if (tamanho) {
+    alt = altBruto.slice(0, tamanho.index);
+    extra.width = Number(tamanho[1]);
+    if (tamanho[2]) extra.height = Number(tamanho[2]);
+  }
+  // Áudio e vídeo local: só fileId, sem sincronização/download preguiçoso.
+  const audioRef = AUDIO_REF_RE.exec(src);
+  if (audioRef) return { type: 'audio', fileId: Number(audioRef[1]), alt };
+  const videoRef = VIDEO_REF_RE.exec(src);
+  if (videoRef) return { type: 'video', fileId: Number(videoRef[1]), alt, ...extra };
+
   const ref = FILE_REF_RE.exec(src);
-  if (ref) return { type: 'image', fileId: Number(ref[1]), alt };
-  if (/^data:image\//i.test(src)) return { type: 'image', dataUrl: src, alt };
+  if (ref) return { type: 'image', fileId: Number(ref[1]), alt, ...extra };
+  if (/^data:image\//i.test(src)) return { type: 'image', dataUrl: src, alt, ...extra };
+  if (UNSYNCED_IMAGE_RE.test(src)) return { type: 'image', alt, unsynced: true, ...extra };
+  if (SYNC_IMAGE_RE.test(src)) return { type: 'image', alt, imagePath: src, ...extra };
   return null;
 }
 
@@ -212,15 +440,100 @@ export const CALLOUT_LABELS = {
   caution:   'Cuidado',
 };
 
-// O tipo antigo `quote` continua sendo lido: na leitura vira parágrafo
-// decorado, e é a forma nova que volta a ser gravada quando a pessoa editar.
-// Nota antiga abre igual, sem migração varrendo o banco.
-export function normalizeBlock(b) {
-  if (b?.type !== 'quote') return b;
-  return { ...b, type: 'paragraph', quoted: true };
+/** Blocos da nota para abrir/mostrar; nota sem blocos (recém-criada) tem um parágrafo vazio. */
+export function blocksOfNote(note) {
+  return Array.isArray(note?.blocks) && note.blocks.length
+    ? note.blocks
+    : [{ id: uid(), type: 'paragraph', html: '' }];
+}
+
+// Uma nota pode ter mais de um bloco de base — a visão dedicada (bases-view.js)
+// mostra sempre o primeiro; é uma decisão simples de propósito (a lista
+// completa continua disponível pra quem precisar de mais no futuro).
+export function getBaseBlocksFromNote(note) {
+  return (note?.blocks || []).filter(b => b?.type === 'base');
 }
 
 // ── Markdown (string) → blocos ────────────────────────────────────────────────
+// ── Alinhamento do texto (centralizado, à direita, justificado) ──────────────
+// Markdown não tem alinhamento de parágrafo. O arquivo grava o que o GitHub, o Obsidian, o Typora e o
+// VS Code já entendem: o bloco dentro de <div align="center"> (linha em branco depois de abrir e antes de
+// fechar, para o markdown de dentro continuar valendo). Na leitura, aceita também <p align>, <center>,
+// style="text-align:…", títulos <h1 align="center"> numa linha e a cerca ::: do Pandoc.
+// À esquerda é o padrão: não escreve nada.
+export const TEXT_ALIGNS = ['left', 'center', 'right', 'justify'];
+const ALINHAVEL = /^(paragraph|heading[1-6])$/;
+
+/** `center | right | justify`, ou null (à esquerda / sem alinhamento). */
+export function normalizeTextAlign(v) {
+  const a = String(v ?? '').toLowerCase();
+  return a === 'center' || a === 'right' || a === 'justify' ? a : null;
+}
+
+function alinhamentoDeAtributos(attrs) {
+  const m = /\balign\s*=\s*["']?(left|center|right|justify)/i.exec(attrs) || /text-align\s*:\s*(left|center|right|justify)/i.exec(attrs);
+  return m ? m[1].toLowerCase() : null;
+}
+
+const ALIGN_ABRE_TAG   = /^<(div|p|center|section)\b([^>]*)>$/i;
+const ALIGN_FECHA_TAG  = /^<\/(div|p|center|section)>$/i;
+const ALIGN_UMA_LINHA  = /^<(div|p|center|h[1-6])\b([^>]*)>(.*)<\/\1>$/i;
+const ALIGN_ABRE_CERCA = /^:::\s*(?:\{([^}]*)\}|(center|right|left|justify))\s*$/i;
+const ALIGN_FECHA_CERCA = /^:::\s*$/;
+
+/** A linha abre um trecho alinhado? → { align (null = esquerda), tipo: 'tag' | 'cerca' } */
+function abreAlinhamento(linha) {
+  let m;
+  if ((m = ALIGN_ABRE_TAG.exec(linha))) {
+    const a = m[1].toLowerCase() === 'center' ? 'center' : alinhamentoDeAtributos(m[2]);
+    return a ? { align: normalizeTextAlign(a), tipo: 'tag' } : null;
+  }
+  if ((m = ALIGN_ABRE_CERCA.exec(linha))) {
+    const a = m[2] ? m[2].toLowerCase() : alinhamentoDeAtributos(m[1] || '');
+    return a ? { align: normalizeTextAlign(a), tipo: 'cerca' } : null;
+  }
+  return null;
+}
+
+// ── Quebra de página e sumário ───────────────────────────────────────────────
+// Os dois são gravados de um jeito que outro app ignora ou mostra como conteúdo comum:
+//  • quebra de página: <div style="page-break-after: always;"></div> — o que Obsidian, Typora e VS Code
+//    usam ao exportar para PDF; no GitHub o estilo é removido e sobra um <div> vazio (invisível).
+//    "Página em branco" são duas dessas linhas seguidas, a segunda com &nbsp; (a página do meio fica vazia).
+//  • sumário: lista de links entre dois comentários HTML (<!-- toc --> … <!-- /toc -->). Em outro app os
+//    comentários somem e a lista aparece normal, com links que funcionam pelos títulos.
+export const TOC_DEFAULT_LEVELS = 3;
+const PAGEBREAK_DIV   = '<div style="page-break-after: always;"></div>';
+const PAGEBREAK_BLANK = '<div style="page-break-after: always;">&nbsp;</div>';
+const PAGEBREAK_RE = /^(?:<div\s+style\s*=\s*["'][^"']*page-break-(?:after|before)\s*:\s*always[^"']*["']\s*>\s*(?:&nbsp;)?\s*<\/div>|\\newpage|\\pagebreak|<!--\s*page-?break\s*-->|<br\s+style\s*=\s*["'][^"']*page-break-(?:after|before)\s*:\s*always[^"']*["']\s*\/?>|<pagebreak\s*\/?>)$/i;
+const PAGEBREAK_BLANK_RE = /^<div\s+style\s*=\s*["'][^"']*page-break-(?:after|before)\s*:\s*always[^"']*["']\s*>\s*&nbsp;\s*<\/div>$/i;
+const TOC_OPEN_RE  = /^<!--\s*toc\b([^>]*?)-->$/i;
+const TOC_CLOSE_RE = /^<!--\s*\/toc\s*-->$/i;
+const TOC_ALIAS_RE = /^(\[TOC\]|\[\[_TOC_\]\])$/i;   // Typora / GitLab
+
+function clampNivel(n) { return Math.min(6, Math.max(1, Math.round(Number(n)) || 1)); }
+
+/** Lê o que há entre <!-- toc … --> e <!-- /toc -->: título em negrito e, no modo manual, os itens. */
+function parseTocRegion(attrs, corpo) {
+  const manual = /\bmanual\b/i.test(attrs);
+  const lv = /levels\s*=\s*([1-6])/i.exec(attrs);
+  const bloco = { type: 'toc', mode: manual ? 'manual' : 'auto', levels: lv ? Number(lv[1]) : TOC_DEFAULT_LEVELS, numbered: /\bnumbered\b/i.test(attrs), title: '' };
+  const itens = [];
+  let titulo = null;
+  for (const linha of corpo) {
+    if (linha.trim() === '') continue;
+    const t = /^\*\*(.+)\*\*$/.exec(linha.trim());
+    if (t && titulo === null && itens.length === 0) { titulo = t[1].trim(); continue; }
+    const li = /^(\s*)[-*+]\s+(.*)$/.exec(linha);
+    if (!li) continue;
+    const link = /^\[(.+?)\]\(#([^)]*)\)$/.exec(li[2].trim());
+    itens.push({ text: (link ? link[1] : li[2]).trim(), level: clampNivel(Math.floor(indentWidth(li[1]) / 2) + 1), ...(link ? { slug: link[2] } : {}) });
+  }
+  bloco.title = titulo ?? '';
+  if (manual) bloco.items = itens;
+  return bloco;
+}
+
 export function parseMarkdownToBlocks(markdown) {
   // Normaliza quebras de linha (Windows manda \r\n) — sem isso, cada linha
   // fica com um \r sobrando no final e os regexes ancorados em "$" falham
@@ -229,6 +542,8 @@ export function parseMarkdownToBlocks(markdown) {
   const blocks = [];
   const depthOf = makeDepthTracker();
   let callout = null;   // destaque em curso; vale até a citação terminar
+  let callout_aberto = false;   // o marcador acabou de abrir: linhas sem ">" ainda contam
+  let alinha = null;            // trecho alinhado em curso: { align, tipo, desde } (ver abreAlinhamento)
   let m;
 
   for (let i = 0; i < lines.length; i++) {
@@ -238,16 +553,28 @@ export function parseMarkdownToBlocks(markdown) {
     // a ser uma linha comum — é o passo que faz o conteúdo dentro da citação
     // ser lido de verdade.
     const q      = QUOTE_RE.exec(semIndent);
-    const quoted = !!q;
-    const rest   = q ? q[3] : semIndent;
-    const recuo  = q ? q[2] : indent;
+    let quoted   = !!q;
+    let rest     = q ? q[3] : semIndent;
+    // Continuação preguiçosa: depois do marcador sozinho ("> [!NOTE]" ou
+    // ">[!NOTE]"), as linhas seguintes SEM ">" também são do destaque, até a
+    // primeira linha em branco — como o markdown trata um parágrafo citado.
+    if (!quoted && callout && callout_aberto && semIndent.trim() !== '') {
+      quoted = true;
+      rest = semIndent;
+    }
+    // Quando a linha é citada, a indentação pode estar antes do ">" (gerada por
+    // blocksToMarkdown como "  > ") ou depois do ">" (como ">   "). Priorizamos a
+    // indentação externa para não perder o depth de callouts e listas citadas.
+    const recuo  = indentWidth(indent) > 0 ? indent : (q ? q[2] : indent);
 
     // O marcador de destaque só existe dentro de uma citação, e vale dali até
     // a citação acabar. Ele mesmo não vira bloco nenhum — é só o rótulo.
     if (!quoted) {
       callout = null;
+      callout_aberto = false;
     } else if ((m = CALLOUT_RE.exec(rest))) {
       callout = m[1].toLowerCase();
+      callout_aberto = true;
       continue;
     }
 
@@ -267,44 +594,132 @@ export function parseMarkdownToBlocks(markdown) {
       ...(depth   ? { depth }        : {}),
       ...(quoted  ? { quoted: true } : {}),
       ...(callout ? { callout }      : {}),
+      ...(alinha?.align && !depth && !quoted && !b.textAlign && ALINHAVEL.test(b.type) ? { textAlign: alinha.align } : {}),
     });
+
+    // Alinhamento do texto: abre e fecha com <div align="…"> (ou a cerca ::: do Pandoc); os marcadores
+    // não viram bloco, só marcam os blocos de dentro. A linha em branco logo depois de abrir e a de antes
+    // de fechar existem só para o markdown de dentro funcionar em outros apps: não são blocos.
+    if (!quoted) {
+      // Quebra de página (e "página em branco": duas linhas seguidas, a segunda com &nbsp;)
+      if (PAGEBREAK_RE.test(rest.trim())) {
+        const eVazia = !/&nbsp;/i.test(rest);
+        if (eVazia && PAGEBREAK_BLANK_RE.test((lines[i + 1] ?? '').trim())) { i++; add({ type: 'pagebreak', blank: true }); }
+        else add({ type: 'pagebreak' });
+        continue;
+      }
+      // Sumário: <!-- toc … --> lista <!-- /toc -->, [TOC] (Typora) ou [[_TOC_]] (GitLab)
+      if (TOC_ALIAS_RE.test(rest.trim())) {
+        add({ type: 'toc', mode: 'auto', levels: TOC_DEFAULT_LEVELS, numbered: false, title: '' });
+        continue;
+      }
+      if ((m = TOC_OPEN_RE.exec(rest.trim()))) {
+        let fim = -1;
+        for (let j = i + 1; j < lines.length; j++) { if (TOC_CLOSE_RE.test(lines[j].trim())) { fim = j; break; } }
+        const corpo = fim < 0 ? [] : lines.slice(i + 1, fim);
+        add(parseTocRegion(m[1] || '', corpo));
+        if (fim >= 0) i = fim;
+        continue;
+      }
+      const aberto = abreAlinhamento(rest.trim());
+      if (aberto && !alinha) {
+        alinha = { ...aberto, desde: blocks.length };
+        if ((lines[i + 1] ?? '').trim() === '') i++;
+        continue;
+      }
+      if (alinha && (alinha.tipo === 'tag' ? ALIGN_FECHA_TAG : ALIGN_FECHA_CERCA).test(rest.trim())) {
+        const ultimo = blocks[blocks.length - 1];
+        if (blocks.length > alinha.desde && ultimo?.type === 'paragraph' && (ultimo.html ?? '') === '' && !ultimo.quoted) blocks.pop();
+        alinha = null;
+        continue;
+      }
+      // Uma linha só: <h1 align="center">Título</h1>, <p align="center">texto</p>, <center>texto</center>
+      if ((m = ALIGN_UMA_LINHA.exec(rest.trim()))) {
+        const tag = m[1].toLowerCase();
+        const a = tag === 'center' ? 'center' : alinhamentoDeAtributos(m[2]);
+        if (a) {
+          const ta = normalizeTextAlign(a);
+          const tipo = /^h[1-6]$/.test(tag) ? `heading${tag[1]}` : 'paragraph';
+          add({ type: tipo, html: parseInlineMarkdown(m[3].trim()), ...(ta ? { textAlign: ta } : {}) });
+          continue;
+        }
+      }
+    }
 
     // Bloco cercado: consome até a cerca de fechamento. Sem marca é código
     // (um bloco só, com as linhas dentro); com a marca "calc" é folha de
     // cálculo (uma linha por bloco). O comentário de resultado que a
     // exportação escreve à direita é descartado aqui — o valor é sempre
     // recalculado, então dentro da extensão nunca existe número desatualizado.
+    //
+    // Quando a cerca abre dentro de uma citação ou com recuo, as linhas internas
+    // e a cerca de fechamento também trazem o mesmo prefixo de citação/recuo.
+    // Sem despir o marcador de citação de cada linha, a cerca final não é
+    // reconhecida (continua consumindo até o fim do arquivo) e o ">" vira &gt;
+    // dentro do HTML do bloco a cada ciclo — corrosão clássica.
     if ((m = FENCE_RE.exec(rest))) {
       const marca = (m[2] || '').toLowerCase();
       const corpo = [];
+      const prefixoIndent = indent;
       i++;
-      while (i < lines.length && !FENCE_RE.test(lines[i].trim())) corpo.push(lines[i++]);
+      while (i < lines.length) {
+        let linha = lines[i];
+        if (prefixoIndent && linha.startsWith(prefixoIndent)) {
+          linha = linha.slice(prefixoIndent.length);
+        }
+        if (quoted) {
+          const lq = QUOTE_RE.exec(linha.trimStart());
+          if (lq) linha = lq[3];
+        }
+        if (FENCE_RE.test(linha.trim())) break;
+        corpo.push(linha);
+        i++;
+      }
 
       if (marca === 'calc') {
         for (const linha of corpo) {
           add({ type: 'calc', html: parseInlineMarkdown(linha.replace(/\s{2,}\/\/.*$/, '').trimEnd()) });
         }
+      } else if (marca === 'toc') {
+        add({ type: 'toc', mode: 'auto', levels: TOC_DEFAULT_LEVELS, numbered: false, title: '' });   // plugin do Obsidian
+      } else if (marca === 'base' || marca === 'database') {
+        add({ type: 'base', config: corpo.join('\n') });
       } else {
-        add({ type: 'code', html: corpo.map(escHtml).join('<br>') });
+        add({ type: 'code', html: corpo.map(escHtml).join('<br>'), ...(marca ? { lang: marca } : {}) });
       }
       continue;
     }
 
     // Tabela GFM: linha com pipes seguida da linha separadora (|---|---|).
     // É o único bloco que ocupa várias linhas, por isso o laço é indexado.
-    if (TABLE_ROW_RE.test(rest) && TABLE_SEP_RE.test(lines[i + 1] ?? '')) {
-      const rows = [splitTableRow(rest)];
-      i++; // consome o separador
-      while (TABLE_ROW_RE.test(lines[i + 1] ?? '')) rows.push(splitTableRow(lines[++i]));
-      add({ type: 'table', rows });
-      continue;
+    // Se estiver dentro de citação, as linhas seguintes também trazem "> ".
+    {
+      const prox = lines[i + 1] ?? '';
+      const proxRest = quoted ? (QUOTE_RE.exec(prox.trimStart())?.[3] ?? prox) : prox;
+      if (TABLE_ROW_RE.test(rest) && TABLE_SEP_RE.test(proxRest)) {
+        const rows = [splitTableRow(rest)];
+        const alinhamentos = parseTableAligns(proxRest);
+        i++; // consome o separador
+        while (i + 1 < lines.length) {
+          const proxLinha = lines[i + 1];
+          const proxLinhaRest = quoted ? (QUOTE_RE.exec(proxLinha.trimStart())?.[3] ?? proxLinha) : proxLinha;
+          if (!TABLE_ROW_RE.test(proxLinhaRest)) break;
+          rows.push(splitTableRow(proxLinhaRest));
+          i++;
+        }
+        const cols = Math.max(...rows.map(r => r.length));
+        const align = Array.from({ length: cols }, (_, c) => alinhamentos[c] ?? null);
+        add({ type: 'table', rows, ...(align.some(Boolean) ? { align } : {}) });
+        continue;
+      }
     }
 
-    // Imagem sozinha na linha vira bloco de imagem. Se o endereço for remoto,
-    // parseImageLine devolve null e a linha segue o caminho normal — acaba
-    // virando um link, que é a decisão de privacidade explicada lá em cima.
+    // Imagem/áudio/vídeo sozinho na linha vira o bloco correspondente. Se o
+    // endereço for remoto, parseEmbedLine devolve null e a linha segue o
+    // caminho normal — acaba virando um link, que é a decisão de privacidade
+    // explicada lá em cima.
     if ((m = IMAGE_MD_RE.exec(rest))) {
-      const img = parseImageLine(m[1], m[2]);
+      const img = parseEmbedLine(m[1], m[2]);
       if (img) { add(img); continue; }
       // Endereço remoto: vira link, e sem o "!" sobrando na frente — se
       // caísse no parser de linha normal, o "!" viraria texto solto.
@@ -315,12 +730,37 @@ export function parseMarkdownToBlocks(markdown) {
       }
     }
 
+    // Título sublinhado (setext): o texto numa linha e "===" ou "---" na de
+    // baixo. É markdown de verdade — a própria forma original de escrever
+    // título 1 e 2 —, e o traço embaixo é literalmente o sublinhado.
+    //
+    // Só vale depois de uma linha de texto comum. É o que separa "Texto" +
+    // "---" (título sublinhado) de "---" sozinho (divisor).
+    {
+      let abaixo = (lines[i + 1] ?? '').trim();
+      if (quoted) {
+        const aq = QUOTE_RE.exec(abaixo);
+        if (aq) abaixo = aq[3].trim();
+      }
+      const eSetext = /^=+$/.test(abaixo) || /^-+$/.test(abaixo);
+      const eTextoComum = rest.trim() !== '' && !/^(#{1,6} |[-*] |\d+\. |\||>|`{3,}|~{3,})/.test(rest);
+      if (eSetext && eTextoComum) {
+        add({
+          type: abaixo.startsWith('=') ? 'heading1' : 'heading2',
+          html: parseInlineMarkdown(rest),
+          underlined: true,
+        });
+        i++;   // consome a linha do traço
+        continue;
+      }
+    }
+
     if ((m = /^(#{1,6}) (.+)$/.exec(rest))) {
       add({ type: `heading${m[1].length}`, html: parseInlineMarkdown(m[2]) });
-    } else if ((m = /^([-*]) \[([ xX])\] (.+)$/.exec(rest))) {
+    } else if ((m = /^([-*+]) \[([ xX])\] (.+)$/.exec(rest))) {
       add({ type: 'checklist', checked: /[xX]/.test(m[2]), html: parseInlineMarkdown(m[3]) });
-    } else if ((m = /^[-*] (.+)$/.exec(rest))) {
-      add({ type: 'bullet', html: parseInlineMarkdown(m[1]) });
+    } else if ((m = /^([-*+]) (.+)$/.exec(rest))) {
+      add({ type: 'bullet', ...(m[1] !== '-' ? { marker: m[1] } : {}), html: parseInlineMarkdown(m[2]) });
     } else if ((m = /^\d+\. (.+)$/.exec(rest))) {
       add({ type: 'number', html: parseInlineMarkdown(m[1]) });
     } else if (/^(-{3,}|\*{3,}|_{3,})$/.test(rest)) {
@@ -351,7 +791,7 @@ function htmlToMarkdownInline(html) {
   return nodeToMarkdown(div);
 }
 
-function nodeToMarkdown(node) {
+function nodeToMarkdown(node, parent = null) {
   let out = '';
   for (const child of node.childNodes) {
     if (child.nodeType === Node.TEXT_NODE) {
@@ -359,15 +799,63 @@ function nodeToMarkdown(node) {
       continue;
     }
     if (child.nodeType !== Node.ELEMENT_NODE) continue;
-    const inner = nodeToMarkdown(child);
+    const inner = nodeToMarkdown(child, child);
     switch (child.tagName) {
-      case 'STRONG': case 'B':          out += `**${inner}**`; break;
-      case 'EM':     case 'I':          out += `*${inner}*`;   break;
+      case 'STRONG': case 'B': {
+        const syntax = child.getAttribute('data-syntax');
+        if (syntax === '***') {
+          out += `***${inner}***`;
+        } else if (syntax === '___') {
+          out += `___${inner}___`;
+        } else if (syntax === '__') {
+          out += `__${inner}__`;
+        } else {
+          out += `**${inner}**`;
+        }
+        break;
+      }
+      case 'EM':     case 'I': {
+        if (parent?.getAttribute?.('data-syntax') === '***' || parent?.getAttribute?.('data-syntax') === '___') {
+          out += inner;
+        } else {
+          const syntax = child.getAttribute('data-syntax');
+          out += syntax === '_' ? `_${inner}_` : `*${inner}*`;
+        }
+        break;
+      }
+      case 'MARK': {
+        const cls = child.getAttribute('class') || '';
+        const syntax = child.getAttribute('data-syntax');
+        if (cls.includes('md-highlight') || syntax === '==') {
+          out += `==${inner}==`;
+        } else {
+          out += inner; // ex.: <mark> de detecção
+        }
+        break;
+      }
       case 'S': case 'STRIKE': case 'DEL': out += `~~${inner}~~`; break;
       case 'CODE':                      out += `\`${inner}\``; break;
       case 'BR':                        out += '\n';           break;
       case 'A': {
         const href = child.getAttribute('href');
+        if (href && /^nota:/i.test(href)) {
+          if (child.getAttribute('data-note-format') === 'md') {
+            out += `[${inner}](${href})`;
+            break;
+          }
+          let target = child.getAttribute('data-note-path') || child.getAttribute('data-note-title');
+          if (!target) {
+            const rawTarget = href.replace(/^nota:/i, '');
+            try { target = decodeURIComponent(rawTarget); }
+            catch { target = rawTarget; }
+          }
+          if (!inner || inner === target) {
+            out += `[[${target}]]`;
+          } else {
+            out += `[[${target}|${inner}]]`;
+          }
+          break;
+        }
         out += href ? `[${inner}](${href})` : inner;
         break;
       }
@@ -381,6 +869,64 @@ function nodeToMarkdown(node) {
 // portabilidade da nota (campo `content`) e nas exportações/cópia como .md.
 // Dois espaços por nível: é o que o markdown espera e o que qualquer outro
 // editor vai ler de volta como aninhamento.
+/**
+ * Entradas do sumário: no automático vêm dos títulos de `lista` (mesmo apelido/âncora do sumário lateral);
+ * no manual, dos itens que a pessoa montou. `numbered` põe 1, 1.1, 1.1.1 (estilo ABNT) nos que ainda não têm número.
+ */
+// Âncora no formato do GitHub (mantém acentos; títulos repetidos ganham -1, -2). É a que outros apps
+// (GitHub, GitLab, VS Code, Typora) procuram; o QuickDock acha o mesmo título pelos dois formatos.
+export function githubSlugs(textos) {
+  const usados = new Map();
+  return textos.map(t => {
+    const base = String(t).toLowerCase().trim().replace(/[^\p{L}\p{N}\p{M}\- _]/gu, '').replace(/\s/g, '-');
+    const n = usados.get(base) ?? 0;
+    usados.set(base, n + 1);
+    return n === 0 ? base : `${base}-${n}`;
+  });
+}
+
+export function tocEntries(b, lista) {
+  if (b.mode === 'manual') {
+    return (b.items ?? []).map(it => ({ text: String(it.text ?? ''), level: clampNivel(it.level), slug: it.slug || '' }));
+  }
+  const titulos = (lista ?? []).filter(x => /^heading[1-6]$/.test(x.type));
+  const textos = titulos.map(h => htmlToPlainText(h.html ?? '').trim());
+  const slugs = githubSlugs(textos);
+  const max = clampNivel(b.levels ?? TOC_DEFAULT_LEVELS);
+  const itens = titulos.map((h, i) => ({ text: textos[i], level: Number(h.type.slice(-1)), slug: slugs[i] }))
+    .filter(it => it.text && it.level <= max);
+  if (b.numbered && itens.length) {
+    const base = Math.min(...itens.map(it => it.level));
+    const cont = [];
+    for (const it of itens) {
+      const d = it.level - base;
+      cont[d] = (cont[d] ?? 0) + 1;
+      cont.length = d + 1;
+      if (!/^\d+(\.\d+)*\.?\s/.test(it.text)) it.text = `${cont.map(n => n ?? 1).join('.')} ${it.text}`;
+    }
+  }
+  return itens;
+}
+
+function tocToMarkdown(b, lista) {
+  const manual = b.mode === 'manual';
+  const attrs = [manual ? 'manual' : `levels=${clampNivel(b.levels ?? TOC_DEFAULT_LEVELS)}`, !manual && b.numbered ? 'numbered' : ''].filter(Boolean).join(' ');
+  const entradas = tocEntries(b, lista);
+  const base = entradas.length ? Math.min(...entradas.map(e => e.level)) : 1;
+  const itens = entradas.map(e => {
+    const texto = e.text.replace(/[\[\]]/g, '');
+    return `${'  '.repeat(e.level - base)}- ${e.slug ? `[${texto}](#${e.slug})` : texto}`;
+  });
+  return [`<!-- toc ${attrs} -->`, ...(b.title ? [`**${String(b.title).replace(/\*/g, '')}**`, ''] : []), ...itens, '<!-- /toc -->'].join('\n');
+}
+
+// Só parágrafo e título, com texto, fora de citação e de lista aninhada, vão para dentro de um <div align>.
+function alinhamentoGravavel(b) {
+  return !!b && !!normalizeTextAlign(b.textAlign) && ALINHAVEL.test(b.type)
+    && !b.quoted && !b.callout && !(b.depth > 0)
+    && (b.html ?? '').replace(/<br\s*\/?>/gi, '').trim() !== '';
+}
+
 function indentOf(b) {
   return '  '.repeat(Math.min(Math.max(b.depth ?? 0, 0), MAX_DEPTH));
 }
@@ -403,9 +949,7 @@ export function blocksToMarkdown(blocks, opts = {}) {
     const pad = indentOf(b);
     // O ">" vem depois da indentação e antes do marcador do tipo: é assim que
     // "  > - item" volta a ser lido como item de lista dentro de uma citação.
-    // O tipo antigo `quote` também entra aqui, pra que um registro que nunca
-    // passou pelo editor continue saindo como citação.
-    const q = (b.quoted || b.callout || b.type === 'quote') ? '> ' : '';
+    const q = (b.quoted || b.callout) ? '> ' : '';
     const marcador = abreCallout(b, lista[i - 1])
       ? `${pad}> [!${b.callout.toUpperCase()}]\n`
       : '';
@@ -414,7 +958,7 @@ export function blocksToMarkdown(blocks, opts = {}) {
       if (b.type === 'code') {
         const corpo = htmlToPlainText((b.html ?? '').replace(/<br\s*\/?>/gi, '\n'));
         return [
-          `${pad}${q}\`\`\``,
+          `${pad}${q}\`\`\`${b.lang || ''}`,
           ...corpo.split('\n').map(l => `${pad}${q}${l}`),
           `${pad}${q}\`\`\``,
         ].join('\n');
@@ -431,30 +975,68 @@ export function blocksToMarkdown(blocks, opts = {}) {
         return `${abre}${corpo}${fecha}`;
       }
 
-      if (b.type === 'divider') return `${pad}${q}---`;
-      if (b.type === 'table')   return tableToMarkdown(b.rows, `${pad}${q}`);
-      if (b.type === 'image')   return `${pad}${q}![${(b.alt ?? '').replace(/[\[\]]/g, '')}](${imageSrcOf(b)})`;
+      if (b.type === 'divider') {
+        // "---" logo abaixo de uma linha de texto é lido de volta como
+        // sublinhado de título, não como divisor. "***" é o mesmo divisor pro
+        // markdown e não tem essa ambiguidade — só é usado quando ela existe.
+        const acima = lista[i - 1];
+        const ambiguo = !!acima
+          && !['divider', 'table', 'image', 'audio', 'video', 'code', 'calc', 'base'].includes(acima.type)
+          && htmlToPlainText(acima.html ?? '').trim() !== '';
+        return `${pad}${q}${ambiguo ? '***' : '---'}`;
+      }
+      if (b.type === 'pagebreak') return b.blank ? `${PAGEBREAK_DIV}\n${PAGEBREAK_BLANK}` : PAGEBREAK_DIV;
+      if (b.type === 'toc')       return tocToMarkdown(b, lista);
+      if (b.type === 'base') {
+        const corpo = (b.config ?? '').trim();
+        return [
+          `${pad}${q}\`\`\`base`,
+          ...(corpo ? corpo.split('\n').map(l => `${pad}${q}${l}`) : []),
+          `${pad}${q}\`\`\``,
+        ].join('\n');
+      }
+      if (b.type === 'table')   return tableToMarkdown(b.rows, `${pad}${q}`, b.align);
+      if (b.type === 'image') {
+        const tamanho = b.width ? `|${b.width}${b.height ? `x${b.height}` : ''}` : '';
+        return `${pad}${q}![${(b.alt ?? '').replace(/[\[\]]/g, '')}${tamanho}](${imageSrcOf(b, opts)})`;
+      }
+      if (b.type === 'audio' || b.type === 'video') {
+        // Local só: sem mapa de sincronização nem marcador de "não
+        // sincronizado" — ver o comentário de AUDIO_REF_RE/VIDEO_REF_RE.
+        const src = b.fileId != null ? `quickdock:${b.type}/${b.fileId}` : '';
+        const tamanho = b.type === 'video' && b.width ? `|${b.width}${b.height ? `x${b.height}` : ''}` : '';
+        return `${pad}${q}![${(b.alt ?? '').replace(/[\[\]]/g, '')}${tamanho}](${src})`;
+      }
       const text = htmlToMarkdownInline(b.html);
       switch (b.type) {
-        case 'heading1': return `${pad}${q}# ${text}`;
-        case 'heading2': return `${pad}${q}## ${text}`;
+        // Sublinhado sai como setext — a forma do markdown que desenha o
+        // traço embaixo. Sem sublinhado continua a forma com cerquilha.
+        case 'heading1':
+          return b.underlined ? `${pad}${q}${text}
+${pad}${q}===` : `${pad}${q}# ${text}`;
+        case 'heading2':
+          return b.underlined ? `${pad}${q}${text}
+${pad}${q}---` : `${pad}${q}## ${text}`;
         case 'heading3': return `${pad}${q}### ${text}`;
         case 'heading4': return `${pad}${q}#### ${text}`;
         case 'heading5': return `${pad}${q}##### ${text}`;
         case 'heading6': return `${pad}${q}###### ${text}`;
-        case 'bullet':   return `${pad}${q}- ${text}`;
+        case 'bullet':   return `${pad}${q}${b.marker || '-'} ${text}`;
         case 'number':   return `${pad}${q}1. ${text}`;
         case 'checklist':return `${pad}${q}- [${b.checked ? 'x' : ' '}] ${text}`;
         // Parágrafo vazio sai vazio de verdade: uma linha só com espaços
         // reapareceria como indentação na leitura de volta. Vazio E citado sai
         // só como ">", que é a linha em branco de dentro da citação.
-        case 'quote':    return `${pad}> ${text}`;
         default:
           if (text !== '') return `${pad}${q}${text}`;
           return q ? `${pad}>` : '';
       }
     };
-    return marcador + linha();
+    // Alinhamento: blocos seguidos com o mesmo alinhamento dividem um <div align="…"> só
+    const alinhado = x => alinhamentoGravavel(x);
+    const abreDiv  = alinhado(b) && !(alinhado(lista[i - 1]) && lista[i - 1].textAlign === b.textAlign);
+    const fechaDiv = alinhado(b) && !(alinhado(lista[i + 1]) && lista[i + 1].textAlign === b.textAlign);
+    return (abreDiv ? `<div align="${b.textAlign}">\n\n` : '') + marcador + linha() + (fechaDiv ? '\n\n</div>' : '');
   }).join('\n');
 }
 
@@ -512,7 +1094,7 @@ export function blocksToPlainText(blocks) {
 
     // No texto simples a citação vira uma barra — aspas por linha ficariam
     // abrindo e fechando a cada linha da mesma citação.
-    const q = (b.quoted || b.callout || b.type === 'quote') ? '| ' : '';
+    const q = (b.quoted || b.callout) ? '| ' : '';
 
     // O rótulo do destaque vai numa linha só dele, como no markdown. Aqui em
     // português: quem lê um texto copiado não precisa saber a palavra-chave.
@@ -527,7 +1109,15 @@ export function blocksToPlainText(blocks) {
         return `${pad}${q}${res ? `${texto}  = ${res}` : texto}`;
       }
       if (b.type === 'image')   return `${pad}${q}[imagem${b.alt ? `: ${b.alt}` : ''}]`;
+      if (b.type === 'audio')   return `${pad}${q}[áudio${b.alt ? `: ${b.alt}` : ''}]`;
+      if (b.type === 'video')   return `${pad}${q}[vídeo${b.alt ? `: ${b.alt}` : ''}]`;
+      if (b.type === 'base')    return `${pad}${q}[base de dados]`;
       if (b.type === 'divider') return `${pad}${q}──────────`;
+      if (b.type === 'pagebreak') return `${pad}${q}[${b.blank ? 'página em branco' : 'quebra de página'}]`;
+      if (b.type === 'toc') {
+        const itens = tocEntries(b, lista).map(e => `${pad}${q}${'  '.repeat(e.level - 1)}${e.text}`);
+        return [`${pad}${q}${b.title || 'Sumário'}`, ...itens].join('\n');
+      }
       if (b.type === 'table') {
         return (b.rows ?? []).map(row => `${pad}${q}${row.map(htmlToPlainText).join('\t')}`).join('\n');
       }
@@ -542,10 +1132,16 @@ export function blocksToPlainText(blocks) {
         case 'bullet':    return `${pad}${q}${BULLET_GLYPHS[depth % BULLET_GLYPHS.length]} ${text}`;
         case 'number':    return `${pad}${q}${num}. ${text}`;
         case 'checklist': return `${pad}${q}${b.checked ? '☑' : '☐'} ${text}`;
-        case 'quote':     return `${pad}| ${text}`;
         default:          return text === '' ? (q ? `${pad}|` : '') : `${pad}${q}${text}`;
       }
     };
     return marcador + linha();
   }).join('\n');
+}
+
+// O tipo antigo `quote` continua sendo lido: na leitura vira parágrafo decorado,
+// e é a forma nova que volta a ser gravada quando a pessoa editar.
+export function normalizeBlock(b) {
+  if (b?.type !== 'quote') return b;
+  return { ...b, type: 'paragraph', quoted: true };
 }

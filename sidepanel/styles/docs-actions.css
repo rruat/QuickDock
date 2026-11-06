@@ -1,0 +1,137 @@
+/* ===== GROUP BAR ===== */
+.group-action-btn[hidden] { display: none; }
+
+.group-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.group-bar.hidden {
+  display: none;
+}
+
+#group-count {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.group-action-btn {
+  background: rgba(255,255,255,0.18);
+  border: none;
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.group-action-btn:hover {
+  background: rgba(255,255,255,0.30);
+}
+
+.group-action-danger {
+  background: rgba(0,0,0,0.20);
+}
+
+.group-action-danger:hover {
+  background: rgba(220, 38, 38, 0.75);
+}
+
+.group-action-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  padding: 2px 5px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s;
+}
+
+.group-action-close:hover {
+  color: #fff;
+}
+
+/* ===== BOTÃO DE INJEÇÃO NO CARD ===== */
+.doc-inject {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 17px;
+  height: 17px;
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.doc-inject:hover {
+  background: #1a6bc4;
+}
+
+.doc-card:hover .doc-inject {
+  opacity: 1;
+}
+
+/* ===== TOAST DE INJEÇÃO ===== */
+.inject-toast {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 11px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 200;
+  border-top: 1px solid #333;
+}
+
+[data-theme="light"] .inject-toast {
+  background: #1e293b;
+}
+
+.inject-toast.hidden {
+  display: none;
+}
+
+#inject-toast-msg {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.toast-cancel {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.toast-cancel:hover {
+  background: rgba(255,255,255,0.1);
+}
+

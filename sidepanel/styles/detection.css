@@ -1,0 +1,96 @@
+/* ===== DETECÇÃO INTELIGENTE (CPF / CNPJ / Telefone / Data / Cálculo) =====
+   Os <mark> ficam dentro do próprio editor de blocos (não tem mais camada
+   separada). Ctrl+clique abre o menu; clique normal só posiciona o cursor. */
+.note-editor-blocks mark {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  border-radius: 2px;
+}
+
+.note-section.ctrl-active .note-editor-blocks mark {
+  color: var(--accent);
+  background: rgba(35, 131, 226, 0.09);
+  border-bottom: 1.5px solid var(--accent);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.note-section.ctrl-active .note-editor-blocks mark:hover {
+  background: rgba(35, 131, 226, 0.20);
+}
+
+/* Período — roxo */
+.note-section.ctrl-active .note-editor-blocks mark.daterange,
+.note-section.ctrl-active .note-editor-blocks mark.datetimerange {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.09);
+  border-bottom: 1.5px solid #7c3aed;
+}
+.note-section.ctrl-active .note-editor-blocks mark.daterange:hover,
+.note-section.ctrl-active .note-editor-blocks mark.datetimerange:hover {
+  background: rgba(124, 58, 237, 0.20);
+}
+
+/* Intervalo de horas — ciano */
+.note-section.ctrl-active .note-editor-blocks mark.timerange {
+  color: #0891b2;
+  background: rgba(8, 145, 178, 0.09);
+  border-bottom: 1.5px solid #0891b2;
+}
+.note-section.ctrl-active .note-editor-blocks mark.timerange:hover {
+  background: rgba(8, 145, 178, 0.20);
+}
+
+/* ── Badge de validação (CPF / CNPJ) ── */
+.copy-menu-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px 3px;
+  margin: 0 8px 4px;
+  border-radius: 99px;
+  display: inline-block;
+  letter-spacing: 0.2px;
+}
+.copy-menu-badge.valid   { background: rgba(22, 163, 74, 0.13); color: #16a34a; }
+.copy-menu-badge.invalid { background: rgba(220, 38, 38, 0.13); color: #dc2626; }
+
+/* CPF / CNPJ inválido: sublinhado vermelho pontilhado sempre visível */
+.note-editor-blocks mark.cpf.invalid,
+.note-editor-blocks mark.cnpj.invalid {
+  border-bottom: 1.5px dotted #dc2626;
+}
+
+/* Cores no modo Ctrl: válido = verde, inválido = vermelho */
+.note-section.ctrl-active .note-editor-blocks mark.cpf.valid,
+.note-section.ctrl-active .note-editor-blocks mark.cnpj.valid {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.09);
+  border-bottom: 1.5px solid #16a34a;
+}
+.note-section.ctrl-active .note-editor-blocks mark.cpf.valid:hover,
+.note-section.ctrl-active .note-editor-blocks mark.cnpj.valid:hover {
+  background: rgba(22, 163, 74, 0.20);
+}
+
+.note-section.ctrl-active .note-editor-blocks mark.cpf.invalid,
+.note-section.ctrl-active .note-editor-blocks mark.cnpj.invalid {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.09);
+  border-bottom: 1.5px solid #dc2626;
+}
+.note-section.ctrl-active .note-editor-blocks mark.cpf.invalid:hover,
+.note-section.ctrl-active .note-editor-blocks mark.cnpj.invalid:hover {
+  background: rgba(220, 38, 38, 0.20);
+}
+
+/* Cor âmbar pro cálculo, pra distinguir do azul de CPF/CNPJ/telefone */
+.note-section.ctrl-active .note-editor-blocks mark.math {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.09);
+  border-bottom-color: #d97706;
+}
+.note-section.ctrl-active .note-editor-blocks mark.math:hover {
+  background: rgba(217, 119, 6, 0.20);
+}
+

@@ -1,0 +1,78 @@
+/* ===== MENU DE LINK ===== */
+.link-menu { min-width: 216px; padding: 6px; }
+
+/* Popover de nomear modelo — mesmo desenho do menu de link, que é o padrão
+   desta extensão pra pedir um texto curto: dentro da extensão, nunca num
+   dialog do navegador. */
+.name-menu { min-width: 216px; padding: 6px; }
+
+.link-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 2px 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12.5px;
+  outline: none;
+}
+
+.link-input:focus { border-color: var(--accent); }
+
+.link-error {
+  padding: 3px 2px 0;
+  font-size: 11px;
+  color: #dc2626;
+}
+
+.link-error[hidden] { display: none; }
+
+.link-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.link-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.link-btn:hover { background: var(--bg-hover); }
+
+.link-apply {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.link-apply:hover { background: #1b6bb8; }
+.link-remove { color: #dc2626; }
+.slash-opt.active { background: var(--bg-hover); }
+
+.save-indicator {
+  position: absolute;
+  bottom: 7px;
+  right: 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.35s;
+  pointer-events: none;
+}
+
+.save-indicator.visible {
+  opacity: 1;
+}
+

@@ -1,0 +1,54 @@
+/* Menu "⋯" da barra de abas */
+.app-menu { min-width: 168px; }
+.app-menu .copy-opt { justify-content: flex-start; }
+
+/* Botão limpar histórico */
+.math-hist-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  font-family: var(--font);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.math-hist-clear:hover { color: var(--text); }
+
+/* Linhas do histórico */
+.math-hist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  font-family: var(--font);
+  text-align: left;
+  transition: background 0.1s;
+}
+.math-hist-row:hover { background: var(--bg-hover); }
+
+.math-hist-expr {
+  font-size: 11px;
+  color: var(--text);
+  font-family: 'Courier New', Courier, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.math-hist-res {
+  font-size: 11px;
+  font-weight: 700;
+  color: #d97706;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+

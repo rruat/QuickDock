@@ -1,0 +1,32 @@
+/* ===== LISTA DE NOTAS ("☰") ===== */
+.notes-list-popover { max-height: 320px; overflow-y: auto; min-width: 180px; }
+.notes-list-item { gap: 8px; }
+.notes-list-item.current { background: var(--bg-hover); }
+.notes-list-item .note-tab-dot,
+.notes-list-item .note-tab-icon { flex-shrink: 0; cursor: default; }
+
+/* Linha indicadora de onde a nota vai cair, arrastando pela lista do "☰"
+   (mesma ideia da barra das abas e da linha dos blocos, só que horizontal) */
+.notes-list-drop-indicator {
+  height: 2px;
+  margin: 0 6px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.notes-list-edit-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.notes-list-item:hover .notes-list-edit-btn { opacity: 1; }
+.notes-list-edit-btn:hover { color: var(--text); background: var(--bg-hover); }
+

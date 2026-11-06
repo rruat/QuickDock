@@ -26,8 +26,14 @@ const VARIAVEIS = [
 // Ajustes que só valem dentro da imagem.
 const CSS_DA_IMAGEM = `
   .snapshot-wrap > style { display: none; }
+  /* Dentro da imagem a nota é a seção inteira: sem altura, rolagem ou corte. */
+  /* !important: body.docs-hidden .note-section fixa altura de 100% da tela com !important. */
+  body .snapshot-wrap.snapshot-wrap.note-section { display: block !important; height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; flex: none !important; }
   /* Sem rolagem e sem altura elástica: a imagem tem que mostrar tudo. */
   .snapshot-blocks { overflow: visible; height: auto; flex: none; padding: 0; }
+  /* O recuo do editor (66px em cima, 26px embaixo) é do modo de edição, não da imagem:
+     aqui o bloco da imagem tem só os blocos selecionados, sem espaço extra. */
+  .note-editor-blocks.snapshot-blocks { padding: 0 !important; margin: 0 !important; min-height: 0 !important; }
   /* A caixa de seleção vira símbolo desenhado (ver trocarCheckboxes). */
   .snapshot-check { color: var(--note-accent, var(--accent)); font-size: 14px; line-height: 1.2; }
 `;
@@ -40,13 +46,23 @@ let cssCache = null;
 function cssDoPainel() {
   if (cssCache !== null) return cssCache;
   let css = '';
+  // O style.css só importa as seções (@import): cada regra vem da folha importada,
+  // não da regra @import em si — então a leitura segue os imports.
+  const coletar = folha => {
+    for (const regra of folha.cssRules) {
+      if (regra.styleSheet) coletar(regra.styleSheet);
+      else css += `${regra.cssText}\n`;
+    }
+  };
   for (const folha of document.styleSheets) {
     try {
-      for (const regra of folha.cssRules) css += `${regra.cssText}\n`;
+      coletar(folha);
     } catch {
       /* folha de outro domínio — segue o baile */
     }
   }
+  // O tema escuro é html[data-theme="dark"]: no recorte o atributo fica no próprio embrulho.
+  css = css.replace(/html\[data-theme="dark"\]/g, '.snapshot-wrap[data-theme="dark"]');
   cssCache = css + CSS_DA_IMAGEM;
   return cssCache;
 }
@@ -91,6 +107,14 @@ function limparControles(clone) {
     el.classList.remove('block-selected', 'block-dragging');
   });
   clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+  // Estado de edição (sintaxe ao vivo) não é formatação: sai da imagem. O marcador
+  // do destaque também — na imagem fica o rótulo colorido, como na nota fechada.
+  clone.querySelectorAll('.callout-marker').forEach(el => el.remove());
+  clone.querySelectorAll('*').forEach(el => {
+    for (const nome of [...el.attributes].map(a => a.name)) {
+      if (nome.startsWith('data-md-')) el.removeAttribute(nome);
+    }
+  });
 }
 
 /**
@@ -120,7 +144,8 @@ export async function blocksToPngBlob(blocos) {
   // ── Monta a página da imagem ───────────────────────────────────────────────
   const embrulho = document.createElement('div');
   embrulho.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-  embrulho.className = 'snapshot-wrap';
+  embrulho.className = 'snapshot-wrap note-section';
+  embrulho.dataset.theme = document.documentElement.getAttribute('data-theme') || 'light';
 
   const variaveis = VARIAVEIS
     .map(v => `${v}:${(estiloEditor.getPropertyValue(v) || estiloRaiz.getPropertyValue(v)).trim()}`)

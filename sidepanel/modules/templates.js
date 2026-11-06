@@ -106,32 +106,17 @@ function downloadText(filename, text) {
 // Pedir "abre este modelo no editor". Vai por evento porque quem atende é o
 // notes-tabs, que já importa este módulo — chamar de volta seria ciclo.
 export function requestTemplateEdit(tpl) {
-  closeTemplatesManager();
   document.dispatchEvent(new CustomEvent('quickdock:edit-template', { detail: tpl }));
 }
 
 // Cria o registro e abre direto no editor, pra nomear e ajustar lá.
-async function createAndEdit({ name, content, kind }) {
+export async function createAndEdit({ name, content, kind }) {
   const id = await createTemplateRecord({ name, content, kind });
   await refreshTemplates();
   requestTemplateEdit({ id, name, content, kind });
 }
 
-// ── Gerenciador ──────────────────────────────────────────────────────────────
-let managerEl = null;
-export function closeTemplatesManager() { managerEl?.remove(); managerEl = null; }
-
-function opt(label, onClick, className = '') {
-  const btn = document.createElement('button');
-  btn.className = `copy-opt ${className}`.trim();
-  const span = document.createElement('span');
-  span.className = 'copy-opt-value';
-  span.textContent = label;
-  btn.appendChild(span);
-  btn.addEventListener('mousedown', e => e.stopPropagation());
-  btn.addEventListener('click', async e => { e.stopPropagation(); await onClick(); });
-  return btn;
-}
+export { downloadText, safeFilename };
 
 
 // ── Salvar um pedaço da nota como modelo ──────────────────────────────────────
@@ -161,7 +146,6 @@ export function closeNameMenu() { nameMenuEl?.remove(); nameMenuEl = null; }
  * se o resto da nota tivesse sumido. O nome é pedido aqui mesmo, num popover.
  */
 export function openSaveBlockTemplate(anchorEl, markdown, onSaved) {
-  closeTemplatesManager();
   closeNameMenu();
 
   const pop = document.createElement('div');
@@ -207,140 +191,11 @@ export function openSaveBlockTemplate(anchorEl, markdown, onSaved) {
   campo.select();
 }
 
-/**
- * @param anchorEl  elemento que ancora o popover
- * @param opts.onUse           (template) => void — usa o modelo
- * @param opts.getCurrentNote  () => Promise<{title, markdown}> — pra "salvar nota atual"
- */
-export async function openTemplatesManager(anchorEl, opts) {
-  const { onUse, getCurrentNote } = opts;
-  closeTemplatesManager();
-
-  const pop = document.createElement('div');
-  pop.className = 'copy-menu templates-manager';
-
-  const reopen = async () => {
-    await refreshTemplates();
-    return openTemplatesManager(anchorEl, opts);
-  };
-
-  const templates = await refreshTemplates();
-
-  const renderRow = (tpl) => {
-    const row = document.createElement('div');
-    row.className = 'template-row';
-
-    const use = document.createElement('button');
-    use.className = 'template-use';
-    use.textContent = tpl.name;
-    use.title = tpl.kind === 'block'
-      ? 'Inserir este bloco na nota aberta'
-      : 'Criar uma nota com este modelo';
-    use.addEventListener('mousedown', e => e.stopPropagation());
-    use.addEventListener('click', async e => {
-      e.stopPropagation();
-      closeTemplatesManager();
-      await onUse(tpl);
-    });
-
-    const acoes = document.createElement('div');
-    acoes.className = 'template-actions';
-
-    const mk = (glyph, title, run) => {
-      const b = document.createElement('button');
-      b.className = 'template-btn';
-      b.textContent = glyph;
-      b.title = title;
-      b.addEventListener('mousedown', e => e.stopPropagation());
-      b.addEventListener('click', async e => { e.stopPropagation(); await run(); });
-      return b;
-    };
-
-    acoes.append(
-      mk('↓', 'Baixar .md para compartilhar', () => {
-        downloadText(`${safeFilename(tpl.name)}.md`, tpl.content);
-      }),
-      mk('✎', 'Editar no editor de notas', () => requestTemplateEdit(tpl)),
-      mk('✕', 'Excluir modelo', async () => {
-        if (!confirm(`Excluir o modelo "${tpl.name}"?`)) return;
-        await deleteTemplateById(tpl.id);
-        await reopen();
-      }),
-    );
-
-    row.append(use, acoes);
-    pop.appendChild(row);
-  };
-
-  const grupos = [
-    ['Modelos de nota',  templates.filter(t => t.kind === 'note'),  'Nenhum modelo de nota ainda.'],
-    ['Modelos de bloco', templates.filter(t => t.kind === 'block'), 'Nenhum modelo de bloco ainda.'],
-  ];
-
-  for (const [titulo, lista, vazioTxt] of grupos) {
-    const head = document.createElement('div');
-    head.className = 'copy-menu-header';
-    head.textContent = titulo;
-    pop.appendChild(head);
-
-    if (lista.length === 0) {
-      const vazio = document.createElement('div');
-      vazio.className = 'templates-empty';
-      vazio.textContent = vazioTxt;
-      pop.appendChild(vazio);
-    }
-    lista.forEach(renderRow);
-  }
-
-  pop.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
-
-  // Salvar guarda e pronto — não troca a tela pelo modelo. Só "criar do zero"
-  // abre o editor, porque aí não existe nada pra guardar: o editor É a tarefa.
-  pop.appendChild(opt('Salvar a nota atual como modelo', async () => {
-    const atual = await getCurrentNote();
-    if (!atual?.markdown?.trim()) { alert('A nota atual está vazia.'); return; }
-    await createTemplateRecord({
-      name: atual.title || 'Novo modelo', content: atual.markdown, kind: 'note',
-    });
-    await reopen();
-  }));
-
-  pop.appendChild(opt('Criar modelo do zero', () =>
-    createAndEdit({ name: 'Novo modelo', content: '', kind: 'note' })));
-
-  // Dois botões em vez de um: o arquivo .md não diz se é nota ou bloco, e
-  // adivinhar erraria justamente no caso de compartilhar um modelo de bloco.
-  const importInput = document.createElement('input');
-  importInput.type = 'file';
-  importInput.accept = '.md,.txt,text/markdown,text/plain';
-  importInput.hidden = true;
-  let importKind = 'note';
-  importInput.addEventListener('change', async () => {
-    const file = importInput.files[0];
-    importInput.value = '';
-    if (!file) return;
-    const content = await file.text();
-    const name = file.name.replace(/\.(md|txt)$/i, '') || 'Modelo importado';
-    await createTemplateRecord({ name, content, kind: importKind });
-    await reopen();
-  });
-  pop.appendChild(importInput);
-
-  pop.appendChild(opt('Importar como modelo de nota', () => { importKind = 'note'; importInput.click(); }));
-  pop.appendChild(opt('Importar como modelo de bloco', () => { importKind = 'block'; importInput.click(); }));
-
-  document.body.appendChild(pop);
-  managerEl = pop;
-  positionPopover(pop, anchorEl);
-}
-
 document.addEventListener('mousedown', e => {
-  if (managerEl && !managerEl.contains(e.target)) closeTemplatesManager();
   if (nameMenuEl && !nameMenuEl.contains(e.target)) closeNameMenu();
 });
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  closeTemplatesManager();
   closeNameMenu();
 });

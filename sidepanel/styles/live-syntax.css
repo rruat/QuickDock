@@ -1,0 +1,24 @@
+/* ===== SINTAXE AO VIVO =====
+   O símbolo markdown aparece só com o cursor no bloco (título, citação) ou no
+   trecho (negrito, itálico, tachado, código). Os atributos data-md-* são
+   definidos por note/live-syntax.js. Os símbolos são pseudo-elementos, então
+   não entram no texto nem no arquivo salvo. */
+
+.note-editor-blocks [data-md-prefix]::before {
+  content: attr(data-md-prefix);
+  font-weight: 400;
+  font-style: normal;
+  color: var(--text-muted);
+  user-select: none;
+  pointer-events: none;
+}
+
+.note-editor-blocks [data-md-open]::before,
+.note-editor-blocks [data-md-open]::after {
+  content: attr(data-md-open);
+  font-weight: 400;
+  font-style: normal;
+  color: var(--text-muted);
+  user-select: none;
+  pointer-events: none;
+}

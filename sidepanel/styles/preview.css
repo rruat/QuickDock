@@ -1,0 +1,201 @@
+/* ===== MODAL DE PREVIEW ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: background 0.2s;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.modal-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== NAVEGAÇÃO ENTRE IMAGENS (GALERIA) ===== */
+.gallery-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.gallery-nav.hidden { display: none; }
+
+.gallery-counter {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.12s, color 0.12s;
+}
+.gallery-counter:hover { background: var(--bg-hover); color: var(--text); }
+
+.gallery-menu { max-height: 260px; overflow-y: auto; }
+.gallery-menu-item.current { background: var(--bg-hover); }
+.gallery-menu-item .copy-opt-hint {
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 16px;
+}
+
+.modal-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.modal-body object {
+  width: 100%;
+  flex: 1;
+  border: none;
+}
+
+.modal-body pre {
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  font-family: 'Courier New', Courier, monospace;
+}
+
+/* ===== TOOLBAR DO VISUALIZADOR DE IMAGENS ===== */
+.img-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  background: #161616;
+  border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.img-toolbar.hidden { display: none; }
+
+.viewer-btn {
+  background: none;
+  border: none;
+  color: #bbb;
+  font-size: 15px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1;
+  min-width: 28px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.viewer-btn:hover {
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+}
+
+.viewer-btn:active {
+  background: rgba(255,255,255,0.18);
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 14px;
+  background: #333;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.zoom-label {
+  font-size: 11px;
+  color: #888;
+  min-width: 38px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ===== CONTAINER DO VISUALIZADOR ===== */
+.img-viewer {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  cursor: grab;
+  position: relative;
+}
+
+.img-viewer.panning { cursor: grabbing; }
+
+.img-viewer img {
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+  display: block;
+  transform-origin: center center;
+  pointer-events: none;
+  user-select: none;
+  padding: 0;
+  /* Transição padrão; desativada durante pan para suavidade máxima */
+  transition: transform 0.12s ease-out;
+}
+
+.img-viewer img.no-transition {
+  transition: none;
+}
+
+/* ===== RUBBER BAND (retângulo de seleção) ===== */
+.rubber-band {
+  position: fixed;
+  background: rgba(35, 131, 226, 0.10);
+  border: 1.5px solid #2383e2;
+  border-radius: 3px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* ===== ÚLTIMO ABERTO ===== */
+.doc-card.last-opened {
+  outline: 1.5px dashed var(--text-muted);
+  outline-offset: 1px;
+}
+
+/* ===== CARD SELECIONADO ===== */
+.doc-card.selected {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  border-color: var(--accent);
+}
+
+.doc-card.selected .doc-thumbnail,
+.doc-card.selected .doc-icon {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+

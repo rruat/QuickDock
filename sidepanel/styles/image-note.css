@@ -1,0 +1,92 @@
+/* ===== IMAGEM NA NOTA ===== */
+/* O bloco não é editável (o cursor não entra nele); o que se edita é o texto
+   alternativo, por botão. */
+.block-image {
+  margin: 6px 0;
+  position: relative;
+  max-width: 100%;
+}
+
+.block-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: zoom-in;
+  background: var(--bg-secondary);
+  /* Teto de altura: um print de tela inteira colado numa coluna estreita
+     empurraria o resto da nota pra fora da vista. */
+  max-height: 320px;
+  object-fit: contain;
+}
+
+/* Arquivo que não foi encontrado (faxina, banco limpo): mostra a moldura vazia
+   com o texto alternativo, em vez de um ícone de imagem quebrada. */
+.block-image-missing img { display: none; }
+.block-image-missing::before {
+  content: 'imagem não encontrada';
+  display: block;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+/* A barra só aparece no hover — como a da tabela, que só existe enquanto o
+   cursor está nela. Aqui não dá pra usar :focus-within: o bloco não é
+   editável e nunca recebe foco. */
+.image-tools {
+  display: none;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.block-image:hover .image-tools { display: flex; }
+
+.image-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 2px 9px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.image-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+/* "Mover p/ Documentos" é a ação com mais consequência da barra — ela tira a
+   imagem do texto. Vem preenchida na cor de destaque pra ser a primeira coisa
+   que se enxerga, já que é o que a pessoa procura quando decide que a imagem
+   não devia estar ali. */
+.image-btn-accent {
+  background: var(--note-accent, var(--accent));
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+.image-btn-accent:hover {
+  background: color-mix(in srgb, var(--note-accent, var(--accent)) 85%, #000);
+  color: #fff;
+}
+
+.alt-menu { min-width: 230px; padding: 8px; }
+.alt-menu-hint {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding: 0 2px 6px;
+}
+
+/* Arrastar um arquivo de imagem pra dentro do editor */
+.note-editor-blocks.editor-drop {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: var(--radius-sm);
+}
+

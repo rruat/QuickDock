@@ -1,0 +1,333 @@
+/* ===== EDITOR DE BLOCOS ===== */
+.note-editor-blocks {
+  flex: 1;
+  overflow-y: auto;
+  /* padding-left maior que os outros lados: reserva espaço pros controles
+     de bloco (+ / ⠿) que aparecem ao passar o mouse */
+  /* topo = barra de abas (margem 8 + altura 44 = 52px) + 14px de respiro, igual à distância da barra */
+  padding: 66px 14px 26px 34px;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+  outline: none;
+}
+
+/* Controles de bloco (+ / ⠿) — overlay único que acompanha o bloco sob o
+   mouse, fora do editável (irmão de .note-editor-blocks) */
+/* `top` e `left` são calculados no JS (positionBlockControls): o `left`
+   acompanha a indentação do bloco, e o `top` fica preso dentro da área
+   visível do editor. Os valores aqui são só o ponto de partida. */
+.block-controls {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.block-controls[hidden] { display: none; }
+
+.block-add-btn,
+.block-handle-btn {
+  width: 15px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.block-add-btn:hover,
+.block-handle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.block-handle-btn { cursor: grab; font-size: 10px; }
+
+/* Bloco(s) selecionado(s) — arrastando o texto por cima de vários, pela alça
+   ou com Ctrl+arrastar */
+.note-editor-blocks .block.block-selected {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 4px;
+}
+
+/* Blocos que formam uma sequência — a folha de cálculo e o destaque — leem
+   como um quadro só. O realce de seleção não pode quebrar isso em vários
+   cartões empilhados: o contorno some e o canto arredondado fica só nas
+   pontas da sequência, que é onde ele já estava.
+
+   O fundo do realce continua, e é ele que mostra o que está selecionado. */
+.note-editor-blocks .block.block-calc.block-selected,
+.note-editor-blocks .block[data-callout].block-selected {
+  outline: none;
+  border-radius: 0;
+}
+.note-editor-blocks .block.block-calc.block-selected[data-calc-first],
+.note-editor-blocks .block[data-callout].block-selected[data-callout-first] {
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
+}
+.note-editor-blocks .block.block-calc.block-selected[data-calc-last],
+.note-editor-blocks .block[data-callout].block-selected[data-callout-last] {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+/* Com o bloco inteiro realçado, o realce nativo do texto por baixo faria um
+   borrão duplo e de bordas irregulares (a última linha só até onde o cursor
+   parou). A seleção de texto continua existindo — é dela que a barra de
+   formatação tira o alcance —, só não é desenhada. */
+.note-editor-blocks.blocks-selected ::selection {
+  background: transparent;
+}
+
+/* Bloco(s) sendo arrastado(s) pra reordenar */
+.note-editor-blocks .block.block-dragging {
+  opacity: 0.35;
+}
+
+/* Linha indicadora de onde o bloco vai cair */
+.block-drop-indicator {
+  position: absolute;
+  left: 4px;
+  right: 10px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 3;
+}
+.block-drop-indicator[hidden] { display: none; }
+
+.block-menu { min-width: 190px; }
+
+/* Barra de ações rápidas do menu do bloco, no topo.
+   `sticky` é o que a torna um cabeçalho de verdade: o menu tem altura máxima e
+   rola (a lista de "Transformar em" é longa), e sem isso copiar e excluir
+   sumiriam de vista junto com o resto. O fundo opaco é obrigatório — sem ele o
+   conteúdo rolaria visível por baixo dos ícones. */
+.block-menu-quickbar {
+  position: sticky;
+  top: -4px;                    /* compensa o padding do .copy-menu */
+  z-index: 1;
+  display: flex;
+  gap: 2px;
+  margin: -4px -4px 4px;
+  padding: 4px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  border-radius: 10px 10px 0 0;
+}
+
+.block-menu-quick {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.block-menu-quick:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* Excluir é o único que não tem volta fácil: fica vermelho ao passar o mouse,
+   pra que o gesto errado se anuncie antes do clique. */
+.block-menu-quick.is-danger:hover {
+  background: color-mix(in srgb, #ef4444 14%, transparent);
+  color: #ef4444;
+}
+
+.block-menu-quick .material-symbols-rounded {
+  font-size: 19px;
+  --icon-opsz: 20;
+}
+
+.note-editor-blocks .block {
+  outline: none;
+  min-height: 1.65em;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+
+.note-editor-blocks h1.block,
+.note-editor-blocks h2.block,
+.note-editor-blocks h3.block,
+.note-editor-blocks h4.block,
+.note-editor-blocks h5.block,
+.note-editor-blocks h6.block {
+  font-weight: 700;
+}
+.note-editor-blocks h1.block { font-size: 20px; margin: 12px 0 4px; }
+.note-editor-blocks h2.block { font-size: 17px; margin: 10px 0 4px; }
+.note-editor-blocks h3.block { font-size: 15px; margin: 8px 0 3px; }
+.note-editor-blocks h4.block,
+.note-editor-blocks h5.block,
+.note-editor-blocks h6.block { font-size: 13px; opacity: 0.78; margin: 6px 0 2px; }
+.note-editor-blocks h1.block:first-child,
+.note-editor-blocks h2.block:first-child,
+.note-editor-blocks h3.block:first-child,
+.note-editor-blocks h4.block:first-child { margin-top: 0; }
+
+/* Citação. Não é um tipo de bloco e sim uma marca que qualquer bloco pode ter
+   — por isso o seletor é de atributo e não de elemento: um título citado
+   continua sendo um <h4> e mantém o tamanho e o peso dele.
+
+   Sem itálico: dentro da citação agora cabe lista, checklist e título, e
+   inclinar tudo isso atrapalha a leitura em vez de ajudar. Quem marca a
+   citação é a barra. */
+.note-editor-blocks .block[data-quoted="true"] {
+  border-left: 3px solid var(--note-accent, var(--accent));
+  padding-left: 10px;
+  color: var(--text-muted);
+}
+
+/* Blocos citados em sequência formam uma barra só. Uma barra por bloco, com a
+   margem de cada um no meio, sairia tracejada. */
+.note-editor-blocks .block[data-quoted="true"] + .block[data-quoted="true"] {
+  margin-top: 0;
+}
+.note-editor-blocks .block[data-quoted="true"]:has(+ .block[data-quoted="true"]) {
+  margin-bottom: 0;
+}
+
+/* ===== DESTAQUE (callout) =====
+   A caixa colorida com rótulo dos sites de documentação. No markdown ela é uma
+   citação com um marcador na primeira linha, e aqui é a mesma coisa: uma
+   segunda camada em cima de [data-quoted]. Por isso estas regras vêm DEPOIS
+   das da citação — mesma especificidade, quem vem por último vence.
+
+   --callout carrega a cor e --callout-label o rótulo, pra que cada tipo caiba
+   numa linha só e o resto do estilo seja escrito uma vez. */
+.note-editor-blocks .block[data-callout="note"]      { --callout: oklch(60.58% 0.1674 252.7); --callout-label: 'Nota'; --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233b8fe0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E"); }
+.note-editor-blocks .block[data-callout="tip"]       { --callout: oklch(62.7% 0.17 149.2); --callout-label: 'Dica'; --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2322a447' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3C/svg%3E"); }
+.note-editor-blocks .block[data-callout="important"] { --callout: oklch(62.7% 0.233 303.9); --callout-label: 'Importante'; --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239d5cf0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3Cpath d='M12 7v4'/%3E%3Cpath d='M12 15h.01'/%3E%3C/svg%3E"); }
+.note-editor-blocks .block[data-callout="warning"]   { --callout: oklch(66.58% 0.1574 58.32); --callout-label: 'Atenção'; --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d98a1a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E"); }
+.note-editor-blocks .block[data-callout="caution"]   { --callout: oklch(63.7% 0.208 25.3); --callout-label: 'Cuidado'; --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e0463c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E"); }
+
+.note-editor-blocks .block[data-callout] {
+  border-left-color: var(--callout);
+  background: color-mix(in srgb, var(--callout) 9%, transparent);
+  color: var(--text);              /* a citação deixa o texto apagado; aqui não */
+  padding-right: 10px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  border-radius: 0;                /* os cantos ficam só nas pontas da sequência */
+}
+
+/* Vários blocos seguidos com o mesmo destaque leem como uma caixa só: o
+   arredondamento vai na primeira e na última linha, não em cada uma.
+
+   Quem marca as pontas é o JS (markCalloutEdges), não a adjacência em CSS:
+   "não vir depois de um destaque DO MESMO TIPO" precisaria de uma regra por
+   tipo, e mesmo assim erraria com dois destaques diferentes colados — que é
+   exatamente quando o rótulo mais faz falta. */
+.note-editor-blocks .block[data-callout-first] {
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
+  padding-top: 7px;
+  margin-top: 6px;              /* separa de um destaque de outro tipo logo acima */
+}
+.note-editor-blocks .block[data-callout-last] {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  padding-bottom: 7px;
+  margin-bottom: 6px;
+}
+
+/* O rótulo é escrito pelo CSS, não é texto da nota: não dá pra apagar sem
+   querer, não entra na contagem do cursor e não vai parar no arquivo salvo —
+   no markdown ele é o marcador "[!NOTE]", gerado na exportação. Fica numa
+   linha só dele; o texto do destaque começa na linha de baixo. */
+.note-editor-blocks .block[data-callout-first]::before {
+  content: var(--callout-label);
+  display: block;
+  margin-bottom: 2px;
+  padding-left: 22px;
+  background: var(--callout-icon) no-repeat left center / 16px 16px;
+  font-weight: 700;
+  color: var(--callout);
+  user-select: none;
+}
+
+/* Com o cursor no primeiro bloco do destaque, o rótulo vira o marcador do
+   markdown ("> [!NOTE]"), em fonte mono, no mesmo lugar (live-syntax.js). */
+.note-editor-blocks .block[data-callout-first][data-md-prefix]::before {
+  content: attr(data-md-prefix);
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: var(--callout);
+  opacity: 0.9;
+}
+
+/* A margem de indentação empurraria o bloco pra fora da barra da citação; aqui
+   ela vira recuo por dentro, e a barra continua inteira. */
+.note-editor-blocks .block[data-quoted="true"][data-depth="1"] { margin-left: 0; padding-left: 28px; }
+.note-editor-blocks .block[data-quoted="true"][data-depth="2"] { margin-left: 0; padding-left: 46px; }
+.note-editor-blocks .block[data-quoted="true"][data-depth="3"] { margin-left: 0; padding-left: 64px; }
+.note-editor-blocks .block[data-quoted="true"][data-depth="4"] { margin-left: 0; padding-left: 82px; }
+.note-editor-blocks .block[data-quoted="true"][data-depth="5"] { margin-left: 0; padding-left: 100px; }
+
+/* Indentação (Tab / Shift+Tab). O nível vem do data-depth do bloco; o passo é
+   curto de propósito — o painel lateral é estreito e uma escada larga demais
+   espreme o texto em três colunas antes do quinto nível.
+
+   Vale pra qualquer tipo de bloco, não só lista: parágrafo, título e tabela
+   também indentam, que é o que permite "conteúdo dentro do item". */
+.note-editor-blocks .block[data-depth="1"] { margin-left: 18px; }
+.note-editor-blocks .block[data-depth="2"] { margin-left: 36px; }
+.note-editor-blocks .block[data-depth="3"] { margin-left: 54px; }
+.note-editor-blocks .block[data-depth="4"] { margin-left: 72px; }
+.note-editor-blocks .block[data-depth="5"] { margin-left: 90px; }
+
+.block-list {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.block-list .block-marker {
+  flex-shrink: 0;
+  color: var(--note-accent, var(--accent));
+  font-weight: 700;
+  user-select: none;
+  padding-top: 1px;
+}
+.block-list .block-content {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+
+.block-checklist .block-marker.cb-wrap {
+  padding-top: 3px;
+}
+.block-checklist input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--note-accent, var(--accent));
+  cursor: pointer;
+}
+.block-checklist[data-checked="true"] .block-content {
+  text-decoration: line-through;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+

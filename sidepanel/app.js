@@ -19,6 +19,26 @@ async function initTheme() {
   applyTheme(theme);
 }
 
+// Documentos ocultos: some a seção inteira e as notas ocupam a altura toda.
+// A escolha fica salva (chrome.storage) e vale ao reabrir o painel.
+const DOCS_HIDDEN_KEY = 'docs_hidden';
+
+function applyDocsHidden(hidden) {
+  document.body.classList.toggle('docs-hidden', hidden);
+}
+
+async function loadDocsHidden() {
+  return new Promise(resolve => {
+    chrome.storage.local.get(DOCS_HIDDEN_KEY, obj => resolve(!!obj[DOCS_HIDDEN_KEY]));
+  });
+}
+
+async function toggleDocs() {
+  const next = !document.body.classList.contains('docs-hidden');
+  applyDocsHidden(next);
+  await new Promise(resolve => chrome.storage.local.set({ [DOCS_HIDDEN_KEY]: next }, resolve));
+}
+
 async function toggleTheme() {
   const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   await saveTheme(next);
@@ -41,10 +61,17 @@ function openAppMenu() {
   const menu = document.createElement('div');
   menu.className = 'copy-menu app-menu';
 
-  const addOpt = (label, onClick, className = '') => {
+  // Ícone à esquerda (Material Symbols), como nos menus da Apple.
+  const addOpt = (icon, label, onClick) => {
     const opt = document.createElement('button');
-    opt.className = `copy-opt ${className}`.trim();
-    opt.textContent = label;
+    opt.className = 'copy-opt';
+    const iconEl = document.createElement('span');
+    iconEl.className = 'copy-opt-icon material-symbols-rounded';
+    iconEl.textContent = icon;
+    const valueEl = document.createElement('span');
+    valueEl.className = 'copy-opt-value';
+    valueEl.textContent = label;
+    opt.append(iconEl, valueEl);
     opt.addEventListener('click', async () => {
       closeAppMenu();
       await onClick();
@@ -53,14 +80,16 @@ function openAppMenu() {
   };
 
   const dark = html.getAttribute('data-theme') === 'dark';
-  addOpt('📘  Ver tutorial', createTutorialNote);
-  addOpt(dark ? '☀️  Tema claro' : '🌙  Tema escuro', toggleTheme);
+  addOpt('menu_book', 'Ver tutorial', createTutorialNote);
+  addOpt(dark ? 'light_mode' : 'dark_mode', dark ? 'Tema claro' : 'Tema escuro', toggleTheme);
+  const docsHidden = document.body.classList.contains('docs-hidden');
+  addOpt(docsHidden ? 'visibility' : 'visibility_off', docsHidden ? 'Mostrar documentos' : 'Ocultar documentos', toggleDocs);
 
   menu.appendChild(Object.assign(document.createElement('div'), { className: 'math-divider' }));
 
   // Um arquivo com tudo dentro. Existe pra que atualizar a extensão nunca
   // dependa de confiança: dá pra guardar as notas antes e conferir depois.
-  addOpt('💾  Baixar todas as notas', downloadAllNotes);
+  addOpt('download', 'Baixar todas as notas', downloadAllNotes);
 
   document.body.appendChild(menu);
   appMenuEl = menu;
@@ -98,6 +127,7 @@ function revealApp() {
 async function init() {
   try {
     await initTheme();
+    applyDocsHidden(await loadDocsHidden());
     await initNotesTabs();
     await initDocuments();
     await initResizer();

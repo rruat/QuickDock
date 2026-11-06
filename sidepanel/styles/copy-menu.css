@@ -1,0 +1,81 @@
+/* ===== MENU DE CÓPIA INTELIGENTE ===== */
+.copy-menu {
+  position: fixed;
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid transparent;
+  /* raio do menu = raio do item (20px) + padding do menu (6px) */
+  border-radius: calc(20px + 6px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+  z-index: 10000;
+  min-width: 220px;
+  padding: 6px;
+  animation: menu-in 0.1s ease-out;
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: scale(0.95) translateY(-2px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+.copy-menu-header {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 10px 4px;
+  user-select: none;
+}
+
+.copy-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 20px;
+  font-family: var(--font);
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.copy-opt:hover {
+  background: var(--bar-active);
+}
+
+/* Ícone à esquerda do item do menu */
+.copy-opt-icon {
+  font-size: 18px;
+  --icon-opsz: 18;
+  width: 20px;
+  flex-shrink: 0;
+  color: var(--text);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.copy-opt-value {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-opt-hint {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+

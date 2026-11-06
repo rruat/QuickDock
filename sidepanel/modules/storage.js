@@ -241,7 +241,8 @@ export async function gcInlineFiles() {
   const usados = new Set();
   await db.notes.each(note => {
     for (const b of note.blocks ?? []) {
-      if (b.type === 'image' && b.fileId != null) usados.add(b.fileId);
+      // Imagem, áudio e vídeo guardam o arquivo em fileId: todos contam como usados.
+      if (b.fileId != null) usados.add(b.fileId);
     }
   });
 

@@ -1,0 +1,101 @@
+/* ===== FOLHA DE CÁLCULO =====
+   Cada linha é um bloco; blocos colados formam a folha, e é ela o escopo das
+   variáveis. As pontas são marcadas pelo JS (recalcCalcSheets) porque só ele
+   sabe onde a sequência começa e acaba. */
+.block-calc {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  background: var(--bg-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 10px;
+  border-left: 3px solid color-mix(in srgb, var(--note-accent, var(--accent)) 45%, transparent);
+  border-radius: 0;
+  margin: 0;
+}
+
+.block-calc[data-calc-first] {
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
+  padding-top: 7px;
+  margin-top: 6px;
+}
+.block-calc[data-calc-last] {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  padding-bottom: 7px;
+  margin-bottom: 6px;
+}
+
+.block-calc .block-content {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  white-space: pre-wrap;
+}
+
+/* O resultado não é conteúdo editável: encolhe por último e não deixa o texto
+   colar nele. Num painel estreito é o texto que quebra em duas linhas, não o
+   valor — o valor é o que a pessoa veio ler. */
+.calc-result {
+  flex-shrink: 0;
+  max-width: 45%;
+  text-align: right;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  overflow-wrap: anywhere;
+}
+
+.block-calc[data-calc-erro] .calc-result {
+  color: #dc2626;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.block-code {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin: 2px 0;
+}
+.block-code .block-content {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  outline: none;
+}
+
+.block-divider {
+  padding: 8px 0;
+}
+.block-divider hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* Marcações inline reais (aplicadas ao digitar **, *, ~~, ` ou pela barra) */
+.note-editor-blocks strong { font-weight: 700; }
+.note-editor-blocks em     { font-style: italic; }
+.note-editor-blocks s      { text-decoration: line-through; opacity: 0.75; }
+.note-editor-blocks code   {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* Link: cursor de texto por padrão (senão não dá pra editar clicando dentro);
+   vira mão no modo Ctrl, que é quando o clique navega. */
+.note-editor-blocks a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: text;
+}
+.note-section.ctrl-active .note-editor-blocks a { cursor: pointer; }
+

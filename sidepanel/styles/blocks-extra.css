@@ -1,0 +1,127 @@
+/* ===== BLOCOS EXTRAS: quebra de página, sumário, áudio e vídeo =====
+   Os estilos de imagem (image-tools, image-btn) são reaproveitados pelo bloco de mídia. */
+
+/* Quebra de página: linha tracejada com rótulo, sem texto editável */
+.note-editor-blocks .block-pagebreak {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  user-select: none;
+}
+.note-editor-blocks .block-pagebreak .pagebreak-line {
+  flex: 1;
+  border-top: 1px dashed var(--border);
+}
+.note-editor-blocks .block-pagebreak .pagebreak-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Sumário: caixa com a lista automática dos títulos */
+.note-editor-blocks .block-toc {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+.note-editor-blocks .block-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.note-editor-blocks .block-toc-item {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--accent);
+  cursor: pointer;
+}
+.note-editor-blocks .block-toc-item:hover { text-decoration: underline; }
+.note-editor-blocks .block-toc-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Áudio e vídeo */
+.note-editor-blocks .block-media {
+  position: relative;
+  margin: 8px 0;
+}
+.note-editor-blocks .block-media audio,
+.note-editor-blocks .block-media video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+}
+.note-editor-blocks .block-media-missing {
+  opacity: 0.6;
+  outline: 1px dashed var(--border);
+  outline-offset: 4px;
+}
+.note-editor-blocks .block-media:hover .image-tools { display: flex; }
+
+/* Divisor editável: sem o cursor é só a linha; com o cursor mostra o "---" */
+.note-editor-blocks .block-divider {
+  position: relative;
+  padding: 8px 0;
+  min-height: 1.65em;
+  color: transparent;
+  caret-color: var(--text);
+}
+.note-editor-blocks .block-divider::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--border);
+  pointer-events: none;
+}
+.note-editor-blocks .block-divider[data-md-src] { color: var(--text-muted); }
+.note-editor-blocks .block-divider[data-md-src]::after { display: none; }
+
+/* Lista com o cursor na linha: o marcador some e o texto "- " / "- [ ] " aparece */
+.note-editor-blocks .block-list[data-md-src] > .block-marker { display: none; }
+/* Marcado-texto (==trecho==): fundo amarelo suave; o texto segue a cor da linha */
+.note-section .note-editor-blocks mark.md-highlight {
+  background: oklch(92% 0.13 98 / 0.75);
+  color: inherit;
+  border-radius: 3px;
+  /* sem padding: a borda do elemento fica exatamente na letra, como no negrito,
+     para o cursor entrar e sair do trecho nos mesmos pontos */
+  text-decoration: none;
+  cursor: text;
+}
+html[data-theme="dark"] .note-section .note-editor-blocks mark.md-highlight {
+  background: oklch(42% 0.1 98 / 0.6);
+}
+/* Marcador editável do destaque ("> [!NOTE]"): aparece com o cursor no destaque,
+   no lugar do rótulo colorido. Trocar o tipo ou apagar o "[!" muda o bloco. */
+.note-editor-blocks .callout-marker {
+  display: none;
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: var(--callout);
+  caret-color: var(--callout);
+  user-select: text;
+}
+.note-editor-blocks .block[data-callout-first][data-md-src] > .callout-marker {
+  display: block;
+  margin-bottom: 2px;
+}
+.note-editor-blocks .block[data-callout-first][data-md-src]::before { display: none; }
+/* Valor detectado (CPF, data, cálculo…): clicável sem Ctrl */
+.note-editor-blocks mark[data-type]:not([data-type="math"]) { cursor: pointer; }
+/* Resultado do cálculo: clicável para copiar */
+.note-editor-blocks .calc-result {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0 6px;
+  transition: background 0.12s;
+}
+.note-editor-blocks .calc-result:hover { background: var(--bg-hover); }
+.note-editor-blocks .calc-result:active { background: var(--bar-active); }

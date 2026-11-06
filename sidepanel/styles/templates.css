@@ -1,0 +1,168 @@
+/* ===== MODELOS DE NOTA ===== */
+.new-menu { min-width: 190px; }
+.templates-manager { min-width: 232px; }
+
+.templates-empty {
+  padding: 6px 10px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* Nome à esquerda ocupa a linha toda; as ações aparecem no hover, pra lista
+   ficar legível quando há vários modelos. */
+.template-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+}
+
+.template-row:hover { background: var(--bg-hover); }
+
+.template-use {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.template-actions {
+  display: flex;
+  gap: 1px;
+  padding-right: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.template-row:hover .template-actions,
+.template-row:focus-within .template-actions { opacity: 1; }
+
+.template-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.template-btn:hover { background: var(--bg-secondary); color: var(--text); }
+
+
+
+
+
+/* ===== BARRA DE MODO MODELO =====
+   No modo modelo a barra de abas some. O cabeçalho do modelo é uma linha só,
+   sem fundo: cancelar, nome, tipo e salvar. */
+.note-section.template-mode .notes-tabbar { display: none; }
+
+/* A barra do modelo flutua sobre o texto, como o cabeçalho da nota: o texto rola por trás dela.
+   O topo do texto começa abaixo da barra (margem 8 + altura 40 + respiro). */
+.note-section.template-mode .template-bar:not([hidden]) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 8px 10px 0;
+}
+.note-section.template-mode .note-editor-blocks { padding-top: 60px; }
+
+.template-bar:not([hidden]) {
+  display: block;
+  margin: 8px 10px 4px;
+  flex-shrink: 0;
+}
+.template-bar[hidden] { display: none; }
+
+.template-bar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.template-bar-icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+.template-bar-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.template-bar-primary {
+  color: #fff;
+  background: var(--accent);
+}
+.template-bar-primary:hover { filter: brightness(1.08); }
+
+.template-bar-name {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bar);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+}
+.template-bar-name:focus { border-color: var(--accent); }
+
+.template-bar-kind {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 26px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bar)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  outline: none;
+}
+/* No modo modelo a marca d'água sai: ela é identidade da nota, e ali não há
+   nota nenhuma. */
+.note-section.template-mode .note-watermark { opacity: 0; }
+

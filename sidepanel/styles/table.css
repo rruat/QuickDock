@@ -1,0 +1,69 @@
+/* ===== TABELA ===== */
+.block-table { margin: 8px 0; }
+
+/* O painel é estreito: a tabela rola na horizontal em vez de espremer coluna. */
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+/* spacing 0: as células ficam encostadas, sem espaço entre elas */
+.block-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+/* linha de 40px; cada célula só desenha a linha da direita e de baixo (a borda
+   de fora é a do contorno), então não aparece linha dupla */
+.block-table tr { height: 40px; }
+
+.table-cell {
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 0 10px;
+  height: 40px;
+  vertical-align: middle;
+  /* largura que segura um CPF mascarado sem quebrar no meio do número; o que
+     passar disso vai pro scroll horizontal, não pra célula espremida */
+  min-width: 88px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  outline: none;
+  word-break: break-word;
+}
+
+.block-table th.table-cell {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  text-align: left;
+}
+
+.table-cell:focus { box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* A barra só existe enquanto o cursor está na tabela — fora disso é ruído. */
+.table-tools {
+  display: none;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.block-table:focus-within .table-tools { display: flex; }
+
+.table-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 2px 9px;
+  font-family: var(--font);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.table-btn:hover { background: var(--bg-hover); color: var(--text); }
+
