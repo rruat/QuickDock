@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "QuickDock",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Workspace lateral persistente para produtividade operacional.",
   "commands": {
     "toggle-panel": {
@@ -11,8 +11,7 @@
   },
   "permissions": [
     "sidePanel",
-    "storage",
-    "tabs"
+    "storage"
   ],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [{
